@@ -1,0 +1,13 @@
+{
+  "name": "programmable-matter",
+  "version": "1.0.0",
+  "description": "Text files that do stuff",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "Jake Donham",
+  "devDependencies": {
+    "electron": "^4.1.3"
+  }
+}
