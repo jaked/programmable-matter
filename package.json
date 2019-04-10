@@ -4,10 +4,18 @@
   "description": "Text files that do stuff",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "build": "webpack",
+    "start": "webpack && electron ."
   },
   "author": "Jake Donham",
   "devDependencies": {
-    "electron": "^4.1.3"
+    "electron": "^4.1.3",
+    "jsx-loader": "^0.13.2",
+    "webpack": "^4.29.6",
+    "webpack-cli": "^3.3.0"
+  },
+  "dependencies": {
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
   }
 }
