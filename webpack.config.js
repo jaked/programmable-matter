@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
-  entry: './app/app.jsx',
+  entry: './src/app.tsx',
 
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -10,7 +10,7 @@ module.exports = {
   },
 
   resolve: {
-    extensions: ['.js', '.jsx'],
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
   },
 
   module: {
@@ -18,10 +18,22 @@ module.exports = {
       {
         test: /\.jsx?$/,
         loader: 'jsx-loader',
-        include: path.resolve(__dirname, 'app'),
+        include: path.resolve(__dirname, 'src'),
+      },
+      {
+        test: /\.tsx?$/,
+        loader: 'ts-loader',
+        include: path.resolve(__dirname, 'src'),
+      },
+      {
+        test: /\.js$/,
+        loader: 'source-map-loader',
+        enforce: 'pre',
       },
     ],
   },
+
+  devtool: "source-map",
 
   devServer: {
     inline: false

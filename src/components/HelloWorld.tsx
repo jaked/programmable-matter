@@ -1,5 +1,5 @@
-const React = require('react');
-const UnorderedList = require('./UnorderedList');
+import * as React from 'react';
+import { UnorderedList } from './UnorderedList';
 
 const dependenciesArray = [
   'express - middleware for the node server',
@@ -16,21 +16,21 @@ const componentsMade = [
 ];
 
 /* the main page for the index route of this app */
-const HelloWorld = function() {
-  return (
-    <div>
-      <h1>Hello World!</h1>
+export class HelloWorld extends React.Component<any, any> {
+  render() {
+    return (
+      <div>
+        <h1>Hello World!!</h1>
 
-      <p>This is a starter <a href="http://glitch.com">Glitch</a> app for React! It uses 
-        only a few dependencies to get you started on working with React:</p>
+        <p>This is a starter <a href="http://glitch.com">Glitch</a> app for React! It uses 
+          only a few dependencies to get you started on working with React:</p>
 
-      <UnorderedList items={dependenciesArray} />
+        <UnorderedList items={dependenciesArray} />
 
-      <p>Look in <code>app/components/</code> for two example components:</p>
+        <p>Look in <code>app/components/</code> for two example components:</p>
 
-      <UnorderedList items={componentsMade} />
-    </div>
-  );
-}
-
-module.exports = HelloWorld;
+        <UnorderedList items={componentsMade} />
+      </div>
+    );
+  }
+};
