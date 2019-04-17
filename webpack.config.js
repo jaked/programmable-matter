@@ -4,6 +4,8 @@ module.exports = {
   mode: 'production',
   entry: './src/app.tsx',
 
+  target: 'electron-renderer',
+
   output: {
     path: path.resolve(__dirname, 'build'),
     filename: 'bundle.js',
@@ -29,6 +31,9 @@ module.exports = {
         test: /\.js$/,
         loader: 'source-map-loader',
         enforce: 'pre',
+
+        // https://github.com/Rich-Harris/sourcemap-codec/issues/73
+        exclude: [/sourcemap-codec.es.js/],
       },
     ],
   },
