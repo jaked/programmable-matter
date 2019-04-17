@@ -21,7 +21,7 @@
     "@mdx-js/runtime": "^1.0.5",
     "@types/react": "^16.8.13",
     "@types/react-dom": "^16.8.4",
-    "acorn": "^6.1.1", // avoid version clash via jsx-loader
+    "acorn": "^6.1.1",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"
   }
