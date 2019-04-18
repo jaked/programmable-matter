@@ -1,18 +1,23 @@
 import * as React from 'react';
 import AceEditor from 'react-ace';
 import 'brace/mode/jsx';
-import 'brace/theme/monokai';
+import 'brace/theme/chrome';
 
 export class Editor extends React.Component<any, any> {
   render() {
     return (
       <AceEditor
         mode='jsx'
-        theme='monokai'
+        theme='chrome'
         width='100hw'
         height='100vh'
-        setOptions={{ showLineNumbers: false }}
+        showGutter={false}
         tabSize={2}
+        setOptions={{
+          displayIndentGuides: false,
+          showPrintMargin: false,
+          useSoftTabs: true,
+        }}
         focus
       />
     );
