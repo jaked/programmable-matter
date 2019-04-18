@@ -11,6 +11,7 @@ export class Editor extends React.Component<any, any> {
         theme='monokai'
         width='100hw'
         height='100vh'
+        setOptions={{ showLineNumbers: false }}
         tabSize={2}
         focus
       />
