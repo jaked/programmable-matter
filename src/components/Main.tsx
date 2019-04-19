@@ -10,14 +10,23 @@ const FullHeightBox = styled(Box)`
 `;
 
 export class Main extends React.Component<any, any> {
+  state = {
+    content: '# Hello World'
+  }
+
+  handleChange = content => {
+    this.setState({ content })
+  }
+
   render() {
+    const { content } = this.state
     return (
       <Flex>
         <FullHeightBox width={1/2}>
-          <Editor />
+          <Editor content={content} onChange={this.handleChange} />
         </FullHeightBox>
         <FullHeightBox width={1/2}>
-          <Display />
+          <Display content={content} />
         </FullHeightBox>
       </Flex>
     );

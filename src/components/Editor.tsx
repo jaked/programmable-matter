@@ -4,9 +4,15 @@ import 'brace/mode/jsx';
 import 'brace/theme/chrome';
 
 export class Editor extends React.Component<any, any> {
+  handleChange = content => {
+    this.props.onChange(content)
+  }
+  
   render() {
     return (
       <AceEditor
+        value={this.props.content}
+        onChange={this.handleChange}
         mode='jsx'
         theme='chrome'
         width='100%'
