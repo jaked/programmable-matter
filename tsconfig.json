@@ -7,6 +7,12 @@
     "esModuleInterop": true,
     "jsx": "react",             // use typescript to transpile jsx to js
     "target": "es5",            // specify ECMAScript target version
+    "lib": [
+      "DOM",
+      "ES5",
+      "ScriptHost",
+      "ES2015.Collection"
+    ],
     "allowJs": true,            // allow a partial TypeScript and JavaScript codebase
     "types": [],                // avoid loading @types/node to speed up build
   },
