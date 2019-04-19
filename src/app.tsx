@@ -1,13 +1,9 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
-import { TwitterTweetEmbed } from 'react-twitter-embed';
+import { Main } from './components/Main';
 
-/* Import Components */
-import { HelloWorld } from './components/HelloWorld';
-import { Display } from './components/Display';
-import { Editor } from './components/Editor';
+// import { TwitterTweetEmbed } from 'react-twitter-embed';
+// const tweet = <TwitterTweetEmbed tweetId={'839303032403714048'} />
 
-const tweet = <TwitterTweetEmbed tweetId={'839303032403714048'} />
-
-ReactDOM.render(tweet, document.getElementById('main'));
+ReactDOM.render(<Main/>, document.getElementById('main'));

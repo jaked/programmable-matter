@@ -9,8 +9,8 @@ export class Editor extends React.Component<any, any> {
       <AceEditor
         mode='jsx'
         theme='chrome'
-        width='100hw'
-        height='100vh'
+        width='100%'
+        height='100%'
         showGutter={false}
         tabSize={2}
         setOptions={{
