@@ -7,7 +7,11 @@ const components = {
   Tweet: props => <TwitterTweetEmbed {...props} />
 }
 
-export class Display extends React.Component<any, any> {
+interface Props {
+  content: string;
+}
+
+export class Display extends React.Component<Props, {}> {
   render() {
     return (
       <MDX components={components}>{this.props.content}</MDX>

@@ -21,7 +21,6 @@
       "ScriptHost",
       "ES2015.Collection"
     ],
-    "allowJs": true,            // allow a partial TypeScript and JavaScript codebase
     "types": [],                // avoid loading @types/node to speed up build
   },
   "include": [

@@ -10,7 +10,11 @@ const FullHeightBox = styled(Box)`
   height: 100vh
 `;
 
-export class Main extends React.Component<any, any> {
+interface State {
+  content: string;
+}
+
+export class Main extends React.Component<{}, State> {
   state = {
     content: '# Hello World'
   }

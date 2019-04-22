@@ -8,7 +8,7 @@ interface State {
   err: string | null
 }
 
-export class Catch extends React.Component<any, any> {
+export class Catch extends React.Component<{}, State> {
   state: State = {
     err: null
   }

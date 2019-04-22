@@ -3,7 +3,13 @@ import AceEditor from 'react-ace';
 import 'brace/mode/jsx';
 import 'brace/theme/chrome';
 
-export class Editor extends React.Component<any, any> {
+interface Props {
+  content: string;
+  
+  onChange: (string) => void;
+}
+
+export class Editor extends React.Component<Props, {}> {
   handleChange = content => {
     this.props.onChange(content)
   }
