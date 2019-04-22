@@ -19,7 +19,7 @@ export class Main extends React.Component<{}, State> {
     content: '# Hello World'
   }
 
-  handleChange = content => {
+  handleChange = (content: string) => {
     this.setState({ content })
   }
 

@@ -6,11 +6,11 @@ import 'brace/theme/chrome';
 interface Props {
   content: string;
   
-  onChange: (string) => void;
+  onChange: (content: string) => void;
 }
 
 export class Editor extends React.Component<Props, {}> {
-  handleChange = content => {
+  handleChange = (content: string) => {
     this.props.onChange(content)
   }
   

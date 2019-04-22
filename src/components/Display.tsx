@@ -4,7 +4,7 @@ import MDX from '@mdx-js/runtime';
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 
 const components = {
-  Tweet: props => <TwitterTweetEmbed {...props} />
+  Tweet: (props) => <TwitterTweetEmbed {...props} />
 }
 
 interface Props {

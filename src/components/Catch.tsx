@@ -4,22 +4,27 @@ import { Box } from 'rebass'
 // borrowed from ok-mdx
 // this is a weirdly stateful way to handle errors, is there a better way?
 
+interface Props {}
+
 interface State {
-  err: string | null
+  err: Error | null
 }
 
-export class Catch extends React.Component<{}, State> {
+export class Catch extends React.Component<Props, State> {
   state: State = {
     err: null
   }
 
-  componentDidUpdate (prev) {
+  componentDidUpdate (prev: any /* Readonly<Props> */) {
+    // the type Readonly<Props> doesn't include children
+    // but it seems to be present; if we leave off this check
+    // we get an infinite loop of setState / componentDidUpdate
     if (prev.children !== this.props.children) {
       this.setState({ err: null })
     }
   }
 
-  componentDidCatch (err) {
+  componentDidCatch (err: Error) {
     console.error(err)
     this.setState({ err })
   }
