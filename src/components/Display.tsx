@@ -14,6 +14,7 @@ import * as MDXHAST from '../parse/mdxhast';
 import * as AcornJsxAst from '../parse/acornJsxAst';
 
 import { TwitterTweetEmbed } from 'react-twitter-embed';
+import YouTube from 'react-youtube';
 
 const components = {
   Tweet: (props) => <TwitterTweetEmbed {...props} />
@@ -71,6 +72,9 @@ export class Display extends React.Component<Props, {}> {
                     switch (expression.openingElement.name.name) {
                       case 'Tweet':
                         elem = TwitterTweetEmbed;
+                        break;
+                      case 'YouTube':
+                        elem = YouTube;
                         break;
                       default:
                         return null; // TODO(jaked) how do we throw an error?

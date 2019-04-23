@@ -31,6 +31,7 @@
     "react-ace": "^6.4.0",
     "react-dom": "^16.8.6",
     "react-twitter-embed": "^2.0.7",
+    "react-youtube": "^7.9.0",
     "rebass": "^3.1.0",
     "styled-components": "^4.2.0"
   }
