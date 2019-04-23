@@ -25,22 +25,22 @@ interface ParentImpl extends NodeImpl {
 }
 
 export interface Root extends ParentImpl {
-  type: "root";
+  type: 'root';
 }
 
 export interface Element extends ParentImpl {
-  type: "element";
+  type: 'element';
   tagName: string;
   properties: Object;
 }
 
 export interface Text extends NodeImpl {
-  type: "text";
+  type: 'text';
   value: string;
 }
 
 export interface Jsx extends NodeImpl {
-  type: "jsx";
+  type: 'jsx';
   value: string;
 }
 
