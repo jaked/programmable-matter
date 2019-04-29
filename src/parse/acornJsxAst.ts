@@ -1,5 +1,3 @@
-import { Literal } from "unist";
-
 // See
 //  https://github.com/acornjs/acorn
 //  https://github.com/RReverser/acorn-jsx
@@ -42,7 +40,7 @@ export interface JSXClosingElement extends NodeImpl {
 export interface JSXAttribute extends NodeImpl {
   type: 'JSXAttribute';
   name: JSXIdentifier;
-  value: JSXExpressionContainer;
+  value: JSXExpressionContainer | Literal;
 }
 
 export interface JSXIdentifier extends NodeImpl {

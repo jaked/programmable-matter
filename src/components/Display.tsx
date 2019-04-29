@@ -16,6 +16,8 @@ import * as AcornJsxAst from '../parse/acornJsxAst';
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
 
+const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
+
 const components = {
   Tweet: (props) => <TwitterTweetEmbed {...props} />
 }
@@ -37,7 +39,7 @@ export class Display extends React.Component<Props, {}> {
 
   static renderFromAst = function(ast: MDXHAST.Node): React.ReactNode {
     switch (ast.type) {
-      case "root":
+      case 'root':
         return React.createElement(
           'div',
           {},
@@ -45,7 +47,7 @@ export class Display extends React.Component<Props, {}> {
         );
         break;
 
-      case "element":
+      case 'element':
         return React.createElement(
           ast.tagName,
           ast.properties,
@@ -53,12 +55,12 @@ export class Display extends React.Component<Props, {}> {
         );
         break;
 
-      case "text":
+      case 'text':
         // TODO(jaked) handle interpolation
         return ast.value;
         break;
 
-      case "jsx":
+      case 'jsx':
         const jsxAst = Display.jsxParser.parse(ast.value) as AcornJsxAst.Node;
         switch (jsxAst.type) {
           case 'Program':
@@ -68,26 +70,37 @@ export class Display extends React.Component<Props, {}> {
                 const expression = body.expression;
                 switch (expression.type) {
                   case 'JSXElement':
-                    let elem: React.ComponentClass;
-                    switch (expression.openingElement.name.name) {
-                      case 'Tweet':
-                        elem = TwitterTweetEmbed;
-                        break;
-                      case 'YouTube':
-                        elem = YouTube;
-                        break;
-                      default:
-                        return null; // TODO(jaked) how do we throw an error?
-                    }
-                    const attrs = expression.openingElement.attributes.map(({ name: jsxName, value: jsxValue }) => {
-                      const name = jsxName.name;
-                      const value = jsxValue.expression.value;
-                      return { [name]: value };
+                    const attrObjs =
+                      expression.openingElement.attributes.map(({ name, value }) => {
+                      let attrValue;
+                      switch (value.type) {
+                        case 'JSXExpressionContainer':
+                          attrValue = value.expression.value;
+                          break;
+                        case 'Literal':
+                          attrValue = value.value;
+                          break;
+                      }
+                      return { [name.name]: attrValue };
                     });
-                    return React.createElement(
-                      elem,
-                      Object.assign({}, ...attrs)
-                    )
+                    const attrs = Object.assign({}, ...attrObjs);
+                    const elemName = expression.openingElement.name.name;
+                    if (STARTS_WITH_CAPITAL_LETTER.test(elemName)) {
+                      let elem: React.ComponentClass;
+                      switch (elemName) {
+                        case 'Tweet':
+                          elem = TwitterTweetEmbed;
+                          break;
+                        case 'YouTube':
+                          elem = YouTube;
+                          break;
+                        default:
+                          return null; // TODO(jaked) how do we throw an error?
+                      }
+                      return React.createElement(elem, attrs);
+                    } else {
+                      return React.createElement(elemName, attrs);
+                    }
                     break;
                   default:
                     return null; // TODO(jaked) how do we throw an error?
