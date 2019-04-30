@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { Box } from 'rebass'
 
 // borrowed from ok-mdx
 // this is a weirdly stateful way to handle errors, is there a better way?
@@ -33,14 +32,8 @@ export class Catch extends React.Component<Props, State> {
     const { err } = this.state
     if (err) {
       return (
-        <Box
-          is='pre'
-          color='white'
-          bg='red'
-          p={2}
-          children={err.toString()}
-        />
-      )
+        <span>{err.toString()}</span>
+      );
     }
     try {
       return (

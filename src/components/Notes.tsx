@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Flex } from 'rebass';
+import List from '@material-ui/core/List';
 import * as data from '../data';
 import { Note } from './Note';
 
@@ -24,7 +24,7 @@ export class Notes extends React.Component<Props, State> {
   render() {
     const { notes, selected } = this.state;
     return (
-      <Flex flexDirection='column'>
+      <List dense disablePadding>
       {notes.map(({ tag, content }) =>
         <Note
           key={tag}
@@ -32,7 +32,7 @@ export class Notes extends React.Component<Props, State> {
           selected={tag === selected}
         />
       )}
-      </Flex>
+      </List>
     );
   }
 }

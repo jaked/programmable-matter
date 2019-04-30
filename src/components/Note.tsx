@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Box } from 'rebass';
+import ListItem from '@material-ui/core/ListItem';
+import ListItemText from '@material-ui/core/ListItemText';
 
 interface Props {
   content: string;
@@ -13,9 +14,15 @@ interface State {
 export class Note extends React.Component<Props, State> {
   render() {
     return (
-      <Box bg={this.props.selected ? 'gray' : 'white'}>
-        {this.props.content}
-      </Box>
+      <ListItem
+        button
+        selected={this.props.selected}
+        dense
+        disableRipple
+        disableGutters
+      >
+        <ListItemText primary={this.props.content} />
+      </ListItem>
     );
   }
 }
