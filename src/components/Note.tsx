@@ -1,10 +1,12 @@
 import * as React from 'react';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemText from '@material-ui/core/ListItemText';
+import * as data from '../data';
 
 interface Props {
-  content: string;
+  note: data.Note;
   selected: boolean;
+  onClick: () => void;
 }
 
 interface State {
@@ -13,15 +15,20 @@ interface State {
 
 export class Note extends React.Component<Props, State> {
   render() {
+    const { note: { tag, content}, selected, onClick } = this.props;
     return (
       <ListItem
         button
-        selected={this.props.selected}
         dense
         disableRipple
         disableGutters
+        selected={selected}
+        onClick={onClick}
       >
-        <ListItemText primary={this.props.content} />
+        <ListItemText
+          primary={tag}
+          secondary={content}
+        />
       </ListItem>
     );
   }
