@@ -1,3 +1,5 @@
+import * as fs from "fs";
+
 import * as React from 'react';
 import Grid from '@material-ui/core/Grid';
 
@@ -60,6 +62,10 @@ export class Main extends React.Component<{}, State> {
         Object.assign(note, { content })
       )
     }));
+
+    if (this.state.selected) {
+      fs.writeFileSync(this.state.selected, content);
+    }
   }
 
   render() {
@@ -73,7 +79,7 @@ export class Main extends React.Component<{}, State> {
         }))
       [this.state.selected]
 
-      return (
+    return (
       <Grid container>
         <Grid item xs={2} style={{ height: '100vh'}}>
           <Notes
