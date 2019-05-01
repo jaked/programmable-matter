@@ -2,6 +2,8 @@ import * as React from 'react';
 import Grid from '@material-ui/core/Grid';
 
 import * as data from '../data';
+import { Watcher } from '../files/Watcher';
+
 import { Catch } from './Catch';
 import { Display } from './Display';
 import { Editor } from './Editor';
@@ -12,23 +14,35 @@ interface Props {
 }
 
 interface State {
-  notes: Array<data.Note>;
+  notes: data.Notes;
   selected: string | null;
 }
 
 export class Main extends React.Component<{}, State> {
+  watcher: Watcher;
+
   constructor(props: Props) {
     super(props);
     this.state = {
-      notes: [
-        { tag: 'one', content: `# Hello world` },
-        { tag: 'two', content: `this is a note` },
-        { tag: 'three', content: `this is **another** note` },
-      ],
-      selected: 'one',
+      notes: [],
+      selected: null,
     }
+
+    this.setNotesState = this.setNotesState.bind(this)
+    this.watcher = new Watcher(this.setNotesState);
+
     this.handleSelect = this.handleSelect.bind(this)
     this.handleChange = this.handleChange.bind(this)
+  }
+
+  componentDidMount() {
+    this.watcher.watch()
+  }
+
+  setNotesState(updateNotes: (notes: data.Notes) => data.Notes) {
+    this.setState(state => ({
+      notes: updateNotes(state.notes)
+    }))
   }
 
   handleSelect(tag: string) {
@@ -50,7 +64,7 @@ export class Main extends React.Component<{}, State> {
 
   render() {
     // TODO(jaked) ugh
-    const content =
+    const content: string | null =
       this.state.selected &&
       Object.assign(
         {},

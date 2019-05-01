@@ -23,7 +23,7 @@ const components = {
 }
 
 interface Props {
-  content: string;
+  content: string | null;
 }
 
 export class Display extends React.Component<Props, {}> {
@@ -118,7 +118,11 @@ export class Display extends React.Component<Props, {}> {
   }
 
   render() {
-    const ast = Display.mdxParser.runSync(Display.mdxParser.parse(this.props.content)) as MDXHAST.Node
-    return Display.renderFromAst(ast)
+    if (this.props.content === null) {
+      return <span>no note</span>;
+    } else {
+      const ast = Display.mdxParser.runSync(Display.mdxParser.parse(this.props.content)) as MDXHAST.Node
+      return Display.renderFromAst(ast);
+    }
   }
 }
