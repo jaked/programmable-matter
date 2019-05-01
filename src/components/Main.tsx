@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as React from 'react';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Grid from '@material-ui/core/Grid';
+import TextField from '@material-ui/core/TextField';
 
 import * as data from '../data';
 import { Watcher } from '../files/Watcher';
@@ -83,8 +84,16 @@ export class Main extends React.Component<{}, State> {
     return (
       <React.Fragment>
         <CssBaseline />
-        <Grid container>
-          <Grid item xs={2} style={{ height: '100vh'}}>
+        <Grid container direction='row'>
+          <Grid item xs={12}>
+            <TextField
+              autoFocus
+              fullWidth
+              margin='dense'
+              variant='outlined'
+            />
+          </Grid>
+          <Grid item xs={2}>
             <Notes
               notes={this.state.notes}
               selected={this.state.selected}
