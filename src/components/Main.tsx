@@ -1,6 +1,7 @@
 import * as fs from "fs";
 
 import * as React from 'react';
+import CssBaseline from '@material-ui/core/CssBaseline';
 import Grid from '@material-ui/core/Grid';
 
 import * as data from '../data';
@@ -80,23 +81,26 @@ export class Main extends React.Component<{}, State> {
       [this.state.selected]
 
     return (
-      <Grid container>
-        <Grid item xs={2} style={{ height: '100vh'}}>
-          <Notes
-            notes={this.state.notes}
-            selected={this.state.selected}
-            onSelect={this.handleSelect}
-          />
+      <React.Fragment>
+        <CssBaseline />
+        <Grid container>
+          <Grid item xs={2} style={{ height: '100vh'}}>
+            <Notes
+              notes={this.state.notes}
+              selected={this.state.selected}
+              onSelect={this.handleSelect}
+            />
+          </Grid>
+          <Grid item xs={5}>
+            <Editor content={content} onChange={this.handleChange} />
+          </Grid>
+          <Grid item xs={5}>
+            <Catch>
+              <Display content={content} />
+            </Catch>
+          </Grid>
         </Grid>
-        <Grid item xs={5}>
-          <Editor content={content} onChange={this.handleChange} />
-        </Grid>
-        <Grid item xs={5}>
-          <Catch>
-            <Display content={content} />
-          </Catch>
-        </Grid>
-      </Grid>
+      </React.Fragment>
     );
   }
 }

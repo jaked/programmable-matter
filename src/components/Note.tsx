@@ -21,7 +21,6 @@ export class Note extends React.Component<Props, State> {
         button
         dense
         disableRipple
-        disableGutters
         selected={selected}
         onClick={onClick}
       >
