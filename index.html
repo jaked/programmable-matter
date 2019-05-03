@@ -21,7 +21,10 @@
       <!-- bundle all the scripts! thanks to webpack -->
       <!-- <script type="text/javascript" src="http://localhost:8080/bundle.js"></script> -->
       <script type="text/javascript">
-        require('./build/app.js')
+        const unhandled = require('electron-unhandled');
+        unhandled();
+
+        require('./build/app.js');
       </script>
   </body>
 </html>

@@ -1,8 +1,11 @@
+import * as util from "util";
 import * as fs from "fs";
 
 import { FSWatcher } from 'chokidar';
 
 import * as data from '../data';
+
+const readFile = util.promisify(fs.readFile);
 
 type SetNotesState = (updateNotes: (notes: data.Notes) => data.Notes) => void
 
@@ -27,20 +30,22 @@ export class Watcher {
     this.watcher.add('docs')
   }
 
-  handleAdd(path: string, stats: fs.Stats) {
+  async handleAdd(path: string, stats: fs.Stats) {
+    const content = await readFile(path, { encoding: 'utf8' })
     this.setNotesState(function(notes: data.Notes) {
       notes.push(
-        { tag: path, content: fs.readFileSync(path, 'utf8') }
+        { tag: path, content: content }
       )
       return notes;
     });
   }
 
-  handleChange(path: string, stats: fs.Stats) {
+  async handleChange(path: string, stats: fs.Stats) {
+    const content = await readFile(path, { encoding: 'utf8' })
     this.setNotesState(notes =>
       notes.map(note =>
         (note.tag === path) ?
-        { tag: note.tag, content: fs.readFileSync(path, 'utf8') } :
+        { tag: note.tag, content: content } :
         note
       )
     )
