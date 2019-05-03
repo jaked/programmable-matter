@@ -40,7 +40,11 @@ export class Main extends React.Component<{}, State> {
   }
 
   componentDidMount() {
-    this.watcher.watch()
+    this.watcher.start()
+  }
+
+  componentWillUnmount() {
+    this.watcher.stop();
   }
 
   setNotesState(updateNotes: (notes: data.Notes) => data.Notes) {

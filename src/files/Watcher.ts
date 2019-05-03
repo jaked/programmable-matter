@@ -26,8 +26,12 @@ export class Watcher {
       .on('unlink', this.handleUnlink);
   }
 
-  watch() {
+  start() {
     this.watcher.add('docs')
+  }
+
+  stop() {
+    this.watcher.unwatch('docs')
   }
 
   async handleAdd(path: string, stats: fs.Stats) {
