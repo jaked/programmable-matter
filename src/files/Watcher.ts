@@ -1,63 +1,107 @@
-import * as util from "util";
-import * as fs from "fs";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as util from 'util';
 
-import { FSWatcher } from 'chokidar';
+import nsfw from 'nsfw';
 
 import * as data from '../data';
 
+const ROOT = '/Users/jake/github/programmable-matter/';
 const readFile = util.promisify(fs.readFile);
 
 type SetNotesState = (updateNotes: (notes: data.Notes) => data.Notes) => void
 
+type NsfwEvent =
+  {
+    action: 0 | 1 | 2; // created, deleted, modified
+    directory: string;
+    file: string;
+  } |
+  {
+    action: 3; // renamed
+    directory: string;
+    oldFile: string;
+    newDirectory: string;
+    newFile: string;
+  }
+
 export class Watcher {
-  watcher: FSWatcher;
+  watcher: any;
   setNotesState: SetNotesState;
 
   constructor(setNotesState: SetNotesState) {
     this.setNotesState = setNotesState;
 
-    this.handleAdd = this.handleAdd.bind(this)
-    this.handleChange = this.handleChange.bind(this)
-    this.handleUnlink = this.handleUnlink.bind(this)
+    this.handleNsfwEvents = this.handleNsfwEvents.bind(this)
+    this.handleNsfwError = this.handleNsfwError.bind(this)
 
-    this.watcher = new FSWatcher()
-      .on('add', this.handleAdd)
-      .on('change', this.handleChange)
-      .on('unlink', this.handleUnlink);
+    this.watcher = new nsfw(
+      500, // debounceMS
+      path.resolve(ROOT, 'docs'), // watch path
+      this.handleNsfwEvents,
+      this.handleNsfwError
+    )
   }
 
-  start() {
-    this.watcher.add('docs')
+  async start() {
+    const dir = path.resolve(ROOT, 'docs');
+    const dirents = await util.promisify(fs.readdir)(dir, { encoding: 'utf8'});
+    const events: Array<NsfwEvent> =
+      dirents.map(function (file) {
+        return {
+          action: 0, // add
+          file: file,
+          directory: dir,
+        };
+      });
+    await this.handleNsfwEvents(events);
+    this.watcher.start();
   }
 
   stop() {
-    this.watcher.unwatch('docs')
+    this.watcher.stop()
   }
 
-  async handleAdd(path: string, stats: fs.Stats) {
-    const content = await readFile(path, { encoding: 'utf8' })
-    this.setNotesState(function(notes: data.Notes) {
-      notes.push(
-        { tag: path, content: content }
-      )
-      return notes;
+  handleNsfwError(error) {
+    throw error;
+  }
+
+  async handleNsfwEvents(events: Array<NsfwEvent>) {
+    const eventContents = await Promise.all(
+      events.map(function(event: NsfwEvent): Promise<[NsfwEvent, string]> {
+        switch (event.action) {
+          case 0: // created
+          case 2: // modified
+            return readFile(
+              path.resolve(event.directory, event.file),
+              { encoding: 'utf8' }
+            ).then(contents => [event, contents]);
+          default:
+            return Promise.resolve([event, '']);
+        }
+      })
+    )
+    this.setNotesState(function (notes: data.Notes) {
+      return eventContents.reduce(function (notes, [event, content]) {
+        switch (event.action) {
+          case 0: // created
+            notes.push({ tag: event.file, content: content });
+            return notes;
+
+          case 1: // deleted
+            return notes.filter(({ tag }) => tag !== event.file);
+
+          case 2: // modified
+            return notes.map(note =>
+              (note.tag === event.file) ?
+              { tag: note.tag, content: content } :
+              note
+            )
+
+            case 3:
+            throw 'unimplemented'
+        }
+      }, notes)
     });
-  }
-
-  async handleChange(path: string, stats: fs.Stats) {
-    const content = await readFile(path, { encoding: 'utf8' })
-    this.setNotesState(notes =>
-      notes.map(note =>
-        (note.tag === path) ?
-        { tag: note.tag, content: content } :
-        note
-      )
-    )
-  }
-
-  handleUnlink(path: string, stats: fs.Stats) {
-    this.setNotesState(notes =>
-      notes.filter(({ tag }) => tag !== path)
-    )
   }
 }
