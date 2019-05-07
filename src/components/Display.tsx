@@ -1,5 +1,8 @@
+import * as Immutable from 'immutable';
+
 import * as React from 'react';
-import * as Bacon from 'baconjs';
+
+import { Atom, F, Lens } from '@grammarly/focal';
 
 import unified from 'unified';
 import toMDAST from 'remark-parse';
@@ -19,17 +22,17 @@ import YouTube from 'react-youtube';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
-const components = {
-  Tweet: (props) => <TwitterTweetEmbed {...props} />
-}
-
 interface Props {
+  state: Atom<Immutable.Map<string, any>>;
   content: string | null;
 }
 
-type Env = Map<string, Bacon.Property<any>>;
-
 export class Display extends React.Component<Props, {}> {
+  constructor(props: Props) {
+    super(props);
+    this.renderFromAst = this.renderFromAst.bind(this);
+  }
+
   static mdxParser =
     unified()
       .use(toMDAST)
@@ -40,13 +43,20 @@ export class Display extends React.Component<Props, {}> {
 
   static jsxParser = Acorn.Parser.extend(AcornJsx())
 
-  static renderFromAst = function(env: Env, ast: MDXHAST.Node): React.ReactNode {
+  static immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
+    return Lens.create(
+      (map: Immutable.Map<string, T>) => map.get<any>(key, null),
+      (t: T, map: Immutable.Map<string, T>) => map.set(key, t)
+    )
+  }
+
+  renderFromAst(ast: MDXHAST.Node): React.ReactNode {
     switch (ast.type) {
       case 'root':
         return React.createElement(
           'div',
           {},
-          ...ast.children.map(ast => Display.renderFromAst(env, ast))
+          ...ast.children.map(this.renderFromAst)
         );
         break;
 
@@ -54,7 +64,7 @@ export class Display extends React.Component<Props, {}> {
         return React.createElement(
           ast.tagName,
           ast.properties,
-          ...ast.children.map(ast => Display.renderFromAst(env, ast))
+          ...ast.children.map(this.renderFromAst)
         );
         break;
 
@@ -73,7 +83,6 @@ export class Display extends React.Component<Props, {}> {
                 const expression = body.expression;
                 switch (expression.type) {
                   case 'JSXElement':
-                    let shouldWrapWithProperties = false;
                     const attrObjs =
                       expression.openingElement.attributes.map(({ name, value }) => {
                       let attrValue;
@@ -85,12 +94,10 @@ export class Display extends React.Component<Props, {}> {
                               attrValue = expression.value;
                               break;
                             case 'Identifier':
-                              if (env.has(expression.name)) {
-                                shouldWrapWithProperties = true;
-                                attrValue = env.get(expression.name);
-                              } else {
-                                throw 'unbound identifier ' + expression.name;
-                              }
+                              // TODO(jaked) we can't check for the existence
+                              // of a name at compile time, unless we make compilation
+                              // a reaction to change of the doc state?
+                              attrValue = this.props.state.lens(Display.immutableMapLens(expression.name));
                               break;
                           }
                           break;
@@ -104,8 +111,9 @@ export class Display extends React.Component<Props, {}> {
                     });
                     const attrs = Object.assign({}, ...attrObjs);
                     const elemName = expression.openingElement.name.name;
-                    let elem: string | React.ComponentClass;
+                    let elem: any; // TODO(jaked) give this a better type
                     if (STARTS_WITH_CAPITAL_LETTER.test(elemName)) {
+                      // TODO(jaked) lift non-intrinsic components
                       switch (elemName) {
                         case 'Tweet':
                           elem = TwitterTweetEmbed;
@@ -117,14 +125,16 @@ export class Display extends React.Component<Props, {}> {
                           throw 'unexpected element ' + elemName;
                       }
                     } else {
-                      elem = elemName;
+                      switch (elemName) {
+                          // TODO(jaked) lift other instrinsic components
+                          case 'input':
+                          elem = F.input;
+                          break;
+                        default:
+                          elem = elemName;
+                      }
                     }
-                    if (shouldWrapWithProperties) {
-                      // TODO(jaked) wrap outside renderFromAst so we don't defeat reconciliation
-                      return React.createElement(Display.wrapWithProperties(elemName), attrs);
-                    } else {
-                      return React.createElement(elem, attrs);
-                    }
+                    return React.createElement(elem, attrs);
 
                   default:
                     throw 'unexpected AST ' + expression;
@@ -142,55 +152,8 @@ export class Display extends React.Component<Props, {}> {
     if (this.props.content === null) {
       return <span>no note</span>;
     } else {
-      const env = new Map();
-      env.set('now', Bacon.fromPoll(1000, () => new Bacon.Next(new Date())).toProperty(new Date()));
       const ast = Display.mdxParser.runSync(Display.mdxParser.parse(this.props.content)) as MDXHAST.Node
-      return Display.renderFromAst(env, ast);
-    }
-  }
-
-  static wrapWithProperties(component: string | React.ComponentClass): React.ComponentClass {
-    return class extends React.Component<any, any> {
-      unsub: Bacon.Unsub | null = null;
-
-      constructor(props) {
-        super(props);
-        this.state =
-          // TODO(jaked) we have no current value for properties
-          Object.assign({}, ...Object.keys(props).map(k => {
-            return { [k]: (props[k] instanceof Bacon.Property ? undefined : props[k]) }
-          }));
-      }
-
-      componentDidMount() {
-        const properties: Array<Bacon.Property<any>> = [];
-        Object.keys(this.props).forEach(k => {
-          const p = this.props[k];
-          if (p instanceof Bacon.Property)
-            properties.push(p);
-        });
-        this.unsub = Bacon.combineAsArray(properties).subscribe(currEvent => {
-          const curr = (currEvent as Bacon.Value<any>).value;
-          let i = 0;
-          Object.keys(this.props).forEach(k => {
-            const p = this.props[k];
-            if (p instanceof Bacon.Property) {
-              this.setState({ [k]: curr[i] });
-              i++;
-            }
-          });
-        });
-      }
-
-      componentWillUnmount() {
-        this.unsub && this.unsub();
-      }
-
-      // TODO(jaked) handle change of props
-
-      render() {
-        return React.createElement(component, this.state)
-      }
+      return this.renderFromAst(ast);
     }
   }
 }

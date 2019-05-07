@@ -1,6 +1,12 @@
 import * as fs from "fs";
 
+import * as Immutable from 'immutable';
+
+import { Observable } from 'rxjs';
+
 import * as React from 'react';
+import { Atom, Lens } from '@grammarly/focal';
+
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Grid from '@material-ui/core/Grid';
 import TextField from '@material-ui/core/TextField';
@@ -13,10 +19,8 @@ import { Display } from './Display';
 import { Editor } from './Editor';
 import { Notes } from './Notes';
 
-interface Props {
-
-}
-
+// TODO(jaked) put notes state in stateAtom
+// and selected state? why not
 interface State {
   notes: data.Notes;
   selected: string | null;
@@ -24,9 +28,12 @@ interface State {
 
 export class Main extends React.Component<{}, State> {
   watcher: Watcher;
+  stateAtom: Atom<Immutable.Map<string, any>> =
+    Atom.create(Immutable.Map());
 
-  constructor(props: Props) {
+  constructor(props: {}) {
     super(props);
+
     this.state = {
       notes: [],
       selected: null,
@@ -41,6 +48,15 @@ export class Main extends React.Component<{}, State> {
 
   componentDidMount() {
     this.watcher.start()
+
+    // TODO(jaked) how do we cancel this?
+    // TODO(jaked) there's got to be a way to make an Atom from an Observable
+    const nowAtom = this.stateAtom.lens(Main.immutableMapLens('now'));
+    Observable
+      .interval(1000)
+      .startWith(0)
+      .map(() => new Date().toString())
+      .subscribe(now => nowAtom.set(now));
   }
 
   componentWillUnmount() {
@@ -109,11 +125,24 @@ export class Main extends React.Component<{}, State> {
           </Grid>
           <Grid item xs={5}>
             <Catch>
-              <Display content={content} />
+              <Display state={this.stateAtom} content={content} />
             </Catch>
           </Grid>
         </Grid>
       </React.Fragment>
     );
+  }
+
+  // TODO(jaked) put this somewhere common
+  // TODO(jaked) how does lensing work with observers?
+  //   if I make equivalent lenses A, B, then set A but observe B,
+  //   do I only get a notification on A changes?
+  //   or on all changes to the underlying atom?
+  //   how can we tell that the lenses are equivalent?
+  static immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
+    return Lens.create(
+      (map: Immutable.Map<string, T>) => map.get<any>(key, null),
+      (t: T, map: Immutable.Map<string, T>) => map.set(key, t)
+    )
   }
 }
