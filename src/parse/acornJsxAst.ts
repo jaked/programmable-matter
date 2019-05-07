@@ -10,13 +10,13 @@ interface NodeImpl {
 
 export interface Program extends NodeImpl {
   type: 'Program';
-  body: Array<Node>;
+  body: Array<ExpressionStatement>;
   sourceType: 'module';
 }
 
 export interface ExpressionStatement extends NodeImpl {
   type: 'ExpressionStatement';
-  expression: Node; // Expression?
+  expression: JSXElement;
 }
 
 export interface JSXElement extends NodeImpl {
@@ -50,7 +50,7 @@ export interface JSXIdentifier extends NodeImpl {
 
 export interface JSXExpressionContainer extends NodeImpl {
   type: 'JSXExpressionContainer';
-  expression: Literal; // Expression
+  expression: Expression;
 }
 
 export interface Literal extends NodeImpl {
@@ -58,5 +58,12 @@ export interface Literal extends NodeImpl {
   value: string | number | boolean; // others?
   raw: string;
 }
+
+export interface Identifier extends NodeImpl {
+  type: 'Identifier';
+  name: string;
+}
+
+export type Expression = Literal | Identifier;
 
 export type Node = Program | ExpressionStatement | JSXElement

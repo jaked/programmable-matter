@@ -5,7 +5,8 @@
   "description": "Text files that do stuff",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "watch": "tsc --watch"
   },
   "author": "Jake Donham",
   "devDependencies": {
@@ -27,6 +28,7 @@
     "@types/react-dom": "^16.8.4",
     "acorn": "^6.1.1",
     "acorn-jsx": "^5.0.1",
+    "baconjs": "^3.0.3",
     "brace": "^0.11.1",
     "electron-reload": "^1.4.0",
     "electron-unhandled": "^2.2.0",

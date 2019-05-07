@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Bacon from 'baconjs';
 
 import unified from 'unified';
 import toMDAST from 'remark-parse';
@@ -26,6 +27,8 @@ interface Props {
   content: string | null;
 }
 
+type Env = Map<string, Bacon.Property<any>>;
+
 export class Display extends React.Component<Props, {}> {
   static mdxParser =
     unified()
@@ -37,13 +40,13 @@ export class Display extends React.Component<Props, {}> {
 
   static jsxParser = Acorn.Parser.extend(AcornJsx())
 
-  static renderFromAst = function(ast: MDXHAST.Node): React.ReactNode {
+  static renderFromAst = function(env: Env, ast: MDXHAST.Node): React.ReactNode {
     switch (ast.type) {
       case 'root':
         return React.createElement(
           'div',
           {},
-          ...ast.children.map(Display.renderFromAst)
+          ...ast.children.map(ast => Display.renderFromAst(env, ast))
         );
         break;
 
@@ -51,7 +54,7 @@ export class Display extends React.Component<Props, {}> {
         return React.createElement(
           ast.tagName,
           ast.properties,
-          ...ast.children.map(Display.renderFromAst)
+          ...ast.children.map(ast => Display.renderFromAst(env, ast))
         );
         break;
 
@@ -70,23 +73,39 @@ export class Display extends React.Component<Props, {}> {
                 const expression = body.expression;
                 switch (expression.type) {
                   case 'JSXElement':
+                    let shouldWrapWithProperties = false;
                     const attrObjs =
                       expression.openingElement.attributes.map(({ name, value }) => {
                       let attrValue;
                       switch (value.type) {
                         case 'JSXExpressionContainer':
-                          attrValue = value.expression.value;
+                          const expression = value.expression;
+                          switch (expression.type) {
+                            case 'Literal':
+                              attrValue = expression.value;
+                              break;
+                            case 'Identifier':
+                              if (env.has(expression.name)) {
+                                shouldWrapWithProperties = true;
+                                attrValue = env.get(expression.name);
+                              } else {
+                                throw 'unbound identifier ' + expression.name;
+                              }
+                              break;
+                          }
                           break;
                         case 'Literal':
                           attrValue = value.value;
                           break;
+                        default:
+                          throw 'unexpected AST ' + value;
                       }
                       return { [name.name]: attrValue };
                     });
                     const attrs = Object.assign({}, ...attrObjs);
                     const elemName = expression.openingElement.name.name;
+                    let elem: string | React.ComponentClass;
                     if (STARTS_WITH_CAPITAL_LETTER.test(elemName)) {
-                      let elem: React.ComponentClass;
                       switch (elemName) {
                         case 'Tweet':
                           elem = TwitterTweetEmbed;
@@ -95,25 +114,27 @@ export class Display extends React.Component<Props, {}> {
                           elem = YouTube;
                           break;
                         default:
-                          return null; // TODO(jaked) how do we throw an error?
+                          throw 'unexpected element ' + elemName;
                       }
-                      return React.createElement(elem, attrs);
                     } else {
-                      return React.createElement(elemName, attrs);
+                      elem = elemName;
                     }
-                    break;
+                    if (shouldWrapWithProperties) {
+                      // TODO(jaked) wrap outside renderFromAst so we don't defeat reconciliation
+                      return React.createElement(Display.wrapWithProperties(elemName), attrs);
+                    } else {
+                      return React.createElement(elem, attrs);
+                    }
+
                   default:
-                    return null; // TODO(jaked) how do we throw an error?
+                    throw 'unexpected AST ' + expression;
                 }
-                break;
               default:
-                return null; // TODO(jaked) how do we throw an error?
+                throw 'unexpected AST ' + body;
             }
-            break;
           default:
-            return null; // TODO(jaked) how do we throw an error?
+            throw 'unexpected AST ' + jsxAst;
         }
-        break;
      }
   }
 
@@ -121,8 +142,55 @@ export class Display extends React.Component<Props, {}> {
     if (this.props.content === null) {
       return <span>no note</span>;
     } else {
+      const env = new Map();
+      env.set('now', Bacon.fromPoll(1000, () => new Bacon.Next(new Date())).toProperty(new Date()));
       const ast = Display.mdxParser.runSync(Display.mdxParser.parse(this.props.content)) as MDXHAST.Node
-      return Display.renderFromAst(ast);
+      return Display.renderFromAst(env, ast);
+    }
+  }
+
+  static wrapWithProperties(component: string | React.ComponentClass): React.ComponentClass {
+    return class extends React.Component<any, any> {
+      unsub: Bacon.Unsub | null = null;
+
+      constructor(props) {
+        super(props);
+        this.state =
+          // TODO(jaked) we have no current value for properties
+          Object.assign({}, ...Object.keys(props).map(k => {
+            return { [k]: (props[k] instanceof Bacon.Property ? undefined : props[k]) }
+          }));
+      }
+
+      componentDidMount() {
+        const properties: Array<Bacon.Property<any>> = [];
+        Object.keys(this.props).forEach(k => {
+          const p = this.props[k];
+          if (p instanceof Bacon.Property)
+            properties.push(p);
+        });
+        this.unsub = Bacon.combineAsArray(properties).subscribe(currEvent => {
+          const curr = (currEvent as Bacon.Value<any>).value;
+          let i = 0;
+          Object.keys(this.props).forEach(k => {
+            const p = this.props[k];
+            if (p instanceof Bacon.Property) {
+              this.setState({ [k]: curr[i] });
+              i++;
+            }
+          });
+        });
+      }
+
+      componentWillUnmount() {
+        this.unsub && this.unsub();
+      }
+
+      // TODO(jaked) handle change of props
+
+      render() {
+        return React.createElement(component, this.state)
+      }
     }
   }
 }
