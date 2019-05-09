@@ -1,4 +1,6 @@
 import * as fs from "fs";
+import * as path from 'path';
+import * as process from 'process';
 
 import * as Immutable from 'immutable';
 
@@ -18,6 +20,9 @@ import { Catch } from './Catch';
 import { Display } from './Display';
 import { Editor } from './Editor';
 import { Notes } from './Notes';
+
+// TODO(jaked)
+const ROOT = process.cwd();
 
 // TODO(jaked) put notes state in stateAtom
 // and selected state? why not
@@ -86,7 +91,7 @@ export class Main extends React.Component<{}, State> {
     }));
 
     if (this.state.selected) {
-      fs.writeFileSync(this.state.selected, content);
+      fs.writeFileSync(path.resolve(ROOT, 'docs', this.state.selected), content);
     }
   }
 
@@ -134,11 +139,6 @@ export class Main extends React.Component<{}, State> {
   }
 
   // TODO(jaked) put this somewhere common
-  // TODO(jaked) how does lensing work with observers?
-  //   if I make equivalent lenses A, B, then set A but observe B,
-  //   do I only get a notification on A changes?
-  //   or on all changes to the underlying atom?
-  //   how can we tell that the lenses are equivalent?
   static immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
     return Lens.create(
       (map: Immutable.Map<string, T>) => map.get<any>(key, null),

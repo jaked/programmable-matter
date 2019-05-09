@@ -1,12 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as process from 'process';
 import * as util from 'util';
 
 import nsfw from 'nsfw';
 
 import * as data from '../data';
 
-const ROOT = '/Users/jake/github/programmable-matter/';
+// TODO(jaked)
+const ROOT = process.cwd();
+
 const readFile = util.promisify(fs.readFile);
 
 type SetNotesState = (updateNotes: (notes: data.Notes) => data.Notes) => void
