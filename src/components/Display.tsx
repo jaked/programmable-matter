@@ -47,6 +47,8 @@ export class Display extends React.Component<Props, {}> {
         // of a name at compile time, unless we make compilation
         // a reaction to change of the doc state?
         return this.props.state.lens(Display.immutableMapLens(expression.name));
+      case 'JSXElement':
+        return this.renderFromJsx(expression);
       default:
         throw 'unexpected AST ' + (expression as any).type;
     }

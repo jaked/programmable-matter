@@ -70,6 +70,6 @@ export interface Identifier extends NodeImpl {
   name: string;
 }
 
-export type Expression = Literal | Identifier;
+export type Expression = Literal | Identifier | JSXElement;
 
-export type Node = Program | ExpressionStatement | JSXElement
+export type Node = Program | ExpressionStatement | JSXElement;
