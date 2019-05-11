@@ -21,7 +21,13 @@ interface Props {
 export class Display extends React.Component<Props, {}> {
   constructor(props: Props) {
     super(props);
-    this.renderFromAst = this.renderFromAst.bind(this);
+
+    // TODO(jaked)
+    // figure out the rules on when this is needed
+    this.renderAttributes = this.renderAttributes.bind(this);
+    this.renderElement = this.renderElement.bind(this);
+    this.renderFromJsx = this.renderFromJsx.bind(this);
+    this.renderFromMdx = this.renderFromMdx.bind(this);
   }
 
   static immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
@@ -78,20 +84,42 @@ export class Display extends React.Component<Props, {}> {
     }
   }
 
-  renderFromAst(ast: MDXHAST.Node): React.ReactNode {
+  private renderFromJsx(ast: AcornJsxAst.JSXElement): React.ReactNode {
+    const attrs = this.renderAttributes(ast.openingElement.attributes);
+    const elem = this.renderElement(ast.openingElement.name.name);
+    const children = ast.children.map(child => {
+      switch (child.type) {
+        case 'JSXElement': return this.renderFromJsx(child);
+        case 'JSXText': return child.value;
+      }
+    });
+
+    // TODO(jaked) for what elements does this make sense? only input?
+    if (attrs.id) {
+      const atom =
+        this.props.state.lens(Display.immutableMapLens(attrs.id))
+      attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        atom.set(e.currentTarget.value);
+      }
+    }
+
+    return React.createElement(elem, attrs, ...children);
+  }
+
+  private renderFromMdx(ast: MDXHAST.Node): React.ReactNode {
     switch (ast.type) {
       case 'root':
         return React.createElement(
           'div',
           {},
-          ...ast.children.map(this.renderFromAst)
+          ...ast.children.map(this.renderFromMdx)
         );
 
       case 'element':
         return React.createElement(
           ast.tagName,
           ast.properties,
-          ...ast.children.map(this.renderFromAst)
+          ...ast.children.map(this.renderFromMdx)
         );
 
       case 'text':
@@ -100,21 +128,7 @@ export class Display extends React.Component<Props, {}> {
 
       case 'jsx':
         if (ast.jsxElement) {
-          const jsxElement = ast.jsxElement;
-          const attrs = this.renderAttributes(jsxElement.openingElement.attributes);
-          const elem = this.renderElement(jsxElement.openingElement.name.name);
-
-          // TODO(jaked) for what elements does this make sense? only input?
-          if (attrs.id) {
-            const atom =
-              this.props.state.lens(Display.immutableMapLens(attrs.id))
-            attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-              atom.set(e.currentTarget.value);
-            }
-          }
-
-          return React.createElement(elem, attrs);
-
+          return this.renderFromJsx(ast.jsxElement)
         } else {
           throw 'expected JSX node to be parsed';
         }
@@ -126,7 +140,7 @@ export class Display extends React.Component<Props, {}> {
       return <span>no note</span>;
     } else {
       const ast = Parser.parse(this.props.content)
-      return this.renderFromAst(ast);
+      return this.renderFromMdx(ast);
     }
   }
 }

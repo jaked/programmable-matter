@@ -19,11 +19,17 @@ export interface ExpressionStatement extends NodeImpl {
   expression: JSXElement;
 }
 
+export interface JSXText extends NodeImpl {
+  type: 'JSXText';
+  value: string;
+  raw: string; // ?
+}
+
 export interface JSXElement extends NodeImpl {
   type: 'JSXElement';
   openingElement: JSXOpeningElement;
   closingElement: JSXClosingElement | null;
-  children: Array<Node>;
+  children: Array<JSXElement | JSXText>;
 }
 
 export interface JSXOpeningElement extends NodeImpl {
