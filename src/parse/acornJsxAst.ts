@@ -29,7 +29,7 @@ export interface JSXElement extends NodeImpl {
   type: 'JSXElement';
   openingElement: JSXOpeningElement;
   closingElement: JSXClosingElement | null;
-  children: Array<JSXElement | JSXText>;
+  children: Array<JSXElement | JSXText | JSXExpressionContainer >;
 }
 
 export interface JSXOpeningElement extends NodeImpl {

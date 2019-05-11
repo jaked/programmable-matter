@@ -24,6 +24,7 @@ export class Display extends React.Component<Props, {}> {
 
     // TODO(jaked)
     // figure out the rules on when this is needed
+    this.renderExpression = this.renderExpression.bind(this);
     this.renderAttributes = this.renderAttributes.bind(this);
     this.renderElement = this.renderElement.bind(this);
     this.renderFromJsx = this.renderFromJsx.bind(this);
@@ -37,25 +38,26 @@ export class Display extends React.Component<Props, {}> {
     )
   }
 
+  private renderExpression(expression: AcornJsxAst.Expression) {
+    switch (expression.type) {
+      case 'Literal':
+        return expression.value;
+      case 'Identifier':
+        // TODO(jaked) we can't check for the existence
+        // of a name at compile time, unless we make compilation
+        // a reaction to change of the doc state?
+        return this.props.state.lens(Display.immutableMapLens(expression.name));
+      default:
+        throw 'unexpected AST ' + (expression as any).type;
+    }
+  }
+
   private renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>) {
     const attrObjs = attributes.map(({ name, value }) => {
       let attrValue;
       switch (value.type) {
         case 'JSXExpressionContainer':
-          const expression = value.expression;
-          switch (expression.type) {
-            case 'Literal':
-              attrValue = expression.value;
-              break;
-            case 'Identifier':
-              // TODO(jaked) we can't check for the existence
-              // of a name at compile time, unless we make compilation
-              // a reaction to change of the doc state?
-              attrValue = this.props.state.lens(Display.immutableMapLens(expression.name));
-              break;
-            default:
-              throw 'unexpected AST ' + (expression as any).type;
-            }
+          attrValue = this.renderExpression(value.expression);
           break;
         case 'Literal':
           attrValue = value.value;
@@ -89,8 +91,12 @@ export class Display extends React.Component<Props, {}> {
     const elem = this.renderElement(ast.openingElement.name.name);
     const children = ast.children.map(child => {
       switch (child.type) {
-        case 'JSXElement': return this.renderFromJsx(child);
-        case 'JSXText': return child.value;
+        case 'JSXElement':
+          return this.renderFromJsx(child);
+        case 'JSXText':
+          return child.value;
+        case 'JSXExpressionContainer':
+          return this.renderExpression(child.expression);
       }
     });
 
