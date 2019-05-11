@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Atom, F, Lens } from '@grammarly/focal';
 
 import * as MDXHAST from '../parse/mdxhast';
+import * as AcornJsxAst from '../parse/acornJsxAst';
 import * as Parser from '../parse/parser';
 
 import { TwitterTweetEmbed } from 'react-twitter-embed';
@@ -30,6 +31,53 @@ export class Display extends React.Component<Props, {}> {
     )
   }
 
+  private renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>) {
+    const attrObjs = attributes.map(({ name, value }) => {
+      let attrValue;
+      switch (value.type) {
+        case 'JSXExpressionContainer':
+          const expression = value.expression;
+          switch (expression.type) {
+            case 'Literal':
+              attrValue = expression.value;
+              break;
+            case 'Identifier':
+              // TODO(jaked) we can't check for the existence
+              // of a name at compile time, unless we make compilation
+              // a reaction to change of the doc state?
+              attrValue = this.props.state.lens(Display.immutableMapLens(expression.name));
+              break;
+            default:
+              throw 'unexpected AST ' + (expression as any).type;
+            }
+          break;
+        case 'Literal':
+          attrValue = value.value;
+          break;
+        default:
+          throw 'unexpected AST ' + (value as any).type;
+      }
+      return { [name.name]: attrValue };
+    });
+    return Object.assign({}, ...attrObjs);
+  }
+
+  private renderElement(name: string) {
+    if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
+      // TODO(jaked) lift non-intrinsic components
+      switch (name) {
+        case 'Tweet':
+          return TwitterTweetEmbed;
+        case 'YouTube':
+          return YouTube;
+        default:
+          throw 'unexpected element ' + name;
+      }
+    } else {
+      return F[name] || name;
+    }
+  }
+
   renderFromAst(ast: MDXHAST.Node): React.ReactNode {
     switch (ast.type) {
       case 'root':
@@ -53,65 +101,18 @@ export class Display extends React.Component<Props, {}> {
       case 'jsx':
         if (ast.jsxElement) {
           const jsxElement = ast.jsxElement;
-          const attrObjs =
-            jsxElement.openingElement.attributes.map(({ name, value }) => {
-            let attrValue;
-            switch (value.type) {
-              case 'JSXExpressionContainer':
-                const expression = value.expression;
-                switch (expression.type) {
-                  case 'Literal':
-                    attrValue = expression.value;
-                    break;
-                  case 'Identifier':
-                    // TODO(jaked) we can't check for the existence
-                    // of a name at compile time, unless we make compilation
-                    // a reaction to change of the doc state?
-                    attrValue = this.props.state.lens(Display.immutableMapLens(expression.name));
-                    break;
-                  default:
-                    throw 'unexpected AST ' + value;
-                  }
-                break;
-              case 'Literal':
-                attrValue = value.value;
-                break;
-              default:
-                throw 'unexpected AST ' + value;
-            }
-            return { [name.name]: attrValue };
-          });
-          const attrs = Object.assign({}, ...attrObjs);
-          const elemName = jsxElement.openingElement.name.name;
-          let elem: any; // TODO(jaked) give this a better type
-          if (STARTS_WITH_CAPITAL_LETTER.test(elemName)) {
-            // TODO(jaked) lift non-intrinsic components
-            switch (elemName) {
-              case 'Tweet':
-                elem = TwitterTweetEmbed;
-                break;
-              case 'YouTube':
-                elem = YouTube;
-                break;
-              default:
-                throw 'unexpected element ' + elemName;
-            }
-          } else {
-            switch (elemName) {
-              case 'input':
-                elem = F.input;
-                if (attrs.id) {
-                  const atom =
-                    this.props.state.lens(Display.immutableMapLens(attrs.id))
-                  attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                    atom.set(e.currentTarget.value);
-                  }
-                }
-                break;
-              default:
-                elem = F[elemName] || elemName;
+          const attrs = this.renderAttributes(jsxElement.openingElement.attributes);
+          const elem = this.renderElement(jsxElement.openingElement.name.name);
+
+          // TODO(jaked) for what elements does this make sense? only input?
+          if (attrs.id) {
+            const atom =
+              this.props.state.lens(Display.immutableMapLens(attrs.id))
+            attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+              atom.set(e.currentTarget.value);
             }
           }
+
           return React.createElement(elem, attrs);
 
         } else {
