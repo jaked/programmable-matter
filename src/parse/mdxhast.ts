@@ -1,3 +1,5 @@
+import * as AcornJsxAst from './acornJsxAst';
+
 // See
 //   https://github.com/syntax-tree/unist
 //   https://github.com/syntax-tree/hast
@@ -42,6 +44,7 @@ export interface Text extends NodeImpl {
 export interface Jsx extends NodeImpl {
   type: 'jsx';
   value: string;
+  jsxElement?: AcornJsxAst.JSXElement
 }
 
 export type Node = Root | Element | Text | Jsx
