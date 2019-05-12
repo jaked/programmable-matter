@@ -72,8 +72,11 @@ export interface Identifier extends NodeImpl {
 export interface BinaryExpression extends NodeImpl {
   type: 'BinaryExpression';
   left: Expression;
-  // TODO(jaked) look up the full list
-  operator: '+' | '-' | '*' | '/' | '**' | '%' | '==' | '!=' | '===' | '!==';
+  operator:
+    '+' | '-' | '*' | '/' | '**' | '%' |
+    '==' | '!=' | '===' | '!==' |
+    '<' | '<=' | '>' | '>=' | '||' | '&&' |
+    '|' | '&' | '^' | '<<' | '>>' | '>>>';
   right: Expression;
 }
 

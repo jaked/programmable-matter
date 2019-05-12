@@ -110,13 +110,25 @@ export class Display extends React.Component<Props, {}> {
             case '+': v = lv + rv; break;
             case '-': v = lv - rv; break;
             case '*': v = lv * rv; break;
-            case '/': v = lv * rv; break;
+            case '/': v = lv / rv; break;
             case '**': v = lv ** rv; break;
             case '%': v = lv % rv; break;
             case '==': v = lv == rv; break;
             case '!=': v = lv != rv; break;
             case '===': v = lv === rv; break;
             case '!==': v = lv !== rv; break;
+            case '<': v = lv < rv; break;
+            case '<=': v = lv <= rv; break;
+            case '>': v = lv > rv; break;
+            case '>=': v = lv >= rv; break;
+            case '||': v = lv || rv; break;
+            case '&&': v = lv && rv; break;
+            case '|': v = lv | rv; break;
+            case '&': v = lv & rv; break;
+            case '^': v = lv ^ rv; break;
+            case '<<': v = lv << rv; break;
+            case '>>': v = lv >> rv; break;
+            case '>>>': v = lv >>> rv; break;
           }
           return Display.makeLiteral(ast, v);
         } else {
