@@ -4,9 +4,9 @@ import * as React from 'react';
 
 import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
 
-import * as MDXHAST from '../parse/mdxhast';
-import * as AcornJsxAst from '../parse/acornJsxAst';
-import * as Parser from '../parse/parser';
+import * as MDXHAST from '../lang/mdxhast';
+import * as AcornJsxAst from '../lang/acornJsxAst';
+import * as Parser from '../lang/parser';
 
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
