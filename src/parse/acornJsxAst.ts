@@ -70,6 +70,25 @@ export interface Identifier extends NodeImpl {
   name: string;
 }
 
-export type Expression = Literal | Identifier | JSXElement;
+export interface ObjectExpression extends NodeImpl {
+  type: 'ObjectExpression';
+  properties: Array<Property>;
+}
+
+export interface Property extends NodeImpl {
+  type: 'Property';
+  method: boolean;
+  shorthand: boolean;
+  computed: boolean;
+  key: Identifier; // TODO(jaked) can be other things
+  value: Expression;
+  kind: 'init'; // ???
+}
+
+export type Expression =
+  Literal |
+  Identifier |
+  JSXElement |
+  ObjectExpression;
 
 export type Node = Program | ExpressionStatement | JSXElement;

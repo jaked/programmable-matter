@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 
 import * as React from 'react';
 
-import { Atom, F, Lens } from '@grammarly/focal';
+import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
 
 import * as MDXHAST from '../parse/mdxhast';
 import * as AcornJsxAst from '../parse/acornJsxAst';
@@ -25,6 +25,7 @@ export class Display extends React.Component<Props, {}> {
     // TODO(jaked)
     // figure out the rules on when this is needed
     this.renderExpression = this.renderExpression.bind(this);
+    this.evaluateExpression = this.evaluateExpression.bind(this);
     this.renderAttributes = this.renderAttributes.bind(this);
     this.renderElement = this.renderElement.bind(this);
     this.renderFromJsx = this.renderFromJsx.bind(this);
@@ -38,19 +39,85 @@ export class Display extends React.Component<Props, {}> {
     )
   }
 
-  private renderExpression(expression: AcornJsxAst.Expression) {
-    switch (expression.type) {
-      case 'Literal':
-        return expression.value;
-      case 'Identifier':
+  private renderExpression(ast: AcornJsxAst.Expression) {
+    const names = new Set<string>();
+    const evaluatedAst = this.evaluateExpression(ast, { names })
+    if (evaluatedAst.type === 'Literal') {
+      return evaluatedAst.value;
+    } else {
+      // TODO(jaked) how do I map over a Set to get an array?
+      const atoms: Array<ReadOnlyAtom<any>> = [];
+      names.forEach(name => {
         // TODO(jaked) we can't check for the existence
         // of a name at compile time, unless we make compilation
         // a reaction to change of the doc state?
-        return this.props.state.lens(Display.immutableMapLens(expression.name));
+        atoms.push(this.props.state.lens(Display.immutableMapLens(name)));
+      });
+      const self = this; // bleargh
+      const combineFn = function (...values: Array<any>) {
+        const env = new Map<string, any>();
+        let i = 0;
+        names.forEach(name => env.set(name, values[i++]));
+        const evaluatedAst2 = self.evaluateExpression(evaluatedAst, { env: env });
+        if (evaluatedAst2.type === 'Literal') {
+          return evaluatedAst2.value;
+        } else {
+          throw 'expected fully-evaluated expression'
+        }
+      }
+      // TODO(jaked) it doesn't seem to be possible to call the N-arg version of combine,
+      // even though all the K-arg versions are alternate signatures for it.
+      const combine = Atom.combine as (...args: any) => ReadOnlyAtom<any>
+      return combine(...[...atoms, combineFn]);
+    }
+  }
+
+  static makeLiteral(ast: AcornJsxAst.Expression, value: any) {
+    return Object.assign({}, ast, { type: 'Literal', value });
+  }
+
+  // evaluate an expression
+  //  - when `names` is passed, leave identifiers unevaluated but add them to `names`
+  //  - when `env` is passed, look up identifiers in `env`
+  // so we can use this function both in compilation and at runtime
+  // alternatively we could compile out function text and use a Function at runtime
+  // that seems more complicated, but probably faster at runtime
+  private evaluateExpression(ast: AcornJsxAst.Expression, opts: { names?: Set<string>, env?: Map<string, any> }): AcornJsxAst.Expression {
+    switch (ast.type) {
+      case 'Literal': return ast;
+
+      case 'Identifier':
+        if (opts.names) {
+          opts.names.add(ast.name);
+          return ast;
+        } else if (opts.env) {
+          return Display.makeLiteral(ast, opts.env.get(ast.name));
+        } else {
+          throw 'expected `names` or `env` argument';
+        }
+
       case 'JSXElement':
-        return this.renderFromJsx(expression);
+        // we don't need to recurse into JSXElements;
+        // focal handles reaction inside nested elements
+        return Display.makeLiteral(ast, this.renderFromJsx(ast));
+
+      case 'ObjectExpression':
+        const properties = ast.properties.map(prop => {
+          const value = this.evaluateExpression(prop.value, opts);
+          return Object.assign({}, prop, { value })
+        });
+        if (properties.every((prop) => prop.value.type === 'Literal')) {
+          return Display.makeLiteral(
+            ast,
+            Object.assign({}, ...properties.map(prop =>
+              ({ [prop.key.name]: (prop.value as AcornJsxAst.Literal).value })
+            )));
+        } else {
+          return Object.assign({}, ast, { properties });
+        }
+
       default:
-        throw 'unexpected AST ' + (expression as any).type;
+        throw 'unexpected AST ' + (ast as any).type;
     }
   }
 
