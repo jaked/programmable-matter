@@ -80,8 +80,6 @@ export class Display extends React.Component<Props, {}> {
   //  - when `names` is passed, leave identifiers unevaluated but add them to `names`
   //  - when `env` is passed, look up identifiers in `env`
   // so we can use this function both in compilation and at runtime
-  // alternatively we could compile out function text and use a Function at runtime
-  // that seems more complicated, but probably faster at runtime
   private evaluateExpression(ast: AcornJsxAst.Expression, opts: { names?: Set<string>, env?: Map<string, any> }): AcornJsxAst.Expression {
     switch (ast.type) {
       case 'Literal': return ast;
@@ -100,6 +98,30 @@ export class Display extends React.Component<Props, {}> {
         // we don't need to recurse into JSXElements;
         // focal handles reaction inside nested elements
         return Display.makeLiteral(ast, this.renderFromJsx(ast));
+
+      case 'BinaryExpression':
+        const left = this.evaluateExpression(ast.left, opts);
+        const right = this.evaluateExpression(ast.right, opts);
+        if (left.type === 'Literal' && right.type === 'Literal') {
+          const lv = left.value;
+          const rv = right.value;
+          let v;
+          switch (ast.operator) {
+            case '+': v = lv + rv; break;
+            case '-': v = lv - rv; break;
+            case '*': v = lv * rv; break;
+            case '/': v = lv * rv; break;
+            case '**': v = lv ** rv; break;
+            case '%': v = lv % rv; break;
+            case '==': v = lv == rv; break;
+            case '!=': v = lv != rv; break;
+            case '===': v = lv === rv; break;
+            case '!==': v = lv !== rv; break;
+          }
+          return Display.makeLiteral(ast, v);
+        } else {
+          return Object.assign({}, ast, { left, right });
+        }
 
       case 'ObjectExpression':
         const properties = ast.properties.map(prop => {

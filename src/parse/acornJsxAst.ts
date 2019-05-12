@@ -61,13 +61,20 @@ export interface JSXExpressionContainer extends NodeImpl {
 
 export interface Literal extends NodeImpl {
   type: 'Literal';
-  value: string | number | boolean; // others?
-  raw: string;
+  value: any;
 }
 
 export interface Identifier extends NodeImpl {
   type: 'Identifier';
   name: string;
+}
+
+export interface BinaryExpression extends NodeImpl {
+  type: 'BinaryExpression';
+  left: Expression;
+  // TODO(jaked) look up the full list
+  operator: '+' | '-' | '*' | '/' | '**' | '%' | '==' | '!=' | '===' | '!==';
+  right: Expression;
 }
 
 export interface ObjectExpression extends NodeImpl {
@@ -89,6 +96,7 @@ export type Expression =
   Literal |
   Identifier |
   JSXElement |
+  BinaryExpression |
   ObjectExpression;
 
 export type Node = Program | ExpressionStatement | JSXElement;
