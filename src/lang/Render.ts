@@ -9,6 +9,8 @@ import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
 import * as Evaluator from './evaluator';
+import * as Type from './Type';
+import * as Typecheck from './Typecheck';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
@@ -149,3 +151,7 @@ export function renderFromMdx(ast: MDXHAST.Node, state: State): React.ReactNode 
       }
   }
 }
+
+export const initEnv: Typecheck.Env = Immutable.Map({
+  'Tweet': Type.object({ tweetId: Type.string }),
+});
