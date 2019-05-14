@@ -99,6 +99,27 @@ export function union(...types: Array<Type>): UnionType {
 }
 
 export function isSubtype(a: Type, b: Type): boolean {
-  throw 'unimplemented';
+  if (Equals.equals(a, b)) return true;
+  else if (a.kind === 'never') return true;
+  else if (b.kind === 'unknown') return true;
+  else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));
+  else if (b.kind === 'Union') return b.types.some(t => isSubtype(a, t));
+  else if (a.kind === 'Array' && b.kind === 'Array')
+    return isSubtype(a.elem, b.elem);
+  else if (a.kind === 'Set' && b.kind === 'Set')
+    return isSubtype(a.elem, b.elem);
+  else if (a.kind === 'Map' && b.kind === 'Map')
+    return isSubtype(b.key, a.key) && isSubtype(a.value, b.value);
+  else if (a.kind === 'Tuple' && b.kind === 'Tuple')
+    return a.elems.length === b.elems.length &&
+      a.elems.every((t, i) => isSubtype(t, b.elems[i]));
+  else if (a.kind === 'Object' && b.kind === 'Object') {
+    const fieldTypes = new Map(a.fields.map(({ field, type }) => [field, type]));
+    return b.fields.every((ft) => {
+      const a = fieldTypes.get(ft.field);
+      if (a) return isSubtype(a, ft.type);
+      else return false;
+    });
+  }
+  else return false;
 }
-
