@@ -21,7 +21,6 @@
       "ScriptHost",
       "ES2015.Collection"
     ],
-    "types": [],                // avoid loading @types/node to speed up build
   },
   "include": [
     "./src/"

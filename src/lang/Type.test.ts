@@ -1,5 +1,3 @@
-/// <reference types="jest" />
-
 import * as Type from './Type';
 
 describe('union', () => {
