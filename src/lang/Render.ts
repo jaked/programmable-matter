@@ -162,6 +162,9 @@ function evaluateMdxAtomBindings(ast: MDXHAST.Node, env: Env, state: State): Env
           if (evaluatedAst.type === 'Literal') {
             const name = declarator.id.name;
             const value = state.lens(immutableMapLens(name));
+            if (value.get() === null) {
+              value.set(evaluatedAst.value);
+            }
             return env.set(name, value);
           } else {
             // TODO(jaked) check this statically
