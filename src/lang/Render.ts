@@ -84,21 +84,18 @@ function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, state: St
   return Object.assign({}, ...attrObjs);
 }
 
-const LiftedVictoryBar = Focal.lift(VictoryBar);
+
+const components = new Map([
+  [ 'Tweet', TwitterTweetEmbed ],
+  [ 'YouTube', YouTube ],
+  [ 'VictoryBar', VictoryBar ],
+].map(([name, comp]) => [name, Focal.lift(comp)]));
 
 function renderElement(name: string) {
   if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
-    // TODO(jaked) lift non-intrinsic components
-    switch (name) {
-      case 'Tweet':
-        return TwitterTweetEmbed;
-      case 'YouTube':
-        return YouTube;
-      case 'VictoryBar':
-        return LiftedVictoryBar;
-      default:
-        throw 'unexpected element ' + name;
-    }
+    const comp = components.get(name)
+    if (comp) return comp;
+    else throw 'unexpected element ' + name;
   } else {
     return F[name] || name;
   }
