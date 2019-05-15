@@ -27,14 +27,14 @@ function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   )
 }
 
-function renderExpression(ast: AcornJsxAst.Expression, env: Env, state: State) {
+function renderExpression(ast: AcornJsxAst.Expression, env: Env) {
   const names = new Set<string>();
   const evaluatedAst =
     Evaluator.evaluateExpression(ast,
       {
         mode: 'compile',
         names,
-        renderJsxElement: (ast) => renderJsx(ast, env, state)
+        renderJsxElement: (ast) => renderJsx(ast, env)
       }
     );
   if (evaluatedAst.type === 'Literal') {
@@ -68,12 +68,12 @@ function renderExpression(ast: AcornJsxAst.Expression, env: Env, state: State) {
   }
 }
 
-function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, env: Env, state: State) {
+function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, env: Env) {
   const attrObjs = attributes.map(({ name, value }) => {
     let attrValue;
     switch (value.type) {
       case 'JSXExpressionContainer':
-        attrValue = renderExpression(value.expression, env, state);
+        attrValue = renderExpression(value.expression, env);
         break;
       case 'Literal':
         attrValue = value.value;
@@ -102,26 +102,31 @@ function renderElement(name: string) {
   }
 }
 
-function renderJsx(ast: AcornJsxAst.JSXElement, env: Env, state: State): React.ReactNode {
-  const attrs = renderAttributes(ast.openingElement.attributes, env, state);
+function renderJsx(ast: AcornJsxAst.JSXElement, env: Env): React.ReactNode {
+  const attrs = renderAttributes(ast.openingElement.attributes, env);
   const elem = renderElement(ast.openingElement.name.name);
   const children = ast.children.map(child => {
     switch (child.type) {
       case 'JSXElement':
-        return renderJsx(child, env, state);
+        return renderJsx(child, env);
       case 'JSXText':
         return child.value;
       case 'JSXExpressionContainer':
-        return renderExpression(child.expression, env, state);
+        return renderExpression(child.expression, env);
     }
   });
 
   // TODO(jaked) for what elements does this make sense? only input?
   if (attrs.id) {
-    const atom = state.lens(immutableMapLens(attrs.id))
-    // TODO(jaked) atom is unset before 1st change
-    attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      atom.set(e.currentTarget.value);
+    if (env.has(attrs.id)) {
+      const atom = env.get(attrs.id) as Atom<any>;
+      attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        atom.set(e.currentTarget.value);
+      }
+    } else {
+      // TODO(jaked) check statically
+      // also check that it is a non-readonly Atom
+      throw 'unbound identifier ' + attrs.id;
     }
   }
 
@@ -181,12 +186,12 @@ function evaluateMdxAtomBindings(ast: MDXHAST.Node, env: Env, state: State): Env
   }
 }
 
-function evaluateMdxBindings(ast: MDXHAST.Node, env: Env, state: State): Env {
+function evaluateMdxBindings(ast: MDXHAST.Node, env: Env): Env {
   switch (ast.type) {
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, env, state)
+        env = evaluateMdxBindings(child, env)
       );
       return env;
 
@@ -203,7 +208,7 @@ function evaluateMdxBindings(ast: MDXHAST.Node, env: Env, state: State): Env {
         const declaration = ast.exportNamedDeclaration.declaration;
         const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
         if (declaration.kind === 'const') {
-          let value = renderExpression(declarator.init, env, state);
+          let value = renderExpression(declarator.init, env);
           return env.set(declarator.id.name, value);
         } else {
           return env;
@@ -216,20 +221,20 @@ function evaluateMdxBindings(ast: MDXHAST.Node, env: Env, state: State): Env {
   }
 }
 
-function renderMdxElements(ast: MDXHAST.Node, env: Env, state: State): React.ReactNode {
+function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
   switch (ast.type) {
     case 'root':
       return React.createElement(
         'div',
         {},
-        ...ast.children.map(child => renderMdxElements(child, env, state))
+        ...ast.children.map(child => renderMdxElements(child, env))
       );
 
     case 'element':
       return React.createElement(
         ast.tagName,
         ast.properties,
-        ...ast.children.map(child => renderMdxElements(child, env, state))
+        ...ast.children.map(child => renderMdxElements(child, env))
       );
 
     case 'text':
@@ -238,7 +243,7 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env, state: State): React.Rea
 
     case 'jsx':
       if (ast.jsxElement) {
-        return renderJsx(ast.jsxElement, env, state);
+        return renderJsx(ast.jsxElement, env);
       } else {
         throw 'expected JSX node to be parsed';
       }
@@ -252,13 +257,9 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env, state: State): React.Rea
 }
 
 export function renderMdx(ast: MDXHAST.Node, env: Env, state: State): React.ReactNode {
-  // TODO(jaked)
-  // we need to pass state to evaluateMdxAtomBindings
-  // but once controls explicitly bind to atoms instead of using id
-  // we won't need to pass it to evaluateMdxBindings or renderMdxElements
   const env2 = evaluateMdxAtomBindings(ast, env, state);
-  const env3 = evaluateMdxBindings(ast, env2, state);
-  return renderMdxElements(ast, env3, state);
+  const env3 = evaluateMdxBindings(ast, env2);
+  return renderMdxElements(ast, env3);
 }
 
 export const initEnv: Typecheck.Env = Immutable.Map({
