@@ -4,7 +4,7 @@ import * as data from '../data';
 import { Note } from './Note';
 
 interface Props {
-  notes: Array<data.Note>;
+  notes: data.Notes;
   selected: string | null;
   onSelect: (tag: string) => void;
 }
@@ -19,9 +19,11 @@ export class Notes extends React.Component<Props, State> {
 
   render() {
     const { notes, selected, onSelect } = this.props;
+    const notesArray = notes.valueSeq().toArray();
+
     return (
       <List dense disablePadding>
-      {notes.map((note) =>
+      {notesArray.map((note) =>
         <Note
           key={note.tag}
           note={note}

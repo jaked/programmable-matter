@@ -40,7 +40,7 @@ export class Main extends React.Component<{}, State> {
     super(props);
 
     this.state = {
-      notes: [],
+      notes: Immutable.Map(),
       selected: null,
     }
 
@@ -99,12 +99,10 @@ export class Main extends React.Component<{}, State> {
     // TODO(jaked) ugh
     const content: string | null =
       this.state.selected &&
-      Object.assign(
-        {},
-        ...this.state.notes.map(({ tag, content }) => {
-          return { [tag]: content };
-        }))
-      [this.state.selected]
+      this.state.notes.get(
+        this.state.selected,
+        { tag: null, content: null }
+      ).content;
 
     return (
       <React.Fragment>

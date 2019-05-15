@@ -88,20 +88,13 @@ export class Watcher {
       return eventContents.reduce(function (notes, [event, content]) {
         switch (event.action) {
           case 0: // created
-            notes.push({ tag: event.file, content: content });
-            return notes;
+          case 2: // modified
+            return notes.set(event.file, { tag: event.file, content: content });
 
           case 1: // deleted
-            return notes.filter(({ tag }) => tag !== event.file);
+            return notes.delete(event.file);
 
-          case 2: // modified
-            return notes.map(note =>
-              (note.tag === event.file) ?
-              { tag: note.tag, content: content } :
-              note
-            )
-
-            case 3:
+          case 3: // renamed
             throw 'unimplemented'
         }
       }, notes)
