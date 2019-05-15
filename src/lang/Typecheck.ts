@@ -1,3 +1,5 @@
+import Recast from 'recast/main';
+
 import * as Immutable from 'immutable';
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
@@ -8,12 +10,12 @@ export type Env = Immutable.Map<string, Type.Type>;
 
 function prettyPrint(type: Type.Type): string {
   // TODO(jaked) print prettily
-  return type.toString();
+  return JSON.stringify(type);
 }
 
 function location(ast: AcornJsxAst.Expression): string {
   // TODO(jaked) print location
-  return ast.toString();
+  return Recast.print(ast).toString();
 }
 
 function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, actual?: Type.Type) {
@@ -107,6 +109,42 @@ function checkArray(ast: AcornJsxAst.Expression, env: Env, type: Type.ArrayType)
   }
 }
 
+function checkSet(ast: AcornJsxAst.Expression, env: Env, type: Type.SetType) {
+  switch (ast.type) {
+    // TODO(jaked) Set literals?
+
+    default:
+      checkSubtype(ast, synth(ast, env), type);
+  }
+}
+
+function checkMap(ast: AcornJsxAst.Expression, env: Env, type: Type.MapType) {
+  switch (ast.type) {
+    // TODO(jaked) Map literals?
+
+    default:
+      checkSubtype(ast, synth(ast, env), type);
+  }
+}
+
+function checkUnion(ast: AcornJsxAst.Expression, env: Env, type: Type.UnionType) {
+  // we could independently check against each arm of the union
+  // but it seems like that would not improve the error message
+  // since we don't know which arm is intended
+  checkSubtype(ast, synth(ast, env), type);
+}
+
+function checkIntersection(ast: AcornJsxAst.Expression, env: Env, type: Type.IntersectionType) {
+  type.types.forEach(type => check(ast, env, type));
+}
+
+function checkSingleton(ast: AcornJsxAst.Expression, env: Env, type: Type.SingletonType) {
+  // we could decompose the singleton value along with the expression
+  // to get more localized errors, but it doesn't seem very useful;
+  // I bet compound singletons are rare.
+  checkSubtype(ast, synth(ast, env), type);
+}
+
 function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectType) {
   switch (ast.type) {
     case 'ObjectExpression':
@@ -132,16 +170,21 @@ function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectTyp
 
 export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type) {
   switch (type.kind) {
-    case 'never':     return checkNever(ast, env, type);
-    case 'unknown':   return checkUnknown(ast, env, type);
-    case 'undefined': return checkUndefined(ast, env, type);
-    case 'null':      return checkNull(ast, env, type);
-    case 'boolean':   return checkBoolean(ast, env, type);
-    case 'number':    return checkNumber(ast, env, type);
-    case 'string':    return checkString(ast, env, type);
-    case 'Tuple':     return checkTuple(ast, env, type);
-    case 'Array':     return checkArray(ast, env, type);
-    case 'Object':    return checkObject(ast, env, type);
+    case 'never':         return checkNever(ast, env, type);
+    case 'unknown':       return checkUnknown(ast, env, type);
+    case 'undefined':     return checkUndefined(ast, env, type);
+    case 'null':          return checkNull(ast, env, type);
+    case 'boolean':       return checkBoolean(ast, env, type);
+    case 'number':        return checkNumber(ast, env, type);
+    case 'string':        return checkString(ast, env, type);
+    case 'Tuple':         return checkTuple(ast, env, type);
+    case 'Array':         return checkArray(ast, env, type);
+    case 'Set':           return checkSet(ast, env, type);
+    case 'Map':           return checkMap(ast, env, type);
+    case 'Object':        return checkObject(ast, env, type);
+    case 'Union':         return checkUnion(ast, env, type);
+    case 'Intersection':  return checkIntersection(ast, env, type);
+    case 'Singleton':     return checkSingleton(ast, env, type);
   }
 }
 
@@ -180,7 +223,7 @@ export function synth(ast: AcornJsxAst.Expression, env: Env): Type.Type {
     case 'ArrayExpression':   return synthArrayExpression(ast, env);
     case 'ObjectExpression':  return synthObjectExpression(ast, env);
 
-    default: throw 'unimplemented: synth ' + ast.toString();
+    default: throw 'unimplemented: synth ' + JSON.stringify(ast);
   }
 }
 

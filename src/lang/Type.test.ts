@@ -60,6 +60,13 @@ describe('isSubtype', () => {
       const b = Type.union(Type.string, Type.number, Type.boolean);
       expect(Type.isSubtype(a, b)).toBe(true);
     });
+
+    it('C<A | B> <: C<A> | C<B>', () => {
+      const a = Type.union(Type.array(Type.string), Type.array(Type.boolean));
+      const b = Type.array(Type.union(Type.string, Type.boolean));
+      expect(Type.isSubtype(a, b)).toBe(true);
+      expect(Type.isSubtype(b, a)).toBe(false);
+    });
   });
 
   describe('Object', () => {
