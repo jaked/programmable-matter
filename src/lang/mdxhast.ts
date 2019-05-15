@@ -47,4 +47,16 @@ export interface Jsx extends NodeImpl {
   jsxElement?: AcornJsxAst.JSXElement
 }
 
-export type Node = Root | Element | Text | Jsx
+export interface Import extends NodeImpl {
+  type: 'import';
+  value: string;
+  importDeclaration?: AcornJsxAst.ImportDeclaration;
+}
+
+export interface Export extends NodeImpl {
+  type: 'export';
+  value: string;
+  exportNamedDeclaration?: AcornJsxAst.ExportNamedDeclaration;
+}
+
+export type Node = Root | Element | Text | Jsx | Import | Export

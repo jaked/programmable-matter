@@ -31,9 +31,11 @@ function parseJsx(ast: MDXHAST.Node) {
     case 'element':
       ast.children.forEach(parseJsx);
       break;
+
     case 'text':
       break;
-    case 'jsx':
+
+    case 'jsx': {
       const jsxAst = jsxParser.parse(ast.value) as AcornJsxAst.Node;
       switch (jsxAst.type) {
         case 'Program':
@@ -56,7 +58,50 @@ function parseJsx(ast: MDXHAST.Node) {
         default:
           throw 'unexpected AST ' + jsxAst.type;
       }
-      break;
+    }
+    break;
+
+    case 'import': {
+      const jsxAst =
+        jsxParser.parse(ast.value, { sourceType: 'module' }) as AcornJsxAst.Node;
+      switch (jsxAst.type) {
+        case 'Program':
+          const body = jsxAst.body[0];
+          switch (body.type) {
+            case 'ImportDeclaration':
+              ast.importDeclaration = body;
+              break;
+            default:
+              throw 'unexpected AST ' + body.type;
+          }
+          break;
+        default:
+          throw 'unexpected AST ' + jsxAst.type;
+      }
+    }
+    break;
+
+    case 'export': {
+      const jsxAst =
+        jsxParser.parse(ast.value, { sourceType: 'module' }) as AcornJsxAst.Node;
+      switch (jsxAst.type) {
+        case 'Program':
+          const body = jsxAst.body[0];
+          switch (body.type) {
+            case 'ExportNamedDeclaration':
+              ast.exportNamedDeclaration = body;
+              break;
+            default:
+              throw 'unexpected AST ' + body.type;
+          }
+          break;
+        default:
+          throw 'unexpected AST ' + jsxAst.type;
+      }
+    }
+    break;
+
+    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }
 }
 

@@ -20,9 +20,9 @@ export class Display extends React.Component<Props, {}> {
       const ast = Parser.parse(this.props.content)
       // TODO(jaked)
       // environment should include identifiers in other pages
-      const env = Immutable.Map<string, Type.Type>();
-      Typecheck.checkAst(ast, Render.initEnv);
-      return Render.renderFromMdx(ast, this.props.state);
+      Typecheck.checkMdx(ast, Render.initEnv);
+      const env = Immutable.Map<string, any>();
+      return Render.renderMdx(ast, env, this.props.state);
     }
   }
 }

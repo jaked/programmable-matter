@@ -10,7 +10,7 @@ interface NodeImpl {
 
 export interface Program extends NodeImpl {
   type: 'Program';
-  body: Array<ExpressionStatement>;
+  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration>;
   sourceType: 'module';
 }
 
@@ -112,5 +112,42 @@ export type Expression =
   BinaryExpression |
   ObjectExpression |
   ArrayExpression;
+
+export interface ImportSpecifier extends NodeImpl {
+  type: 'ImportSpecifier';
+}
+
+export interface ImportNamespaceSpecifier extends NodeImpl {
+  type: 'ImportNamespaceSpecifier';
+}
+
+export interface ImportDefaultSpecifier extends NodeImpl {
+  type: 'ImportDefaultSpecifier';
+}
+
+export interface ImportDeclaration extends NodeImpl {
+  type: 'ImportDeclaration';
+  specifiers: Array<ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier >;
+  source: Literal;
+}
+
+export interface VariableDeclarator extends NodeImpl {
+  type: 'VariableDeclarator';
+  id: Identifier;
+  init: Expression;
+}
+
+export interface VariableDeclaration extends NodeImpl {
+  type: 'VariableDeclaration';
+  declarations: Array<VariableDeclarator>;
+  kind: 'const' | 'let';
+}
+
+export interface ExportNamedDeclaration extends NodeImpl {
+  type: 'ExportNamedDeclaration';
+  declaration: VariableDeclaration;
+  specifiers: Array<never>; // TODO(jaked)
+  source: null; // ???
+}
 
 export type Node = Program | ExpressionStatement | JSXElement;

@@ -216,12 +216,24 @@ function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): Typ
   return Type.object(Object.assign({}, ...fields));
 }
 
+function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): Type.Type {
+  const left = synth(ast.left, env);
+  const right = synth(ast.right, env);
+
+  if (left.kind === 'number' && right.kind === 'number') {
+    return Type.number;
+  } else {
+    throw 'unimplemented: synthBinaryExpression';
+  }
+}
+
 export function synth(ast: AcornJsxAst.Expression, env: Env): Type.Type {
   switch (ast.type) {
     case 'Identifier':        return synthIdentifier(ast, env);
     case 'Literal':           return synthLiteral(ast, env);
     case 'ArrayExpression':   return synthArrayExpression(ast, env);
     case 'ObjectExpression':  return synthObjectExpression(ast, env);
+    case 'BinaryExpression':  return synthBinaryExpression(ast, env);
 
     default: throw 'unimplemented: synth ' + JSON.stringify(ast);
   }
@@ -266,11 +278,11 @@ function checkJsxElement(ast: AcornJsxAst.JSXElement, env: Env) {
   });
 }
 
-export function checkAst(ast: MDXHAST.Node, env: Env) {
+function checkMdxElements(ast: MDXHAST.Node, env: Env) {
   switch (ast.type) {
     case 'root':
     case 'element':
-      return ast.children.forEach(child => checkAst(child, env));
+      return ast.children.forEach(child => checkMdxElements(child, env));
 
     case 'text':
       return;
@@ -281,5 +293,52 @@ export function checkAst(ast: MDXHAST.Node, env: Env) {
       } else {
         throw 'expected JSX node to be parsed';
       }
+
+    case 'import':
+    case 'export':
+      return;
+
+    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }
+}
+
+function synthMdxBindings(ast: MDXHAST.Node, env: Env): Env {
+  // TODO(jaked)
+  // - topologically sort bindings
+  // - check for cycles
+  // - synthesize types bottom up
+
+  switch (ast.type) {
+    case 'root':
+    case 'element':
+      ast.children.forEach(child =>
+        env = synthMdxBindings(child, env)
+      );
+      return env;
+
+    case 'text':
+    case 'jsx':
+      return env;
+
+    case 'import':
+      // TODO(jaked)
+      return env;
+
+    case 'export':
+      if (ast.exportNamedDeclaration) {
+        const declaration = ast.exportNamedDeclaration.declaration;
+        const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
+        const type = synth(declarator.init, env);
+        return env.set(declarator.id.name, type);
+      } else {
+        throw 'expected export node to be parsed';
+      }
+
+    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+  }
+}
+
+export function checkMdx(ast: MDXHAST.Node, env: Env) {
+  const env2 = synthMdxBindings(ast, env);
+  checkMdxElements(ast, env2);
 }

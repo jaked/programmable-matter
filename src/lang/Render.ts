@@ -18,6 +18,7 @@ import * as Typecheck from './Typecheck';
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 type State = Atom<Immutable.Map<string, any>>;
+type Env = Immutable.Map<string, any>;
 
 function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   return Lens.create(
@@ -26,14 +27,14 @@ function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   )
 }
 
-function renderExpression(ast: AcornJsxAst.Expression, state: State) {
+function renderExpression(ast: AcornJsxAst.Expression, env: Env, state: State) {
   const names = new Set<string>();
   const evaluatedAst =
     Evaluator.evaluateExpression(ast,
       {
         mode: 'compile',
         names,
-        renderJsxElement: (ast) => renderFromJsx(ast, state)
+        renderJsxElement: (ast) => renderJsx(ast, env, state)
       }
     );
   if (evaluatedAst.type === 'Literal') {
@@ -42,10 +43,11 @@ function renderExpression(ast: AcornJsxAst.Expression, state: State) {
     // TODO(jaked) how do I map over a Set to get an array?
     const atoms: Array<ReadOnlyAtom<any>> = [];
     names.forEach(name => {
-      // TODO(jaked) we can't check for the existence
-      // of a name at compile time, unless we make compilation
-      // a reaction to change of the doc state?
-      atoms.push(state.lens(immutableMapLens(name)));
+      if (env.has(name)) {
+        atoms.push(env.get(name));
+      } else {
+        throw 'expected binding for ' + name;
+      }
     });
     const combineFn = function (...values: Array<any>) {
       const env = new Map<string, any>();
@@ -66,12 +68,12 @@ function renderExpression(ast: AcornJsxAst.Expression, state: State) {
   }
 }
 
-function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, state: State) {
+function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, env: Env, state: State) {
   const attrObjs = attributes.map(({ name, value }) => {
     let attrValue;
     switch (value.type) {
       case 'JSXExpressionContainer':
-        attrValue = renderExpression(value.expression, state);
+        attrValue = renderExpression(value.expression, env, state);
         break;
       case 'Literal':
         attrValue = value.value;
@@ -83,7 +85,6 @@ function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, state: St
   });
   return Object.assign({}, ...attrObjs);
 }
-
 
 const components = new Map([
   [ 'Tweet', TwitterTweetEmbed ],
@@ -101,17 +102,17 @@ function renderElement(name: string) {
   }
 }
 
-function renderFromJsx(ast: AcornJsxAst.JSXElement, state: State): React.ReactNode {
-  const attrs = renderAttributes(ast.openingElement.attributes, state);
+function renderJsx(ast: AcornJsxAst.JSXElement, env: Env, state: State): React.ReactNode {
+  const attrs = renderAttributes(ast.openingElement.attributes, env, state);
   const elem = renderElement(ast.openingElement.name.name);
   const children = ast.children.map(child => {
     switch (child.type) {
       case 'JSXElement':
-        return renderFromJsx(child, state);
+        return renderJsx(child, env, state);
       case 'JSXText':
         return child.value;
       case 'JSXExpressionContainer':
-        return renderExpression(child.expression, state);
+        return renderExpression(child.expression, env, state);
     }
   });
 
@@ -127,20 +128,105 @@ function renderFromJsx(ast: AcornJsxAst.JSXElement, state: State): React.ReactNo
   return React.createElement(elem, attrs, ...children);
 }
 
-export function renderFromMdx(ast: MDXHAST.Node, state: State): React.ReactNode {
+function evaluateMdxAtomBindings(ast: MDXHAST.Node, env: Env, state: State): Env {
+  switch (ast.type) {
+    case 'root':
+    case 'element':
+      ast.children.forEach(child =>
+        env = evaluateMdxAtomBindings(child, env, state)
+      );
+      return env;
+
+    case 'text':
+    case 'jsx':
+      return env;
+
+    case 'import':
+      // TODO(jaked)
+      return env;
+
+    case 'export':
+      if (ast.exportNamedDeclaration) {
+        const declaration = ast.exportNamedDeclaration.declaration;
+        const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
+        if (declaration.kind === 'let') {
+          const evaluatedAst =
+            Evaluator.evaluateExpression(declarator.init,
+              {
+                mode: 'compile',
+                names: new Set<string>(),
+                // TODO(jaked) check this statically
+                renderJsxElement: (ast) => { throw 'JSX element may not appear in atom declaration' }
+              }
+            );
+          if (evaluatedAst.type === 'Literal') {
+            const name = declarator.id.name;
+            const value = state.lens(immutableMapLens(name));
+            return env.set(name, value);
+          } else {
+            // TODO(jaked) check this statically
+            throw 'atom initializer must be static';
+          }
+        } else {
+          return env;
+        }
+      } else {
+        throw 'expected export node to be parsed';
+      }
+
+    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+  }
+}
+
+function evaluateMdxBindings(ast: MDXHAST.Node, env: Env, state: State): Env {
+  switch (ast.type) {
+    case 'root':
+    case 'element':
+      ast.children.forEach(child =>
+        env = evaluateMdxBindings(child, env, state)
+      );
+      return env;
+
+    case 'text':
+    case 'jsx':
+      return env;
+
+    case 'import':
+      // TODO(jaked)
+      return env;
+
+    case 'export':
+      if (ast.exportNamedDeclaration) {
+        const declaration = ast.exportNamedDeclaration.declaration;
+        const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
+        if (declaration.kind === 'const') {
+          let value = renderExpression(declarator.init, env, state);
+          return env.set(declarator.id.name, value);
+        } else {
+          return env;
+        }
+      } else {
+        throw 'expected export node to be parsed';
+      }
+
+    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+  }
+}
+
+function renderMdxElements(ast: MDXHAST.Node, env: Env, state: State): React.ReactNode {
   switch (ast.type) {
     case 'root':
       return React.createElement(
         'div',
         {},
-        ...ast.children.map(child => renderFromMdx(child, state))
+        ...ast.children.map(child => renderMdxElements(child, env, state))
       );
 
     case 'element':
       return React.createElement(
         ast.tagName,
         ast.properties,
-        ...ast.children.map(child => renderFromMdx(child, state))
+        ...ast.children.map(child => renderMdxElements(child, env, state))
       );
 
     case 'text':
@@ -149,11 +235,27 @@ export function renderFromMdx(ast: MDXHAST.Node, state: State): React.ReactNode 
 
     case 'jsx':
       if (ast.jsxElement) {
-        return renderFromJsx(ast.jsxElement, state);
+        return renderJsx(ast.jsxElement, env, state);
       } else {
         throw 'expected JSX node to be parsed';
       }
+
+    case 'import':
+    case 'export':
+      return undefined;
+
+    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }
+}
+
+export function renderMdx(ast: MDXHAST.Node, env: Env, state: State): React.ReactNode {
+  // TODO(jaked)
+  // we need to pass state to evaluateMdxAtomBindings
+  // but once controls explicitly bind to atoms instead of using id
+  // we won't need to pass it to evaluateMdxBindings or renderMdxElements
+  const env2 = evaluateMdxAtomBindings(ast, env, state);
+  const env3 = evaluateMdxBindings(ast, env2, state);
+  return renderMdxElements(ast, env3, state);
 }
 
 export const initEnv: Typecheck.Env = Immutable.Map({
