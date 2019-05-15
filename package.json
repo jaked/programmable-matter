@@ -30,6 +30,7 @@
     "@mdx-js/mdx": "^1.0.14",
     "@types/react": "^16.8.13",
     "@types/react-dom": "^16.8.4",
+    "@types/victory": "^31.0.17",
     "acorn": "^6.1.1",
     "acorn-jsx": "^5.0.1",
     "brace": "^0.11.1",

@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
-import { VictoryBar } from 'Victory';
+import { VictoryBar } from 'victory';
 
 import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
 import * as Focal from '@grammarly/focal';
