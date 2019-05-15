@@ -102,6 +102,18 @@ export function evaluateExpression(
         return Object.assign({}, ast, { properties });
       }
 
+    case 'ArrayExpression':
+      const elements =
+        ast.elements.map(e => evaluateExpression(e, opts));
+      if (elements.every(e => e.type === 'Literal')) {
+        return makeLiteral(
+          ast,
+          elements.map(e => (e as AcornJsxAst.Literal).value)
+        );
+      } else {
+        return Object.assign({}, ast, { elements });
+      }
+
     default:
       throw 'unexpected AST ' + (ast as any).type;
   }

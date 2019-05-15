@@ -1,10 +1,13 @@
 import * as Immutable from 'immutable';
 
 import * as React from 'react';
+
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
+import { VictoryBar } from 'Victory';
 
 import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
+import * as Focal from '@grammarly/focal';
 
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
@@ -81,6 +84,8 @@ function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, state: St
   return Object.assign({}, ...attrObjs);
 }
 
+const LiftedVictoryBar = Focal.lift(VictoryBar);
+
 function renderElement(name: string) {
   if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
     // TODO(jaked) lift non-intrinsic components
@@ -89,6 +94,8 @@ function renderElement(name: string) {
         return TwitterTweetEmbed;
       case 'YouTube':
         return YouTube;
+      case 'VictoryBar':
+        return LiftedVictoryBar;
       default:
         throw 'unexpected element ' + name;
     }
@@ -154,4 +161,7 @@ export function renderFromMdx(ast: MDXHAST.Node, state: State): React.ReactNode 
 
 export const initEnv: Typecheck.Env = Immutable.Map({
   'Tweet': Type.object({ tweetId: Type.string }),
+  'YouTube': Type.object({ videoId: Type.string }),
+
+  'VictoryBar': Type.object({}),
 });
