@@ -25,57 +25,35 @@ interface Props {
   content: Atom<string | null >;
 }
 
-export class Main extends React.Component<Props, {}> {
-  constructor(props: Props) {
-    super(props);
-
-    this.setNotesState = this.setNotesState.bind(this)
-    this.handleSelect = this.handleSelect.bind(this)
-    this.handleChange = this.handleChange.bind(this)
-  }
-
-  setNotesState(updateNotes: (notes: data.Notes) => data.Notes) {
-    this.props.notes.modify(updateNotes);
-  }
-
-  handleSelect(tag: string) {
-    this.props.selected.set(tag);
-  }
-
-  handleChange(content: string) {
-    this.props.content.set(content);
-  }
-
-  render() {
-    return (
-      <React.Fragment>
-        <CssBaseline />
-        <Grid container direction='row'>
-          <Grid item xs={12}>
-            <TextField
-              autoFocus
-              fullWidth
-              margin='dense'
-              variant='outlined'
-            />
-          </Grid>
-          <Grid item xs={2}>
-            <LiftedNotes
-              notes={this.props.notes}
-              selected={this.props.selected}
-              onSelect={this.handleSelect}
-            />
-          </Grid>
-          <Grid item xs={5}>
-            <LiftedEditor content={this.props.content} onChange={this.handleChange} />
-          </Grid>
-          <Grid item xs={5}>
-            <Catch>
-              <Display state={this.props.lets} content={this.props.content} />
-            </Catch>
-          </Grid>
+export function Main({ notes, selected, lets, content }: Props) {
+  return (
+    <React.Fragment>
+      <CssBaseline />
+      <Grid container direction='row'>
+        <Grid item xs={12}>
+          <TextField
+            autoFocus
+            fullWidth
+            margin='dense'
+            variant='outlined'
+          />
         </Grid>
-      </React.Fragment>
-    );
-  }
+        <Grid item xs={2}>
+          <LiftedNotes
+            notes={notes}
+            selected={selected}
+            onSelect={tag => selected.set(tag)}
+          />
+        </Grid>
+        <Grid item xs={5}>
+          <LiftedEditor content={content} onChange={c => content.set(c)} />
+        </Grid>
+        <Grid item xs={5}>
+          <Catch>
+            <Display state={lets} content={content} />
+          </Catch>
+        </Grid>
+      </Grid>
+    </React.Fragment>
+  );
 }
