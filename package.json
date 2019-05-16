@@ -42,6 +42,7 @@
     "react-ace": "^6.4.0",
     "react-dom": "^16.8.6",
     "react-inspector": "^3.0.2",
+    "react-katex": "^2.0.2",
     "react-twitter-embed": "^2.0.7",
     "react-youtube": "^7.9.0",
     "recast": "^0.17.6",

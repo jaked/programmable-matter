@@ -9,6 +9,8 @@ import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
 import { VictoryBar } from 'victory';
 
+import { InlineMath, BlockMath } from 'react-katex';
+
 import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
 import * as Focal from '@grammarly/focal';
 
@@ -94,6 +96,8 @@ const components = new Map([
   [ 'Tweet', TwitterTweetEmbed ],
   [ 'YouTube', YouTube ],
   [ 'VictoryBar', VictoryBar ],
+  [ 'InlineMath', InlineMath ],
+  [ 'BlockMath', BlockMath ],
 ].map(([name, comp]) => [name, Focal.lift(comp)]));
 
 function renderElement(name: string) {
