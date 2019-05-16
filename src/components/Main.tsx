@@ -8,6 +8,7 @@ import { Observable } from 'rxjs';
 
 import * as React from 'react';
 import { Atom, Lens } from '@grammarly/focal';
+import * as Focal from '@grammarly/focal';
 
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Grid from '@material-ui/core/Grid';
@@ -21,28 +22,60 @@ import { Display } from './Display';
 import { Editor } from './Editor';
 import { Notes } from './Notes';
 
+const LiftedEditor = Focal.lift(Editor);
+const LiftedNotes = Focal.lift(Notes);
+
 // TODO(jaked)
 const ROOT = process.cwd();
 
-// TODO(jaked) put notes state in stateAtom
-// and selected state? why not
 interface State {
-  notes: data.Notes;
+  notes: data.Notes,
   selected: string | null;
+  lets: Immutable.Map<string, any>
 }
 
-export class Main extends React.Component<{}, State> {
+export class Main extends React.Component<{}, {}> {
   watcher: Watcher;
-  stateAtom: Atom<Immutable.Map<string, any>> =
-    Atom.create(Immutable.Map());
+
+  stateAtom: Atom<State> =
+    Atom.create({
+      notes: Immutable.Map(),
+      selected: null,
+      lets: Immutable.Map()
+    });
+
+  notesAtom = this.stateAtom.lens('notes');
+  selectedAtom = this.stateAtom.lens('selected');
+  letsAtom = this.stateAtom.lens('lets');
+
+  // TODO(jaked)
+  // maybe this could be expressed better as composed lenses?
+  contentAtom = this.stateAtom.lens(Lens.create(
+    (state: State) => {
+      if (state.selected) {
+        const note = state.notes.get(state.selected);
+        if (note) return note.content;
+      }
+      return null;
+    },
+    (content: string | null, state: State) => {
+      if (content && state.selected) {
+        // TODO(jaked)
+        // can we make this a separate reaction to an atom?
+        fs.writeFileSync(path.resolve(ROOT, 'docs', state.selected), content);
+
+        const notes = state.notes.update(state.selected, note =>
+          Object.assign({}, note, { content })
+        );
+
+        return Object.assign({}, state, { notes });
+      }
+      return state;
+    },
+  ));
 
   constructor(props: {}) {
     super(props);
-
-    this.state = {
-      notes: Immutable.Map(),
-      selected: null,
-    }
 
     this.setNotesState = this.setNotesState.bind(this)
     this.watcher = new Watcher(this.setNotesState);
@@ -56,7 +89,7 @@ export class Main extends React.Component<{}, State> {
 
     // TODO(jaked) how do we cancel this?
     // TODO(jaked) there's got to be a way to make an Atom from an Observable
-    const nowAtom = this.stateAtom.lens(Main.immutableMapLens('now'));
+    const nowAtom = this.letsAtom.lens(Main.immutableMapLens('now'));
     Observable
       .interval(1000)
       .startWith(0)
@@ -69,41 +102,18 @@ export class Main extends React.Component<{}, State> {
   }
 
   setNotesState(updateNotes: (notes: data.Notes) => data.Notes) {
-    this.setState(state => ({
-      notes: updateNotes(state.notes)
-    }))
+    this.notesAtom.modify(updateNotes);
   }
 
   handleSelect(tag: string) {
-    this.setState({
-      selected: tag
-    });
+    this.selectedAtom.set(tag);
   }
 
   handleChange(content: string) {
-    this.setState(state => ({
-      notes: state.notes.map(note =>
-        note.tag !== state.selected ?
-        note :
-        // TODO(jaked) is there a copying assign?
-        Object.assign(note, { content })
-      )
-    }));
-
-    if (this.state.selected) {
-      fs.writeFileSync(path.resolve(ROOT, 'docs', this.state.selected), content);
-    }
+    this.contentAtom.set(content);
   }
 
   render() {
-    // TODO(jaked) ugh
-    const content: string | null =
-      this.state.selected &&
-      this.state.notes.get(
-        this.state.selected,
-        { tag: null, content: null }
-      ).content;
-
     return (
       <React.Fragment>
         <CssBaseline />
@@ -117,18 +127,18 @@ export class Main extends React.Component<{}, State> {
             />
           </Grid>
           <Grid item xs={2}>
-            <Notes
-              notes={this.state.notes}
-              selected={this.state.selected}
+            <LiftedNotes
+              notes={this.notesAtom}
+              selected={this.selectedAtom}
               onSelect={this.handleSelect}
             />
           </Grid>
           <Grid item xs={5}>
-            <Editor content={content} onChange={this.handleChange} />
+            <LiftedEditor content={this.contentAtom} onChange={this.handleChange} />
           </Grid>
           <Grid item xs={5}>
             <Catch>
-              <Display state={this.stateAtom} content={content} />
+              <Display state={this.letsAtom} content={this.contentAtom} />
             </Catch>
           </Grid>
         </Grid>
