@@ -2,6 +2,9 @@ import * as Immutable from 'immutable';
 
 import * as React from 'react';
 
+import 'regenerator-runtime/runtime'; // required for react-inspector
+import { Inspector } from 'react-inspector';
+
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
 import { VictoryBar } from 'victory';
@@ -87,6 +90,7 @@ function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, env: Env)
 }
 
 const components = new Map([
+  [ 'Inspector', Inspector ],
   [ 'Tweet', TwitterTweetEmbed ],
   [ 'YouTube', YouTube ],
   [ 'VictoryBar', VictoryBar ],
@@ -267,4 +271,5 @@ export const initEnv: Typecheck.Env = Immutable.Map({
   'YouTube': Type.object({ videoId: Type.string }),
 
   'VictoryBar': Type.object({}),
+  'Inspector': Type.object({}),
 });
