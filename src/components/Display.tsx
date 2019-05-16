@@ -21,29 +21,24 @@ class Identity extends React.Component<{ tree: React.ReactNode }> {
 }
 const LiftedIdentity = Focal.lift(Identity);
 
-export class Display extends React.Component<Props, {}> {
-  render() {
-    const tree =
-      this.props.content.map(content => {
-        if (content === null) {
-          return <span>no note</span>;
-        } else {
+export function Display({ state, content }: Props) {
+  const tree =
+    content.map(content => {
+      if (content === null) {
+        return <span>no note</span>;
+      } else {
+        try {
+          const ast = Parser.parse(content)
           // TODO(jaked)
-          // I don't understand how errors are propagated with Atom
-          // but if we let it bubble up here, the Catch handler doesn't catch it
-          try {
-            const ast = Parser.parse(content)
-            // TODO(jaked)
-            // environment should include identifiers in other pages
-            Typecheck.checkMdx(ast, Render.initEnv);
-            const env = Immutable.Map<string, any>();
-            return Render.renderMdx(ast, env, this.props.state);
-          } catch (err) {
-            return <span>{err.toString()}</span>;
-          }
+          // environment should include identifiers in other pages
+          Typecheck.checkMdx(ast, Render.initEnv);
+          const env = Immutable.Map<string, any>();
+          return Render.renderMdx(ast, env, state);
+        } catch (err) {
+          return <span>{err.toString()}</span>;
         }
-      });
+      }
+    });
 
-    return <LiftedIdentity tree={tree} />;
-  }
+  return <LiftedIdentity tree={tree} />;
 }
