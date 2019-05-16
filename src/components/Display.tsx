@@ -7,8 +7,6 @@ import * as Parser from '../lang/parser';
 import * as Render from '../lang/Render';
 import * as Typecheck from '../lang/Typecheck';
 
-import { Catch } from '../components/Catch';
-
 interface Props {
   state: Atom<Immutable.Map<string, any>>;
   content: Atom<string | null>;
@@ -24,8 +22,6 @@ class Identity extends React.Component<{ tree: React.ReactNode }> {
 const LiftedIdentity = Focal.lift(Identity);
 
 export class Display extends React.Component<Props, {}> {
-
-  
   render() {
     const tree =
       this.props.content.map(content => {

@@ -66,6 +66,7 @@ function parseJsx(ast: MDXHAST.Node) {
         jsxParser.parse(ast.value, { sourceType: 'module' }) as AcornJsxAst.Node;
       switch (jsxAst.type) {
         case 'Program':
+          // TODO(jaked) handle multiple imports
           const body = jsxAst.body[0];
           switch (body.type) {
             case 'ImportDeclaration':
@@ -86,6 +87,7 @@ function parseJsx(ast: MDXHAST.Node) {
         jsxParser.parse(ast.value, { sourceType: 'module' }) as AcornJsxAst.Node;
       switch (jsxAst.type) {
         case 'Program':
+          // TODO(jaked) handle multiple exports
           const body = jsxAst.body[0];
           switch (body.type) {
             case 'ExportNamedDeclaration':
