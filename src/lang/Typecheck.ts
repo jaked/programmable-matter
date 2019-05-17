@@ -18,18 +18,22 @@ function location(ast: AcornJsxAst.Expression): string {
   return Recast.print(ast).toString();
 }
 
-function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, actual?: Type.Type) {
+function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, actual?: Type.Type): never {
   let msg = 'expected ' + prettyPrint(expected);
   if (actual) msg += ', got ' + prettyPrint(actual);
   msg += ' at ' + location(ast);
   throw msg;
 }
 
-function throwMissingField(ast: AcornJsxAst.Expression, field: string) {
+function throwUnknownField(ast: AcornJsxAst.Expression, field: string): never {
+  throw 'unknown field \'' + field + '\' at ' + location(ast);
+}
+
+function throwMissingField(ast: AcornJsxAst.Expression, field: string): never {
   throw 'missing field \'' + field + '\' at ' + location(ast);
 }
 
-function throwExtraField(ast: AcornJsxAst.Expression, field: string) {
+function throwExtraField(ast: AcornJsxAst.Expression, field: string): never {
   throw 'extra field \'' + field + '\' at ' + location(ast);
 }
 
@@ -148,18 +152,31 @@ function checkSingleton(ast: AcornJsxAst.Expression, env: Env, type: Type.Single
 function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectType) {
   switch (ast.type) {
     case 'ObjectExpression':
-      const propNames = new Set(ast.properties.map(prop => prop.key.name));
+      const propNames = new Set(ast.properties.map(prop => {
+        let name: string;
+        switch (prop.key.type) {
+          case 'Identifier': name = prop.key.name; break;
+          case 'Literal': name = prop.key.value; break;
+          default: throw 'expected Identifier or Literal prop key name';
+        }
+        return name;
+      }));
       type.fields.forEach(({ field }) => {
         if (!propNames.has(field))
           return throwMissingField(ast, field);
       });
       const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));
       ast.properties.forEach(prop => {
-        const field = prop.key.name;
-        const type = fieldTypes.get(field);
+        let name: string;
+        switch (prop.key.type) {
+          case 'Identifier': name = prop.key.name; break;
+          case 'Literal': name = prop.key.value; break;
+          default: throw 'expected Identifier or Literal prop key name';
+        }
+        const type = fieldTypes.get(name);
         if (type) return check(prop.value, env, type);
         // TODO(jaked) excess property error
-        else return throwExtraField(ast, field);
+        else return throwExtraField(ast, name);
       });
       return; // OK
 
@@ -212,7 +229,15 @@ function synthArrayExpression(ast: AcornJsxAst.ArrayExpression, env: Env): Type.
 
 function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): Type.Type {
   const fields =
-    ast.properties.map(prop => ({ [prop.key.name]: synth(prop.value, env) }));
+    ast.properties.map(prop => {
+      let name: string;
+      switch (prop.key.type) {
+        case 'Identifier': name = prop.key.name; break;
+        case 'Literal': name = prop.key.value; break;
+        default: throw 'expected Identifier or Literal prop key name';
+      }
+      return { [name]: synth(prop.value, env) };
+    });
   return Type.object(Object.assign({}, ...fields));
 }
 
@@ -220,10 +245,49 @@ function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): Typ
   const left = synth(ast.left, env);
   const right = synth(ast.right, env);
 
+  // TODO(jaked) handle other operators
   if (left.kind === 'number' && right.kind === 'number') {
     return Type.number;
+  } else if (left.kind === 'string' && right.kind === 'string') {
+    return Type.string;
   } else {
     throw 'unimplemented: synthBinaryExpression';
+  }
+}
+
+function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): Type.Type {
+  const object = synth(ast.object, env);
+  if (ast.computed) {
+    const property = synth(ast.property, env);
+    switch (object.kind) {
+      case 'Array':
+        if (property.kind === 'number') return object.elem;
+        else return throwExpectedType(ast, Type.number, property);
+      default:
+        throw 'unimplemented synthMemberExpression ' + object.kind;
+    }
+  } else {
+    if (ast.property.type === 'Identifier') {
+      const name = ast.property.name;
+      switch (object.kind) {
+        case 'Array':
+          switch (name) {
+            case 'length': return Type.number;
+            default: return throwUnknownField(ast, name);
+          }
+
+        case 'Object': {
+          const field = object.fields.find(ft => ft.field === name);
+          if (field) return field.type;
+          else return throwUnknownField(ast, name);
+        }
+
+        default:
+          throw 'unimplemented synthMemberExpression ' + object.kind;
+      }
+    } else {
+      throw 'expected identifier on non-computed property';
+    }
   }
 }
 
@@ -234,6 +298,7 @@ export function synth(ast: AcornJsxAst.Expression, env: Env): Type.Type {
     case 'ArrayExpression':   return synthArrayExpression(ast, env);
     case 'ObjectExpression':  return synthObjectExpression(ast, env);
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
+    case 'MemberExpression':  return synthMemberExpression(ast, env);
 
     default: throw 'unimplemented: synth ' + JSON.stringify(ast);
   }

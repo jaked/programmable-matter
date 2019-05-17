@@ -85,9 +85,11 @@ export interface BinaryExpression extends NodeImpl {
   right: Expression;
 }
 
-export interface ObjectExpression extends NodeImpl {
-  type: 'ObjectExpression';
-  properties: Array<Property>;
+export interface MemberExpression extends NodeImpl {
+  type: 'MemberExpression';
+  object: Expression;
+  property: Expression;
+  computed: boolean;
 }
 
 export interface Property extends NodeImpl {
@@ -95,9 +97,14 @@ export interface Property extends NodeImpl {
   method: boolean;
   shorthand: boolean;
   computed: boolean;
-  key: Identifier; // TODO(jaked) can be other things
+  key: Expression;
   value: Expression;
   kind: 'init'; // ???
+}
+
+export interface ObjectExpression extends NodeImpl {
+  type: 'ObjectExpression';
+  properties: Array<Property>;
 }
 
 export interface ArrayExpression extends NodeImpl {
@@ -110,6 +117,7 @@ export type Expression =
   Identifier |
   JSXElement |
   BinaryExpression |
+  MemberExpression |
   ObjectExpression |
   ArrayExpression;
 

@@ -51,7 +51,7 @@ export function evaluateExpression(
           throw 'unexpected JSXElement at runtime';
       }
 
-    case 'BinaryExpression':
+    case 'BinaryExpression': {
       const left = evaluateExpression(ast.left, opts);
       const right = evaluateExpression(ast.right, opts);
       if (left.type === 'Literal' && right.type === 'Literal') {
@@ -86,8 +86,31 @@ export function evaluateExpression(
       } else {
         return Object.assign({}, ast, { left, right });
       }
+    }
 
-    case 'ObjectExpression':
+    case 'MemberExpression': {
+      const object = evaluateExpression(ast.object, opts);
+      if (ast.computed) {
+        const property = evaluateExpression(ast.property, opts);
+        if (object.type === 'Literal' && property.type === 'Literal') {
+          return makeLiteral(ast, object.value[property.value]);
+        } else {
+          return Object.assign({}, ast, { object, property });
+        }
+      } else {
+        if (ast.property.type === 'Identifier') {
+          if (object.type === 'Literal') {
+            return makeLiteral(ast, object.value[ast.property.name]);
+          } else {
+            return Object.assign({}, ast, { object });
+          }
+        } else {
+          throw 'expected identifier on non-computed property'
+        }
+      }
+    }
+
+    case 'ObjectExpression': {
       const properties = ast.properties.map(prop => {
         const value = evaluateExpression(prop.value, opts);
         return Object.assign({}, prop, { value })
@@ -95,14 +118,21 @@ export function evaluateExpression(
       if (properties.every((prop) => prop.value.type === 'Literal')) {
         return makeLiteral(
           ast,
-          Object.assign({}, ...properties.map(prop =>
-            ({ [prop.key.name]: (prop.value as AcornJsxAst.Literal).value })
-          )));
+          Object.assign({}, ...properties.map(prop => {
+            let name: string;
+            switch (prop.key.type) {
+              case 'Identifier': name = prop.key.name; break;
+              case 'Literal': name = prop.key.value; break;
+              default: throw 'expected Identifier or Literal prop key name';
+            }
+            return { [name]: (prop.value as AcornJsxAst.Literal).value }
+          })));
       } else {
         return Object.assign({}, ast, { properties });
       }
+    }
 
-    case 'ArrayExpression':
+    case 'ArrayExpression': {
       const elements =
         ast.elements.map(e => evaluateExpression(e, opts));
       if (elements.every(e => e.type === 'Literal')) {
@@ -113,6 +143,7 @@ export function evaluateExpression(
       } else {
         return Object.assign({}, ast, { elements });
       }
+    }
 
     default:
       throw 'unexpected AST ' + (ast as any).type;
