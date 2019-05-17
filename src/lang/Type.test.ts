@@ -1,11 +1,15 @@
 import * as Type from './Type';
 
-describe('union', () => {
+describe('leastUpperBound', () => {
+  it('returns bottom for empty args', () => {
+    expect(Type.leastUpperBound()).toEqual(Type.never);
+  });
+
   it('flattens nested unions', () => {
     const actual =
-      Type.union(
+      Type.leastUpperBound(
         Type.string,
-        Type.union(
+        Type.leastUpperBound(
           Type.number,
           Type.boolean)
         );
@@ -14,15 +18,38 @@ describe('union', () => {
       expect(actual).toEqual(expected);
   });
 
-  it('deduplicates elements', () => {
+  it('collapses identical elements', () => {
     const actual =
-      Type.union(
+      Type.leastUpperBound(
         Type.array(Type.string),
         Type.boolean,
         Type.array(Type.string)
       );
     const expected =
       Type.union(Type.array(Type.string), Type.boolean);
+    expect(actual).toEqual(expected);
+  });
+
+  it('elides Union node for singletons', () => {
+    const actual =
+      Type.leastUpperBound(
+        Type.object({ foo: Type.string, bar: Type.boolean }),
+        Type.object({ foo: Type.string, bar: Type.boolean })
+      );
+    const expected =
+      Type.object({ foo: Type.string, bar: Type.boolean});
+    expect(actual).toEqual(expected);
+  });
+
+  it('collapses equivalent elements', () => {
+    const actual =
+      Type.leastUpperBound(
+        Type.object({ foo: Type.string, bar: Type.boolean }),
+        Type.object({ bar: Type.boolean, foo: Type.string })
+      );
+    const expected =
+      Type.object({ foo: Type.string, bar: Type.boolean});
+    // TODO(jaked) Type.equiv matcher
     expect(actual).toEqual(expected);
   });
 });

@@ -223,7 +223,7 @@ function synthLiteral(ast: AcornJsxAst.Literal, env: Env): Type.Type {
 
 function synthArrayExpression(ast: AcornJsxAst.ArrayExpression, env: Env): Type.Type {
   const types = ast.elements.map(e => synth(e, env));
-  const elem = Type.union(...types);
+  const elem = Type.leastUpperBound(...types);
   return Type.array(elem);
 }
 

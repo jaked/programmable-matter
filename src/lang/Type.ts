@@ -76,7 +76,7 @@ export function object(obj: { [f: string]: Type }): ObjectType {
   return { kind: 'Object', fields };
 }
 
-export function union(...types: Array<Type>): UnionType {
+export function union(...types: Array<Type>): Type {
   // TODO(jaked) find a library for these
   function flatten(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
     types.forEach(t => {
@@ -86,16 +86,43 @@ export function union(...types: Array<Type>): UnionType {
     return accum;
   }
 
-  function uniq<T>(xs: Array<T>): Array<T> {
-    const accum: Array<T> = [];
+  function uniq(xs: Array<Type>): Array<Type> {
+    const accum: Array<Type> = [];
     xs.forEach(x => {
-      if (accum.every(y => !Equals.equals(x, y)))
+      if (accum.every(y => !equiv(x, y)))
         accum.push(x)
     });
     return accum;
   }
 
-  return { kind: 'Union', types: uniq(flatten(types)) }
+  const arms = uniq(flatten(types));
+  switch (arms.length) {
+    case 0: return never;
+    case 1: return arms[0];
+    default: return { kind: 'Union', types: arms };
+  }
+}
+
+export function leastUpperBound(...types: Array<Type>): Type {
+  switch (types.length) {
+    case 0: return never;
+    case 1: return types[0];
+
+    case 2:
+      return union(...types);
+
+    default:
+      const lub =
+        leastUpperBound(
+          leastUpperBound(types[0], types[1]),
+          ...types.slice(undefined, -2)
+        );
+      return lub;
+  }
+}
+
+export function equiv(a: Type, b: Type): boolean {
+  return isSubtype(a, b) && isSubtype(b, a);
 }
 
 export function isSubtype(a: Type, b: Type): boolean {
