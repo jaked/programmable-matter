@@ -26,7 +26,6 @@ export class Note extends React.Component<Props, State> {
       >
         <ListItemText
           primary={tag}
-          secondary={content}
         />
       </ListItem>
     );
