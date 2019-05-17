@@ -29,15 +29,7 @@ export function Main({ notes, selected, lets, content }: Props) {
   return (
     <React.Fragment>
       <CssBaseline />
-      <Grid container direction='row'>
-        <Grid item xs={12}>
-          <TextField
-            autoFocus
-            fullWidth
-            margin='dense'
-            variant='outlined'
-          />
-        </Grid>
+      <Grid container direction='row' style={{ height: '100vh' }}>
         <Grid item xs={2}>
           <LiftedNotes
             notes={notes}
