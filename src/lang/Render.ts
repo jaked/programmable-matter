@@ -49,7 +49,16 @@ function renderExpression(ast: AcornJsxAst.Expression, env: Env) {
     const atoms: Array<ReadOnlyAtom<any>> = [];
     names.forEach(name => {
       if (env.has(name)) {
-        atoms.push(env.get(name));
+        let value = env.get(name);
+        // TODO(jaked) hack
+        // we assume that any identifier refers to an Atom
+        // but we evaluate constant expressions to a non-Atom value
+        // and we can't combine non-Atoms
+        // (scalars fail, arrays become multiple observations)
+        // a better way to handle it would be to track this in typechecking
+        if (!/Atom/.test(value.constructor.name))
+          value = Atom.create(value)
+        atoms.push(value);
       } else {
         throw 'expected binding for ' + name;
       }
