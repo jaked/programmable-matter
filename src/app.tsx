@@ -50,7 +50,7 @@ let contentAtom = stateAtom.lens(Lens.create(
     return null;
   },
   (content: string | null, state: State) => {
-    if (content && state.selected) {
+    if (content != null && state.selected) {
       // TODO(jaked)
       // can we make this a separate reaction to an atom?
       fs.writeFileSync(path.resolve(ROOT, 'docs', state.selected), content);
