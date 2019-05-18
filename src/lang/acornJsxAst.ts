@@ -121,16 +121,23 @@ export type Expression =
   ObjectExpression |
   ArrayExpression;
 
+// import { Foo as Bar }
 export interface ImportSpecifier extends NodeImpl {
   type: 'ImportSpecifier';
+  imported: Identifier;
+  local: Identifier;
 }
 
+// import * as Bar
 export interface ImportNamespaceSpecifier extends NodeImpl {
   type: 'ImportNamespaceSpecifier';
+  local: Identifier;
 }
 
+// import Bar
 export interface ImportDefaultSpecifier extends NodeImpl {
   type: 'ImportDefaultSpecifier';
+  local: Identifier;
 }
 
 export interface ImportDeclaration extends NodeImpl {

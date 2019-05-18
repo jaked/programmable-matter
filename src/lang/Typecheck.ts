@@ -367,7 +367,11 @@ function checkMdxElements(ast: MDXHAST.Node, env: Env) {
   }
 }
 
-function synthMdxBindings(ast: MDXHAST.Node, env: Env): Env {
+function synthMdxBindings(
+  ast: MDXHAST.Node,
+  env: Env,
+  exports: { [s: string]: Type.Type }
+): Env {
   // TODO(jaked)
   // - topologically sort bindings
   // - check for cycles
@@ -377,7 +381,7 @@ function synthMdxBindings(ast: MDXHAST.Node, env: Env): Env {
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdxBindings(child, env)
+        env = synthMdxBindings(child, env, exports)
       );
       return env;
 
@@ -394,6 +398,7 @@ function synthMdxBindings(ast: MDXHAST.Node, env: Env): Env {
         const declaration = ast.exportNamedDeclaration.declaration;
         const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
         const type = synth(declarator.init, env);
+        exports[declarator.id.name] = type;
         return env.set(declarator.id.name, type);
       } else {
         throw 'expected export node to be parsed';
@@ -403,7 +408,11 @@ function synthMdxBindings(ast: MDXHAST.Node, env: Env): Env {
   }
 }
 
-export function checkMdx(ast: MDXHAST.Node, env: Env) {
-  const env2 = synthMdxBindings(ast, env);
+export function checkMdx(
+  ast: MDXHAST.Node,
+  env: Env,
+  exports: { [s: string]: Type.Type }
+) {
+  const env2 = synthMdxBindings(ast, env, exports);
   checkMdxElements(ast, env2);
 }

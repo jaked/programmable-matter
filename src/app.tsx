@@ -9,8 +9,7 @@ import { Atom, Lens } from '@grammarly/focal';
 import * as data from './data';
 import { Watcher } from './files/Watcher';
 
-import * as MDXHAST from './lang/mdxhast';
-import * as Parser from './lang/parser';
+import * as Compile from './lang/Compile';
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
@@ -77,26 +76,7 @@ watcher.start(); // TODO(jaked) stop this on shutdown
 // but it's a lot simpler to handle them all at once
 let currentCompiledNotes: data.Notes = Immutable.Map();
 let compiledNotesAtom = notesAtom.view(notes => {
-  // TODO(jaked)
-  // maybe we should propagate a change set
-  // instead of the current state of the filesystem
-  currentCompiledNotes =
-    currentCompiledNotes.filter(note => notes.has(note.tag));
-
-  currentCompiledNotes = notes.map((note, tag) => {
-    const currNote = currentCompiledNotes.get(tag);
-    if (!currNote || note.version > currNote.version) {
-      let compiled: [ 'success', MDXHAST.Root ] | [ 'failure', any ];
-      try {
-        compiled = [ 'success', Parser.parse(note.content) ]
-      } catch (e) {
-        compiled = [ 'failure', e ]
-      }
-      return Object.assign({}, note, { compiled });
-    } else {
-      return currNote;
-    }
-  });
+  currentCompiledNotes = Compile.compileNotes(currentCompiledNotes, notes);
   return currentCompiledNotes;
 });
 

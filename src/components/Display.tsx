@@ -4,9 +4,7 @@ import { Atom, ReadOnlyAtom } from '@grammarly/focal';
 import * as Focal from '@grammarly/focal';
 
 import * as data from './../data';
-import * as Parser from '../lang/parser';
 import * as Render from '../lang/Render';
-import * as Typecheck from '../lang/Typecheck';
 
 interface Props {
   state: Atom<Immutable.Map<string, any>>;
@@ -26,30 +24,24 @@ const LiftedIdentity = Focal.lift(Identity);
 export function Display({ state, selected, compiledNotes }: Props) {
   const tree =
     Atom.combine(selected, compiledNotes, (selected, compiledNotes) => {
-      if (selected) {
-        const note = compiledNotes.get(selected);
-        if (note && note.compiled && note.compiled) {
-          const compiled = note.compiled;
-          switch (compiled[0]) {
-            case 'success':
-              try {
-                const ast = compiled[1];
-                // TODO(jaked)
-                // environment should include identifiers in other pages
-                Typecheck.checkMdx(ast, Render.initEnv);
+      try {
+        if (selected) {
+          const note = compiledNotes.get(selected);
+          if (note && note.compiled && note.compiled) {
+            const compiledAst = note.compiled.compiledAst;
+            switch (compiledAst.type) {
+              case 'success':
+                const ast = compiledAst.success;
                 const env = Immutable.Map<string, any>();
                 return Render.renderMdx(ast, env, state);
-              } catch (e) {
-                return <span>e.toString()</span>
-              }
-            case 'failure':
-              return <span>compiled[1].toString()</span>
+              case 'failure':
+                throw compiledAst.failure;
+            }
           }
-        } else {
-          return <span>no note</span>;
         }
-      } else {
-        return <span>no note</span>;
+        throw 'no note';
+      } catch (e) {
+        return <span>{e.toString()}</span>
       }
     });
 
