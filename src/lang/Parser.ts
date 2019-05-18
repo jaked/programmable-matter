@@ -21,8 +21,8 @@ const mdxParser =
 
 const jsxParser = Acorn.Parser.extend(AcornJsx())
 
-function parseMdx(input: string): MDXHAST.Node {
-  return mdxParser.runSync(mdxParser.parse(input)) as MDXHAST.Node
+function parseMdx(input: string): MDXHAST.Root {
+  return mdxParser.runSync(mdxParser.parse(input)) as MDXHAST.Root
 }
 
 function parseJsx(ast: MDXHAST.Node) {
@@ -107,7 +107,7 @@ function parseJsx(ast: MDXHAST.Node) {
   }
 }
 
-export function parse(input: string): MDXHAST.Node {
+export function parse(input: string): MDXHAST.Root {
   const ast = parseMdx(input);
   parseJsx(ast);
   return ast;

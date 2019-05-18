@@ -9,6 +9,9 @@ import { Atom, Lens } from '@grammarly/focal';
 import * as data from './data';
 import { Watcher } from './files/Watcher';
 
+import * as MDXHAST from './lang/mdxhast';
+import * as Parser from './lang/parser';
+
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
@@ -55,9 +58,10 @@ let contentAtom = stateAtom.lens(Lens.create(
       // can we make this a separate reaction to an atom?
       fs.writeFileSync(path.resolve(ROOT, 'docs', state.selected), content);
 
-      const notes = state.notes.update(state.selected, note =>
-        Object.assign({}, note, { content })
-      );
+      const notes = state.notes.update(state.selected, note => {
+        const version = note.version + 1;
+        return Object.assign({}, note, { content, version });
+      });
 
       return Object.assign({}, state, { notes });
     }
@@ -69,9 +73,37 @@ let contentAtom = stateAtom.lens(Lens.create(
 let watcher = new Watcher(x => notesAtom.modify(x));
 watcher.start(); // TODO(jaked) stop this on shutdown
 
+// there might be a way to organize this with an Atom per note
+// but it's a lot simpler to handle them all at once
+let currentCompiledNotes: data.Notes = Immutable.Map();
+let compiledNotesAtom = notesAtom.view(notes => {
+  // TODO(jaked)
+  // maybe we should propagate a change set
+  // instead of the current state of the filesystem
+  currentCompiledNotes =
+    currentCompiledNotes.filter(note => notes.has(note.tag));
+
+  currentCompiledNotes = notes.map((note, tag) => {
+    const currNote = currentCompiledNotes.get(tag);
+    if (!currNote || note.version > currNote.version) {
+      let compiled: [ 'success', MDXHAST.Root ] | [ 'failure', any ];
+      try {
+        compiled = [ 'success', Parser.parse(note.content) ]
+      } catch (e) {
+        compiled = [ 'failure', e ]
+      }
+      return Object.assign({}, note, { compiled });
+    } else {
+      return currNote;
+    }
+  });
+  return currentCompiledNotes;
+});
+
 ReactDOM.render(
   <Main
     notes={notesAtom}
+    compiledNotes={compiledNotesAtom}
     selected={selectedAtom}
     lets={letsAtom}
     content={contentAtom}

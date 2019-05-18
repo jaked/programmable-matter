@@ -84,20 +84,42 @@ export class Watcher {
         }
       })
     )
+
     this.setNotesState(function (notes: data.Notes) {
-      return eventContents.reduce(function (notes, [event, content]) {
-        switch (event.action) {
-          case 0: // created
-          case 2: // modified
-            return notes.set(event.file, { tag: event.file, content: content });
 
-          case 1: // deleted
-            return notes.delete(event.file);
+      function updateNote(notes: data.Notes, tag: string, content: string) {
+        const note = notes.get(tag);
+        const version = note ? note.version + 1 : 0;
+        return notes.set(tag, { tag, content, version });
+      }
 
-          case 3: // renamed
-            throw 'unimplemented'
-        }
-      }, notes)
+      function deleteNote(notes: data.Notes, tag: string) {
+        return notes.delete(tag);
+      }
+
+      // defer deletions to account for delete/add
+      // TODO(jaked) rethink this
+      const deleted = new Set<string>();
+      notes =
+        eventContents.reduce(function (notes, [event, content]) {
+          switch (event.action) {
+            case 0: // created
+            case 2: // modified
+              deleted.delete(event.file);
+              return updateNote(notes, event.file, content);
+
+            case 1: // deleted
+              deleted.add(event.file);
+              return notes;
+
+            case 3: // renamed
+              deleted.add(event.oldFile);
+              return updateNote(notes, event.newFile, content);
+          }
+        }, notes);
+
+      deleted.forEach(tag => { notes = deleteNote(notes, tag) });
+      return notes;
     });
   }
 }
