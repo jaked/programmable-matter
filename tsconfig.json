@@ -2,6 +2,7 @@
   "compilerOptions": {
     "outDir": "./build/",       // path to output directory
     "sourceMap": true,          // allow sourcemap support
+    "downlevelIteration": true,
 
     "alwaysStrict": true,
     // "noImplicitAny": true,

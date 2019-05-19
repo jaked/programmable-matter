@@ -21,6 +21,14 @@ export function apply<T>(f: () => T) {
   }
 }
 
+export function forEach<T>(
+  t: Try<T>,
+  f: (t: T) => void
+) {
+  if (t.type === 'success')
+    f(t.success);
+}
+
 export function map<T, U>(
   t: Try<T>,
   f: (t: T) => U

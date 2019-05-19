@@ -101,7 +101,7 @@ export class Watcher {
       // TODO(jaked) rethink this
       const deleted = new Set<string>();
       notes =
-        eventContents.reduce(function (notes, [event, content]) {
+        eventContents.reduce((notes, [event, content]) => {
           switch (event.action) {
             case 0: // created
             case 2: // modified
