@@ -1,4 +1,5 @@
 import Immutable from 'immutable';
+import React from 'react';
 import { Try } from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as Type from './lang/Type';
@@ -6,8 +7,9 @@ import * as Type from './lang/Type';
 export interface Compiled {
   ast: Try<MDXHAST.Root>;
   imports: Try<Set<string>>;
-  exports: Try<Type.ObjectType>;
-  compiledAst: Try<MDXHAST.Root>;
+  exportType: Try<Type.ObjectType>;
+  exportValue: Try<{ [s: string]: any }>;
+  rendered: Try<React.ReactNode>;
 }
 
 export interface Note {

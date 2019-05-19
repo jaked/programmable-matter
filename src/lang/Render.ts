@@ -23,7 +23,7 @@ import * as Typecheck from './Typecheck';
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 type State = Atom<Immutable.Map<string, any>>;
-type Env = Immutable.Map<string, any>;
+export type Env = Immutable.Map<string, any>;
 
 function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   return Lens.create(
@@ -150,12 +150,17 @@ function renderJsx(ast: AcornJsxAst.JSXElement, env: Env): React.ReactNode {
   return React.createElement(elem, attrs, ...children);
 }
 
-function evaluateMdxAtomBindings(ast: MDXHAST.Node, env: Env, state: State): Env {
+function evaluateMdxBindings(
+  ast: MDXHAST.Node,
+  env: Env,
+  state: State,
+  exportValues: { [s: string]: any }
+): Env {
   switch (ast.type) {
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = evaluateMdxAtomBindings(child, env, state)
+        env = evaluateMdxBindings(child, env, state, exportValues)
       );
       return env;
 
@@ -167,11 +172,19 @@ function evaluateMdxAtomBindings(ast: MDXHAST.Node, env: Env, state: State): Env
       // TODO(jaked)
       return env;
 
-    case 'export':
-      if (ast.exportNamedDeclaration) {
-        const declaration = ast.exportNamedDeclaration.declaration;
-        const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
-        if (declaration.kind === 'let') {
+    case 'export': {
+      if (!ast.exportNamedDeclaration) throw 'expected export node to be parsed';
+      const declaration = ast.exportNamedDeclaration.declaration;
+      const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
+      switch (declaration.kind) {
+        case 'const': {
+          let name = declarator.id.name;
+          let value = renderExpression(declarator.init, env);
+          exportValues[name] = value;
+          return env.set(name, value);
+        }
+
+        case 'let': {
           const evaluatedAst =
             Evaluator.evaluateExpression(declarator.init,
               {
@@ -187,52 +200,15 @@ function evaluateMdxAtomBindings(ast: MDXHAST.Node, env: Env, state: State): Env
             if (value.get() === null) {
               value.set(evaluatedAst.value);
             }
+            exportValues[name] = value;
             return env.set(name, value);
           } else {
             // TODO(jaked) check this statically
             throw 'atom initializer must be static';
           }
-        } else {
-          return env;
         }
-      } else {
-        throw 'expected export node to be parsed';
       }
-
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
-  }
-}
-
-function evaluateMdxBindings(ast: MDXHAST.Node, env: Env): Env {
-  switch (ast.type) {
-    case 'root':
-    case 'element':
-      ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, env)
-      );
-      return env;
-
-    case 'text':
-    case 'jsx':
-      return env;
-
-    case 'import':
-      // TODO(jaked)
-      return env;
-
-    case 'export':
-      if (ast.exportNamedDeclaration) {
-        const declaration = ast.exportNamedDeclaration.declaration;
-        const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
-        if (declaration.kind === 'const') {
-          let value = renderExpression(declarator.init, env);
-          return env.set(declarator.id.name, value);
-        } else {
-          return env;
-        }
-      } else {
-        throw 'expected export node to be parsed';
-      }
+    }
 
     default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }
@@ -273,10 +249,14 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
   }
 }
 
-export function renderMdx(ast: MDXHAST.Node, env: Env, state: State): React.ReactNode {
-  const env2 = evaluateMdxAtomBindings(ast, env, state);
-  const env3 = evaluateMdxBindings(ast, env2);
-  return renderMdxElements(ast, env3);
+export function renderMdx(
+  ast: MDXHAST.Node,
+  env: Env,
+  state: State,
+  exportValues: { [s: string]: any }
+): React.ReactNode {
+  const env2 = evaluateMdxBindings(ast, env, state, exportValues);
+  return renderMdxElements(ast, env2);
 }
 
 export const initEnv: Typecheck.Env = Immutable.Map({

@@ -76,7 +76,8 @@ watcher.start(); // TODO(jaked) stop this on shutdown
 // but it's a lot simpler to handle them all at once
 let currentCompiledNotes: data.Notes = Immutable.Map();
 let compiledNotesAtom = notesAtom.view(notes => {
-  currentCompiledNotes = Compile.compileNotes(currentCompiledNotes, notes);
+  currentCompiledNotes =
+    Compile.compileNotes(currentCompiledNotes, notes, letsAtom);
   return currentCompiledNotes;
 });
 

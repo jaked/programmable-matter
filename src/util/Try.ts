@@ -21,6 +21,13 @@ export function apply<T>(f: () => T) {
   }
 }
 
+export function get<T>(t: Try<T>): T {
+  switch (t.type) {
+    case 'success': return t.success;
+    case 'failure': throw t.failure;
+  }
+}
+
 export function forEach<T>(
   t: Try<T>,
   f: (t: T) => void

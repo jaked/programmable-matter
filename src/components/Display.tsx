@@ -3,8 +3,8 @@ import * as React from 'react';
 import { Atom, ReadOnlyAtom } from '@grammarly/focal';
 import * as Focal from '@grammarly/focal';
 
+import * as Try from '../util/Try';
 import * as data from './../data';
-import * as Render from '../lang/Render';
 
 interface Props {
   state: Atom<Immutable.Map<string, any>>;
@@ -28,15 +28,7 @@ export function Display({ state, selected, compiledNotes }: Props) {
         if (selected) {
           const note = compiledNotes.get(selected);
           if (note && note.compiled && note.compiled) {
-            const compiledAst = note.compiled.compiledAst;
-            switch (compiledAst.type) {
-              case 'success':
-                const ast = compiledAst.success;
-                const env = Immutable.Map<string, any>();
-                return Render.renderMdx(ast, env, state);
-              case 'failure':
-                throw compiledAst.failure;
-            }
+            return Try.get(note.compiled.rendered);
           }
         }
         throw 'no note';

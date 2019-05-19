@@ -6,6 +6,8 @@ import * as AcornJsxAst from './acornJsxAst';
 
 import * as Type from './Type';
 
+import * as String from '../util/String';
+
 export type Env = Immutable.Map<string, Type.Type>;
 
 function prettyPrint(type: Type.Type): string {
@@ -389,9 +391,25 @@ function synthMdxBindings(
     case 'jsx':
       return env;
 
-    case 'import':
-      // TODO(jaked)
+    case 'import': {
+      if (!ast.importDeclaration) throw 'expected import node to be parsed';
+      const source = String.capitalize(<string>ast.importDeclaration.source.value);
+      const exports = env.get(source);
+      ast.importDeclaration.specifiers.forEach(spec => {
+        switch (spec.type) {
+          case 'ImportNamespaceSpecifier':
+            if (spec.local.name !== source) {
+              throw 'unimplemented: ImportNamespaceSpecifier';
+            }
+            else return; // namespace object is already in env
+          case 'ImportDefaultSpecifier':
+            throw 'unimplemented: ImportDefaultSpecifier';
+          case 'ImportSpecifier':
+            throw 'unimplemented: ImportSpecifier';
+        }
+      });
       return env;
+    }
 
     case 'export':
       if (ast.exportNamedDeclaration) {
