@@ -81,13 +81,21 @@ let compiledNotesAtom = notesAtom.view(notes => {
   return currentCompiledNotes;
 });
 
+let compiledNoteAtom =
+  Atom.combine(compiledNotesAtom, selectedAtom, (compiledNotes, selected) => {
+    if (selected) {
+      const note = compiledNotes.get(selected);
+      if (note) return note;
+    }
+    return null;
+  });
+
 ReactDOM.render(
   <Main
     notes={notesAtom}
-    compiledNotes={compiledNotesAtom}
     selected={selectedAtom}
-    lets={letsAtom}
     content={contentAtom}
+    compiledNote={compiledNoteAtom}
   />,
   document.getElementById('main')
 );

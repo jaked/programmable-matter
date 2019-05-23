@@ -1,5 +1,3 @@
-import * as Immutable from 'immutable';
-
 import * as React from 'react';
 import { Atom, ReadOnlyAtom } from '@grammarly/focal';
 import * as Focal from '@grammarly/focal';
@@ -17,16 +15,16 @@ import { Notes } from './Notes';
 
 const LiftedEditor = Focal.lift(Editor);
 const LiftedNotes = Focal.lift(Notes);
+const LiftedDisplay = Focal.lift(Display);
 
 interface Props {
   notes: ReadOnlyAtom<data.Notes>;
-  compiledNotes: ReadOnlyAtom<data.Notes>;
   selected: Atom<string | null>;
-  lets: Atom<Immutable.Map<string, any>>;
   content: Atom<string | null >;
+  compiledNote: ReadOnlyAtom<data.Note | null>;
 }
 
-export function Main({ notes, compiledNotes, selected, lets, content }: Props) {
+export function Main({ notes, selected, content, compiledNote }: Props) {
   return (
     <React.Fragment>
       <CssBaseline />
@@ -43,11 +41,7 @@ export function Main({ notes, compiledNotes, selected, lets, content }: Props) {
         </Grid>
         <Grid item xs={5}>
           <Catch>
-            <Display
-              state={lets}
-              selected={selected}
-              compiledNotes={compiledNotes}
-            />
+            <LiftedDisplay compiledNote={compiledNote} />
           </Catch>
         </Grid>
       </Grid>
