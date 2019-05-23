@@ -21,22 +21,26 @@ const mdxParser =
 
 const jsxParser = Acorn.Parser.extend(AcornJsx())
 
+function parseJsx(input: string): AcornJsxAst.Node {
+  return jsxParser.parse(input, { sourceType: 'module' }) as AcornJsxAst.Node;
+}
+
 function parseMdx(input: string): MDXHAST.Root {
   return mdxParser.runSync(mdxParser.parse(input)) as MDXHAST.Root
 }
 
-function parseJsx(ast: MDXHAST.Node) {
+function parseJsxNodes(ast: MDXHAST.Node) {
   switch (ast.type) {
     case 'root':
     case 'element':
-      ast.children.forEach(parseJsx);
+      ast.children.forEach(parseJsxNodes);
       break;
 
     case 'text':
       break;
 
     case 'jsx': {
-      const jsxAst = jsxParser.parse(ast.value) as AcornJsxAst.Node;
+      const jsxAst = parseJsx(ast.value);
       switch (jsxAst.type) {
         case 'Program':
           const body = jsxAst.body[0]
@@ -62,8 +66,7 @@ function parseJsx(ast: MDXHAST.Node) {
     break;
 
     case 'import': {
-      const jsxAst =
-        jsxParser.parse(ast.value, { sourceType: 'module' }) as AcornJsxAst.Node;
+      const jsxAst = parseJsx(ast.value);
       switch (jsxAst.type) {
         case 'Program':
           // TODO(jaked) handle multiple imports
@@ -83,8 +86,7 @@ function parseJsx(ast: MDXHAST.Node) {
     break;
 
     case 'export': {
-      const jsxAst =
-        jsxParser.parse(ast.value, { sourceType: 'module' }) as AcornJsxAst.Node;
+      const jsxAst = parseJsx(ast.value);
       switch (jsxAst.type) {
         case 'Program':
           // TODO(jaked) handle multiple exports
@@ -107,8 +109,24 @@ function parseJsx(ast: MDXHAST.Node) {
   }
 }
 
+export function parseJsxExpr(input: string): AcornJsxAst.Expression {
+  const jsxAst = parseJsx(input);
+  switch (jsxAst.type) {
+    case 'Program':
+      const body = jsxAst.body[0];
+      switch (body.type) {
+        case 'ExpressionStatement':
+          return body.expression;
+        default:
+          throw 'unexpected AST ' + body.type;
+      }
+    default:
+      throw 'unexpected AST ' + jsxAst.type;
+  }
+}
+
 export function parse(input: string): MDXHAST.Root {
   const ast = parseMdx(input);
-  parseJsx(ast);
+  parseJsxNodes(ast);
   return ast;
 }

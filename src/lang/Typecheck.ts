@@ -177,7 +177,6 @@ function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectTyp
         }
         const type = fieldTypes.get(name);
         if (type) return check(prop.value, env, type);
-        // TODO(jaked) excess property error
         else return throwExtraField(ast, name);
       });
       return; // OK
