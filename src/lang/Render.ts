@@ -8,6 +8,7 @@ import { Inspector } from 'react-inspector';
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
 import { VictoryBar } from 'victory';
+import ReactTable from 'react-table'
 
 import { InlineMath, BlockMath } from 'react-katex';
 
@@ -107,6 +108,7 @@ const components = new Map([
   [ 'VictoryBar', VictoryBar ],
   [ 'InlineMath', InlineMath ],
   [ 'BlockMath', BlockMath ],
+  [ 'Table', ReactTable ]
 ].map(([name, comp]) => [name, Focal.lift(comp)]));
 
 function renderElement(name: string) {
@@ -265,4 +267,13 @@ export const initEnv: Typecheck.Env = Immutable.Map({
 
   'VictoryBar': Type.object({}),
   'Inspector': Type.object({}),
+
+  'Table': Type.object({
+    data: Type.array(Type.object({})),
+    // TODO(jaked)
+    // column accessor types depend on data type (for Victory too)
+    // can we express this with a type parameter?
+    columns: Type.array(Type.object({})),
+    pageSize: Type.number,
+  }),
 });
