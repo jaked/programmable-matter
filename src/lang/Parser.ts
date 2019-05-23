@@ -65,39 +65,21 @@ function parseJsxNodes(ast: MDXHAST.Node) {
     }
     break;
 
-    case 'import': {
-      const jsxAst = parseJsx(ast.value);
-      switch (jsxAst.type) {
-        case 'Program':
-          // TODO(jaked) handle multiple imports
-          const body = jsxAst.body[0];
-          switch (body.type) {
-            case 'ImportDeclaration':
-              ast.importDeclaration = body;
-              break;
-            default:
-              throw 'unexpected AST ' + body.type;
-          }
-          break;
-        default:
-          throw 'unexpected AST ' + jsxAst.type;
-      }
-    }
-    break;
-
+    case 'import':
     case 'export': {
       const jsxAst = parseJsx(ast.value);
       switch (jsxAst.type) {
         case 'Program':
-          // TODO(jaked) handle multiple exports
-          const body = jsxAst.body[0];
-          switch (body.type) {
-            case 'ExportNamedDeclaration':
-              ast.exportNamedDeclaration = body;
-              break;
-            default:
-              throw 'unexpected AST ' + body.type;
-          }
+          ast.declarations = jsxAst.body.map(decl => {
+            switch (decl.type) {
+              case 'ImportDeclaration':
+              case 'ExportNamedDeclaration':
+              case 'VariableDeclaration':
+                return decl;
+              default:
+                throw 'unexpected AST ' + decl.type;
+            }
+          });
           break;
         default:
           throw 'unexpected AST ' + jsxAst.type;

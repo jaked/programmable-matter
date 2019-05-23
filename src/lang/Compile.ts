@@ -19,15 +19,19 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
 
     case 'text':
     case 'jsx':
-    case 'export':
-      return;
+      break;
 
     case 'import':
-      if (ast.importDeclaration) {
-        return imports.add(ast.importDeclaration.source.value);
-      } else {
-        throw 'expected import node to be parsed';
-      }
+    case 'export':
+      if (!ast.declarations) throw 'expected import/export node to be parsed';
+      ast.declarations.forEach(decl => {
+        switch (decl.type) {
+          case 'ImportDeclaration':
+            imports.add(decl.source.value);
+            break;
+        }
+      });
+      break;
 
     default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }

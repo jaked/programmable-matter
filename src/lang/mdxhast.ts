@@ -50,13 +50,13 @@ export interface Jsx extends NodeImpl {
 export interface Import extends NodeImpl {
   type: 'import';
   value: string;
-  importDeclaration?: AcornJsxAst.ImportDeclaration;
+  declarations?: Array<AcornJsxAst.ImportDeclaration | AcornJsxAst.ExportNamedDeclaration | AcornJsxAst.VariableDeclaration>;
 }
 
 export interface Export extends NodeImpl {
   type: 'export';
   value: string;
-  exportNamedDeclaration?: AcornJsxAst.ExportNamedDeclaration;
+  declarations?: Array<AcornJsxAst.ImportDeclaration | AcornJsxAst.ExportNamedDeclaration | AcornJsxAst.VariableDeclaration>;
 }
 
 export type Node = Root | Element | Text | Jsx | Import | Export

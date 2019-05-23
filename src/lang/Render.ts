@@ -171,46 +171,61 @@ function evaluateMdxBindings(
       return env;
 
     case 'import':
-      // TODO(jaked)
-      return env;
-
-    case 'export': {
-      if (!ast.exportNamedDeclaration) throw 'expected export node to be parsed';
-      const declaration = ast.exportNamedDeclaration.declaration;
-      const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
-      switch (declaration.kind) {
-        case 'const': {
-          let name = declarator.id.name;
-          let value = renderExpression(declarator.init, env);
-          exportValues[name] = value;
-          return env.set(name, value);
-        }
-
-        case 'let': {
-          const evaluatedAst =
-            Evaluator.evaluateExpression(declarator.init,
-              {
-                mode: 'compile',
-                names: new Set<string>(),
-                // TODO(jaked) check this statically
-                renderJsxElement: (ast) => { throw 'JSX element may not appear in atom declaration' }
-              }
-            );
-          if (evaluatedAst.type === 'Literal') {
-            const name = declarator.id.name;
-            const value = state.lens(immutableMapLens(name));
-            if (value.get() === null) {
-              value.set(evaluatedAst.value);
-            }
-            exportValues[name] = value;
-            return env.set(name, value);
-          } else {
-            // TODO(jaked) check this statically
-            throw 'atom initializer must be static';
+    case 'export':
+      if (!ast.declarations) throw 'expected import/export node to be parsed';
+      ast.declarations.forEach(decl => {
+        switch (decl.type) {
+          case 'ImportDeclaration': {
+            // TODO(jaked)
           }
+          break;
+
+          case 'ExportNamedDeclaration': {
+            const declaration = decl.declaration;
+            switch (declaration.kind) {
+              case 'const': {
+                declaration.declarations.forEach(declarator => {
+                  let name = declarator.id.name;
+                  let value = renderExpression(declarator.init, env);
+                  exportValues[name] = value;
+                  env = env.set(name, value);
+                });
+              }
+              break;
+
+              case 'let': {
+                declaration.declarations.forEach(declarator => {
+                  const evaluatedAst =
+                    Evaluator.evaluateExpression(declarator.init,
+                      {
+                        mode: 'compile',
+                        names: new Set<string>(),
+                        // TODO(jaked) check this statically
+                        renderJsxElement: (ast) => { throw 'JSX element may not appear in atom declaration' }
+                      }
+                    );
+                  if (!(evaluatedAst.type === 'Literal')) {
+                    // TODO(jaked) check this statically
+                    throw 'atom initializer must be static';
+                  }
+                  const name = declarator.id.name;
+                  const value = state.lens(immutableMapLens(name));
+                  if (value.get() === null) {
+                    value.set(evaluatedAst.value);
+                  }
+                  exportValues[name] = value;
+                  env = env.set(name, value);
+                });
+                break;
+              }
+
+              default: throw 'unexpected AST ' + declaration.kind;
+            }
+          }
+          break;
         }
-      }
-    }
+      });
+      return env;
 
     default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }

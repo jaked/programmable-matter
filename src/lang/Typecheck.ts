@@ -390,36 +390,39 @@ function synthMdxBindings(
     case 'jsx':
       return env;
 
-    case 'import': {
-      if (!ast.importDeclaration) throw 'expected import node to be parsed';
-      const source = String.capitalize(<string>ast.importDeclaration.source.value);
-      const exportTypes = env.get(source);
-      ast.importDeclaration.specifiers.forEach(spec => {
-        switch (spec.type) {
-          case 'ImportNamespaceSpecifier':
-            if (spec.local.name !== source) {
-              throw 'unimplemented: ImportNamespaceSpecifier';
-            }
-            else return; // namespace object is already in env
-          case 'ImportDefaultSpecifier':
-            throw 'unimplemented: ImportDefaultSpecifier';
-          case 'ImportSpecifier':
-            throw 'unimplemented: ImportSpecifier';
+    case 'import':
+    case 'export': {
+      if (!ast.declarations) throw 'expected import/export node to be parsed';
+      ast.declarations.forEach(decl => {
+        switch (decl.type) {
+          case 'ImportDeclaration':
+            const source = String.capitalize(<string>decl.source.value);
+            decl.specifiers.forEach(spec => {
+              switch (spec.type) {
+                case 'ImportNamespaceSpecifier':
+                  if (spec.local.name !== source) {
+                    throw 'unimplemented: ImportNamespaceSpecifier';
+                  }
+                  else return; // namespace object is already in env
+                case 'ImportDefaultSpecifier':
+                  throw 'unimplemented: ImportDefaultSpecifier';
+                case 'ImportSpecifier':
+                  throw 'unimplemented: ImportSpecifier';
+              }
+            });
+            break;
+
+          case 'ExportNamedDeclaration':
+            decl.declaration.declarations.forEach(declarator => {
+              const type = synth(declarator.init, env);
+              exportTypes[declarator.id.name] = type;
+              env = env.set(declarator.id.name, type);
+            });
+            break;
         }
       });
       return env;
     }
-
-    case 'export':
-      if (ast.exportNamedDeclaration) {
-        const declaration = ast.exportNamedDeclaration.declaration;
-        const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
-        const type = synth(declarator.init, env);
-        exportTypes[declarator.id.name] = type;
-        return env.set(declarator.id.name, type);
-      } else {
-        throw 'expected export node to be parsed';
-      }
 
     default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
   }

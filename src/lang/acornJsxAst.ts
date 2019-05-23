@@ -10,7 +10,7 @@ interface NodeImpl {
 
 export interface Program extends NodeImpl {
   type: 'Program';
-  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration>;
+  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration | VariableDeclaration >;
   sourceType: 'module';
 }
 
