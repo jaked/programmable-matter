@@ -61,7 +61,7 @@ function renderExpression(ast: AcornJsxAst.Expression, env: Env) {
           value = Atom.create(value)
         atoms.push(value);
       } else {
-        throw 'expected binding for ' + name;
+        throw new Error('expected binding for ' + name);
       }
     });
     const combineFn = function (...values: Array<any>) {
@@ -73,7 +73,7 @@ function renderExpression(ast: AcornJsxAst.Expression, env: Env) {
       if (evaluatedAst2.type === 'Literal') {
         return evaluatedAst2.value;
       } else {
-        throw 'expected fully-evaluated expression';
+        throw new Error('expected fully-evaluated expression');
       }
     }
     // TODO(jaked) it doesn't seem to be possible to call the N-arg version of combine,
@@ -94,7 +94,7 @@ function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, env: Env)
         attrValue = value.value;
         break;
       default:
-        throw 'unexpected AST ' + (value as any).type;
+        throw new Error('unexpected AST ' + (value as any).type);
     }
     return { [name.name]: attrValue };
   });
@@ -115,7 +115,7 @@ function renderElement(name: string) {
   if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
     const comp = components.get(name)
     if (comp) return comp;
-    else throw 'unexpected element ' + name;
+    else throw new Error('unexpected element ' + name);
   } else {
     return F[name] || name;
   }
@@ -145,7 +145,7 @@ function renderJsx(ast: AcornJsxAst.JSXElement, env: Env): React.ReactNode {
     } else {
       // TODO(jaked) check statically
       // also check that it is a non-readonly Atom
-      throw 'unbound identifier ' + attrs.id;
+      throw new Error('unbound identifier ' + attrs.id);
     }
   }
 
@@ -172,7 +172,7 @@ function evaluateMdxBindings(
 
     case 'import':
     case 'export':
-      if (!ast.declarations) throw 'expected import/export node to be parsed';
+      if (!ast.declarations) throw new Error('expected import/export node to be parsed');
       ast.declarations.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration': {
@@ -201,12 +201,12 @@ function evaluateMdxBindings(
                         mode: 'compile',
                         names: new Set<string>(),
                         // TODO(jaked) check this statically
-                        renderJsxElement: (ast) => { throw 'JSX element may not appear in atom declaration' }
+                        renderJsxElement: (ast) => { throw new Error('JSX element may not appear in atom declaration'); }
                       }
                     );
                   if (!(evaluatedAst.type === 'Literal')) {
                     // TODO(jaked) check this statically
-                    throw 'atom initializer must be static';
+                    throw new Error('atom initializer must be static');
                   }
                   const name = declarator.id.name;
                   const value = state.lens(immutableMapLens(name));
@@ -219,7 +219,7 @@ function evaluateMdxBindings(
                 break;
               }
 
-              default: throw 'unexpected AST ' + declaration.kind;
+              default: throw new Error('unexpected AST ' + declaration.kind);
             }
           }
           break;
@@ -227,7 +227,7 @@ function evaluateMdxBindings(
       });
       return env;
 
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }
 
@@ -255,14 +255,14 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
       if (ast.jsxElement) {
         return renderJsx(ast.jsxElement, env);
       } else {
-        throw 'expected JSX node to be parsed';
+        throw new Error('expected JSX node to be parsed');
       }
 
     case 'import':
     case 'export':
       return undefined;
 
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }
 

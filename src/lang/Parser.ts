@@ -52,15 +52,15 @@ function parseJsxNodes(ast: MDXHAST.Node) {
                   ast.jsxElement = expression;
                   break;
                 default:
-                  throw 'unexpected AST ' + expression.type;
+                  throw new Error('unexpected AST ' + expression.type);
               }
               break;
             default:
-              throw 'unexpected AST ' + body.type;
+              throw new Error('unexpected AST ' + body.type);
           }
           break;
         default:
-          throw 'unexpected AST ' + jsxAst.type;
+          throw new Error('unexpected AST ' + jsxAst.type);
       }
     }
     break;
@@ -77,17 +77,17 @@ function parseJsxNodes(ast: MDXHAST.Node) {
               case 'VariableDeclaration':
                 return decl;
               default:
-                throw 'unexpected AST ' + decl.type;
+                throw new Error('unexpected AST ' + decl.type);
             }
           });
           break;
         default:
-          throw 'unexpected AST ' + jsxAst.type;
+          throw new Error('unexpected AST ' + jsxAst.type);
       }
     }
     break;
 
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }
 
@@ -100,10 +100,10 @@ export function parseJsxExpr(input: string): AcornJsxAst.Expression {
         case 'ExpressionStatement':
           return body.expression;
         default:
-          throw 'unexpected AST ' + body.type;
+          throw new Error('unexpected AST ' + body.type);
       }
     default:
-      throw 'unexpected AST ' + jsxAst.type;
+      throw new Error('unexpected AST ' + jsxAst.type);
   }
 }
 

@@ -23,7 +23,7 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
 
     case 'import':
     case 'export':
-      if (!ast.declarations) throw 'expected import/export node to be parsed';
+      if (!ast.declarations) throw new Error('expected import/export node to be parsed');
       ast.declarations.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
@@ -33,7 +33,7 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
       });
       break;
 
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }
 
@@ -78,9 +78,10 @@ export function compileNotes(
         return imports;
       });
       // placeholders
-      const exportType = Try.failure(null);
-      const exportValue = Try.failure(null);
-      const rendered = Try.failure(null);
+      const error = new Error('unset')
+      const exportType = Try.failure(error);
+      const exportValue = Try.failure(error);
+      const rendered = Try.failure(error);
       const compiled: data.Compiled =
         { ast, imports, exportType, exportValue, rendered };
       return Object.assign({}, note, { compiled });
@@ -97,7 +98,7 @@ export function compileNotes(
     again = false;
     notes.forEach(tag => {
       const note = newNotes.get(tag);
-      if (!note || !note.compiled) throw 'expected note && note.compiled';
+      if (!note || !note.compiled) throw new Error('expected note && note.compiled');
       if (note.compiled.imports.type === 'success') {
         const imports = [...note.compiled.imports.success.values()];
         if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
@@ -128,7 +129,7 @@ export function compileNotes(
   let typeEnv = Render.initEnv;
   orderedTags.forEach(tag => {
     const note = newNotes.get(tag);
-    if (!note || !note.compiled) throw 'expected note && note.compiled';
+    if (!note || !note.compiled) throw new Error('expected note && note.compiled');
 
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking ' + tag);
@@ -155,7 +156,7 @@ export function compileNotes(
   let valueEnv: Render.Env = Immutable.Map();
   orderedTags.forEach(tag => {
     const note = newNotes.get(tag);
-    if (!note || !note.compiled) throw 'expected note && note.compiled';
+    if (!note || !note.compiled) throw new Error('expected note && note.compiled');
 
     if (dirty.has(tag)) {
       if (debug) console.log('rendering ' + tag);

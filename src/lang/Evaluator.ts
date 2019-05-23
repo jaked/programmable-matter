@@ -38,7 +38,7 @@ export function evaluateExpression(
         case 'run':
           return makeLiteral(ast, opts.env.get(ast.name));
         default:
-          throw 'bug'; // match should be exhaustive but TS says it falls through?
+          throw new Error('bug'); // match should be exhaustive but TS says it falls through?
       }
 
     case 'JSXElement':
@@ -48,7 +48,7 @@ export function evaluateExpression(
           // focal handles reaction inside nested elements
           return makeLiteral(ast, opts.renderJsxElement(ast));
         default:
-          throw 'unexpected JSXElement at runtime';
+          throw new Error('unexpected JSXElement at runtime');
       }
 
     case 'BinaryExpression': {
@@ -105,7 +105,7 @@ export function evaluateExpression(
             return Object.assign({}, ast, { object });
           }
         } else {
-          throw 'expected identifier on non-computed property'
+          throw new Error('expected identifier on non-computed property');
         }
       }
     }
@@ -123,7 +123,7 @@ export function evaluateExpression(
             switch (prop.key.type) {
               case 'Identifier': name = prop.key.name; break;
               case 'Literal': name = prop.key.value; break;
-              default: throw 'expected Identifier or Literal prop key name';
+              default: throw new Error('expected Identifier or Literal prop key name');
             }
             return { [name]: (prop.value as AcornJsxAst.Literal).value }
           })));
@@ -146,6 +146,6 @@ export function evaluateExpression(
     }
 
     default:
-      throw 'unexpected AST ' + (ast as any).type;
+      throw new Error('unexpected AST ' + (ast as any).type);
   }
 }

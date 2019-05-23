@@ -13,9 +13,9 @@ export class Display extends React.Component<Props, {}> {
     try {
       if (note && note.compiled)
         return Try.get(note.compiled.rendered);
-      throw 'no note';
+      throw new Error('no note');
     } catch (e) {
-      return <span>{e.toString()}</span>
+      return <pre>{e.stack}</pre>
     }
   }
 }

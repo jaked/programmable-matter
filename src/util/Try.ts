@@ -2,14 +2,14 @@
 // TODO(jaked) is there a way to get Scala-ish Try(() => ...) ?
 
 export type Success<T> = { type: 'success', success: T };
-export type Failure = { type: 'failure', failure: any };
+export type Failure = { type: 'failure', failure: Error };
 export type Try<T> = Success<T> | Failure;
 
 export function success<T>(t: T): Success<T> {
   return { type: 'success', success: t };
 }
 
-export function failure(e: any): Failure {
+export function failure(e: Error): Failure {
   return { type: 'failure', failure: e };
 }
 

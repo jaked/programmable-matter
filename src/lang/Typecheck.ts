@@ -28,15 +28,15 @@ function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, act
 }
 
 function throwUnknownField(ast: AcornJsxAst.Expression, field: string): never {
-  throw 'unknown field \'' + field + '\' at ' + location(ast);
+  throw new Error('unknown field \'' + field + '\' at ' + location(ast));
 }
 
 function throwMissingField(ast: AcornJsxAst.Expression, field: string): never {
-  throw 'missing field \'' + field + '\' at ' + location(ast);
+  throw new Error('missing field \'' + field + '\' at ' + location(ast));
 }
 
 function throwExtraField(ast: AcornJsxAst.Expression, field: string): never {
-  throw 'extra field \'' + field + '\' at ' + location(ast);
+  throw new Error('extra field \'' + field + '\' at ' + location(ast));
 }
 
 function checkSubtype(ast: AcornJsxAst.Expression, actual: Type.Type, expected: Type.Type) {
@@ -45,7 +45,7 @@ function checkSubtype(ast: AcornJsxAst.Expression, actual: Type.Type, expected: 
 }
 
 function checkNever(ast: AcornJsxAst.Expression, env: Env, type: Type.NeverType) {
-  throw 'unimplemented: checkNever'
+  throw new Error('unimplemented: checkNever');
 }
 
 function checkUnknown(ast: AcornJsxAst.Expression, env: Env, type: Type.UnknownType) {
@@ -53,7 +53,7 @@ function checkUnknown(ast: AcornJsxAst.Expression, env: Env, type: Type.UnknownT
 }
 
 function checkUndefined(ast: AcornJsxAst.Expression, env: Env, type: Type.UndefinedType) {
-  throw 'unimplemented: undefined';
+  throw new Error('unimplemented: undefined');
 }
 
 function checkBaseType(ast: AcornJsxAst.Expression, env: Env, type: Type.Type, jsType: string) {
@@ -159,7 +159,7 @@ function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectTyp
         switch (prop.key.type) {
           case 'Identifier': name = prop.key.name; break;
           case 'Literal': name = prop.key.value; break;
-          default: throw 'expected Identifier or Literal prop key name';
+          default: throw new Error('expected Identifier or Literal prop key name');
         }
         return name;
       }));
@@ -173,7 +173,7 @@ function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectTyp
         switch (prop.key.type) {
           case 'Identifier': name = prop.key.name; break;
           case 'Literal': name = prop.key.value; break;
-          default: throw 'expected Identifier or Literal prop key name';
+          default: throw new Error('expected Identifier or Literal prop key name');
         }
         const type = fieldTypes.get(name);
         if (type) return check(prop.value, env, type);
@@ -209,7 +209,7 @@ export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type) {
 function synthIdentifier(ast: AcornJsxAst.Identifier, env: Env): Type.Type {
   const value = env.get(ast.name);
   if (value) return value;
-  else throw 'unbound identifier ' + ast.name;
+  else throw new Error('unbound identifier ' + ast.name);
 }
 
 function synthLiteral(ast: AcornJsxAst.Literal, env: Env): Type.Type {
@@ -218,7 +218,7 @@ function synthLiteral(ast: AcornJsxAst.Literal, env: Env): Type.Type {
     case 'number':  return Type.number;
     case 'string':  return Type.string;
     case 'object':  return Type.null;
-    default: throw 'bug';
+    default: throw new Error('bug');
   }
 }
 
@@ -235,7 +235,7 @@ function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): Typ
       switch (prop.key.type) {
         case 'Identifier': name = prop.key.name; break;
         case 'Literal': name = prop.key.value; break;
-        default: throw 'expected Identifier or Literal prop key name';
+        default: throw new Error('expected Identifier or Literal prop key name');
       }
       return { [name]: synth(prop.value, env) };
     });
@@ -252,7 +252,7 @@ function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): Typ
   } else if (left.kind === 'string' && right.kind === 'string') {
     return Type.string;
   } else {
-    throw 'unimplemented: synthBinaryExpression';
+    throw new Error('unimplemented: synthBinaryExpression');
   }
 }
 
@@ -265,7 +265,7 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): Typ
         if (property.kind === 'number') return object.elem;
         else return throwExpectedType(ast, Type.number, property);
       default:
-        throw 'unimplemented synthMemberExpression ' + object.kind;
+        throw new Error('unimplemented synthMemberExpression ' + object.kind);
     }
   } else {
     if (ast.property.type === 'Identifier') {
@@ -284,10 +284,10 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): Typ
         }
 
         default:
-          throw 'unimplemented synthMemberExpression ' + object.kind;
+          throw new Error('unimplemented synthMemberExpression ' + object.kind);
       }
     } else {
-      throw 'expected identifier on non-computed property';
+      throw new Error('expected identifier on non-computed property');
     }
   }
 }
@@ -301,7 +301,7 @@ export function synth(ast: AcornJsxAst.Expression, env: Env): Type.Type {
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
 
-    default: throw 'unimplemented: synth ' + JSON.stringify(ast);
+    default: throw new Error('unimplemented: synth ' + JSON.stringify(ast));
   }
 }
 
@@ -322,14 +322,14 @@ function checkJsxElement(ast: AcornJsxAst.JSXElement, env: Env) {
           case 'Literal':
             return check(value, env, type);
           default:
-            throw 'unexpected AST ' + (value as any).type;
+            throw new Error('unexpected AST ' + (value as any).type);
         }
       } else {
         // TODO(jaked) required/optional props
       }
     });
   } else {
-    throw 'expected element type to be Object';
+    throw new Error('expected element type to be Object');
   }
 
   ast.children.forEach(child => {
@@ -357,14 +357,14 @@ function checkMdxElements(ast: MDXHAST.Node, env: Env) {
       if (ast.jsxElement) {
         return checkJsxElement(ast.jsxElement, env);
       } else {
-        throw 'expected JSX node to be parsed';
+        throw new Error('expected JSX node to be parsed');
       }
 
     case 'import':
     case 'export':
       return;
 
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }
 
@@ -392,7 +392,7 @@ function synthMdxBindings(
 
     case 'import':
     case 'export': {
-      if (!ast.declarations) throw 'expected import/export node to be parsed';
+      if (!ast.declarations) throw new Error('expected import/export node to be parsed');
       ast.declarations.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
@@ -401,13 +401,13 @@ function synthMdxBindings(
               switch (spec.type) {
                 case 'ImportNamespaceSpecifier':
                   if (spec.local.name !== source) {
-                    throw 'unimplemented: ImportNamespaceSpecifier';
+                    throw new Error('unimplemented: ImportNamespaceSpecifier');
                   }
                   else return; // namespace object is already in env
                 case 'ImportDefaultSpecifier':
-                  throw 'unimplemented: ImportDefaultSpecifier';
+                  throw new Error('unimplemented: ImportDefaultSpecifier');
                 case 'ImportSpecifier':
-                  throw 'unimplemented: ImportSpecifier';
+                  throw new Error('unimplemented: ImportSpecifier');
               }
             });
             break;
@@ -424,7 +424,7 @@ function synthMdxBindings(
       return env;
     }
 
-    default: throw 'unexpected AST ' + (ast as MDXHAST.Node).type;
+    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }
 
