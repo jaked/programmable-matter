@@ -17,7 +17,7 @@ function prettyPrint(type: Type.Type): string {
 
 function location(ast: AcornJsxAst.Expression): string {
   // TODO(jaked) print location
-  return Recast.print(ast).toString();
+  return Recast.print(ast).code;
 }
 
 function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, actual?: Type.Type): never {
@@ -372,7 +372,7 @@ function checkMdxElements(ast: MDXHAST.Node, env: Env) {
 function synthMdxBindings(
   ast: MDXHAST.Node,
   env: Env,
-  exports: { [s: string]: Type.Type }
+  exportTypes: { [s: string]: Type.Type }
 ): Env {
   // TODO(jaked)
   // - topologically sort bindings
@@ -383,7 +383,7 @@ function synthMdxBindings(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdxBindings(child, env, exports)
+        env = synthMdxBindings(child, env, exportTypes)
       );
       return env;
 
@@ -394,7 +394,7 @@ function synthMdxBindings(
     case 'import': {
       if (!ast.importDeclaration) throw 'expected import node to be parsed';
       const source = String.capitalize(<string>ast.importDeclaration.source.value);
-      const exports = env.get(source);
+      const exportTypes = env.get(source);
       ast.importDeclaration.specifiers.forEach(spec => {
         switch (spec.type) {
           case 'ImportNamespaceSpecifier':
@@ -416,7 +416,7 @@ function synthMdxBindings(
         const declaration = ast.exportNamedDeclaration.declaration;
         const declarator = declaration.declarations[0]; // TODO(jaked) handle multiple
         const type = synth(declarator.init, env);
-        exports[declarator.id.name] = type;
+        exportTypes[declarator.id.name] = type;
         return env.set(declarator.id.name, type);
       } else {
         throw 'expected export node to be parsed';
@@ -429,8 +429,8 @@ function synthMdxBindings(
 export function checkMdx(
   ast: MDXHAST.Node,
   env: Env,
-  exports: { [s: string]: Type.Type }
+  exportTypes: { [s: string]: Type.Type }
 ) {
-  const env2 = synthMdxBindings(ast, env, exports);
+  const env2 = synthMdxBindings(ast, env, exportTypes);
   checkMdxElements(ast, env2);
 }

@@ -155,7 +155,9 @@ export function compileNotes(
 
     if (dirty.has(tag)) {
       if (debug) console.log('rendering ' + tag);
-      const exportValuesRendered = Try.map(note.compiled.ast, ast => {
+      const exportValuesRendered =
+        // join against exportType so typechecking errors are passed through
+        Try.joinMap(note.compiled.ast, note.compiled.exportType, (ast, _) => {
         const exportValues: { [s: string]: any } = {};
         const rendered = Render.renderMdx(ast, valueEnv, lets, exportValues);
         // TODO(jaked) build per-note env with specific imports

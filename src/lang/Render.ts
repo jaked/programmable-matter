@@ -261,6 +261,8 @@ export function renderMdx(
   return renderMdxElements(ast, env2);
 }
 
+// TODO(jaked) full types for components
+// TODO(jaked) types for HTML elements
 export const initEnv: Typecheck.Env = Immutable.Map({
   'Tweet': Type.object({ tweetId: Type.string }),
   'YouTube': Type.object({ videoId: Type.string }),
@@ -273,7 +275,10 @@ export const initEnv: Typecheck.Env = Immutable.Map({
     // TODO(jaked)
     // column accessor types depend on data type (for Victory too)
     // can we express this with a type parameter?
-    columns: Type.array(Type.object({})),
+    columns: Type.array(Type.object({
+      Header: Type.string,
+      accessor: Type.string,
+    })),
     pageSize: Type.number,
   }),
 });
