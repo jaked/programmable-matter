@@ -57,16 +57,7 @@ function checkUndefined(ast: AcornJsxAst.Expression, env: Env, type: Type.Undefi
 }
 
 function checkBaseType(ast: AcornJsxAst.Expression, env: Env, type: Type.Type, jsType: string) {
-  switch (ast.type) {
-    case 'Literal':
-      if (typeof ast.value !== jsType)
-        return throwExpectedType(ast, type);
-      else
-        return; // OK
-
-    default:
-      checkSubtype(ast, synth(ast, env), type);
-  }
+  checkSubtype(ast, synth(ast, env), type);
 }
 
 function checkNull(ast: AcornJsxAst.Expression, env: Env, type: Type.NullType) {
@@ -214,10 +205,11 @@ function synthIdentifier(ast: AcornJsxAst.Identifier, env: Env): Type.Type {
 
 function synthLiteral(ast: AcornJsxAst.Literal, env: Env): Type.Type {
   switch (typeof ast.value) {
-    case 'boolean': return Type.boolean;
-    case 'number':  return Type.number;
-    case 'string':  return Type.string;
-    case 'object':  return Type.null;
+    case 'boolean':   return Type.singleton(Type.boolean, ast.value);
+    case 'number':    return Type.singleton(Type.number, ast.value);
+    case 'string':    return Type.singleton(Type.string, ast.value);
+    case 'undefined': return Type.undefined;
+    case 'object':    return Type.null;
     default: throw new Error('bug');
   }
 }
@@ -243,8 +235,11 @@ function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): Typ
 }
 
 function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): Type.Type {
-  const left = synth(ast.left, env);
-  const right = synth(ast.right, env);
+  let left = synth(ast.left, env);
+  let right = synth(ast.right, env);
+
+  if (left.kind === 'Singleton') left = left.base;
+  if (right.kind === 'Singleton') right = right.base;
 
   // TODO(jaked) handle other operators
   if (left.kind === 'number' && right.kind === 'number') {

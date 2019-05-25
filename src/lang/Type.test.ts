@@ -30,7 +30,7 @@ describe('leastUpperBound', () => {
     expect(actual).toEqual(expected);
   });
 
-  it('elides Union node for singletons', () => {
+  it('elides Union node for single elements', () => {
     const actual =
       Type.leastUpperBound(
         Type.object({ foo: Type.string, bar: Type.boolean }),
@@ -74,6 +74,24 @@ describe('isSubtype', () => {
     })
   });
 
+  describe('Object', () => {
+    it('handles wider <: narrower subtyping', () => {
+      const a = Type.object({ x: Type.string, y: Type.number });
+      const b = Type.object({ x: Type.string });
+      expect(Type.isSubtype(a, b)).toBe(true);
+    });
+
+    it('handles subtyping in fields', () => {
+      const a = Type.object({ x: Type.string });
+      const b = Type.object({ x: Type.union(Type.string, Type.number) });
+      expect(Type.isSubtype(a, b)).toBe(true);
+    });
+  });
+
+  describe('Singleton', () => {
+
+  });
+
   describe('Union', () => {
     it('handles permutation', () => {
       const a = Type.union(Type.number, Type.boolean, Type.string);
@@ -93,20 +111,6 @@ describe('isSubtype', () => {
       const b = Type.array(Type.union(Type.string, Type.boolean));
       expect(Type.isSubtype(a, b)).toBe(true);
       expect(Type.isSubtype(b, a)).toBe(false);
-    });
-  });
-
-  describe('Object', () => {
-    it('handles wider <: narrower subtyping', () => {
-      const a = Type.object({ x: Type.string, y: Type.number });
-      const b = Type.object({ x: Type.string });
-      expect(Type.isSubtype(a, b)).toBe(true);
-    });
-
-    it('handles subtyping in fields', () => {
-      const a = Type.object({ x: Type.string });
-      const b = Type.object({ x: Type.union(Type.string, Type.number) });
-      expect(Type.isSubtype(a, b)).toBe(true);
     });
   });
 });

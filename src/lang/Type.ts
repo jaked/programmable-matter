@@ -76,21 +76,28 @@ export function object(obj: { [f: string]: Type }): ObjectType {
   return { kind: 'Object', fields };
 }
 
+export function singleton(base: BooleanType, value: boolean): SingletonType
+export function singleton(base: NumberType, value: number): SingletonType
+export function singleton(base: StringType, value: string): SingletonType
+export function singleton(base: Type, value: any): SingletonType {
+ return { kind: 'Singleton', base, value };
+}
+
+// TODO(jaked) find a library for these
+function uniq(xs: Array<Type>): Array<Type> {
+  const accum: Array<Type> = [];
+  xs.forEach(x => {
+    if (accum.every(y => !equiv(x, y)))
+      accum.push(x)
+  });
+  return accum;
+}
+
 export function union(...types: Array<Type>): Type {
-  // TODO(jaked) find a library for these
   function flatten(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
     types.forEach(t => {
       if (t.kind === 'Union') return flatten(t.types, accum);
       else accum.push(t);
-    });
-    return accum;
-  }
-
-  function uniq(xs: Array<Type>): Array<Type> {
-    const accum: Array<Type> = [];
-    xs.forEach(x => {
-      if (accum.every(y => !equiv(x, y)))
-        accum.push(x)
     });
     return accum;
   }
@@ -100,6 +107,23 @@ export function union(...types: Array<Type>): Type {
     case 0: return never;
     case 1: return arms[0];
     default: return { kind: 'Union', types: arms };
+  }
+}
+
+export function intersection(...types: Array<Type>): Type {
+  function flatten(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
+    types.forEach(t => {
+      if (t.kind === 'Intersection') return flatten(t.types, accum);
+      else accum.push(t);
+    });
+    return accum;
+  }
+
+  const arms = uniq(flatten(types));
+  switch (arms.length) {
+    case 0: return unknown;
+    case 1: return arms[0];
+    default: return { kind: 'Intersection', types: arms };
   }
 }
 
@@ -129,6 +153,10 @@ export function isSubtype(a: Type, b: Type): boolean {
   if (Equals.equals(a, b)) return true;
   else if (a.kind === 'never') return true;
   else if (b.kind === 'unknown') return true;
+  else if (a.kind === 'Singleton' && b.kind === 'Singleton')
+    return isSubtype(a.base, b.base) && Equals.equals(a.value, b.value);
+  else if (a.kind === 'Singleton')
+    return isSubtype(a.base, b);
   else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));
   else if (b.kind === 'Union') return b.types.some(t => isSubtype(a, t));
   else if (a.kind === 'Array' && b.kind === 'Array')
