@@ -8,7 +8,8 @@ import { Inspector } from 'react-inspector';
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
 import { VictoryBar } from 'victory';
-import ReactTable from 'react-table'
+import ReactTable from 'react-table';
+import Gist from 'react-gist';
 
 import { InlineMath, BlockMath } from 'react-katex';
 
@@ -108,7 +109,8 @@ const components = new Map([
   [ 'VictoryBar', VictoryBar ],
   [ 'InlineMath', InlineMath ],
   [ 'BlockMath', BlockMath ],
-  [ 'Table', ReactTable ]
+  [ 'Table', ReactTable ],
+  [ 'Gist', Gist ]
 ].map(([name, comp]) => [name, Focal.lift(comp)]));
 
 function renderElement(name: string) {
@@ -136,7 +138,7 @@ function renderJsx(ast: AcornJsxAst.JSXElement, env: Env): React.ReactNode {
   });
 
   // TODO(jaked) for what elements does this make sense? only input?
-  if (attrs.id) {
+  if (ast.openingElement.name.name === 'input' && attrs.id) {
     if (env.has(attrs.id)) {
       const atom = env.get(attrs.id) as Atom<any>;
       attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,6 +283,7 @@ export function renderMdx(
 export const initEnv: Typecheck.Env = Immutable.Map({
   'Tweet': Type.object({ tweetId: Type.string }),
   'YouTube': Type.object({ videoId: Type.string }),
+  'Gist': Type.object({ id: Type.string }),
 
   'VictoryBar': Type.object({}),
   'Inspector': Type.object({}),

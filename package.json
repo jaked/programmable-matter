@@ -42,6 +42,7 @@
     "react": "^16.8.6",
     "react-ace": "^6.4.0",
     "react-dom": "^16.8.6",
+    "react-gist": "^1.2.1",
     "react-inspector": "^3.0.2",
     "react-katex": "^2.0.2",
     "react-table": "^6.10.0",
