@@ -24,7 +24,7 @@ function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, act
   let msg = 'expected ' + prettyPrint(expected);
   if (actual) msg += ', got ' + prettyPrint(actual);
   msg += ' at ' + location(ast);
-  throw msg;
+  throw new Error(msg);
 }
 
 function throwUnknownField(ast: AcornJsxAst.Expression, field: string): never {
@@ -221,6 +221,7 @@ function synthArrayExpression(ast: AcornJsxAst.ArrayExpression, env: Env): Type.
 }
 
 function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): Type.Type {
+  const seen = new Set();
   const fields =
     ast.properties.map(prop => {
       let name: string;
@@ -229,6 +230,8 @@ function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): Typ
         case 'Literal': name = prop.key.value; break;
         default: throw new Error('expected Identifier or Literal prop key name');
       }
+      if (seen.has(name)) throw new Error('duplicate field name ' + name);
+      else seen.add(name);
       return { [name]: synth(prop.value, env) };
     });
   return Type.object(Object.assign({}, ...fields));
@@ -254,7 +257,8 @@ function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): Typ
 function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): Type.Type {
   const object = synth(ast.object, env);
   if (ast.computed) {
-    const property = synth(ast.property, env);
+    let property = synth(ast.property, env);
+    if (property.kind === 'Singleton') property = property.base;
     switch (object.kind) {
       case 'Array':
         if (property.kind === 'number') return object.elem;
