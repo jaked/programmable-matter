@@ -3,7 +3,6 @@
     "incremental": true,
     "outDir": "./build/",       // path to output directory
     "sourceMap": true,          // allow sourcemap support
-    "downlevelIteration": true,
 
     "alwaysStrict": true,
     // "noImplicitAny": true,
@@ -17,10 +16,10 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "jsx": "react",             // use typescript to transpile jsx to js
-    "target": "es5",            // specify ECMAScript target version
+    "target": "es2015",
     "lib": [
       "DOM",
-      "ES5",
+      "ES2015",
       "ScriptHost",
       "ES2015.Collection"
     ],
