@@ -12,6 +12,7 @@
     "strictFunctionTypes": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": true,
+    "noFallthroughCasesInSwitch": true,
 
     "module": "commonjs",
     "esModuleInterop": true,
