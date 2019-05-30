@@ -257,12 +257,63 @@ function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): Typ
 function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): Type.Type {
   const object = synth(ast.object, env);
   if (ast.computed) {
-    let property = synth(ast.property, env);
-    if (property.kind === 'Singleton') property = property.base;
     switch (object.kind) {
       case 'Array':
-        if (property.kind === 'number') return object.elem;
-        else return throwExpectedType(ast, Type.number, property);
+        check(ast.property, env, Type.number);
+        return object.elem;
+
+      case 'Tuple': {
+        // check against union of valid indexes
+        let validIndexes =
+          object.elems.map((_, i) => Type.singleton(Type.number, i));
+        check(ast.property, env, Type.union(...validIndexes));
+
+        // synth to find out which valid indexes are actually present
+        const propertyType = synth(ast.property, env);
+        const presentIndexes: Array<number> = [];
+        if (propertyType.kind === 'Singleton') {
+          presentIndexes.push(propertyType.value);
+        } else if (propertyType.kind === 'Union') {
+          propertyType.types.forEach(type => {
+            if (type.kind === 'Singleton') presentIndexes.push(type.value);
+            else throw new Error('expected Singleton');
+          });
+        } else throw new Error('expected Singleton or Union')
+
+        // and return union of element types of present indexes
+        const presentTypes =
+          presentIndexes.map(i => object.elems[i]);
+        return Type.union(...presentTypes);
+      }
+
+      case 'Object': {
+        // check against union of valid indexes
+        let validIndexes =
+          object.fields.map(({ field }) => Type.singleton(Type.string, field));
+        check(ast.property, env, Type.union(...validIndexes));
+
+        // synth to find out which valid indexes are actually present
+        const propertyType = synth(ast.property, env);
+        const presentIndexes: Array<string> = [];
+        if (propertyType.kind === 'Singleton') {
+          presentIndexes.push(propertyType.value);
+        } else if (propertyType.kind === 'Union') {
+          propertyType.types.forEach(type => {
+            if (type.kind === 'Singleton') presentIndexes.push(type.value);
+            else throw new Error('expected Singleton');
+          });
+        } else throw new Error('expected Singleton or Union')
+
+        // and return union of element types of present indexes
+        const presentTypes =
+          presentIndexes.map(i => {
+            const fieldType = object.fields.find(({ field }) => field === i);
+            if (fieldType) return fieldType.type;
+            else throw new Error('expected valid index');
+          });
+        return Type.union(...presentTypes);
+      }
+
       default:
         throw new Error('unimplemented synthMemberExpression ' + object.kind);
     }

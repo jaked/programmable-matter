@@ -89,7 +89,10 @@ describe('isSubtype', () => {
   });
 
   describe('Singleton', () => {
-
+    it('reflexive', () => {
+      const t = Type.singleton(Type.number, 7);
+      expect(Type.isSubtype(t, t)).toBe(true);
+    });
   });
 
   describe('Union', () => {
@@ -111,6 +114,12 @@ describe('isSubtype', () => {
       const b = Type.array(Type.union(Type.string, Type.boolean));
       expect(Type.isSubtype(a, b)).toBe(true);
       expect(Type.isSubtype(b, a)).toBe(false);
+    });
+
+    it('singletons', () => {
+      const a = Type.singleton(Type.number, 7);
+      const b = Type.union(a, Type.singleton(Type.number, 9));
+      expect(Type.isSubtype(a, b)).toBe(true);
     });
   });
 });

@@ -246,37 +246,57 @@ describe('synth', () => {
 
   describe('member expressions', () => {
     const env = Immutable.Map({
-      foo: Type.object({ bar: Type.boolean }),
-      baz: Type.array(Type.number),
-      quux: Type.tuple(Type.boolean, Type.number)
+      object: Type.object({ foo: Type.boolean, bar: Type.number }),
+      array: Type.array(Type.number),
+      tuple: Type.tuple(Type.boolean, Type.number),
+      numberUnion: Type.union(
+        Type.singleton(Type.number, 0),
+        Type.singleton(Type.number, 1),
+      ),
+      stringUnion: Type.union(
+        Type.singleton(Type.string, 'foo'),
+        Type.singleton(Type.string, 'bar'),
+      )
     });
 
     it('property names', () => {
-      expectSynth('foo.bar', Type.boolean, env);
+      expectSynth('object.foo', Type.boolean, env);
     });
 
-    // TODO(jaked)
-    xit('string index', () => {
-      expectSynth('foo["bar"]', Type.boolean, env);
+    it('string index', () => {
+      expectSynth('object["foo"]', Type.boolean, env);
     });
 
     it('number index in array', () => {
-      expectSynth('baz[0]', Type.number, env);
+      expectSynth('array[0]', Type.number, env);
     });
 
-    // TODO(jaked)
-    xit('number index in tuple', () => {
-      expectSynth('quux[0]', Type.boolean, env);
+    it('number index in tuple', () => {
+      expectSynth('tuple[0]', Type.boolean, env);
     });
 
-    // TODO(jaked)
-    xit('throws on string index to array', () => {
-      expectSynthThrows('baz["xyzzy"]');
+    it('multiple number indexes in tuple', () => {
+      expectSynth('tuple[numberUnion]', Type.union(Type.boolean, Type.number), env);
     });
 
-    // TODO(jaked)
-    xit('throws on tuple index out of range', () => {
-      expectSynthThrows('quux[2]');
+    it('multiple string indexes in object', () => {
+      expectSynth('object[stringUnion]', Type.union(Type.boolean, Type.number), env);
+    });
+
+    it('throws on string index to array', () => {
+      expectSynthThrows('array["xyzzy"]');
+    });
+
+    it('throws on tuple index out of range', () => {
+      expectSynthThrows('tuple[2]');
+    });
+
+    it('throws on unknown object index', () => {
+      expectSynthThrows('object["quux"]');
+    });
+
+    it('throws on unknown object property', () => {
+      expectSynthThrows('object.quux');
     });
   });
 });
