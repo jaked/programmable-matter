@@ -26,6 +26,10 @@ function parseJsx(input: string): AcornJsxAst.Node {
   return jsxParser.parse(input, { sourceType: 'module' }) as AcornJsxAst.Node;
 }
 
+export function parseExpression(input: string): AcornJsxAst.Expression {
+  return jsxParser.parseExpressionAt(input, 0) as AcornJsxAst.Expression;
+}
+
 function parseMdx(input: string): MDXHAST.Root {
   return mdxParser.runSync(mdxParser.parse(input)) as MDXHAST.Root
 }
@@ -41,27 +45,13 @@ function parseJsxNodes(ast: MDXHAST.Node) {
       break;
 
     case 'jsx': {
-      const jsxAst = parseJsx(ast.value);
-      switch (jsxAst.type) {
-        case 'Program':
-          const body = jsxAst.body[0]
-          switch (body.type) {
-            case 'ExpressionStatement':
-              const expression = body.expression;
-              switch (expression.type) {
-                case 'JSXElement':
-                  ast.jsxElement = expression;
-                  break;
-                default:
-                  throw new Error('unexpected AST ' + expression.type);
-              }
-              break;
-            default:
-              throw new Error('unexpected AST ' + body.type);
-          }
+      const expr = parseExpression(ast.value);
+      switch (expr.type) {
+        case 'JSXElement':
+          ast.jsxElement = expr;
           break;
         default:
-          throw new Error('unexpected AST ' + jsxAst.type);
+          throw new Error('unexpected AST ' + expr.type);
       }
     }
     break;
@@ -89,22 +79,6 @@ function parseJsxNodes(ast: MDXHAST.Node) {
     break;
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
-  }
-}
-
-export function parseJsxExpr(input: string): AcornJsxAst.Expression {
-  const jsxAst = parseJsx(input);
-  switch (jsxAst.type) {
-    case 'Program':
-      const body = jsxAst.body[0];
-      switch (body.type) {
-        case 'ExpressionStatement':
-          return body.expression;
-        default:
-          throw new Error('unexpected AST ' + body.type);
-      }
-    default:
-      throw new Error('unexpected AST ' + jsxAst.type);
   }
 }
 

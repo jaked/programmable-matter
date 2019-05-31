@@ -11,7 +11,7 @@ describe('check', () => {
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseJsxExpr(exprOrString)
+      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
     expect(() => Typecheck.check(expr, env, type)).toThrow();
   }
@@ -22,7 +22,7 @@ describe('check', () => {
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseJsxExpr(exprOrString)
+      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
     expect(() => Typecheck.check(expr, env, type)).not.toThrow();
   }
@@ -153,7 +153,7 @@ describe('synth', () => {
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseJsxExpr(exprOrString)
+      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
     expect(() => Typecheck.synth(expr, env)).toThrow();
   }
@@ -164,7 +164,7 @@ describe('synth', () => {
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseJsxExpr(exprOrString)
+      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
     expect(Typecheck.synth(expr, env)).toEqual(type);
   }
