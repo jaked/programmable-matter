@@ -1,6 +1,6 @@
 import unified from 'unified';
 import toMDAST from 'remark-parse';
-import remarkMdx from 'remark-mdx';
+import remarkMdx from './remark-mdx';
 import squeeze from 'remark-squeeze-paragraphs';
 import toMDXAST from '@mdx-js/mdx/md-ast-to-mdx-ast';
 import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
@@ -18,6 +18,7 @@ const mdxParser =
     .use(squeeze)
     .use(toMDXAST)
     .use(mdxAstToMdxHast)
+    .freeze();
 
 const jsxParser = Acorn.Parser.extend(AcornJsx())
 
