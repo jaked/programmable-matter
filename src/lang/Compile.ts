@@ -24,13 +24,13 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
     case 'import':
     case 'export':
       if (!ast.declarations) throw new Error('expected import/export node to be parsed');
-      ast.declarations.forEach(decl => {
+      Try.forEach(ast.declarations, decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
             imports.add(decl.source.value);
             break;
         }
-      });
+      }));
       break;
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);

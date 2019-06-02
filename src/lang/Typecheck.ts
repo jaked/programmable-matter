@@ -7,6 +7,7 @@ import * as AcornJsxAst from './acornJsxAst';
 import * as Type from './Type';
 
 import * as String from '../util/String';
+import * as Try from '../util/Try';
 
 export type Env = Immutable.Map<string, Type.Type>;
 
@@ -404,11 +405,8 @@ function checkMdxElements(ast: MDXHAST.Node, env: Env) {
       return;
 
     case 'jsx':
-      if (ast.jsxElement) {
-        return checkJsxElement(ast.jsxElement, env);
-      } else {
-        throw new Error('expected JSX node to be parsed');
-      }
+      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
+      return Try.forEach(ast.jsxElement, elem => checkJsxElement(elem, env));
 
     case 'import':
     case 'export':
@@ -443,7 +441,7 @@ function synthMdxBindings(
     case 'import':
     case 'export': {
       if (!ast.declarations) throw new Error('expected import/export node to be parsed');
-      ast.declarations.forEach(decl => {
+      Try.forEach(ast.declarations, decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
             const source = String.capitalize(<string>decl.source.value);
@@ -470,7 +468,7 @@ function synthMdxBindings(
             });
             break;
         }
-      });
+      }));
       return env;
     }
 

@@ -8,6 +8,7 @@ import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 import * as Acorn from 'acorn';
 import AcornJsx from 'acorn-jsx';
 
+import * as Try from '../util/Try';
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
 
@@ -44,24 +45,22 @@ function parseJsxNodes(ast: MDXHAST.Node) {
     case 'text':
       break;
 
-    case 'jsx': {
-      const expr = parseExpression(ast.value);
-      switch (expr.type) {
-        case 'JSXElement':
-          ast.jsxElement = expr;
-          break;
-        default:
+    case 'jsx':
+      ast.jsxElement = Try.apply(() => {
+        const expr = parseExpression(ast.value);
+        if (expr.type === 'JSXElement')
+          return expr;
+        else
           throw new Error('unexpected AST ' + expr.type);
-      }
-    }
-    break;
+      });
+      break;
 
     case 'import':
-    case 'export': {
-      const jsxAst = parseJsx(ast.value);
-      switch (jsxAst.type) {
-        case 'Program':
-          ast.declarations = jsxAst.body.map(decl => {
+    case 'export':
+      ast.declarations = Try.apply(() => {
+        const jsxAst = parseJsx(ast.value);
+        if (jsxAst.type === 'Program') {
+          return jsxAst.body.map(decl => {
             switch (decl.type) {
               case 'ImportDeclaration':
               case 'ExportNamedDeclaration':
@@ -71,12 +70,11 @@ function parseJsxNodes(ast: MDXHAST.Node) {
                 throw new Error('unexpected AST ' + decl.type);
             }
           });
-          break;
-        default:
+        } else {
           throw new Error('unexpected AST ' + jsxAst.type);
-      }
-    }
-    break;
+        }
+      });
+      break;
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }

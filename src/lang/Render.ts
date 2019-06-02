@@ -16,6 +16,8 @@ import { InlineMath, BlockMath } from 'react-katex';
 import { Atom, F, Lens, ReadOnlyAtom } from '@grammarly/focal';
 import * as Focal from '@grammarly/focal';
 
+import * as Try from '../util/Try';
+
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
 import * as Evaluator from './evaluator';
@@ -175,7 +177,7 @@ function evaluateMdxBindings(
     case 'import':
     case 'export':
       if (!ast.declarations) throw new Error('expected import/export node to be parsed');
-      ast.declarations.forEach(decl => {
+      Try.forEach(ast.declarations, decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration': {
             // TODO(jaked)
@@ -226,7 +228,7 @@ function evaluateMdxBindings(
           }
           break;
         }
-      });
+      }));
       return env;
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
@@ -254,11 +256,14 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
       return ast.value;
 
     case 'jsx':
-      if (ast.jsxElement) {
-        return renderJsx(ast.jsxElement, env);
-      } else {
-        throw new Error('expected JSX node to be parsed');
+      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
+      switch (ast.jsxElement.type) {
+        case 'success':
+          return renderJsx(ast.jsxElement.success, env);
+        case 'failure':
+          return null;
       }
+      break;
 
     case 'import':
     case 'export':
