@@ -165,4 +165,103 @@ export interface ExportNamedDeclaration extends NodeImpl {
   source: null; // ???
 }
 
-export type Node = Program | ExpressionStatement | JSXElement;
+export type Node =
+  Program | ExpressionStatement | JSXText | JSXElement | JSXOpeningElement |
+  JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
+  Literal | Identifier | BinaryExpression | MemberExpression | Property |
+  ObjectExpression | ArrayExpression | ImportSpecifier |
+  ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
+  VariableDeclarator | VariableDeclaration | ExportNamedDeclaration;
+
+export function visit(
+  ast: Node | Array<Node> | null,
+  fn: (n: Node) => void
+) {
+  // wheee Javascript
+  if (ast === null) return;
+  if (Array.isArray(ast)) {
+    return ast.forEach(node => visit(node, fn));
+  }
+  fn(ast)
+  switch (ast.type) {
+    case 'Program':
+      return visit(ast.body, fn);
+
+    case 'ExpressionStatement':
+      return visit(ast.expression, fn);
+
+    case 'JSXText':
+      return;
+
+    case 'JSXElement':
+      visit(ast.openingElement, fn);
+      visit(ast.closingElement, fn);
+      return visit(ast.children, fn);
+
+    case 'JSXOpeningElement':
+      return visit(ast.attributes, fn);
+
+    case 'JSXClosingElement':
+      break;
+
+    case 'JSXAttribute':
+      return visit(ast.value, fn);
+
+    case 'JSXIdentifier':
+      return;
+
+    case 'JSXExpressionContainer':
+      return visit(ast.expression, fn);
+
+    case 'Literal':
+      return;
+
+    case 'Identifier':
+      return;
+
+    case 'BinaryExpression':
+      visit(ast.left, fn);
+      return visit(ast.right, fn);
+
+    case 'MemberExpression':
+      visit(ast.object, fn);
+      return visit(ast.property, fn);
+
+    case 'Property':
+      visit(ast.key, fn);
+      return visit(ast.value, fn);
+
+    case 'ObjectExpression':
+      return visit(ast.properties, fn);
+
+    case 'ArrayExpression':
+      return visit(ast.elements, fn);
+
+    case 'ImportSpecifier':
+      visit(ast.imported, fn);
+      return visit(ast.local, fn);
+
+    case 'ImportNamespaceSpecifier':
+      return visit(ast.local, fn);
+
+    case 'ImportDefaultSpecifier':
+      return visit(ast.local, fn);
+
+    case 'ImportDeclaration':
+      visit(ast.specifiers, fn);
+      return visit(ast.source, fn);
+
+    case 'VariableDeclarator':
+      visit(ast.id, fn);
+      return visit(ast.init, fn);
+
+    case 'VariableDeclaration':
+      return visit(ast.declarations, fn);
+
+    case 'ExportNamedDeclaration':
+      return visit(ast.declaration, fn);
+
+    default:
+      throw new Error('unexpected AST ' + (ast as Node).type);
+  }
+}

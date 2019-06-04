@@ -37,7 +37,11 @@ export function Main({ notes, selected, content, compiledNote }: Props) {
           />
         </Grid>
         <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
-          <LiftedEditor content={content} onChange={c => content.set(c)} />
+          <LiftedEditor
+            content={content}
+            compiledNote={compiledNote}
+            onChange={c => content.set(c)}
+          />
         </Grid>
         <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
           <Catch>
