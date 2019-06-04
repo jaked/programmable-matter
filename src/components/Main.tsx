@@ -29,17 +29,17 @@ export function Main({ notes, selected, content, compiledNote }: Props) {
     <React.Fragment>
       <CssBaseline />
       <Grid container direction='row' style={{ height: '100vh' }}>
-        <Grid item xs={2}>
+        <Grid item xs={2} style={{ height: '100%', overflowY: 'auto' }}>
           <LiftedNotes
             notes={notes}
             selected={selected}
             onSelect={tag => selected.set(tag)}
           />
         </Grid>
-        <Grid item xs={5}>
+        <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
           <LiftedEditor content={content} onChange={c => content.set(c)} />
         </Grid>
-        <Grid item xs={5}>
+        <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
           <Catch>
             <LiftedDisplay compiledNote={compiledNote} />
           </Catch>
