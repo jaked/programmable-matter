@@ -41,6 +41,7 @@ export interface JSXOpeningElement extends NodeImpl {
 
 export interface JSXClosingElement extends NodeImpl {
   type: 'JSXClosingElement';
+  name: JSXIdentifier;
 }
 
 export interface JSXAttribute extends NodeImpl {
@@ -173,16 +174,18 @@ export type Node =
   ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
   VariableDeclarator | VariableDeclaration | ExportNamedDeclaration;
 
+// if fn returns false, don't recurse into children
+// (caller must visit children itself if needed)
 export function visit(
   ast: Node | Array<Node> | null,
-  fn: (n: Node) => void
+  fn: (n: Node) => (void | false)
 ) {
   // wheee Javascript
   if (ast === null) return;
   if (Array.isArray(ast)) {
     return ast.forEach(node => visit(node, fn));
   }
-  fn(ast)
+  if (fn(ast) === false) return;
   switch (ast.type) {
     case 'Program':
       return visit(ast.body, fn);
@@ -195,16 +198,18 @@ export function visit(
 
     case 'JSXElement':
       visit(ast.openingElement, fn);
-      visit(ast.closingElement, fn);
-      return visit(ast.children, fn);
+      visit(ast.children, fn);
+      return visit(ast.closingElement, fn);
 
     case 'JSXOpeningElement':
+      visit(ast.name, fn);
       return visit(ast.attributes, fn);
 
     case 'JSXClosingElement':
-      break;
+      return visit(ast.name, fn);
 
     case 'JSXAttribute':
+      visit(ast.name, fn);
       return visit(ast.value, fn);
 
     case 'JSXIdentifier':

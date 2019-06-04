@@ -16,17 +16,117 @@ interface Props {
 
 type Span = { start: number, end: number, color: string };
 
+const colors = {
+  default: '#000000',
+  atom: '#221199',
+  number: '#116644',
+  string: '#AA1111',
+  keyword: '#770088',
+  definition: '#0000ff',
+  variable: '#268bd2',
+  property: '#b58900',
+}
+
 function computeJsSpans(
   ast: AcornJsxAst.Node,
   spans: Array<Span>
 ) {
   function fn(ast: AcornJsxAst.Node) {
     switch (ast.type) {
-    case 'Literal':
-      if (typeof ast.value === 'string') {
-        spans.push({ start: ast.start, end: ast.end, color: '#a31515' });
+      case 'Literal': {
+        const start = ast.start;
+        const end = ast.end;
+        let color: string = colors.default;
+        if (typeof ast.value === 'string') color = colors.string;
+        else if (typeof ast.value === 'number') color = colors.number;
+        else if (typeof ast.value === 'boolean') color = colors.atom;
+        else if (typeof ast.value === 'object') color = colors.atom;
+        spans.push({ start, end, color });
       }
       return;
+
+      case 'JSXIdentifier':
+      case 'Identifier': {
+        const start = ast.start;
+        const end = ast.end;
+        const color = colors.variable;
+        spans.push({ start, end, color });
+      }
+      return;
+
+      case 'Property': {
+        if (ast.key.type === 'Identifier') {
+          const start = ast.key.start;
+          const end = ast.key.end;
+          const color = colors.property;
+          spans.push({ start, end, color });
+
+          AcornJsxAst.visit(ast.value, fn);
+          return false;
+        }
+      }
+      return;
+
+      case 'JSXAttribute': {
+        const start = ast.name.start;
+        const end = ast.name.end;
+        const color = colors.property;
+        spans.push({ start, end, color });
+
+        AcornJsxAst.visit(ast.value, fn);
+        return false;
+      }
+
+      case 'ImportDeclaration': {
+        // TODO(jaked) handle `from`
+        const start = ast.start;
+        const end = ast.start + 6; // import
+        const color = colors.keyword;
+        spans.push({ start, end, color });
+      }
+      return;
+
+      case 'ImportNamespaceSpecifier':
+        // TODO(jaked) handle `as`
+        {
+          const start = ast.start;
+          const end = ast.start + 1; // *
+          const color = colors.variable;
+          spans.push({ start, end, color });
+        }
+        {
+          const start = ast.local.start;
+          const end = ast.local.end;
+          const color = colors.definition;
+          spans.push({ start, end, color });
+        }
+        return false;
+
+      case 'ExportNamedDeclaration': {
+        const start = ast.start;
+        const end = ast.start + 6; // export
+        const color = colors.keyword;
+        spans.push({ start, end, color });
+      }
+      return;
+
+      case 'VariableDeclaration': {
+        const start = ast.start;
+        const end = ast.start + ast.kind.length;
+        const color = colors.keyword;
+        spans.push({ start, end, color });
+      }
+      return;
+
+      case 'VariableDeclarator': {
+        const start = ast.id.start;
+        const end = ast.id.end;
+        const color = colors.definition;
+        spans.push({ start, end, color });
+
+        AcornJsxAst.visit(ast.init, fn);
+        return false;
+      }
     }
   }
   AcornJsxAst.visit(ast, fn);
@@ -114,8 +214,8 @@ export class Editor extends React.Component<Props, {}> {
       const highlight = computeHighlight(content, compiledNote);
       return (
         <div style={{
-          fontFamily: 'monospace',
-          fontSize: '11pt',
+          fontFamily: 'Monaco, monospace',
+          fontSize: '14px',
         }}>
           <RSCEditor
             value={content}
