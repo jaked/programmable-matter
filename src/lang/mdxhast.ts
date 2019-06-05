@@ -45,7 +45,7 @@ export interface Text extends NodeImpl {
 export interface Jsx extends NodeImpl {
   type: 'jsx';
   value: string;
-  jsxElement?: Try.Try<AcornJsxAst.JSXElement>
+  jsxElement?: Try.Try<AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment>;
 }
 
 type Declaration =

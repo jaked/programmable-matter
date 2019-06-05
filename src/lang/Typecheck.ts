@@ -360,27 +360,32 @@ export function synth(ast: AcornJsxAst.Expression, env: Env): Type.Type {
 const embeddedExpressionType =
   Type.union(Type.boolean, Type.number, Type.string);
 
-function checkJsxElement(ast: AcornJsxAst.JSXElement, env: Env) {
-  const type = env.get(ast.openingElement.name.name, Type.object({}));
-  if (type.kind === 'Object') {
-    const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));
-    ast.openingElement.attributes.forEach(({ name, value }) => {
-      const type = fieldTypes.get(name.name);
-      if (type) {
-        switch (value.type) {
-          case 'JSXExpressionContainer':
-            return check(value.expression, env, type);
-          case 'Literal':
-            return check(value, env, type);
-          default:
-            throw new Error('unexpected AST ' + (value as any).type);
+function checkJsxElement(
+  ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
+  env: Env
+) {
+  if (ast.type === 'JSXElement') {
+    const type = env.get(ast.openingElement.name.name, Type.object({}));
+    if (type.kind === 'Object') {
+      const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));
+      ast.openingElement.attributes.forEach(({ name, value }) => {
+        const type = fieldTypes.get(name.name);
+        if (type) {
+          switch (value.type) {
+            case 'JSXExpressionContainer':
+              return check(value.expression, env, type);
+            case 'Literal':
+              return check(value, env, type);
+            default:
+              throw new Error('unexpected AST ' + (value as any).type);
+          }
+        } else {
+          // TODO(jaked) required/optional props
         }
-      } else {
-        // TODO(jaked) required/optional props
-      }
-    });
-  } else {
-    throw new Error('expected element type to be Object');
+      });
+    } else {
+      throw new Error('expected element type to be Object');
+    }
   }
 
   ast.children.forEach(child => {

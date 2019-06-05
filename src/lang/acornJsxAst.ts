@@ -19,6 +19,11 @@ export interface ExpressionStatement extends NodeImpl {
   expression: JSXElement;
 }
 
+export interface JSXFragment extends NodeImpl {
+  type: 'JSXFragment';
+  children: Array<JSXElement | JSXText | JSXExpressionContainer >;
+}
+
 export interface JSXText extends NodeImpl {
   type: 'JSXText';
   value: string;
@@ -116,6 +121,7 @@ export interface ArrayExpression extends NodeImpl {
 export type Expression =
   Literal |
   Identifier |
+  JSXFragment |
   JSXElement |
   BinaryExpression |
   MemberExpression |
@@ -167,7 +173,8 @@ export interface ExportNamedDeclaration extends NodeImpl {
 }
 
 export type Node =
-  Program | ExpressionStatement | JSXText | JSXElement | JSXOpeningElement |
+  Program | ExpressionStatement |
+  JSXFragment | JSXText | JSXElement | JSXOpeningElement |
   JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
   Literal | Identifier | BinaryExpression | MemberExpression | Property |
   ObjectExpression | ArrayExpression | ImportSpecifier |
@@ -192,6 +199,9 @@ export function visit(
 
     case 'ExpressionStatement':
       return visit(ast.expression, fn);
+
+    case 'JSXFragment':
+      return visit(ast.children, fn);
 
     case 'JSXText':
       return;

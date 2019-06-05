@@ -125,9 +125,10 @@ function renderElement(name: string) {
   }
 }
 
-function renderJsx(ast: AcornJsxAst.JSXElement, env: Env): React.ReactNode {
-  const attrs = renderAttributes(ast.openingElement.attributes, env);
-  const elem = renderElement(ast.openingElement.name.name);
+function renderJsx(
+  ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
+  env: Env
+): React.ReactNode {
   const children = ast.children.map(child => {
     switch (child.type) {
       case 'JSXElement':
@@ -139,21 +140,28 @@ function renderJsx(ast: AcornJsxAst.JSXElement, env: Env): React.ReactNode {
     }
   });
 
-  // TODO(jaked) for what elements does this make sense? only input?
-  if (ast.openingElement.name.name === 'input' && attrs.id) {
-    if (env.has(attrs.id)) {
-      const atom = env.get(attrs.id) as Atom<any>;
-      attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        atom.set(e.currentTarget.value);
-      }
-    } else {
-      // TODO(jaked) check statically
-      // also check that it is a non-readonly Atom
-      throw new Error('unbound identifier ' + attrs.id);
-    }
-  }
+  if (ast.type === 'JSXFragment') {
+    return children;
+  } else {
+    const attrs = renderAttributes(ast.openingElement.attributes, env);
+    const elem = renderElement(ast.openingElement.name.name);
 
-  return React.createElement(elem, attrs, ...children);
+    // TODO(jaked) for what elements does this make sense? only input?
+    if (ast.openingElement.name.name === 'input' && attrs.id) {
+      if (env.has(attrs.id)) {
+        const atom = env.get(attrs.id) as Atom<any>;
+        attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          atom.set(e.currentTarget.value);
+        }
+      } else {
+        // TODO(jaked) check statically
+        // also check that it is a non-readonly Atom
+        throw new Error('unbound identifier ' + attrs.id);
+      }
+    }
+
+    return React.createElement(elem, attrs, ...children);
+  }
 }
 
 function evaluateMdxBindings(

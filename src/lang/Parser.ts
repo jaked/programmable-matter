@@ -63,8 +63,7 @@ function parseJsxNodes(ast: MDXHAST.Node) {
     case 'jsx':
       ast.jsxElement = Try.apply(() => {
         const expr = parseExpression(ast.value, ast.position);
-        if (expr.type === 'JSXElement')
-          return expr;
+        if (expr.type === 'JSXElement' || expr.type === 'JSXFragment') return expr;
         else
           throw new Error('unexpected AST ' + expr.type);
       });
