@@ -23,27 +23,21 @@ export class Catch extends React.Component<Props, State> {
     }
   }
 
+  static getDerivedStateFromError(e: Error) {
+    return { err: e };
+  }
+
   componentDidCatch (err: Error) {
     console.error(err)
-    this.setState({ err })
   }
 
   render () {
     const { err } = this.state
     if (err) {
       return (
-        <span>{err.toString()}</span>
+        <pre>{err.toString()}</pre>
       );
     }
-    try {
-      return (
-        <React.Fragment>
-          {this.props.children}
-        </React.Fragment>
-      )
-    } catch (e) {
-      console.error(e)
-      return false
-    }
+    return this.props.children
   }
 }
