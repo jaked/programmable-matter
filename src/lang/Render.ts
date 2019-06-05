@@ -125,6 +125,11 @@ function renderElement(name: string) {
   }
 }
 
+class Fragment extends React.Component {
+  render() { return this.props.children; }
+}
+const LiftedFragment = Focal.lift(Fragment);
+
 function renderJsx(
   ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
   env: Env
@@ -141,7 +146,7 @@ function renderJsx(
   });
 
   if (ast.type === 'JSXFragment') {
-    return children;
+    return React.createElement(LiftedFragment, null, children);
   } else {
     const attrs = renderAttributes(ast.openingElement.attributes, env);
     const elem = renderElement(ast.openingElement.name.name);
@@ -254,7 +259,7 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
 
     case 'element':
       return React.createElement(
-        ast.tagName,
+        F[ast.tagName] || ast.tagName,
         ast.properties,
         ...ast.children.map(child => renderMdxElements(child, env))
       );
