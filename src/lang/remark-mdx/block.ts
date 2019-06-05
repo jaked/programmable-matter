@@ -3,7 +3,12 @@
 //
 // MIT License https://github.com/remarkjs/remark/blob/master/license
 
+import * as Acorn from 'acorn';
+import AcornJsx from 'acorn-jsx';
+
 import { openCloseTag } from './tag';
+
+const jsxParser = Acorn.Parser.extend(AcornJsx())
 
 const tab = '\t'
 const space = ' '
@@ -45,8 +50,8 @@ export default function blockHtml(eat, value, silent) {
     [instructionOpenExpression, instructionCloseExpression, true],
     [directiveOpenExpression, directiveCloseExpression, true],
     [cdataOpenExpression, cdataCloseExpression, true],
-    [elementOpenExpression, elementCloseExpression, true],
-    [otherElementOpenExpression, elementCloseExpression, false]
+//    [elementOpenExpression, elementCloseExpression, true],
+//    [otherElementOpenExpression, elementCloseExpression, false]
   ]
 
   // Eat initial spacing.
@@ -78,7 +83,25 @@ export default function blockHtml(eat, value, silent) {
   }
 
   if (!sequence) {
-    return
+    try {
+      const ast = jsxParser.parseExpressionAt(value, index);
+      const subvalue = value.slice(0, ast.end);
+      return eat(subvalue)({type: 'html', value: subvalue})
+    } catch (e) {
+      if (e.pos) { // see `raise` in Acorn
+        // parsing fails if there's additional Markdown after a JSX block
+        // so try parsing up to the error location
+        try {
+          const ast = jsxParser.parseExpressionAt(value.slice(0, e.pos), index);
+          const subvalue = value.slice(0, ast.end);
+          return eat(subvalue)({type: 'html', value: subvalue});
+        } catch (e) {
+          return;
+        }
+      } else {
+        return;
+      }
+    }
   }
 
   if (silent) {

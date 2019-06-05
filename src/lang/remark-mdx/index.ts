@@ -1,6 +1,11 @@
+import * as Acorn from 'acorn';
+import AcornJsx from 'acorn-jsx';
+
 import isAlphabetical from 'is-alphabetical';
 import block from './block';
 import { tag } from './tag';
+
+const jsxParser = Acorn.Parser.extend(AcornJsx())
 
 const IMPORT_REGEX = /^import/
 const EXPORT_REGEX = /^export/
@@ -66,13 +71,25 @@ function attachParser(parser) {
       return
     }
 
-    const subvalueMatches = value.match(tag)
-    if (!subvalueMatches) {
-      return
+    try {
+      const ast = jsxParser.parseExpressionAt(value, 0);
+      const subvalue = value.slice(0, ast.end);
+      return eat(subvalue)({type: 'jsx', value: subvalue})
+    } catch (e) {
+      if (e.pos) { // see `raise` in Acorn
+        // parsing fails if there's additional Markdown after a JSX block
+        // so try parsing up to the error location
+        try {
+          const ast = jsxParser.parseExpressionAt(value.slice(0, e.pos), 0);
+          const subvalue = value.slice(0, ast.end);
+          return eat(subvalue)({type: 'html', value: subvalue});
+        } catch (e) {
+          return;
+        }
+      } else {
+        return;
+      }
     }
-
-    const subvalue = subvalueMatches[0]
-    return eat(subvalue)({type: 'jsx', value: subvalue})
   }
 }
 
