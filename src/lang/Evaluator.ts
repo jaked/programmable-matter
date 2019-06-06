@@ -1,17 +1,25 @@
+import * as Immutable from 'immutable';
+
 import * as AcornJsxAst from '../lang/acornJsxAst';
 
 function makeLiteral(ast: AcornJsxAst.Expression, value: any) {
   return Object.assign({}, ast, { type: 'Literal', value });
 }
 
-// TOOD(jaked)
+export type AtomName = Immutable.Record<{ module: string | null, name: string }>;
+export type AtomNames = Immutable.Set<AtomName>;
+
+const AtomName = Immutable.Record<{ module: string | null, name: string }>({ module: null, name: '' });
+
+// TODO(jaked)
 // it seems like we should be able to drop `mode` and use the presence /
 // absence of fields to refine the type (e.g. `if (names)`), but TS
 // complains that the field doesn't exist on both arms.
-type Opts =
+export type Opts =
   {
     mode: 'compile',
-    names: Set<string>,
+    module: string,
+    atomNames: AtomNames,
     renderJsxElement: (e: AcornJsxAst.JSXElement) => any
   } |
   {
@@ -31,14 +39,14 @@ export function evaluateExpression(
     case 'Literal': return ast;
 
     case 'Identifier':
-      switch (opts.mode) {
-        case 'compile':
-          opts.names.add(ast.name);
-          return ast;
-        case 'run':
-          return makeLiteral(ast, opts.env.get(ast.name));
-        default:
-          throw new Error('bug'); // match should be exhaustive but TS says it falls through?
+      if (opts.mode === 'compile') {
+        if (ast.atom) {
+          opts.atomNames =
+            opts.atomNames.add(AtomName({ module: null, name: ast.name }));
+        }
+        return ast;
+      } else {
+        return makeLiteral(ast, opts.env.get(ast.name));
       }
 
     case 'JSXElement':
@@ -89,23 +97,41 @@ export function evaluateExpression(
     }
 
     case 'MemberExpression': {
-      const object = evaluateExpression(ast.object, opts);
-      if (ast.computed) {
-        const property = evaluateExpression(ast.property, opts);
-        if (object.type === 'Literal' && property.type === 'Literal') {
-          return makeLiteral(ast, object.value[property.value]);
+      if (!ast.object.etype)
+        throw new Error('expected AST to be typechecked');
+      if (ast.object.etype.kind === 'Module') {
+        if (ast.object.type !== 'Identifier')
+          throw new Error('expected identifier for module');
+        if (ast.property.type !== 'Identifier')
+          throw new Error('expected identifier for module property');
+        const module = ast.object.name;
+        const name = ast.property.name;
+        if (opts.mode === 'compile') {
+          if (ast.atom) {
+            opts.atomNames =
+              opts.atomNames.add(AtomName({ module, name }))
+          }
+          return ast;
         } else {
-          return Object.assign({}, ast, { object, property });
+          return makeLiteral(ast, opts.env.get(module)[name]);
         }
       } else {
-        if (ast.property.type === 'Identifier') {
+        const object = evaluateExpression(ast.object, opts);
+        if (ast.computed) {
+          const property = evaluateExpression(ast.property, opts);
+          if (object.type === 'Literal' && property.type === 'Literal') {
+            return makeLiteral(ast, object.value[property.value]);
+          } else {
+            return Object.assign({}, ast, { object, property });
+          }
+        } else {
+          if (ast.property.type !== 'Identifier')
+            throw new Error('expected identifier on non-computed property');
           if (object.type === 'Literal') {
             return makeLiteral(ast, object.value[ast.property.name]);
           } else {
             return Object.assign({}, ast, { object });
           }
-        } else {
-          throw new Error('expected identifier on non-computed property');
         }
       }
     }

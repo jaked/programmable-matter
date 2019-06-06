@@ -36,41 +36,51 @@ function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   )
 }
 
-function renderExpression(ast: AcornJsxAst.Expression, noteName: string, env: Env) {
-  const names = new Set<string>();
+function renderExpression(ast: AcornJsxAst.Expression, module: string, env: Env) {
+  const opts: Evaluator.Opts = {
+    module,
+    mode: 'compile',
+    atomNames: Immutable.Set(),
+    renderJsxElement: (ast) => renderJsx(ast, module, env)
+  }
   const evaluatedAst =
-    Evaluator.evaluateExpression(ast,
-      {
-        mode: 'compile',
-        names,
-        renderJsxElement: (ast) => renderJsx(ast, noteName, env)
-      }
-    );
+    Evaluator.evaluateExpression(ast, opts);
   if (evaluatedAst.type === 'Literal') {
     return evaluatedAst.value;
   } else {
     // TODO(jaked) how do I map over a Set to get an array?
     const atoms: Array<ReadOnlyAtom<any>> = [];
-    names.forEach(name => {
-      if (env.has(name)) {
-        let value = env.get(name);
-        // TODO(jaked) hack
-        // we assume that any identifier refers to an Atom
-        // but we evaluate constant expressions to a non-Atom value
-        // and we can't combine non-Atoms
-        // (scalars fail, arrays become multiple observations)
-        // a better way to handle it would be to track this in typechecking
-        if (!/Atom/.test(value.constructor.name))
-          value = Atom.create(value)
-        atoms.push(value);
+    opts.atomNames.forEach(atomName => {
+      const module = atomName.get('module');
+      const name = atomName.get('name');
+      if (module === null) {
+        if (env.has(name)) {
+          atoms.push(env.get(name));
+        } else {
+          throw new Error(`expected binding for ${name}`);
+        }
       } else {
-        throw new Error('expected binding for ' + name);
+        if (env.has(module) && name in env.get(module)) {
+          atoms.push(env.get(module)[name])
+        } else {
+          throw new Error(`expected binding for ${module}.${name}`);
+        }
       }
     });
     const combineFn = function (...values: Array<any>) {
       const env = new Map<string, any>();
       let i = 0;
-      names.forEach(name => env.set(name, values[i++]));
+      opts.atomNames.forEach(atomName => {
+        const module = atomName.get('module');
+        const name = atomName.get('name');
+          if (module === null) {
+          env.set(name, values[i++]);
+        } else {
+          let moduleObj = env.get(module);
+          moduleObj = Object.assign({}, moduleObj, { [name]: values[i++] });
+          env.set(module, moduleObj);
+        }
+      });
       const evaluatedAst2 =
         Evaluator.evaluateExpression(evaluatedAst, { mode: 'run', env: env });
       if (evaluatedAst2.type === 'Literal') {
@@ -86,12 +96,12 @@ function renderExpression(ast: AcornJsxAst.Expression, noteName: string, env: En
   }
 }
 
-function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, noteName: string, env: Env) {
+function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, module: string, env: Env) {
   const attrObjs = attributes.map(({ name, value }) => {
     let attrValue;
     switch (value.type) {
       case 'JSXExpressionContainer':
-        attrValue = renderExpression(value.expression, noteName, env);
+        attrValue = renderExpression(value.expression, module, env);
         break;
       case 'Literal':
         attrValue = value.value;
@@ -132,24 +142,24 @@ const LiftedFragment = Focal.lift(Fragment);
 
 function renderJsx(
   ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
-  noteName: string,
+  module: string,
   env: Env
 ): React.ReactNode {
   const children = ast.children.map(child => {
     switch (child.type) {
       case 'JSXElement':
-        return renderJsx(child, noteName, env);
+        return renderJsx(child, module, env);
       case 'JSXText':
         return child.value;
       case 'JSXExpressionContainer':
-        return renderExpression(child.expression, noteName, env);
+        return renderExpression(child.expression, module, env);
     }
   });
 
   if (ast.type === 'JSXFragment') {
     return React.createElement(LiftedFragment, null, children);
   } else {
-    const attrs = renderAttributes(ast.openingElement.attributes, noteName, env);
+    const attrs = renderAttributes(ast.openingElement.attributes, module, env);
     const elem = renderElement(ast.openingElement.name.name);
 
     // TODO(jaked) for what elements does this make sense? only input?
@@ -172,7 +182,7 @@ function renderJsx(
 
 function evaluateMdxBindings(
   ast: MDXHAST.Node,
-  noteName: string,
+  module: string,
   env: Env,
   state: State,
   exportValues: { [s: string]: any }
@@ -181,7 +191,7 @@ function evaluateMdxBindings(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, noteName, env, state, exportValues)
+        env = evaluateMdxBindings(child, module, env, state, exportValues)
       );
       return env;
 
@@ -205,7 +215,7 @@ function evaluateMdxBindings(
               case 'const': {
                 declaration.declarations.forEach(declarator => {
                   let name = declarator.id.name;
-                  let value = renderExpression(declarator.init, noteName, env);
+                  let value = renderExpression(declarator.init, module, env);
                   exportValues[name] = value;
                   env = env.set(name, value);
                 });
@@ -217,8 +227,9 @@ function evaluateMdxBindings(
                   const evaluatedAst =
                     Evaluator.evaluateExpression(declarator.init,
                       {
+                        module,
                         mode: 'compile',
-                        names: new Set<string>(),
+                        atomNames: Immutable.Set(),
                         // TODO(jaked) check this statically
                         renderJsxElement: (ast) => { throw new Error('JSX element may not appear in atom declaration'); }
                       }
@@ -231,7 +242,7 @@ function evaluateMdxBindings(
                   // TODO(jaked)
                   // this is a little fishy somehow, we shouldn't manipulate this state here
                   // maybe after typechecking we ensure that the necessary state exists?
-                  const noteLetsAtom = state.lens(immutableMapLens<Immutable.Map<string, any>>(noteName));
+                  const noteLetsAtom = state.lens(immutableMapLens<Immutable.Map<string, any>>(module));
                   if (noteLetsAtom.get() === null) {
                     noteLetsAtom.set(Immutable.Map());
                   }
@@ -257,31 +268,30 @@ function evaluateMdxBindings(
   }
 }
 
-function renderMdxElements(ast: MDXHAST.Node, noteName: string, env: Env): React.ReactNode {
+function renderMdxElements(ast: MDXHAST.Node, module: string, env: Env): React.ReactNode {
   switch (ast.type) {
     case 'root':
       return React.createElement(
         'div',
         {},
-        ...ast.children.map(child => renderMdxElements(child, noteName, env))
+        ...ast.children.map(child => renderMdxElements(child, module, env))
       );
 
     case 'element':
       return React.createElement(
         F[ast.tagName] || ast.tagName,
         ast.properties,
-        ...ast.children.map(child => renderMdxElements(child, noteName, env))
+        ...ast.children.map(child => renderMdxElements(child, module, env))
       );
 
     case 'text':
-      // TODO(jaked) handle interpolation
       return ast.value;
 
     case 'jsx':
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
       switch (ast.jsxElement.type) {
         case 'success':
-          return renderJsx(ast.jsxElement.success, noteName, env);
+          return renderJsx(ast.jsxElement.success, module, env);
         case 'failure':
           return null;
       }
@@ -297,13 +307,13 @@ function renderMdxElements(ast: MDXHAST.Node, noteName: string, env: Env): React
 
 export function renderMdx(
   ast: MDXHAST.Node,
-  noteName: string,
+  module: string,
   env: Env,
   state: State,
   exportValues: { [s: string]: any }
 ): React.ReactNode {
-  const env2 = evaluateMdxBindings(ast, noteName, env, state, exportValues);
-  return renderMdxElements(ast, noteName, env2);
+  const env2 = evaluateMdxBindings(ast, module, env, state, exportValues);
+  return renderMdxElements(ast, module, env2);
 }
 
 // TODO(jaked) full types for components
