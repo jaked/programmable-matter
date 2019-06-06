@@ -227,13 +227,15 @@ function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): [Ty
   if (right.kind === 'Singleton') right = right.base;
 
   // TODO(jaked) handle other operators
-  if (left.kind === 'number' && right.kind === 'number') {
-    return [Type.number, atom];
-  } else if (left.kind === 'string' && right.kind === 'string') {
-    return [Type.string, atom];
-  } else {
-    throw new Error('unimplemented: synthBinaryExpression');
-  }
+  let type: Type.Type;
+
+  if (left.kind === 'number' && right.kind === 'number')      type = Type.number;
+  else if (left.kind === 'string' && right.kind === 'string') type = Type.string;
+  else if (left.kind === 'string' && right.kind === 'number') type = Type.string;
+  else if (left.kind === 'number' && right.kind === 'string') type = Type.string;
+  else throw new Error('unimplemented: synthBinaryExpression');
+
+  return [type, atom];
 }
 
 function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Type.Type, boolean] {

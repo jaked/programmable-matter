@@ -27,7 +27,7 @@ const ROOT = process.cwd();
 interface State {
   notes: data.Notes,
   selected: string | null;
-  lets: Immutable.Map<string, any>
+  lets: Immutable.Map<string, Immutable.Map<string, any>>;
 }
 
 const stateAtom: Atom<State> =

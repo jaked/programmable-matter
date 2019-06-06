@@ -26,7 +26,7 @@ import * as Typecheck from './Typecheck';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
-type State = Atom<Immutable.Map<string, any>>;
+type State = Atom<Immutable.Map<string, Immutable.Map<string, any>>>;
 export type Env = Immutable.Map<string, any>;
 
 function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
@@ -36,14 +36,14 @@ function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   )
 }
 
-function renderExpression(ast: AcornJsxAst.Expression, env: Env) {
+function renderExpression(ast: AcornJsxAst.Expression, noteName: string, env: Env) {
   const names = new Set<string>();
   const evaluatedAst =
     Evaluator.evaluateExpression(ast,
       {
         mode: 'compile',
         names,
-        renderJsxElement: (ast) => renderJsx(ast, env)
+        renderJsxElement: (ast) => renderJsx(ast, noteName, env)
       }
     );
   if (evaluatedAst.type === 'Literal') {
@@ -86,12 +86,12 @@ function renderExpression(ast: AcornJsxAst.Expression, env: Env) {
   }
 }
 
-function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, env: Env) {
+function renderAttributes(attributes: Array<AcornJsxAst.JSXAttribute>, noteName: string, env: Env) {
   const attrObjs = attributes.map(({ name, value }) => {
     let attrValue;
     switch (value.type) {
       case 'JSXExpressionContainer':
-        attrValue = renderExpression(value.expression, env);
+        attrValue = renderExpression(value.expression, noteName, env);
         break;
       case 'Literal':
         attrValue = value.value;
@@ -132,23 +132,24 @@ const LiftedFragment = Focal.lift(Fragment);
 
 function renderJsx(
   ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
+  noteName: string,
   env: Env
 ): React.ReactNode {
   const children = ast.children.map(child => {
     switch (child.type) {
       case 'JSXElement':
-        return renderJsx(child, env);
+        return renderJsx(child, noteName, env);
       case 'JSXText':
         return child.value;
       case 'JSXExpressionContainer':
-        return renderExpression(child.expression, env);
+        return renderExpression(child.expression, noteName, env);
     }
   });
 
   if (ast.type === 'JSXFragment') {
     return React.createElement(LiftedFragment, null, children);
   } else {
-    const attrs = renderAttributes(ast.openingElement.attributes, env);
+    const attrs = renderAttributes(ast.openingElement.attributes, noteName, env);
     const elem = renderElement(ast.openingElement.name.name);
 
     // TODO(jaked) for what elements does this make sense? only input?
@@ -171,6 +172,7 @@ function renderJsx(
 
 function evaluateMdxBindings(
   ast: MDXHAST.Node,
+  noteName: string,
   env: Env,
   state: State,
   exportValues: { [s: string]: any }
@@ -179,7 +181,7 @@ function evaluateMdxBindings(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, env, state, exportValues)
+        env = evaluateMdxBindings(child, noteName, env, state, exportValues)
       );
       return env;
 
@@ -203,7 +205,7 @@ function evaluateMdxBindings(
               case 'const': {
                 declaration.declarations.forEach(declarator => {
                   let name = declarator.id.name;
-                  let value = renderExpression(declarator.init, env);
+                  let value = renderExpression(declarator.init, noteName, env);
                   exportValues[name] = value;
                   env = env.set(name, value);
                 });
@@ -226,12 +228,19 @@ function evaluateMdxBindings(
                     throw new Error('atom initializer must be static');
                   }
                   const name = declarator.id.name;
-                  const value = state.lens(immutableMapLens(name));
-                  if (value.get() === null) {
-                    value.set(evaluatedAst.value);
+                  // TODO(jaked)
+                  // this is a little fishy somehow, we shouldn't manipulate this state here
+                  // maybe after typechecking we ensure that the necessary state exists?
+                  const noteLetsAtom = state.lens(immutableMapLens<Immutable.Map<string, any>>(noteName));
+                  if (noteLetsAtom.get() === null) {
+                    noteLetsAtom.set(Immutable.Map());
                   }
-                  exportValues[name] = value;
-                  env = env.set(name, value);
+                  const letAtom = noteLetsAtom.lens(immutableMapLens(name));
+                  if (letAtom.get() === null) {
+                    letAtom.set(evaluatedAst.value);
+                  }
+                  exportValues[name] = letAtom;
+                  env = env.set(name, letAtom);
                 });
                 break;
               }
@@ -248,20 +257,20 @@ function evaluateMdxBindings(
   }
 }
 
-function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
+function renderMdxElements(ast: MDXHAST.Node, noteName: string, env: Env): React.ReactNode {
   switch (ast.type) {
     case 'root':
       return React.createElement(
         'div',
         {},
-        ...ast.children.map(child => renderMdxElements(child, env))
+        ...ast.children.map(child => renderMdxElements(child, noteName, env))
       );
 
     case 'element':
       return React.createElement(
         F[ast.tagName] || ast.tagName,
         ast.properties,
-        ...ast.children.map(child => renderMdxElements(child, env))
+        ...ast.children.map(child => renderMdxElements(child, noteName, env))
       );
 
     case 'text':
@@ -272,7 +281,7 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
       switch (ast.jsxElement.type) {
         case 'success':
-          return renderJsx(ast.jsxElement.success, env);
+          return renderJsx(ast.jsxElement.success, noteName, env);
         case 'failure':
           return null;
       }
@@ -288,12 +297,13 @@ function renderMdxElements(ast: MDXHAST.Node, env: Env): React.ReactNode {
 
 export function renderMdx(
   ast: MDXHAST.Node,
+  noteName: string,
   env: Env,
   state: State,
   exportValues: { [s: string]: any }
 ): React.ReactNode {
-  const env2 = evaluateMdxBindings(ast, env, state, exportValues);
-  return renderMdxElements(ast, env2);
+  const env2 = evaluateMdxBindings(ast, noteName, env, state, exportValues);
+  return renderMdxElements(ast, noteName, env2);
 }
 
 // TODO(jaked) full types for components

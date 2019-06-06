@@ -240,9 +240,9 @@ describe('synth', () => {
       expectSynth('"foo" + "bar"', Type.string);
     });
 
-    it('throws', () => {
-      // TODO(jdonham) permitted in Typescript
-      expectSynthThrows('1 + "foo"');
+    it('strings + numbers', () => {
+      expectSynth('"foo" + 7', Type.string);
+      expectSynth('7 + "foo"', Type.string);
     });
   });
 

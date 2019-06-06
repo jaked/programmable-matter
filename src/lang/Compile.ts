@@ -40,7 +40,7 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
 export function compileNotes(
   oldNotes: data.Notes,
   newNotes: data.Notes,
-  lets: Atom<Immutable.Map<string, any>>
+  lets: Atom<Immutable.Map<string, Immutable.Map<string, any>>>
 ): data.Notes {
   const dirty = new Set<string>();
 
@@ -128,6 +128,7 @@ export function compileNotes(
 
   let typeEnv = Render.initEnv;
   orderedTags.forEach(tag => {
+    const capitalizedTag = String.capitalize(tag);
     const note = newNotes.get(tag);
     if (!note || !note.compiled) throw new Error('expected note && note.compiled');
 
@@ -138,7 +139,7 @@ export function compileNotes(
         Typecheck.checkMdx(ast, typeEnv, exportTypes);
         const type = Type.module(exportTypes);
         // TODO(jaked) build per-note env with specific imports
-        typeEnv = typeEnv.set(String.capitalize(tag), [type, false]);
+        typeEnv = typeEnv.set(capitalizedTag, [type, false]);
         return type;
       });
       const compiled = Object.assign({}, note.compiled, { exportType });
@@ -147,7 +148,7 @@ export function compileNotes(
     } else {
       if (debug) console.log('adding type env for ' + tag);
       Try.forEach(note.compiled.exportType, exportType => {
-        typeEnv = typeEnv.set(String.capitalize(tag), [exportType, false]);
+        typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
       });
     }
   });
@@ -155,6 +156,7 @@ export function compileNotes(
   // TODO(jaked) merge with previous loop
   let valueEnv: Render.Env = Immutable.Map();
   orderedTags.forEach(tag => {
+    const capitalizedTag = String.capitalize(tag);
     const note = newNotes.get(tag);
     if (!note || !note.compiled) throw new Error('expected note && note.compiled');
 
@@ -164,9 +166,9 @@ export function compileNotes(
         // join against exportType so typechecking errors are passed through
         Try.joinMap(note.compiled.ast, note.compiled.exportType, (ast, _) => {
         const exportValues: { [s: string]: any } = {};
-        const rendered = Render.renderMdx(ast, valueEnv, lets, exportValues);
+        const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, lets, exportValues);
         // TODO(jaked) build per-note env with specific imports
-        valueEnv = valueEnv.set(String.capitalize(tag), exportValues);
+        valueEnv = valueEnv.set(capitalizedTag, exportValues);
         return [exportValues, rendered];
       });
       const exportValue = Try.map(exportValuesRendered, ([ev, _]) => ev);
@@ -178,7 +180,7 @@ export function compileNotes(
     } else {
       if (debug) console.log('adding value env for ' + tag);
       Try.forEach(note.compiled.exportValue, exportValue => {
-        valueEnv = valueEnv.set(String.capitalize(tag), exportValue);
+        valueEnv = valueEnv.set(capitalizedTag, exportValue);
       });
     }
   })
