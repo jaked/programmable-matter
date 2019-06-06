@@ -2,10 +2,16 @@
 //  https://github.com/acornjs/acorn
 //  https://github.com/RReverser/acorn-jsx
 
+import * as Type from './Type';
+
 interface NodeImpl {
   type: string;
   start: number;
   end: number;
+
+  // set in typechecking
+  etype?: Type.Type;
+  atom?: boolean;
 }
 
 export interface Program extends NodeImpl {

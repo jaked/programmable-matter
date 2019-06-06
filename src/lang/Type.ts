@@ -15,6 +15,9 @@ export type MapType = { kind: 'Map', key: Type, value: Type };
 // invariant: no duplicate fields
 export type ObjectType = { kind: 'Object', fields: Array<{ field: string, type: Type }> };
 
+// invariant: no duplicate fields
+export type ModuleType = { kind: 'Module', fields: Array<{ field: string, type: Type, atom: boolean }> };
+
 // invariant: no nested unions, > 1 element
 export type UnionType = { kind: 'Union', types: Array<Type> };
 
@@ -37,6 +40,7 @@ export type Type =
   SetType |
   MapType |
   ObjectType |
+  ModuleType |
   UnionType |
   IntersectionType |
   SingletonType;
@@ -74,6 +78,12 @@ export function object(obj: { [f: string]: Type }): ObjectType {
   const fields =
     Object.entries(obj).map(([ field, type]) => ({ field, type }));
   return { kind: 'Object', fields };
+}
+
+export function module(obj: { [f: string]: [Type, boolean] }): ModuleType {
+  const fields =
+    Object.entries(obj).map(([ field, [ type, atom ]]) => ({ field, type, atom }));
+  return { kind: 'Module', fields };
 }
 
 export function singleton(base: BooleanType, value: boolean): SingletonType

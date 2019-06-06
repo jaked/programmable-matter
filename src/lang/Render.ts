@@ -299,14 +299,14 @@ export function renderMdx(
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
 export const initEnv: Typecheck.Env = Immutable.Map({
-  'Tweet': Type.object({ tweetId: Type.string }),
-  'YouTube': Type.object({ videoId: Type.string }),
-  'Gist': Type.object({ id: Type.string }),
+  'Tweet': [Type.object({ tweetId: Type.string }), false],
+  'YouTube': [Type.object({ videoId: Type.string }), false],
+  'Gist': [Type.object({ id: Type.string }), false],
 
-  'VictoryBar': Type.object({}),
-  'Inspector': Type.object({}),
+  'VictoryBar': [Type.object({}), false],
+  'Inspector': [Type.object({}), false],
 
-  'Table': Type.object({
+  'Table': [Type.object({
     data: Type.array(Type.object({})),
     // TODO(jaked)
     // column accessor types depend on data type (for Victory too)
@@ -316,5 +316,5 @@ export const initEnv: Typecheck.Env = Immutable.Map({
       accessor: Type.string,
     })),
     pageSize: Type.number,
-  }),
+  }), false],
 });

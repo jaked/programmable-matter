@@ -19,12 +19,13 @@ describe('check', () => {
   function expectCheck(
     exprOrString: AcornJsxAst.Expression | string,
     type: Type.Type,
-    env: Typecheck.Env = Immutable.Map()
+    env: Typecheck.Env = Immutable.Map(),
+    atom: boolean = false
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
-    expect(() => Typecheck.check(expr, env, type)).not.toThrow();
+    expect(Typecheck.check(expr, env, type)).toEqual(atom);
   }
 
   describe('primitives', () => {
@@ -39,8 +40,8 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: Type.boolean });
-      expectCheck('foo', Type.boolean, env);
+      const env: Typecheck.Env = Immutable.Map({ foo: [Type.boolean, true] });
+      expectCheck('foo', Type.boolean, env, true);
     });
   });
 
@@ -58,8 +59,8 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env =  Immutable.Map({ foo: type });
-      expectCheck('foo', type, env)
+      const env: Typecheck.Env =  Immutable.Map({ foo: [type, true] });
+      expectCheck('foo', type, env, true)
     });
 
     it ('throws on long tuples', () => {
@@ -81,8 +82,8 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env =  Immutable.Map({ foo: type });
-      expectCheck('foo', type, env);
+      const env: Typecheck.Env =  Immutable.Map({ foo: [type, true] });
+      expectCheck('foo', type, env, true);
     });
   });
 
@@ -95,9 +96,9 @@ describe('check', () => {
 
     it('permits excess properties in non-literal', () => {
       const env: Typecheck.Env = Immutable.Map({
-        foo: Type.object({ bar: Type.number }),
+        foo: [Type.object({ bar: Type.number }), true],
       });
-      expectCheck('foo', type, env);
+      expectCheck('foo', type, env, true);
     });
   });
 
@@ -161,18 +162,19 @@ describe('synth', () => {
   function expectSynth(
     exprOrString: AcornJsxAst.Expression | string,
     type: Type.Type,
-    env: Typecheck.Env = Immutable.Map()
+    env: Typecheck.Env = Immutable.Map(),
+    atom: boolean = false
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.synth(expr, env)).toEqual(type);
+    expect(Typecheck.synth(expr, env)).toEqual([type, atom]);
   }
 
   describe('identifiers', () => {
     it('succeeds', () => {
-      const env = Immutable.Map({ foo: Type.boolean });
-      expectSynth('foo', Type.boolean, env);
+      const env: Typecheck.Env = Immutable.Map({ foo: [Type.boolean, true] });
+      expectSynth('foo', Type.boolean, env, true);
     });
 
     it('throws', () => {
@@ -245,18 +247,18 @@ describe('synth', () => {
   });
 
   describe('member expressions', () => {
-    const env = Immutable.Map({
-      object: Type.object({ foo: Type.boolean, bar: Type.number }),
-      array: Type.array(Type.number),
-      tuple: Type.tuple(Type.boolean, Type.number),
-      numberUnion: Type.union(
+    const env: Typecheck.Env = Immutable.Map({
+      object: [Type.object({ foo: Type.boolean, bar: Type.number }), false],
+      array: [Type.array(Type.number), false],
+      tuple: [Type.tuple(Type.boolean, Type.number), false],
+      numberUnion: [Type.union(
         Type.singleton(Type.number, 0),
         Type.singleton(Type.number, 1),
-      ),
-      stringUnion: Type.union(
+      ), false],
+      stringUnion: [Type.union(
         Type.singleton(Type.string, 'foo'),
         Type.singleton(Type.string, 'bar'),
-      )
+      ), false]
     });
 
     it('property names', () => {

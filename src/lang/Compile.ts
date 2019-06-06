@@ -134,11 +134,11 @@ export function compileNotes(
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking ' + tag);
       const exportType = Try.map(note.compiled.ast, ast => {
-        const exportTypes: { [s: string]: Type.Type } = {};
+        const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
         Typecheck.checkMdx(ast, typeEnv, exportTypes);
-        const type = Type.object(exportTypes);
+        const type = Type.module(exportTypes);
         // TODO(jaked) build per-note env with specific imports
-        typeEnv = typeEnv.set(String.capitalize(tag), type);
+        typeEnv = typeEnv.set(String.capitalize(tag), [type, false]);
         return type;
       });
       const compiled = Object.assign({}, note.compiled, { exportType });
@@ -147,7 +147,7 @@ export function compileNotes(
     } else {
       if (debug) console.log('adding type env for ' + tag);
       Try.forEach(note.compiled.exportType, exportType => {
-        typeEnv = typeEnv.set(String.capitalize(tag), exportType);
+        typeEnv = typeEnv.set(String.capitalize(tag), [exportType, false]);
       });
     }
   });
