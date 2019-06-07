@@ -127,33 +127,6 @@ export function compileNotes(
   });
 
   let typeEnv = Render.initEnv;
-  orderedTags.forEach(tag => {
-    const capitalizedTag = String.capitalize(tag);
-    const note = newNotes.get(tag);
-    if (!note || !note.compiled) throw new Error('expected note && note.compiled');
-
-    if (dirty.has(tag)) {
-      if (debug) console.log('typechecking ' + tag);
-      const exportType = Try.map(note.compiled.ast, ast => {
-        const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
-        Typecheck.checkMdx(ast, typeEnv, exportTypes);
-        const type = Type.module(exportTypes);
-        // TODO(jaked) build per-note env with specific imports
-        typeEnv = typeEnv.set(capitalizedTag, [type, false]);
-        return type;
-      });
-      const compiled = Object.assign({}, note.compiled, { exportType });
-      const note2 = Object.assign({}, note, { compiled });
-      newNotes = newNotes.set(tag, note2);
-    } else {
-      if (debug) console.log('adding type env for ' + tag);
-      Try.forEach(note.compiled.exportType, exportType => {
-        typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
-      });
-    }
-  });
-
-  // TODO(jaked) merge with previous loop
   let valueEnv: Render.Env = Immutable.Map();
   orderedTags.forEach(tag => {
     const capitalizedTag = String.capitalize(tag);
@@ -161,29 +134,43 @@ export function compileNotes(
     if (!note || !note.compiled) throw new Error('expected note && note.compiled');
 
     if (dirty.has(tag)) {
-      if (debug) console.log('rendering ' + tag);
-      const exportValuesRendered =
-        // join against exportType so typechecking errors are passed through
-        Try.joinMap(note.compiled.ast, note.compiled.exportType, (ast, _) => {
-        const exportValues: { [s: string]: any } = {};
-        const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, lets, exportValues);
-        // TODO(jaked) build per-note env with specific imports
-        valueEnv = valueEnv.set(capitalizedTag, exportValues);
-        return [exportValues, rendered];
-      });
-      const exportValue = Try.map(exportValuesRendered, ([ev, _]) => ev);
-      const rendered = Try.map(exportValuesRendered, ([_, r]) => r);
-      const compiled =
-        Object.assign({}, note.compiled, { exportValue, rendered });
+      if (debug) console.log('typechecking / rendering' + tag);
+      let compiled: data.Compiled;
+      try {
+        // TODO(jaked) build per-note envs with specific imports
+        const ast = Try.get(note.compiled.ast);
+        const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
+        const exportValue: { [s: string]: any } = {};
+        Typecheck.checkMdx(ast, typeEnv, exportTypes);
+        const exportType = Type.module(exportTypes);
+        typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
+        const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, lets, exportValue);
+        valueEnv = valueEnv.set(capitalizedTag, exportValue);
+        compiled = Object.assign({}, note.compiled, {
+          exportType: Try.success(exportType),
+          exportValue: Try.success(exportValue),
+          rendered: Try.success(rendered),
+        });
+      } catch (e) {
+        const failure = Try.failure(e);
+        compiled = Object.assign({}, note.compiled, {
+          exportType: failure,
+          exportValue: failure,
+          rendered: failure,
+        });
+      }
       const note2 = Object.assign({}, note, { compiled });
       newNotes = newNotes.set(tag, note2);
     } else {
-      if (debug) console.log('adding value env for ' + tag);
+      if (debug) console.log('adding type / value env for ' + tag);
+      Try.forEach(note.compiled.exportType, exportType => {
+        typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
+      });
       Try.forEach(note.compiled.exportValue, exportValue => {
         valueEnv = valueEnv.set(capitalizedTag, exportValue);
       });
     }
-  })
+  });
 
   return newNotes;
 }
