@@ -11,6 +11,8 @@ export type AtomNames = Immutable.Set<AtomName>;
 
 const AtomName = Immutable.Record<{ module: string | null, name: string }>({ module: null, name: '' });
 
+export type Env = Immutable.Map<string, any>;
+
 // TODO(jaked)
 // it seems like we should be able to drop `mode` and use the presence /
 // absence of fields to refine the type (e.g. `if (names)`), but TS
@@ -24,7 +26,7 @@ export type Opts =
   } |
   {
     mode: 'run',
-    env: Map<string, any>
+    env: Env
   }
 
 // evaluate an expression

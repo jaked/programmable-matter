@@ -27,7 +27,7 @@ import * as Typecheck from './Typecheck';
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 type State = Atom<Immutable.Map<string, Immutable.Map<string, any>>>;
-export type Env = Immutable.Map<string, any>;
+export type Env = Evaluator.Env;
 
 function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   return Lens.create(
@@ -43,10 +43,19 @@ function renderExpression(ast: AcornJsxAst.Expression, module: string, env: Env)
     atomNames: Immutable.Set(),
     renderJsxElement: (ast) => renderJsx(ast, module, env)
   }
-  const evaluatedAst =
+  const compiledAst =
     Evaluator.evaluateExpression(ast, opts);
-  if (evaluatedAst.type === 'Literal') {
-    return evaluatedAst.value;
+  if (opts.atomNames.size === 0) {
+    const runAst =
+      Evaluator.evaluateExpression(compiledAst, {
+        mode: 'run',
+        env: env
+      });
+    if (runAst.type === 'Literal') {
+      return runAst.value;
+    } else {
+      throw new Error('expected fully-evaluated expression');
+    }
   } else {
     // TODO(jaked) how do I map over a Set to get an array?
     const atoms: Array<ReadOnlyAtom<any>> = [];
@@ -68,23 +77,22 @@ function renderExpression(ast: AcornJsxAst.Expression, module: string, env: Env)
       }
     });
     const combineFn = function (...values: Array<any>) {
-      const env = new Map<string, any>();
       let i = 0;
       opts.atomNames.forEach(atomName => {
         const module = atomName.get('module');
         const name = atomName.get('name');
-          if (module === null) {
-          env.set(name, values[i++]);
+        if (module === null) {
+          env = env.set(name, values[i++]);
         } else {
           let moduleObj = env.get(module);
           moduleObj = Object.assign({}, moduleObj, { [name]: values[i++] });
-          env.set(module, moduleObj);
+          env = env.set(module, moduleObj);
         }
       });
-      const evaluatedAst2 =
-        Evaluator.evaluateExpression(evaluatedAst, { mode: 'run', env: env });
-      if (evaluatedAst2.type === 'Literal') {
-        return evaluatedAst2.value;
+      const runAst =
+        Evaluator.evaluateExpression(compiledAst, { mode: 'run', env: env });
+      if (runAst.type === 'Literal') {
+        return runAst.value;
       } else {
         throw new Error('expected fully-evaluated expression');
       }
@@ -234,7 +242,7 @@ function evaluateMdxBindings(
                         renderJsxElement: (ast) => { throw new Error('JSX element may not appear in atom declaration'); }
                       }
                     );
-                  if (!(evaluatedAst.type === 'Literal')) {
+                  if (evaluatedAst.type !== 'Literal') {
                     // TODO(jaked) check this statically
                     throw new Error('atom initializer must be static');
                   }
