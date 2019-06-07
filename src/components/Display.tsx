@@ -13,7 +13,7 @@ export class Display extends React.Component<Props, {}> {
     const note = this.props.compiledNote;
     try {
       if (note && note.compiled) {
-        const rendered = Try.get(note.compiled.rendered);
+        const rendered = Try.get(note.compiled).rendered;
         return (<Catch>{rendered}</Catch>);
       }
       throw new Error('no note');

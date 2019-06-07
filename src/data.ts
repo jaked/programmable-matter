@@ -4,19 +4,23 @@ import { Try } from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as Type from './lang/Type';
 
+export interface Parsed {
+  ast: MDXHAST.Root;
+  imports: Set<string>;
+}
+
 export interface Compiled {
-  ast: Try<MDXHAST.Root>;
-  imports: Try<Set<string>>;
-  exportType: Try<Type.ObjectType>;
-  exportValue: Try<{ [s: string]: any }>;
-  rendered: Try<React.ReactNode>;
+  exportType: Type.ModuleType;
+  exportValue: { [s: string]: any };
+  rendered: React.ReactNode;
 }
 
 export interface Note {
   tag: string;
   content: string;
   version: number;
-  compiled?: Compiled;
+  parsed?: Try<Parsed>;
+  compiled?: Try<Compiled>;
 }
 
 export type Notes = Immutable.Map<string, Note>;

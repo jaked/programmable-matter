@@ -163,13 +163,13 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
 }
 
 function computeHighlight(content: string, compiledNote: data.Note) {
-  if (!compiledNote.compiled) throw new Error('expected note to be compiled');
+  if (!compiledNote.parsed) throw new Error('expected note to be parsed');
 
   const spans: Array<Span> = [];
   // TODO(jaked)
   // parsing should always succeed with some AST
-  Try.forEach(compiledNote.compiled.ast, (ast) => {
-    computeSpans(ast, spans);
+  Try.forEach(compiledNote.parsed, parsed => {
+    computeSpans(parsed.ast, spans);
   });
 
   const elements: Array<React.ReactNode> = [];
