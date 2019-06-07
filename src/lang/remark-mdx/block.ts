@@ -8,7 +8,7 @@ import AcornJsx from 'acorn-jsx';
 
 import { openCloseTag } from './tag';
 
-const jsxParser = Acorn.Parser.extend(AcornJsx())
+const JsxParser = Acorn.Parser.extend(AcornJsx())
 
 const tab = '\t'
 const space = ' '
@@ -27,6 +27,12 @@ const cdataOpenExpression = /^<!\[CDATA\[/
 const cdataCloseExpression = /\]\]>/
 const elementCloseExpression = /^$/
 const otherElementOpenExpression = new RegExp(openCloseTag.source + '\\s*$')
+
+function parseExprAtom(input: string, offset: number) {
+  const parser = new JsxParser({}, input, 0) as any;
+  parser.nextToken();
+  return parser.parseExprAtom();
+}
 
 export default function blockHtml(eat, value, silent) {
   const blocks = '[a-z\\.]+(\\.){0,1}[a-z\\.]'
@@ -84,7 +90,7 @@ export default function blockHtml(eat, value, silent) {
 
   if (!sequence) {
     try {
-      const ast = jsxParser.parseExpressionAt(value, index);
+      const ast = parseExprAtom(value, index);
       const subvalue = value.slice(0, ast.end);
       return eat(subvalue)({type: 'html', value: subvalue})
     } catch (e) {
@@ -92,7 +98,7 @@ export default function blockHtml(eat, value, silent) {
         // parsing fails if there's additional Markdown after a JSX block
         // so try parsing up to the error location
         try {
-          const ast = jsxParser.parseExpressionAt(value.slice(0, e.pos), index);
+          const ast = parseExprAtom(value.slice(0, e.pos), index);
           const subvalue = value.slice(0, ast.end);
           return eat(subvalue)({type: 'html', value: subvalue});
         } catch (e) {

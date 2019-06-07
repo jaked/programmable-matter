@@ -5,7 +5,7 @@ import isAlphabetical from 'is-alphabetical';
 import block from './block';
 import { tag } from './tag';
 
-const jsxParser = Acorn.Parser.extend(AcornJsx())
+const JsxParser = Acorn.Parser.extend(AcornJsx())
 
 const IMPORT_REGEX = /^import/
 const EXPORT_REGEX = /^export/
@@ -26,6 +26,12 @@ export default function mdx(this: any, _options) {
   if (parser && parser.prototype && parser.prototype.blockTokenizers) {
     attachParser(parser)
   }
+}
+
+function parseExprAtom(input: string, offset: number) {
+  const parser = new JsxParser({}, input, 0) as any;
+  parser.nextToken();
+  return parser.parseExprAtom();
 }
 
 function attachParser(parser) {
@@ -72,7 +78,7 @@ function attachParser(parser) {
     }
 
     try {
-      const ast = jsxParser.parseExpressionAt(value, 0);
+      const ast = parseExprAtom(value, 0);
       const subvalue = value.slice(0, ast.end);
       return eat(subvalue)({type: 'jsx', value: subvalue})
     } catch (e) {
@@ -80,7 +86,7 @@ function attachParser(parser) {
         // parsing fails if there's additional Markdown after a JSX block
         // so try parsing up to the error location
         try {
-          const ast = jsxParser.parseExpressionAt(value.slice(0, e.pos), 0);
+          const ast = parseExprAtom(value.slice(0, e.pos), 0);
           const subvalue = value.slice(0, ast.end);
           return eat(subvalue)({type: 'html', value: subvalue});
         } catch (e) {
