@@ -12,11 +12,24 @@ export type ArrayType = { kind: 'Array', elem: Type };
 export type SetType = { kind: 'Set', elem: Type };
 export type MapType = { kind: 'Map', key: Type, value: Type };
 
-// invariant: no duplicate fields
-export type ObjectType = { kind: 'Object', fields: Array<{ field: string, type: Type }> };
+// invariant: no duplicate arg names
+export type FunctionType = {
+  kind: 'Function',
+  args: Array<{ name: string, type: Type }>,
+  ret: Type
+};
 
 // invariant: no duplicate fields
-export type ModuleType = { kind: 'Module', fields: Array<{ field: string, type: Type, atom: boolean }> };
+export type ObjectType = {
+  kind: 'Object',
+  fields: Array<{ field: string, type: Type }>
+};
+
+// invariant: no duplicate fields
+export type ModuleType = {
+  kind: 'Module',
+  fields: Array<{ field: string, type: Type, atom: boolean }>
+};
 
 // invariant: no nested unions, > 1 element
 export type UnionType = { kind: 'Union', types: Array<Type> };
@@ -41,6 +54,7 @@ export type Type =
   MapType |
   ObjectType |
   ModuleType |
+  FunctionType |
   UnionType |
   IntersectionType |
   SingletonType;
@@ -73,6 +87,14 @@ export function set(elem: Type): SetType {
 export function map(key: Type, value: Type): MapType {
   return { kind: 'Map', key, value };
 }
+
+export function functionType(
+  args: Array<{ name: string, type: Type }>,
+  ret: Type
+): FunctionType {
+  return { kind: 'Function', args, ret };
+}
+export { functionType as function };
 
 export function object(obj: { [f: string]: Type }): ObjectType {
   const fields =
@@ -185,6 +207,11 @@ export function isSubtype(a: Type, b: Type): boolean {
       if (a) return isSubtype(a, ft.type);
       else return false;
     });
+  }
+  else if (a.kind === 'Function' && b.kind === 'Function') {
+    return a.args.length == b.args.length &&
+      a.args.every((a, i) => isSubtype(b.args[i].type, a.type)) &&
+      isSubtype(a.ret, b.ret);
   }
   else return false;
 }

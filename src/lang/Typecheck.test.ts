@@ -102,6 +102,26 @@ describe('check', () => {
     });
   });
 
+  describe('function expressions', () => {
+    const type =
+      Type.function(
+        [ { name: 'p', type: Type.number } ],
+        Type.string
+      );
+
+    it('ok', () => {
+      expectCheck('x => x + "foo"', type);
+    });
+
+    it('wrong arg count', () => {
+      expectCheckThrows('(x, y) => x + y', type);
+    });
+
+    it('wrong body type', () => {
+      expectCheckThrows('x => x + x', type);
+    });
+  });
+
   describe('singletons', () => {
     const type = Type.singleton(Type.number, 7);
 

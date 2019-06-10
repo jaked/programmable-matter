@@ -124,6 +124,12 @@ export interface ArrayExpression extends NodeImpl {
   elements: Array<Expression>;
 }
 
+export interface ArrowFunctionExpression extends NodeImpl {
+  type: 'ArrowFunctionExpression';
+  params: Array<Identifier>;
+  body: Expression;
+}
+
 export type Expression =
   Literal |
   Identifier |
@@ -132,7 +138,8 @@ export type Expression =
   BinaryExpression |
   MemberExpression |
   ObjectExpression |
-  ArrayExpression;
+  ArrayExpression |
+  ArrowFunctionExpression;
 
 // import { Foo as Bar }
 export interface ImportSpecifier extends NodeImpl {
@@ -183,8 +190,8 @@ export type Node =
   JSXFragment | JSXText | JSXElement | JSXOpeningElement |
   JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
   Literal | Identifier | BinaryExpression | MemberExpression | Property |
-  ObjectExpression | ArrayExpression | ImportSpecifier |
-  ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
+  ObjectExpression | ArrayExpression | ArrowFunctionExpression |
+  ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
   VariableDeclarator | VariableDeclaration | ExportNamedDeclaration;
 
 // if fn returns false, don't recurse into children

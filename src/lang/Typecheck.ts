@@ -40,6 +40,10 @@ function throwExtraField(ast: AcornJsxAst.Expression, field: string): never {
   throw new Error('extra field \'' + field + '\' at ' + location(ast));
 }
 
+function throwWrongArgsLength(ast: AcornJsxAst.Expression, expected: number, actual: number) {
+  throw new Error(`expected ${expected} args, function has ${actual} args at ${location(ast)}`);
+}
+
 function checkSubtype(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
   const [actual, atom] = synth(ast, env);
   if (!Type.isSubtype(actual, type))
@@ -87,6 +91,21 @@ function checkSet(ast: AcornJsxAst.Expression, env: Env, type: Type.SetType): bo
 function checkMap(ast: AcornJsxAst.Expression, env: Env, type: Type.MapType): boolean {
   switch (ast.type) {
     // TODO(jaked) Map literals?
+
+    default:
+      return checkSubtype(ast, env, type);
+  }
+}
+
+function checkFunction(ast: AcornJsxAst.Expression, env: Env, type: Type.FunctionType): boolean {
+  switch (ast.type) {
+    case 'ArrowFunctionExpression':
+      if (type.args.length != ast.params.length)
+        throwWrongArgsLength(ast, type.args.length, ast.params.length);
+      ast.params.forEach((id, i) => {
+        env = env.set(id.name, [ type.args[i].type, false ]);
+      });
+      return check(ast.body, env, type.ret);
 
     default:
       return checkSubtype(ast, env, type);
@@ -159,6 +178,7 @@ export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): b
     case 'Set':           return checkSet(ast, env, type);
     case 'Map':           return checkMap(ast, env, type);
     case 'Object':        return checkObject(ast, env, type);
+    case 'Function':      return checkFunction(ast, env, type);
     case 'Union':         return checkUnion(ast, env, type);
     case 'Intersection':  return checkIntersection(ast, env, type);
     case 'Singleton':     return checkSingleton(ast, env, type);
@@ -365,7 +385,7 @@ function checkJsxElement(
   ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
   env: Env
 ): boolean {
-  let attrsAtom;
+  let attrsAtom: boolean;
   if (ast.type === 'JSXElement') {
     const [type, _] = env.get(ast.openingElement.name.name, [Type.object({}), false]);
     if (type.kind === 'Object') {
@@ -384,6 +404,11 @@ function checkJsxElement(
     } else {
       throw new Error('expected element type to be Object');
     }
+
+  // unassigned variable error on attrsAtom if we check ast.type
+  // even though the cases are exhaustive
+  } else { // if (ast.type === 'JSXFragment') {
+    attrsAtom = false;
   }
 
   let childrenAtom =
