@@ -1,12 +1,12 @@
 import deepEqual from 'deep-equal';
-import Try from './Try';
+import Try from '../Try';
 
 /**
  * simple implementation of reactive values
  * update is by top-down reevaluation,
  * with dirty node tracking as an optimization
  */
-export interface Signal<T> {
+interface Signal<T> {
   get: () => T;
   map<U>(f: (t: T) => U): Signal<U>;
 
@@ -77,13 +77,13 @@ class Const<T> implements Signal<T> {
   update() { }
 }
 
-export interface Cell<T> extends Signal<T> {
+interface CellIntf<T> extends Signal<T> {
   set(t: Try<T>): void;
   setOk(t: T): void;
   setErr(err: Error): void;
 }
 
-class CellImpl<T> implements Cell<T> {
+class CellImpl<T> implements CellIntf<T> {
   constructor(value: Try<T>) {
     this.value = value;
     this.version = 0;
@@ -316,52 +316,58 @@ class IfThenElse<I, TE> implements Signal<TE> {
   }
 }
 
-export function update<T>(signal: Signal<T>): void {
-  if (signal.dirty())
-    signal.update();
+module Signal {
+  export function update<T>(signal: Signal<T>): void {
+    if (signal.dirty())
+      signal.update();
+  }
+
+  export function run<T>(signal: Signal<T>): T {
+    update(signal);
+    return signal.get();
+  }
+
+  export function constant<T>(t: Try<T>): Signal<T> {
+    return new Const(t);
+  }
+
+  export function ok<T>(t: T): Signal<T> {
+    return constant(Try.ok(t));
+  }
+
+  export function err(err: Error): Signal<never> {
+    return constant(Try.err(err));
+  }
+
+  export function cell<T>(t: Try<T>): Cell<T> {
+    return new CellImpl(t);
+  }
+
+  export function cellOk<T>(t: T): Cell<T> {
+    return cell(Try.ok(t));
+  }
+
+  export function cellErr<T>(err: Error): Cell<T> {
+    return cell<T>(Try.err(err));
+  }
+
+  export function joinMap<T1, T2, R>(
+    s1: Signal<T1>,
+    s2: Signal<T2>,
+    f: (t1: T1, t2: T2) => R
+  ): Signal<R> {
+    return new JoinMap(s1, s2, f);
+  }
+
+  export function ifThenElse<I, TE>(
+    i: Signal<I>,
+    t: Signal<TE>,
+    e: Signal<TE>
+  ): Signal<TE> {
+    return new IfThenElse(i, t, e);
+  }
+
+  export type Cell<T> = CellIntf<T>;
 }
 
-export function run<T>(signal: Signal<T>): T {
-  update(signal);
-  return signal.get();
-}
-
-export function constant<T>(t: Try<T>): Signal<T> {
-  return new Const(t);
-}
-
-export function ok<T>(t: T): Signal<T> {
-  return constant(Try.ok(t));
-}
-
-export function err(err: Error): Signal<never> {
-  return constant(Try.err(err));
-}
-
-export function cell<T>(t: Try<T>): Cell<T> {
-  return new CellImpl(t);
-}
-
-export function cellOk<T>(t: T): Cell<T> {
-  return cell(Try.ok(t));
-}
-
-export function cellErr<T>(err: Error): Cell<T> {
-  return cell<T>(Try.err(err));
-}
-
-export function joinMap<T1, T2, R>(
-  s1: Signal<T1>,
-  s2: Signal<T2>,
-  f: (t1: T1, t2: T2) => R
-): Signal<R> {
-  return new JoinMap(s1, s2, f);
-}
-
-export function ifThenElse<I, TE>(
-  i: Signal<I>,
-  t: Signal<TE>,
-  e: Signal<TE>
-): Signal<TE> {
-  return new IfThenElse(i, t, e);
-}
+export default Signal;

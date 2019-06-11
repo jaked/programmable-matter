@@ -1,4 +1,4 @@
-import * as Signal from './Signal';
+import Signal from './index';
 
 const err = new Error('fail');
 
