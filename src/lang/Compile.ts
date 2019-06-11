@@ -24,7 +24,7 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
     case 'import':
     case 'export':
       if (!ast.declarations) throw new Error('expected import/export node to be parsed');
-      Try.forEach(ast.declarations, decls => decls.forEach(decl => {
+      ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
             imports.add(decl.source.value);
@@ -76,9 +76,9 @@ export function compileNotes(
         const ast = Parser.parse(note.content);
         const imports = new Set<string>();
         findImports(ast, imports);
-        parsed = Try.success({ ast, imports });
+        parsed = Try.ok({ ast, imports });
       } catch (e) {
-        parsed = Try.failure(e);
+        parsed = Try.err(e);
       }
       return Object.assign({}, note, { parsed });
     } else {
@@ -95,8 +95,8 @@ export function compileNotes(
     notes.forEach(tag => {
       const note = newNotes.get(tag);
       if (!note || !note.parsed) throw new Error('expected note && note.parsed');
-      if (note.parsed.type === 'success') {
-        const imports = [...note.parsed.success.imports.values()];
+      if (note.parsed.type === 'ok') {
+        const imports = [...note.parsed.ok.imports.values()];
         if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
         // a note importing a dirty note must be re-typechecked
         if (!dirty.has(tag) && imports.some(tag => dirty.has(tag))) {
@@ -112,7 +112,7 @@ export function compileNotes(
         }
       } else {
         if (debug) console.log('no imports parsed for ' + tag);
-        if (debug) console.log(note.parsed.failure);
+        if (debug) console.log(note.parsed.err);
       }
     });
   }
@@ -133,7 +133,7 @@ export function compileNotes(
       let compiled: Try.Try<data.Compiled>;
       try {
         // TODO(jaked) build per-note envs with specific imports
-        const ast = Try.get(note.parsed).ast;
+        const ast = note.parsed.get().ast;
         const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
         const exportValue: { [s: string]: any } = {};
         Typecheck.checkMdx(ast, typeEnv, exportTypes);
@@ -141,16 +141,16 @@ export function compileNotes(
         typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
         const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, lets, exportValue);
         valueEnv = valueEnv.set(capitalizedTag, exportValue);
-        compiled = Try.success({ exportType, exportValue, rendered });
+        compiled = Try.ok({ exportType, exportValue, rendered });
       } catch (e) {
-        compiled = Try.failure(e);
+        compiled = Try.err(e);
       }
       const note2 = Object.assign({}, note, { compiled });
       newNotes = newNotes.set(tag, note2);
     } else {
       if (debug) console.log('adding type / value env for ' + tag);
       if (!note || !note.compiled) throw new Error('expected note && note.compiled');
-      Try.forEach(note.compiled, compiled => {
+      note.compiled.forEach(compiled => {
         typeEnv = typeEnv.set(capitalizedTag, [compiled.exportType, false]);
         valueEnv = valueEnv.set(capitalizedTag, compiled.exportValue);
       });

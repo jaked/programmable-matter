@@ -1,55 +1,38 @@
 // TODO(jaked) this must exist already
 // TODO(jaked) is there a way to get Scala-ish Try(() => ...) ?
 
-export type Success<T> = { type: 'success', success: T };
-export type Failure = { type: 'failure', failure: Error };
-export type Try<T> = Success<T> | Failure;
+class Ok<T> {
+  type: 'ok' = 'ok';
 
-export function success<T>(t: T): Success<T> {
-  return { type: 'success', success: t };
+  ok: T;
+  constructor(ok: T) { this.ok = ok; }
+
+  get() { return this.ok; }
+  map<U>(f: (t: T) => U) { return apply(() => f(this.ok)); }
+  forEach(f: (t: T) => void) { return f(this.ok); }
 }
 
-export function failure(e: Error): Failure {
-  return { type: 'failure', failure: e };
+class Err {
+  type: 'err' = 'err';
+
+  err: Error;
+  constructor(err: Error) { this.err = err; }
+
+  get(): never { throw err; }
+  map<U>(f: (t: never) => U): Try<never> { return this; }
+  forEach(f: (t: never) => void) { }
 }
+
+export type Try<T> = Ok<T> | Err
+
+export function ok<T>(ok: T): Try<T> { return new Ok(ok); }
+export function err(err: Error): Try<never> { return new Err(err); }
 
 export function apply<T>(f: () => T) {
-  try {
-    return success(f());
-  } catch (e) {
-    return failure(e);
-  }
+  try { return ok(f()); }
+  catch (e) { return err(e); }
 }
 
-export function get<T>(t: Try<T>): T {
-  switch (t.type) {
-    case 'success': return t.success;
-    case 'failure': throw t.failure;
-  }
-}
-
-export function forEach<T>(
-  t: Try<T>,
-  f: (t: T) => void
-) {
-  if (t.type === 'success')
-    f(t.success);
-}
-
-export function map<T, U>(
-  t: Try<T>,
-  f: (t: T) => U
-): Try<U> {
-  if (t.type === 'failure') return t;
-  else return apply(() => f(t.success));
-}
-
-export function joinMap<T, U, R>(
-  t: Try<T>,
-  u: Try<U>,
-  f: (t: T, u: U) => R
-): Try<R> {
-  if (t.type === 'failure') return t;
-  else if (u.type === 'failure') return u;
-  else return apply(() => f(t.success, u.success));
-}
+// TODO(jaked)
+// is there a way to export both type and module together,
+// so callers can just `import Try from './Try'` ?

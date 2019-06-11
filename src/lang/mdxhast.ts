@@ -1,4 +1,4 @@
-import * as Try from '../util/Try';
+import { Try } from '../util/Try';
 import * as AcornJsxAst from './acornJsxAst';
 
 // See
@@ -45,7 +45,7 @@ export interface Text extends NodeImpl {
 export interface Jsx extends NodeImpl {
   type: 'jsx';
   value: string;
-  jsxElement?: Try.Try<AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment>;
+  jsxElement?: Try<AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment>;
 }
 
 type Declaration =
@@ -56,13 +56,13 @@ type Declaration =
 export interface Import extends NodeImpl {
   type: 'import';
   value: string;
-  declarations?: Try.Try<Array<Declaration>>;
+  declarations?: Try<Array<Declaration>>;
 }
 
 export interface Export extends NodeImpl {
   type: 'export';
   value: string;
-  declarations?: Try.Try<Array<Declaration>>;
+  declarations?: Try<Array<Declaration>>;
 }
 
 export type Node = Root | Element | Text | Jsx | Import | Export

@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import { Catch } from './Catch';
-import * as Try from '../util/Try';
 import * as data from './../data';
 
 interface Props {
@@ -13,7 +12,7 @@ export class Display extends React.Component<Props, {}> {
     const note = this.props.compiledNote;
     try {
       if (note && note.compiled) {
-        const rendered = Try.get(note.compiled).rendered;
+        const rendered = note.compiled.get().rendered;
         return (<Catch>{rendered}</Catch>);
       }
       throw new Error('no note');

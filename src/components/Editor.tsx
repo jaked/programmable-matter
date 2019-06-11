@@ -4,7 +4,6 @@ import RSCEditor from './react-simple-code-editor';
 import * as MDXHAST from '../lang/mdxhast';
 import * as AcornJsxAst from '../lang/acornJsxAst';
 
-import * as Try from '../util/Try';
 import * as data from '../data';
 
 interface Props {
@@ -145,7 +144,7 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
       // TODO(jaked)
       // parsing should always succeed with some AST
-      return Try.forEach(ast.jsxElement, (expr) => {
+      return ast.jsxElement.forEach(expr => {
         computeJsSpans(expr, spans);
       });
 
@@ -154,7 +153,7 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
       if (!ast.declarations) throw new Error('expected import/export node to be parsed');
       // TODO(jaked)
       // parsing should always succeed with some AST
-      return Try.forEach(ast.declarations, (decls) => {
+      return ast.declarations.forEach(decls => {
         decls.forEach(decl => {
           computeJsSpans(decl, spans);
         });
@@ -168,7 +167,7 @@ function computeHighlight(content: string, compiledNote: data.Note) {
   const spans: Array<Span> = [];
   // TODO(jaked)
   // parsing should always succeed with some AST
-  Try.forEach(compiledNote.parsed, parsed => {
+  compiledNote.parsed.forEach(parsed => {
     computeSpans(parsed.ast, spans);
   });
 
