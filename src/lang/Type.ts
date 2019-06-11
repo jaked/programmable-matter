@@ -1,4 +1,4 @@
-import * as Equals from '../util/equals';
+import deepEqual from 'deep-equal';
 
 export type NeverType = { kind: 'never' };
 export type UnknownType = { kind: 'unknown' };
@@ -182,13 +182,13 @@ export function equiv(a: Type, b: Type): boolean {
 }
 
 export function isSubtype(a: Type, b: Type): boolean {
-  if (Equals.equals(a, b)) return true;
+  if (deepEqual(a, b)) return true;
   else if (a.kind === 'never') return true;
   else if (b.kind === 'unknown') return true;
   else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));
   else if (b.kind === 'Union') return b.types.some(t => isSubtype(a, t));
   else if (a.kind === 'Singleton' && b.kind === 'Singleton')
-    return isSubtype(a.base, b.base) && Equals.equals(a.value, b.value);
+    return isSubtype(a.base, b.base) && deepEqual(a.value, b.value);
   else if (a.kind === 'Singleton')
     return isSubtype(a.base, b);
   else if (a.kind === 'Array' && b.kind === 'Array')
