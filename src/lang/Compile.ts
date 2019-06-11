@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import { Atom } from '@grammarly/focal';
-import * as Try from '../util/Try';
+import Try from '../util/Try';
 import * as data from '../data';
 import * as MDXHAST from './mdxhast';
 import * as Parser from './Parser';
@@ -71,7 +71,7 @@ export function compileNotes(
 
   newNotes = newNotes.map((note, tag) => {
     if (dirty.has(tag)) {
-      let parsed: Try.Try<data.Parsed>;
+      let parsed: Try<data.Parsed>;
       try {
         const ast = Parser.parse(note.content);
         const imports = new Set<string>();
@@ -130,7 +130,7 @@ export function compileNotes(
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking / rendering' + tag);
       if (!note || !note.parsed) throw new Error('expected note && note.parsed');
-      let compiled: Try.Try<data.Compiled>;
+      let compiled: Try<data.Compiled>;
       try {
         // TODO(jaked) build per-note envs with specific imports
         const ast = note.parsed.get().ast;

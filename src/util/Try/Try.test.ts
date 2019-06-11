@@ -1,4 +1,4 @@
-import * as Try from './Try';
+import Try from './index';
 
 const err = new Error('fail');
 

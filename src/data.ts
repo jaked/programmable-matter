@@ -1,6 +1,6 @@
 import Immutable from 'immutable';
 import React from 'react';
-import { Try } from './util/Try';
+import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as Type from './lang/Type';
 

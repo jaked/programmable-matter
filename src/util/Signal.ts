@@ -1,5 +1,5 @@
 import deepEqual from 'deep-equal';
-import * as Try from './Try';
+import Try from './Try';
 
 /**
  * simple implementation of reactive values
@@ -23,7 +23,7 @@ export interface Signal<T> {
    * current value of this signal.
    * not valid if a dependent cell is dirty.
    */
-  value: Try.Try<T>;
+  value: Try<T>;
 
   // TODO(jaked) how can we make these private to impl?
 
@@ -62,7 +62,7 @@ function checkNotDirty<T>(s: Signal<T>) {
 }
 
 class Const<T> implements Signal<T> {
-  constructor(value: Try.Try<T>) {
+  constructor(value: Try<T>) {
     this.value = value;
   }
 
@@ -70,7 +70,7 @@ class Const<T> implements Signal<T> {
   map<U>(f: (t: T) => U) { return new Map(this, f); }
   flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
-  value: Try.Try<T>;
+  value: Try<T>;
   version: 0 = 0;
   isDirty: false = false;
   dirty() { return false; }
@@ -78,13 +78,13 @@ class Const<T> implements Signal<T> {
 }
 
 export interface Cell<T> extends Signal<T> {
-  set(t: Try.Try<T>): void;
+  set(t: Try<T>): void;
   setOk(t: T): void;
   setErr(err: Error): void;
 }
 
 class CellImpl<T> implements Cell<T> {
-  constructor(value: Try.Try<T>) {
+  constructor(value: Try<T>) {
     this.value = value;
     this.version = 0;
     this.isDirty = false;
@@ -94,13 +94,13 @@ class CellImpl<T> implements Cell<T> {
   map<U>(f: (t: T) => U) { return new Map(this, f); }
   flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
-  value: Try.Try<T>;
+  value: Try<T>;
   version: number;
   isDirty: boolean;
   dirty() { return this.isDirty; }
   update() { this.isDirty = false; }
 
-  set(t: Try.Try<T>) {
+  set(t: Try<T>) {
     if (deepEqual(t, this.value)) return;
     this.value = t;
     this.version++;
@@ -129,7 +129,7 @@ class Map<T, U> implements Signal<U> {
   map<V>(f: (t: U) => V) { return new Map(this, f); }
   flatMap<V>(f: (t: U) => Signal<V>) { return new FlatMap(this, f); }
 
-  value: Try.Try<U>;
+  value: Try<U>;
   version: number;
   isDirty: boolean;
   dirty() {
@@ -170,7 +170,7 @@ class FlatMap<T, U> implements Signal<U> {
       checkNotDirty(fs); // doesn't hurt
       this.value = fs.value;
     } else {
-      this.value = <Try.Try<U>><unknown>s.value;
+      this.value = <Try<U>><unknown>s.value;
     }
   }
 
@@ -178,7 +178,7 @@ class FlatMap<T, U> implements Signal<U> {
   map<V>(f: (t: U) => V) { return new Map(this, f); }
   flatMap<V>(f: (t: U) => Signal<V>) { return new FlatMap(this, f); }
 
-  value: Try.Try<U>;
+  value: Try<U>;
   version: number;
   isDirty: boolean;
   dirty() {
@@ -190,7 +190,7 @@ class FlatMap<T, U> implements Signal<U> {
     this.s.update();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
-    let value: Try.Try<U>;
+    let value: Try<U>;
     if (this.s.value.type === 'ok') {
       // if `f` returns an out-of-date `Signal`, we can't
       // correctly update it, because we didn't get a chance to
@@ -200,7 +200,7 @@ class FlatMap<T, U> implements Signal<U> {
       checkNotDirty(fs); // doesn't hurt
       value = fs.value;
     } else {
-      value = <Try.Try<U>><unknown>this.s.value;
+      value = <Try<U>><unknown>this.s.value;
     }
     if (deepEqual(value, this.value)) return;
     this.value = value;
@@ -236,7 +236,7 @@ class JoinMap<T1, T2, R> implements Signal<R> {
   map<V>(f: (t: R) => V) { return new Map(this, f); }
   flatMap<V>(f: (t: R) => Signal<V>) { return new FlatMap(this, f); }
 
-  value: Try.Try<R>;
+  value: Try<R>;
   version: number;
   isDirty: boolean;
   dirty() {
@@ -290,7 +290,7 @@ class IfThenElse<I, TE> implements Signal<TE> {
   map<V>(f: (t: TE) => V) { return new Map(this, f); }
   flatMap<V>(f: (t: TE) => Signal<V>) { return new FlatMap(this, f); }
 
-  value: Try.Try<TE>;
+  value: Try<TE>;
   version: number;
   isDirty: boolean;
   dirty() {
@@ -326,7 +326,7 @@ export function run<T>(signal: Signal<T>): T {
   return signal.get();
 }
 
-export function constant<T>(t: Try.Try<T>): Signal<T> {
+export function constant<T>(t: Try<T>): Signal<T> {
   return new Const(t);
 }
 
@@ -338,7 +338,7 @@ export function err(err: Error): Signal<never> {
   return constant(Try.err(err));
 }
 
-export function cell<T>(t: Try.Try<T>): Cell<T> {
+export function cell<T>(t: Try<T>): Cell<T> {
   return new CellImpl(t);
 }
 

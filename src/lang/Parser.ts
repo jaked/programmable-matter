@@ -8,7 +8,7 @@ import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 import * as Acorn from 'acorn';
 import AcornJsx from 'acorn-jsx';
 
-import * as Try from '../util/Try';
+import Try from '../util/Try';
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
 
@@ -47,7 +47,7 @@ export function parseExpression(input: string, position?: MDXHAST.Position): Aco
 }
 
 function parseMdx(input: string): MDXHAST.Root {
-  return mdxParser.runSync(mdxParser.parse(input)) as MDXHAST.Root
+  return <MDXHAST.Root><unknown>mdxParser.runSync(mdxParser.parse(input));
 }
 
 function parseJsxNodes(ast: MDXHAST.Node) {

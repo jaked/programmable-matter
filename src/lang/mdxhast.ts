@@ -1,4 +1,4 @@
-import { Try } from '../util/Try';
+import Try from '../util/Try';
 import * as AcornJsxAst from './acornJsxAst';
 
 // See
