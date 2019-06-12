@@ -90,15 +90,26 @@ let compiledNoteAtom =
     return null;
   });
 
-ReactDOM.render(
-  <Main
-    notes={notesAtom}
-    selected={selectedAtom}
-    content={contentAtom}
-    compiledNote={compiledNoteAtom}
-  />,
-  document.getElementById('main')
-);
+const allAtoms =
+  Atom.combine(
+    notesAtom, selectedAtom, contentAtom, compiledNoteAtom,
+    (notes, selected, content, compiledNote) => {
+      return { notes, selected, content, compiledNote }
+    });
+
+allAtoms.forEach(({ notes, selected, content, compiledNote }) => {
+  ReactDOM.render(
+    <Main
+      notes={notes}
+      selected={selected}
+      content={content}
+      compiledNote={compiledNote}
+      onSelect={tag => selectedAtom.set(tag) }
+      onChange={c => contentAtom.set(c) }
+    />,
+    document.getElementById('main')
+  );
+});
 
 // TODO(jaked) how do we cancel this?
 // TODO(jaked) there's got to be a way to make an Atom from an Observable

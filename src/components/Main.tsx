@@ -1,6 +1,4 @@
 import * as React from 'react';
-import { Atom, ReadOnlyAtom } from '@grammarly/focal';
-import * as Focal from '@grammarly/focal';
 
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Grid from '@material-ui/core/Grid';
@@ -13,39 +11,37 @@ import { Display } from './Display';
 import { Editor } from './Editor';
 import { Notes } from './Notes';
 
-const LiftedEditor = Focal.lift(Editor);
-const LiftedNotes = Focal.lift(Notes);
-const LiftedDisplay = Focal.lift(Display);
-
 interface Props {
-  notes: ReadOnlyAtom<data.Notes>;
-  selected: Atom<string | null>;
-  content: Atom<string | null >;
-  compiledNote: ReadOnlyAtom<data.Note | null>;
+  notes: data.Notes;
+  selected: string | null;
+  content: string | null;
+  compiledNote: data.Note | null;
+  onSelect: (tag: string | null) => void;
+  onChange: (content: string | null) => void;
 }
 
-export function Main({ notes, selected, content, compiledNote }: Props) {
+export function Main({ notes, selected, content, compiledNote, onSelect, onChange }: Props) {
   return (
     <React.Fragment>
       <CssBaseline />
       <Grid container direction='row' style={{ height: '100vh' }}>
         <Grid item xs={2} style={{ height: '100%', overflowY: 'auto' }}>
-          <LiftedNotes
+          <Notes
             notes={notes}
             selected={selected}
-            onSelect={tag => selected.set(tag)}
+            onSelect={onSelect}
           />
         </Grid>
         <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
-          <LiftedEditor
+          <Editor
             content={content}
             compiledNote={compiledNote}
-            onChange={c => content.set(c)}
+            onChange={onChange}
           />
         </Grid>
         <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
           <Catch>
-            <LiftedDisplay compiledNote={compiledNote} />
+            <Display compiledNote={compiledNote} />
           </Catch>
         </Grid>
       </Grid>
