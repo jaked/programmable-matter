@@ -133,6 +133,8 @@ export interface ArrowFunctionExpression extends NodeImpl {
 export type Expression =
   Literal |
   Identifier |
+  JSXText |
+  JSXExpressionContainer |
   JSXFragment |
   JSXElement |
   BinaryExpression |

@@ -40,7 +40,7 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
 export function compileNotes(
   oldNotes: data.Notes,
   newNotes: data.Notes,
-  lets: Atom<Immutable.Map<string, Immutable.Map<string, any>>>
+  getLet: (module: string, name: string, init?: any) => Atom<any>,
 ): data.Notes {
   const dirty = new Set<string>();
 
@@ -122,8 +122,8 @@ export function compileNotes(
     orderedTags.push(tag)
   });
 
-  let typeEnv = Render.initEnv;
-  let valueEnv: Render.Env = Immutable.Map();
+  let typeEnv = Render.initTypeEnv;
+  let valueEnv = Render.initValueEnv;
   orderedTags.forEach(tag => {
     const capitalizedTag = String.capitalize(tag);
     const note = newNotes.get(tag);
@@ -139,7 +139,7 @@ export function compileNotes(
         Typecheck.checkMdx(ast, typeEnv, exportTypes);
         const exportType = Type.module(exportTypes);
         typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
-        const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, lets, exportValue);
+        const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, getLet, exportValue);
         valueEnv = valueEnv.set(capitalizedTag, exportValue);
         compiled = Try.ok({ exportType, exportValue, rendered });
       } catch (e) {

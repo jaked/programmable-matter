@@ -72,12 +72,31 @@ let contentAtom = stateAtom.lens(Lens.create(
 let watcher = new Watcher(x => notesAtom.modify(x));
 watcher.start(); // TODO(jaked) stop this on shutdown
 
+function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
+  return Lens.create(
+    (map: Immutable.Map<string, T>) => map.get<any>(key, null),
+    (t: T, map: Immutable.Map<string, T>) => map.set(key, t)
+  )
+}
+
+function getLet(module: string, name: string, init: any): Atom<any> {
+  const noteLetsAtom = letsAtom.lens(immutableMapLens<Immutable.Map<string, any>>(module));
+  if (noteLetsAtom.get() === null) {
+    noteLetsAtom.set(Immutable.Map());
+  }
+  const letAtom = noteLetsAtom.lens(immutableMapLens(name));
+  if (letAtom.get() === null) {
+    letAtom.set(init);
+  }
+  return letAtom;
+}
+
 // there might be a way to organize this with an Atom per note
 // but it's a lot simpler to handle them all at once
 let currentCompiledNotes: data.Notes = Immutable.Map();
 let compiledNotesAtom = notesAtom.view(notes => {
   currentCompiledNotes =
-    Compile.compileNotes(currentCompiledNotes, notes, letsAtom);
+    Compile.compileNotes(currentCompiledNotes, notes, getLet);
   return currentCompiledNotes;
 });
 
@@ -92,12 +111,12 @@ let compiledNoteAtom =
 
 const allAtoms =
   Atom.combine(
-    notesAtom, selectedAtom, contentAtom, compiledNoteAtom,
-    (notes, selected, content, compiledNote) => {
-      return { notes, selected, content, compiledNote }
+    letsAtom, notesAtom, selectedAtom, contentAtom, compiledNoteAtom,
+    (lets, notes, selected, content, compiledNote) => {
+      return { lets, notes, selected, content, compiledNote }
     });
 
-allAtoms.forEach(({ notes, selected, content, compiledNote }) => {
+allAtoms.forEach(({ lets, notes, selected, content, compiledNote }) => {
   ReactDOM.render(
     <Main
       notes={notes}

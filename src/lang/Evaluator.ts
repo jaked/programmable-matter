@@ -1,177 +1,119 @@
 import * as Immutable from 'immutable';
-
+import * as React from 'react';
 import * as AcornJsxAst from '../lang/acornJsxAst';
 
-function makeLiteral(ast: AcornJsxAst.Expression, value: any) {
-  return Object.assign({}, ast, { type: 'Literal', value });
-}
+import { ReadOnlyAtom } from '@grammarly/focal';
 
-export type AtomName = Immutable.Record<{ module: string | null, name: string }>;
-export type AtomNames = Immutable.Set<AtomName>;
-
-const AtomName = Immutable.Record<{ module: string | null, name: string }>({ module: null, name: '' });
+const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 export type Env = Immutable.Map<string, any>;
 
-// TODO(jaked)
-// it seems like we should be able to drop `mode` and use the presence /
-// absence of fields to refine the type (e.g. `if (names)`), but TS
-// complains that the field doesn't exist on both arms.
-export type Opts =
-  {
-    mode: 'compile',
-    module: string,
-    atomNames: AtomNames,
-    renderJsxElement: (e: AcornJsxAst.JSXElement) => any
-  } |
-  {
-    mode: 'run',
-    env: Env
-  }
-
-// evaluate an expression
-//  - when `names` is passed, leave identifiers unevaluated but add them to `names`
-//  - when `env` is passed, look up identifiers in `env`
-// so we can use this function both in compilation and at runtime
 export function evaluateExpression(
   ast: AcornJsxAst.Expression,
-  opts: Opts
-): AcornJsxAst.Expression {
+  env: Env,
+): any {
   switch (ast.type) {
-    case 'Literal': return ast;
+    case 'Literal':
+      return ast.value;
 
-    case 'Identifier':
-      if (opts.mode === 'compile') {
-        if (ast.atom) {
-          opts.atomNames =
-            opts.atomNames.add(AtomName({ module: null, name: ast.name }));
-        }
-        return ast;
+    case 'Identifier': {
+      // TODO(jaked) consult atom flag on ast
+      const value = (<ReadOnlyAtom<any>>env.get(ast.name)).get();
+      if (typeof value === 'undefined')
+        throw new Error(`unbound identifier ${ast.name}`);
+      return value;
+    }
+
+    case 'JSXExpressionContainer':
+      return evaluateExpression(ast.expression, env);
+
+    case 'JSXText':
+      return ast.value;
+
+    case 'JSXElement': {
+      let elem: any;
+      const name = ast.openingElement.name.name;
+      if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
+        elem = env.get(name);
+        if (typeof elem === 'undefined')
+          throw new Error(`unbound identifier ${name}`);
       } else {
-        return makeLiteral(ast, opts.env.get(ast.name));
+        elem = name;
       }
+      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
+        return { [name.name]: evaluateExpression(value, env) };
+      });
+      const attrs = Object.assign({}, ...attrObjs);
+      // TODO(jaked) set onChange handler
+      const children = ast.children.map(child => evaluateExpression(child, env));
+      return React.createElement(elem, attrs, ...children)
+    }
 
-    case 'JSXElement':
-      switch (opts.mode) {
-        case 'compile':
-          // we don't need to recurse into JSXElements;
-          // focal handles reaction inside nested elements
-          return makeLiteral(ast, opts.renderJsxElement(ast));
-        default:
-          throw new Error('unexpected JSXElement at runtime');
-      }
+    case 'JSXFragment':
+      return ast.children.map(child => evaluateExpression(child, env));
 
     case 'BinaryExpression': {
-      const left = evaluateExpression(ast.left, opts);
-      const right = evaluateExpression(ast.right, opts);
-      if (left.type === 'Literal' && right.type === 'Literal') {
-        const lv = left.value;
-        const rv = right.value;
-        let v;
-        switch (ast.operator) {
-          case '+': v = lv + rv; break;
-          case '-': v = lv - rv; break;
-          case '*': v = lv * rv; break;
-          case '/': v = lv / rv; break;
-          case '**': v = lv ** rv; break;
-          case '%': v = lv % rv; break;
-          case '==': v = lv == rv; break;
-          case '!=': v = lv != rv; break;
-          case '===': v = lv === rv; break;
-          case '!==': v = lv !== rv; break;
-          case '<': v = lv < rv; break;
-          case '<=': v = lv <= rv; break;
-          case '>': v = lv > rv; break;
-          case '>=': v = lv >= rv; break;
-          case '||': v = lv || rv; break;
-          case '&&': v = lv && rv; break;
-          case '|': v = lv | rv; break;
-          case '&': v = lv & rv; break;
-          case '^': v = lv ^ rv; break;
-          case '<<': v = lv << rv; break;
-          case '>>': v = lv >> rv; break;
-          case '>>>': v = lv >>> rv; break;
-        }
-        return makeLiteral(ast, v);
-      } else {
-        return Object.assign({}, ast, { left, right });
+      // TODO(jaked) short-circuit booleans
+      const lv = evaluateExpression(ast.left, env);
+      const rv = evaluateExpression(ast.right, env);
+      switch (ast.operator) {
+        case '+': return lv + rv;
+        case '-': return lv - rv;
+        case '*': return lv * rv;
+        case '/': return lv / rv;
+        case '**': return lv ** rv;
+        case '%': return lv % rv;
+        case '==': return lv == rv;
+        case '!=': return lv != rv;
+        case '===': return lv === rv;
+        case '!==': return lv !== rv;
+        case '<': return lv < rv;
+        case '<=': return lv <= rv;
+        case '>': return lv > rv;
+        case '>=': return lv >= rv;
+        case '||': return lv || rv;
+        case '&&': return lv && rv;
+        case '|': return lv | rv;
+        case '&': return lv & rv;
+        case '^': return lv ^ rv;
+        case '<<': return lv << rv;
+        case '>>': return lv >> rv;
+        case '>>>': return lv >>> rv;
+        default:
+          throw new Error(`unexpected binary operator ${ast.operator}`)
       }
     }
 
     case 'MemberExpression': {
-      if (!ast.object.etype)
-        throw new Error('expected AST to be typechecked');
-      if (ast.object.etype.kind === 'Module') {
-        if (ast.object.type !== 'Identifier')
-          throw new Error('expected identifier for module');
-        if (ast.property.type !== 'Identifier')
-          throw new Error('expected identifier for module property');
-        const module = ast.object.name;
-        const name = ast.property.name;
-        if (opts.mode === 'compile') {
-          if (ast.atom) {
-            opts.atomNames =
-              opts.atomNames.add(AtomName({ module, name }))
-          }
-          return ast;
-        } else {
-          return makeLiteral(ast, opts.env.get(module)[name]);
-        }
+      const object = evaluateExpression(ast.object, env);
+      if (ast.computed) {
+        const property = evaluateExpression(ast.property, env);
+        return object.value[property.value];
       } else {
-        const object = evaluateExpression(ast.object, opts);
-        if (ast.computed) {
-          const property = evaluateExpression(ast.property, opts);
-          if (object.type === 'Literal' && property.type === 'Literal') {
-            return makeLiteral(ast, object.value[property.value]);
-          } else {
-            return Object.assign({}, ast, { object, property });
-          }
-        } else {
-          if (ast.property.type !== 'Identifier')
-            throw new Error('expected identifier on non-computed property');
-          if (object.type === 'Literal') {
-            return makeLiteral(ast, object.value[ast.property.name]);
-          } else {
-            return Object.assign({}, ast, { object });
-          }
-        }
+        if (ast.property.type !== 'Identifier')
+          throw new Error('expected identifier on non-computed property');
+        return object.value[ast.property.name];
       }
     }
 
     case 'ObjectExpression': {
       const properties = ast.properties.map(prop => {
-        const value = evaluateExpression(prop.value, opts);
+        const value = evaluateExpression(prop.value, env);
         return Object.assign({}, prop, { value })
       });
-      if (properties.every((prop) => prop.value.type === 'Literal')) {
-        return makeLiteral(
-          ast,
-          Object.assign({}, ...properties.map(prop => {
-            let name: string;
-            switch (prop.key.type) {
-              case 'Identifier': name = prop.key.name; break;
-              case 'Literal': name = prop.key.value; break;
-              default: throw new Error('expected Identifier or Literal prop key name');
-            }
-            return { [name]: (prop.value as AcornJsxAst.Literal).value }
-          })));
-      } else {
-        return Object.assign({}, ast, { properties });
-      }
+      return Object.assign({}, ...properties.map(prop => {
+        let name: string;
+        switch (prop.key.type) {
+          case 'Identifier': name = prop.key.name; break;
+          case 'Literal': name = prop.key.value; break;
+          default: throw new Error('expected Identifier or Literal prop key name');
+        }
+        return { [name]: prop.value }
+      }));
     }
 
-    case 'ArrayExpression': {
-      const elements =
-        ast.elements.map(e => evaluateExpression(e, opts));
-      if (elements.every(e => e.type === 'Literal')) {
-        return makeLiteral(
-          ast,
-          elements.map(e => (e as AcornJsxAst.Literal).value)
-        );
-      } else {
-        return Object.assign({}, ast, { elements });
-      }
-    }
+    case 'ArrayExpression':
+      return ast.elements.map(e => evaluateExpression(e, env));
 
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
