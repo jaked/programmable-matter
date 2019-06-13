@@ -35,7 +35,7 @@ export class Catch extends React.Component<Props, State> {
     const { err } = this.state
     if (err) {
       return (
-        <pre>{err.toString()}</pre>
+        <pre>{err.stack}</pre>
       );
     }
     return this.props.children

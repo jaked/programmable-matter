@@ -7,7 +7,7 @@ import { Inspector } from 'react-inspector';
 
 import { TwitterTweetEmbed } from 'react-twitter-embed';
 import YouTube from 'react-youtube';
-import { VictoryBar } from 'victory';
+import { VictoryBar, VictoryChart } from 'victory';
 import ReactTable from 'react-table';
 import Gist from 'react-gist';
 
@@ -22,17 +22,6 @@ import * as Type from './Type';
 import * as Typecheck from './Typecheck';
 
 export type Env = Evaluator.Env;
-
-const components = new Map([
-  [ 'Inspector', Inspector ],
-  [ 'Tweet', TwitterTweetEmbed ],
-  [ 'YouTube', YouTube ],
-  [ 'VictoryBar', VictoryBar ],
-  [ 'InlineMath', InlineMath ],
-  [ 'BlockMath', BlockMath ],
-  [ 'Table', ReactTable ],
-  [ 'Gist', Gist ]
-].map(([name, comp]) => [name, Focal.lift(comp)]));
 
 function evaluateMdxBindings(
   ast: MDXHAST.Node,
@@ -160,6 +149,8 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
   'Gist': [Type.object({ id: Type.string }), false],
 
   'VictoryBar': [Type.object({}), false],
+  'VictoryChart': [Type.object({}), false],
+
   'Inspector': [Type.object({}), false],
 
   'Table': [Type.object({
@@ -180,6 +171,7 @@ export const initValueEnv: Evaluator.Env = Immutable.Map({
   Tweet: TwitterTweetEmbed,
   YouTube: YouTube,
   VictoryBar: VictoryBar,
+  VictoryChart: VictoryChart,
   InlineMath: InlineMath,
   BlockMath: BlockMath,
   Table: ReactTable,

@@ -32,8 +32,11 @@ export function evaluateExpression(
     case 'JSXExpressionContainer':
       return evaluateExpression(ast.expression, env);
 
-    case 'JSXText':
-      return ast.value;
+    case 'JSXText': {
+      const value = ast.value.trim();
+      if (value === '') return null;
+      else return value;
+    }
 
     case 'JSXElement': {
       let elem: any;
