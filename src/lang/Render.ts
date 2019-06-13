@@ -34,20 +34,6 @@ const components = new Map([
   [ 'Gist', Gist ]
 ].map(([name, comp]) => [name, Focal.lift(comp)]));
 
-// // TODO(jaked) for what elements does this make sense? only input?
-// if (ast.openingElement.name.name === 'input' && attrs.id) {
-//   if (env.has(attrs.id)) {
-//     const atom = env.get(attrs.id) as Atom<any>;
-//     attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//       atom.set(e.currentTarget.value);
-//     }
-//   } else {
-//     // TODO(jaked) check statically
-//     // also check that it is a non-readonly Atom
-//     throw new Error('unbound identifier ' + attrs.id);
-//   }
-// }
-
 function evaluateMdxBindings(
   ast: MDXHAST.Node,
   module: string,

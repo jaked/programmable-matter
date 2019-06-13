@@ -499,7 +499,8 @@ function synthMdxBindings(
               // TODO(jaked)
               // let bindings of type T should also have type T => void
               // so they can be set in event handlers
-              const typeAtom: [Type.Type, boolean] = [type, atom || declAtom];
+              // TODO(jaked) temporarily ignore atomness of initializer
+              const typeAtom: [Type.Type, boolean] = [type, /* atom || */ declAtom];
               exportTypes[declarator.id.name] = typeAtom;
               env = env.set(declarator.id.name, typeAtom);
             });

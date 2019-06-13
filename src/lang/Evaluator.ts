@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as AcornJsxAst from '../lang/acornJsxAst';
 
-import { ReadOnlyAtom } from '@grammarly/focal';
+import { Atom, ReadOnlyAtom } from '@grammarly/focal';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
@@ -17,11 +17,16 @@ export function evaluateExpression(
       return ast.value;
 
     case 'Identifier': {
-      // TODO(jaked) consult atom flag on ast
-      const value = (<ReadOnlyAtom<any>>env.get(ast.name)).get();
+      const value = env.get(ast.name);
       if (typeof value === 'undefined')
         throw new Error(`unbound identifier ${ast.name}`);
-      return value;
+      if (typeof ast.atom === 'undefined')
+        throw new Error('expected AST to be typechecked');
+      if (ast.atom) {
+        return (<ReadOnlyAtom<any>>value).get();
+      } else {
+        return value;
+      }
     }
 
     case 'JSXExpressionContainer':
@@ -44,7 +49,21 @@ export function evaluateExpression(
         return { [name.name]: evaluateExpression(value, env) };
       });
       const attrs = Object.assign({}, ...attrObjs);
-      // TODO(jaked) set onChange handler
+
+      // TODO(jaked) for what elements does this make sense? only input?
+      if (name === 'input' && attrs.id) {
+        if (env.has(attrs.id)) {
+          const atom = env.get(attrs.id) as Atom<any>;
+          attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            atom.set(e.currentTarget.value);
+          }
+        } else {
+          // TODO(jaked) check statically
+          // also check that it is a non-readonly Atom
+          throw new Error('unbound identifier ' + attrs.id);
+        }
+      }
+
       const children = ast.children.map(child => evaluateExpression(child, env));
       return React.createElement(elem, attrs, ...children)
     }
@@ -85,14 +104,22 @@ export function evaluateExpression(
     }
 
     case 'MemberExpression': {
+      let value: any;
       const object = evaluateExpression(ast.object, env);
       if (ast.computed) {
         const property = evaluateExpression(ast.property, env);
-        return object.value[property.value];
+        value = object[property];
       } else {
         if (ast.property.type !== 'Identifier')
           throw new Error('expected identifier on non-computed property');
-        return object.value[ast.property.name];
+        value = object[ast.property.name];
+      }
+      if (typeof ast.atom === 'undefined')
+        throw new Error('expected AST to be typechecked');
+      if (ast.atom) {
+        return (<ReadOnlyAtom<any>>value).get();
+      } else {
+        return value;
       }
     }
 

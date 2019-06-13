@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import { Atom } from '@grammarly/focal';
 import Try from '../util/Try';
 import * as data from '../data';
@@ -139,7 +138,8 @@ export function compileNotes(
         Typecheck.checkMdx(ast, typeEnv, exportTypes);
         const exportType = Type.module(exportTypes);
         typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
-        const rendered = Render.renderMdx(ast, capitalizedTag, valueEnv, getLet, exportValue);
+        Render.renderMdx(ast, capitalizedTag, valueEnv, getLet, exportValue);
+        const rendered = () => Render.renderMdx(ast, capitalizedTag, valueEnv, getLet, exportValue);
         valueEnv = valueEnv.set(capitalizedTag, exportValue);
         compiled = Try.ok({ exportType, exportValue, rendered });
       } catch (e) {

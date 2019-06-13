@@ -12,7 +12,7 @@ export interface Parsed {
 export interface Compiled {
   exportType: Type.ModuleType;
   exportValue: { [s: string]: any };
-  rendered: React.ReactNode;
+  rendered: () => React.ReactNode;
 }
 
 export interface Note {
