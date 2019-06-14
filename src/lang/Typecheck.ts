@@ -44,10 +44,16 @@ function throwWrongArgsLength(ast: AcornJsxAst.Expression, expected: number, act
 }
 
 function checkSubtype(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
-  const [actual, atom] = synth(ast, env);
-  if (!Type.isSubtype(actual, type))
-    throwExpectedType(ast, type, actual);
-  return atom;
+  switch (ast.type) {
+    case 'JSXExpressionContainer':
+      return check(ast.expression, env, type);
+
+    default:
+      const [actual, atom] = synth(ast, env);
+      if (!Type.isSubtype(actual, type))
+        throwExpectedType(ast, type, actual);
+      return atom;
+  }
 }
 
 function checkTuple(ast: AcornJsxAst.Expression, env: Env, type: Type.TupleType): boolean {
@@ -68,6 +74,12 @@ function checkTuple(ast: AcornJsxAst.Expression, env: Env, type: Type.TupleType)
 
 function checkArray(ast: AcornJsxAst.Expression, env: Env, type: Type.ArrayType): boolean {
   switch (ast.type) {
+    // never called since we check against `reactNodeType`, see comment on checkUnion
+    case 'JSXFragment':
+      return ast.children.map(child =>
+        check(child, env, type)
+      ).some(x => x);
+
     case 'ArrayExpression':
       return ast.elements.map(elem =>
         check(elem, env, type.elem)
@@ -115,6 +127,13 @@ function checkUnion(ast: AcornJsxAst.Expression, env: Env, type: Type.UnionType)
   // we could independently check against each arm of the union
   // but it seems like that would not improve the error message
   // since we don't know which arm is intended
+  // TODO(jaked)
+  // for JSXFragment we check against `reactNodeType`,
+  // which contains simple types (which JSXFragment cannot satisfy)
+  // and an array type (which JSXFragment can satisfy)
+  // if we check against the array we could produce a better error.
+  // somehow we'd like to break down the type / expression together
+  // where possible instead of synth / isSubtype
   return checkSubtype(ast, env, type);
 }
 
@@ -170,7 +189,7 @@ function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectTyp
   }
 }
 
-export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
+function checkHelper(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
   switch (type.kind) {
     case 'Tuple':         return checkTuple(ast, env, type);
     case 'Array':         return checkArray(ast, env, type);
@@ -184,7 +203,13 @@ export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): b
 
     default:              return checkSubtype(ast, env, type);
   }
+}
+
+export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
+  const atom = checkHelper(ast, env, type);
   ast.etype = type;
+  ast.atom = atom;
+  return atom;
 }
 
 function synthIdentifier(ast: AcornJsxAst.Identifier, env: Env): [Type.Type, boolean] {
@@ -355,14 +380,92 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
   }
 }
 
+function synthArrowFunctionExpression(
+  ast: AcornJsxAst.ArrowFunctionExpression,
+  env: Env
+): [Type.Type, boolean] {
+  if (ast.params.length > 0)
+    // TODO(jaked) need arg type annotations to synth a function
+    throw new Error('can\'t synth a function with args');
+  // TODO(jaked) carry body atomness as effect on Type.function
+  const [type, atom] = synth(ast.body, env);
+  return [Type.function([], type), false];
+}
+
+// TODO(jaked) for HTML types, temporarily
+const defaultElementType = Type.abstract('React.Component', Type.object({}));
+
+function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): [Type.Type, boolean] {
+  const name = ast.openingElement.name.name;
+  const [type, _] = env.get(name, [defaultElementType, false]);
+  let propsType: Type.ObjectType;
+  if (type.kind === 'Function' && type.args.length < 2) {
+    if (type.args.length === 0) {
+      propsType = Type.object({});
+    } else {
+      if (type.args[0].type.kind !== 'Object')
+        throw new Error('expected object arg');
+      propsType = type.args[0].type;
+    }
+    // TODO(jaked) check return type against reactNodeType
+  } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.length === 1) {
+    const param = type.params[0];
+    if (param.kind !== 'Object')
+      throw new Error('expected object arg');
+    propsType = param;
+  } else throw new Error('expected component type');
+  // TODO(jaked) add `children: Type.array(reactNodeType)` to `propsType`
+
+  const fieldTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
+  const attrsAtom = ast.openingElement.attributes.map(({ name, value }) => {
+    const type = fieldTypes.get(name.name) || Type.unknown; // TODO(jaked) required/optional props
+    return check(value, env, type);
+  }).some(x => x);
+  let childrenAtom =
+    ast.children.map(child =>
+      check(child, env, reactNodeType)
+    ).some(x => x);
+
+  return [reactElementType, attrsAtom || childrenAtom];
+}
+
+function synthJSXFragment(ast: AcornJsxAst.JSXFragment, env: Env): [Type.Type, boolean] {
+  const typesAtoms = ast.children.map(e => synth(e, env));
+  const types = typesAtoms.map(([type, _]) => type);
+  const atom = typesAtoms.some(([_, atom]) => atom);
+  const elem = Type.leastUpperBound(...types);
+  return [Type.array(elem), atom];
+  // TODO(jaked) we know children should satisfy `reactNodeType`
+  // we could check that explicitly (as above in synthJSXElement)
+  // see also comments on checkArray and checkUnion
+}
+
+function synthJSXExpressionContainer(
+  ast: AcornJsxAst.JSXExpressionContainer,
+  env: Env
+): [Type.Type, boolean] {
+  return synth(ast.expression, env);
+}
+
+function synthJSXText(ast: AcornJsxAst.JSXText, env: Env): [Type.Type, boolean] {
+  return [Type.string, false];
+}
+
 function synthHelper(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolean] {
   switch (ast.type) {
     case 'Identifier':        return synthIdentifier(ast, env);
     case 'Literal':           return synthLiteral(ast, env);
     case 'ArrayExpression':   return synthArrayExpression(ast, env);
     case 'ObjectExpression':  return synthObjectExpression(ast, env);
+    case 'ArrowFunctionExpression':
+                              return synthArrowFunctionExpression(ast, env);
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
+    case 'JSXElement':        return synthJSXElement(ast, env);
+    case 'JSXFragment':       return synthJSXFragment(ast, env);
+    case 'JSXExpressionContainer':
+                              return synthJSXExpressionContainer(ast, env);
+    case 'JSXText':           return synthJSXText(ast, env);
 
     default: throw new Error('unimplemented: synth ' + JSON.stringify(ast));
   }
@@ -376,54 +479,15 @@ export function synth(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolea
   return typeAtom;
 }
 
-// TODO(jaked) what's actually acceptable here?
-const embeddedExpressionType =
-  Type.union(Type.boolean, Type.number, Type.string);
-
-function checkJsxElement(
-  ast: AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment,
-  env: Env
-): boolean {
-  let attrsAtom: boolean;
-  if (ast.type === 'JSXElement') {
-    const [type, _] = env.get(ast.openingElement.name.name, [Type.object({}), false]);
-    if (type.kind === 'Object') {
-      const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));
-      attrsAtom = ast.openingElement.attributes.map(({ name, value }) => {
-        const type = fieldTypes.get(name.name) || Type.unknown; // TODO(jaked) required/optional props
-        switch (value.type) {
-          case 'JSXExpressionContainer':
-            return check(value.expression, env, type);
-          case 'Literal':
-            return check(value, env, type);
-          default:
-            throw new Error('unexpected AST ' + (value as any).type);
-        }
-      }).some(x => x);
-    } else {
-      throw new Error('expected element type to be Object');
-    }
-
-  // unassigned variable error on attrsAtom if we check ast.type
-  // even though the cases are exhaustive
-  } else { // if (ast.type === 'JSXFragment') {
-    attrsAtom = false;
-  }
-
-  let childrenAtom =
-    ast.children.map(child => {
-      switch (child.type) {
-        case 'JSXElement':
-          return checkJsxElement(child, env);
-        case 'JSXText':
-          return false;
-        case 'JSXExpressionContainer':
-          return check(child.expression, env, embeddedExpressionType);
-      }
-    }).some(x => x);
-
-  return attrsAtom || childrenAtom;
-}
+const reactElementType = Type.abstract('React.Element');
+// TODO(jaked)
+// fragments are also permitted here (see ReactNode in React typing)
+// but we need recursive types to express it (ReactFragment = Array<ReactNode>)
+// in the meantime we'll permit top-level fragments only
+const reactNodeType_ =
+  Type.union(reactElementType, Type.boolean, Type.number, Type.string, Type.null, Type.undefined);
+const reactNodeType =
+  Type.union(reactNodeType_, Type.array(reactNodeType_));
 
 function checkMdxElements(ast: MDXHAST.Node, env: Env) {
   switch (ast.type) {
@@ -436,7 +500,7 @@ function checkMdxElements(ast: MDXHAST.Node, env: Env) {
 
     case 'jsx':
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
-      return ast.jsxElement.forEach(elem => checkJsxElement(elem, env));
+      return ast.jsxElement.forEach(elem => check(elem, env, reactNodeType));
 
     case 'import':
     case 'export':

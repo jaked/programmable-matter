@@ -11,6 +11,7 @@ export type TupleType = { kind: 'Tuple', elems: Array<Type> };
 export type ArrayType = { kind: 'Array', elem: Type };
 export type SetType = { kind: 'Set', elem: Type };
 export type MapType = { kind: 'Map', key: Type, value: Type };
+export type AbstractType = { kind: 'Abstract', label: string, params: Array<Type> };
 
 // invariant: no duplicate arg names
 export type FunctionType = {
@@ -52,6 +53,7 @@ export type Type =
   ArrayType |
   SetType |
   MapType |
+  AbstractType |
   ObjectType |
   ModuleType |
   FunctionType |
@@ -86,6 +88,10 @@ export function set(elem: Type): SetType {
 
 export function map(key: Type, value: Type): MapType {
   return { kind: 'Map', key, value };
+}
+
+export function abstract(label: string, ...params: Array<Type>): AbstractType {
+  return { kind: 'Abstract', label, params };
 }
 
 export function functionType(

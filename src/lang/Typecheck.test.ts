@@ -321,4 +321,13 @@ describe('synth', () => {
       expectSynthThrows('object.quux');
     });
   });
+
+  describe('function expressions', () => {
+    it('ok', () => {
+      expectSynth(
+        '() => 7',
+        Type.function([], Type.singleton(Type.number, 7))
+      );
+    });
+  });
 });

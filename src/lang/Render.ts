@@ -13,8 +13,7 @@ import Gist from 'react-gist';
 
 import { InlineMath, BlockMath } from 'react-katex';
 
-import { Atom, F, ReadOnlyAtom } from '@grammarly/focal';
-import * as Focal from '@grammarly/focal';
+import { Atom } from '@grammarly/focal';
 
 import * as MDXHAST from './mdxhast';
 import * as Evaluator from './evaluator';
@@ -141,19 +140,24 @@ export function renderMdx(
   return renderMdxElements(ast, module, env2);
 }
 
+// TODO(jaked) move to Typecheck?
+function componentType(props: { [f: string]: Type.Type }): Type.Type {
+  return Type.abstract('React.Component', Type.object(props));
+}
+
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
 export const initTypeEnv: Typecheck.Env = Immutable.Map({
-  'Tweet': [Type.object({ tweetId: Type.string }), false],
-  'YouTube': [Type.object({ videoId: Type.string }), false],
-  'Gist': [Type.object({ id: Type.string }), false],
+  'Tweet': [componentType({ tweetId: Type.string }), false],
+  'YouTube': [componentType({ videoId: Type.string }), false],
+  'Gist': [componentType({ id: Type.string }), false],
 
-  'VictoryBar': [Type.object({}), false],
-  'VictoryChart': [Type.object({}), false],
+  'VictoryBar': [componentType({}), false],
+  'VictoryChart': [componentType({}), false],
 
-  'Inspector': [Type.object({}), false],
+  'Inspector': [componentType({}), false],
 
-  'Table': [Type.object({
+  'Table': [componentType({
     data: Type.array(Type.object({})),
     // TODO(jaked)
     // column accessor types depend on data type (for Victory too)

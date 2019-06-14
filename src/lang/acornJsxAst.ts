@@ -267,6 +267,10 @@ export function visit(
     case 'ArrayExpression':
       return visit(ast.elements, fn);
 
+    case 'ArrowFunctionExpression':
+      visit(ast.params, fn);
+      return visit(ast.body, fn);
+
     case 'ImportSpecifier':
       visit(ast.imported, fn);
       return visit(ast.local, fn);

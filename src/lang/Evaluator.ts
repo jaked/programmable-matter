@@ -145,6 +145,14 @@ export function evaluateExpression(
     case 'ArrayExpression':
       return ast.elements.map(e => evaluateExpression(e, env));
 
+    case 'ArrowFunctionExpression':
+      return function(...args: Array<any>) {
+        ast.params.forEach((id, i) => {
+          env = env.set(id.name, args[i]);
+        });
+        return evaluateExpression(ast.body, env);
+      };
+
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
   }
