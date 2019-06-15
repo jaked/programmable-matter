@@ -31,7 +31,6 @@
     "webpack-dev-server": "^3.3.1"
   },
   "dependencies": {
-    "@grammarly/focal": "^0.7.1",
     "@material-ui/core": "^3.9.3",
     "@mdx-js/mdx": "^1.0.14",
     "acorn": "^6.1.1",
@@ -52,7 +51,6 @@
     "react-twitter-embed": "^2.0.7",
     "react-youtube": "^7.9.0",
     "recast": "^0.17.6",
-    "rxjs": "^5.5.12",
     "victory": "^32.2.3"
   }
 }

@@ -73,9 +73,9 @@ function evaluateMdxBindings(
                   //   throw new Error('atom initializer must be static');
                   // }
                   const name = declarator.id.name;
-                  const letAtom = mkCell(module, name, init);
-                  exportValues[name] = letAtom;
-                  env = env.set(name, letAtom);
+                  const cell = mkCell(module, name, init);
+                  exportValues[name] = cell;
+                  env = env.set(name, cell);
                 });
                 break;
               }
