@@ -2,63 +2,67 @@ import deepEqual from 'deep-equal';
 import Try from '../Try';
 
 /**
- * simple implementation of reactive values
- * update is by top-down reevaluation,
- * with dirty node tracking as an optimization
+ * Simple implementation of reactive values. Update is by top-down
+ * reevaluation.
+ *
+ * A signal has a value, and a "version". Whenever an update changes a
+ * signal's value, the version is also incremented. Signals track the
+ * versions of their children, in order to determine if they need to be
+ * recomputed.
+ *
+ * A signal is up-to-date with respect to a "level", a
+ * monotonically-increasing counter. To update a signal, call `update`
+ * with a level larger than any level in the DAG rooted at the signal. A
+ * signal's level is no larger than the levels of its children.
+ *
+ * When `update` is called on a signal, if it is already at the given
+ * level then no update is needed, so signals reached by more than one
+ * path from the root are updated only once. Otherwise, the signal's
+ * children are updated to the given level, and if any of their versions
+ * have changed, the signal is recomputed.
+ *
+ * Some nodes in the DAG may not be reached by an update. (E.g. in
+ * `b.flatMap(b => b ? s1 : s2)`, if `b` has not changed then `s1` and
+ * `s2` are not reached; if it has, only one of them is reached.). If
+ * they are reached by a later update, they'll be brought up to date as
+ * needed.
+ *
+ * There can be multiple roots, or even multiple disjoint DAGs; only the
+ * parts needed for a particular update are brought up to date.
  */
 interface Signal<T> {
-  get: () => T;
-  map<U>(f: (t: T) => U): Signal<U>;
-
   /**
-   * restricted `flatMap`; `f` must return a `Signal`
-   * that is already up-to-date with respect to its cells
-   * (e.g. by constructing it fresh)
-   * to choose between existing signals, use `ifThenElse`
-   * TODO(jaked) find a way to enforce this, maybe arrows?
+   * equivalent to `.value.get()`
    */
+  get: () => T;
+
+  map<U>(f: (t: T) => U): Signal<U>;
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U>;
 
   /**
-   * current value of this signal.
-   * not valid if a dependent cell is dirty.
+   * value of this signal, up-to-date with respect to `level`.
    */
   value: Try<T>;
 
   // TODO(jaked) how can we make these private to impl?
 
   /**
-   * if `value` differs at two points in time,
-   * `version` also differs.
+   * if an update changes `value`, `version` is incremented.
    */
   version: number;
 
   /**
-   * a signal is dirty if calling `update` might change its
-   * value. `isDirty` is valid only after a call to `dirty()`
-   * with no intervening dirtying of a dependent cell.
+   * level of the last `update()` on this signal.
    */
-  isDirty: boolean;
+  level: number;
 
   /**
-   * compute `isDirty` by checking dirtiness of children,
-   * return `isDirty`
+   * update this signal to `level`, recomputing `value` as needed.
+   * if signal is already at (or above) `level` it need not be recomputed.
+   *
+   * `update` must be called with monotonically increasing numbers.
    */
-  dirty(): boolean;
-
-  /**
-   * update this signal, recomputing `value` as needed.
-   * after update, `isDirty` is false.
-   * only safe to call after a call to `dirty()`
-   * with no intervening dirtying of a dependent cell.
-   */
-  update(): void;
-}
-
-function checkNotDirty<T>(s: Signal<T>) {
-  // a dirty cell doesn't need updating, so it's safe to use its value
-  if (s instanceof CellImpl) return;
-  if (s.isDirty) throw new Error('expected non-dirty signal');
+  update(level: number): void;
 }
 
 class Const<T> implements Signal<T> {
@@ -71,10 +75,10 @@ class Const<T> implements Signal<T> {
   flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   value: Try<T>;
-  version: 0 = 0;
-  isDirty: false = false;
-  dirty() { return false; }
-  update() { }
+  get version(): 0 { return 0; }
+  // don't need to track `level` because `update` is a no-op
+  get level(): 0 { return 0; }
+  update(level: number) { }
 }
 
 interface CellIntf<T> extends Signal<T> {
@@ -87,7 +91,6 @@ class CellImpl<T> implements CellIntf<T> {
   constructor(value: Try<T>) {
     this.value = value;
     this.version = 0;
-    this.isDirty = false;
   }
 
   get() { return this.value.get(); }
@@ -96,15 +99,14 @@ class CellImpl<T> implements CellIntf<T> {
 
   value: Try<T>;
   version: number;
-  isDirty: boolean;
-  dirty() { return this.isDirty; }
-  update() { this.isDirty = false; }
+  // don't need to track `level` because `update` is a no-op
+  get level(): 0 { return 0; }
+  update(level: number) { }
 
   set(t: Try<T>) {
     if (deepEqual(t, this.value)) return;
     this.value = t;
     this.version++;
-    this.isDirty = true;
   }
   setOk(t: T) { this.set(Try.ok(t)); }
   setErr(err: Error) { this.set(Try.err(err)); }
@@ -116,13 +118,12 @@ class Map<T, U> implements Signal<U> {
   f: (t: T) => U;
 
   constructor(s: Signal<T>, f: (t: T) => U) {
-    checkNotDirty(s);
     this.version = 0;
     this.sVersion = s.version;
-    this.isDirty = false;
     this.s = s;
     this.f = f;
     this.value = s.value.map(f);
+    this.level = s.level;
   }
 
   get() { return this.value.get(); }
@@ -131,19 +132,11 @@ class Map<T, U> implements Signal<U> {
 
   value: Try<U>;
   version: number;
-  isDirty: boolean;
-  dirty() {
-    // TODO(jaked)
-    // it's not safe to
-    //   if (this.isDirty) return isDirty;
-    // because sub-trees that are not visited by `update()`
-    // are not undirtied, so `isDirty` might be stale.
-    return (this.isDirty = this.s.dirty());
-  }
-  update() {
-    if (!this.isDirty) return;
-    this.isDirty = false;
-    this.s.update();
+  level: number;
+  update(level: number) {
+    if (this.level === level) return;
+    this.level = level;
+    this.s.update(level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     const value = this.s.value.map(this.f);
@@ -159,18 +152,17 @@ class FlatMap<T, U> implements Signal<U> {
   f: (t: T) => Signal<U>;
 
   constructor(s: Signal<T>, f: (t: T) => Signal<U>) {
-    checkNotDirty(s);
     this.version = 0;
     this.sVersion = s.version;
-    this.isDirty = false;
     this.s = s;
     this.f = f;
     if (s.value.type === 'ok') {
       const fs = f(s.value.ok);
-      checkNotDirty(fs); // doesn't hurt
       this.value = fs.value;
+      this.level = Math.min(s.level, fs.level);
     } else {
       this.value = <Try<U>><unknown>s.value;
+      this.level = s.level;
     }
   }
 
@@ -180,24 +172,17 @@ class FlatMap<T, U> implements Signal<U> {
 
   value: Try<U>;
   version: number;
-  isDirty: boolean;
-  dirty() {
-    return (this.isDirty = this.s.dirty());
-  }
-  update() {
-    if (!this.isDirty) return;
-    this.isDirty = false;
-    this.s.update();
+  level: number;
+  update(level: number) {
+    if (this.level === level) return;
+    this.level = level;
+    this.s.update(level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     let value: Try<U>;
     if (this.s.value.type === 'ok') {
-      // if `f` returns an out-of-date `Signal`, we can't
-      // correctly update it, because we didn't get a chance to
-      // call `dirty()` on it. we can't call `dirty()` here because
-      // we might already have un-dirtied an underlying cell.
       const fs = this.f(this.s.value.ok);
-      checkNotDirty(fs); // doesn't hurt
+      fs.update(level);
       value = fs.value;
     } else {
       value = <Try<U>><unknown>this.s.value;
@@ -220,16 +205,14 @@ class JoinMap<T1, T2, R> implements Signal<R> {
     s2: Signal<T2>,
     f: (t1: T1, t2: T2) => R
   ) {
-    checkNotDirty(s1);
-    checkNotDirty(s2);
     this.version = 0;
     this.s1Version = s1.version;
     this.s2Version = s2.version;
-    this.isDirty = false;
     this.s1 = s1;
     this.s2 = s2;
     this.f = f;
     this.value = Try.joinMap2(s1.value, s2.value, f);
+    this.level = Math.min(s1.level, s2.level);
   }
 
   get() { return this.value.get(); }
@@ -238,15 +221,12 @@ class JoinMap<T1, T2, R> implements Signal<R> {
 
   value: Try<R>;
   version: number;
-  isDirty: boolean;
-  dirty() {
-    return (this.isDirty = (this.s1.dirty() || this.s2.dirty()));
-  }
-  update() {
-    if (!this.isDirty) return;
-    this.isDirty = false;
-    this.s1.update();
-    this.s2.update();
+  level: number;
+  update(level: number) {
+    if (this.level === level) return;
+    this.level = level;
+    this.s1.update(level);
+    this.s2.update(level);
     if (this.s1Version === this.s1.version &&
         this.s2Version === this.s2.version)
       return;
@@ -259,74 +239,7 @@ class JoinMap<T1, T2, R> implements Signal<R> {
   }
 }
 
-class IfThenElse<I, TE> implements Signal<TE> {
-  i: Signal<I>;
-  iVersion: number;
-  t: Signal<TE>;
-  tVersion: number;
-  e: Signal<TE>;
-  eVersion: number;
-
-  constructor(
-    i: Signal<I>,
-    t: Signal<TE>,
-    e: Signal<TE>
-  ) {
-    checkNotDirty(i);
-    checkNotDirty(t);
-    checkNotDirty(e);
-    this.version = 0;
-    this.iVersion = i.version;
-    this.tVersion = t.version;
-    this.eVersion = e.version;
-    this.isDirty = false;
-    this.i = i;
-    this.t = t;
-    this.e = e;
-    this.value = i.value.flatMap(i => i ? t.value : e.value);
-  }
-
-  get() { return this.value.get(); }
-  map<V>(f: (t: TE) => V) { return new Map(this, f); }
-  flatMap<V>(f: (t: TE) => Signal<V>) { return new FlatMap(this, f); }
-
-  value: Try<TE>;
-  version: number;
-  isDirty: boolean;
-  dirty() {
-    return (this.isDirty = (this.i.dirty() || this.t.dirty() || this.e.dirty()));
-  }
-  update() {
-    if (!this.isDirty) return;
-    this.isDirty = false;
-    this.i.update();
-    this.t.update();
-    this.e.update();
-    if (this.iVersion === this.i.version &&
-        this.tVersion === this.t.version &&
-        this.eVersion === this.e.version)
-      return;
-    this.iVersion = this.i.version;
-    this.tVersion = this.t.version;
-    this.eVersion = this.e.version;
-    const value = this.i.value.flatMap(i => i ? this.t.value : this.e.value);
-    if (deepEqual(value, this.value)) return;
-    this.value = value;
-    this.version++;
-  }
-}
-
 module Signal {
-  export function update<T>(signal: Signal<T>): void {
-    if (signal.dirty())
-      signal.update();
-  }
-
-  export function run<T>(signal: Signal<T>): T {
-    update(signal);
-    return signal.get();
-  }
-
   export function constant<T>(t: Try<T>): Signal<T> {
     return new Const(t);
   }
@@ -357,14 +270,6 @@ module Signal {
     f: (t1: T1, t2: T2) => R
   ): Signal<R> {
     return new JoinMap(s1, s2, f);
-  }
-
-  export function ifThenElse<I, TE>(
-    i: Signal<I>,
-    t: Signal<TE>,
-    e: Signal<TE>
-  ): Signal<TE> {
-    return new IfThenElse(i, t, e);
   }
 
   export type Cell<T> = CellIntf<T>;

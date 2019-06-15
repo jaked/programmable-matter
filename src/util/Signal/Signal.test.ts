@@ -64,7 +64,7 @@ describe('cell', () => {
   it('setOk', () => {
     const s = Signal.cellOk(7);
     s.setOk(8);
-    Signal.update(s);
+    s.update(1);
     expect(s.value.type === 'ok' && s.value.ok).toBe(8);
     expect(s.get()).toBe(8);
   });
@@ -72,7 +72,7 @@ describe('cell', () => {
   it('setErr', () => {
     const s = Signal.cellOk(7);
     s.setErr(err);
-    Signal.update(s);
+    s.update(1);
     expect(s.value.type === 'err' && s.value.err).toBe(err);
     expect(() => s.get()).toThrow(err);
   });
@@ -81,7 +81,7 @@ describe('cell', () => {
     const s = Signal.cellOk(7);
     expect(s.version).toBe(0);
     s.setOk(7);
-    Signal.update(s);
+    s.update(1);
     expect(s.version).toBe(0);
     expect(s.value.type === 'ok' && s.value.ok).toBe(7);
     expect(s.get()).toBe(7);
@@ -98,12 +98,12 @@ describe('map', () => {
     expect(calls).toBe(1);
 
     c.setOk(7);
-    Signal.update(m);
+    m.update(1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    Signal.update(m);
+    m.update(2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
     expect(calls).toBe(2);
   });
@@ -118,7 +118,7 @@ describe('map', () => {
     expect(m.version).toBe(0);
 
     c.setOk(9);
-    Signal.update(m);
+    m.update(1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(0);
@@ -135,12 +135,12 @@ describe('flatMap', () => {
     expect(calls).toBe(1);
 
     c.setOk(7);
-    Signal.update(m);
+    m.update(1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    Signal.update(m);
+    m.update(2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
     expect(calls).toBe(2);
   });
@@ -155,7 +155,7 @@ describe('flatMap', () => {
     expect(m.version).toBe(0);
 
     c.setOk(9);
-    Signal.update(m);
+    m.update(1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(0);
@@ -192,17 +192,17 @@ describe('joinMap', () => {
     expect(calls).toBe(1);
 
     c1.setOk(7);
-    Signal.update(j);
+    j.update(1);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c2.setOk(9);
-    Signal.update(j);
+    j.update(2);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c1.setOk(11);
-    Signal.update(j);
+    j.update(3);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([11, 9]);
     expect(calls).toBe(2);
   });
@@ -217,80 +217,8 @@ describe('joinMap', () => {
 
     c1.setOk(9);
     c2.setOk(7);
-    Signal.update(j);
+    j.update(1);
     expect(j.value.type === 'ok' && j.value.ok).toBe(16);
     expect(j.version).toBe(0);
-  });
-});
-
-describe('ifThenElse', () => {
-  it('if then elses', () => {
-    const t = Signal.ok(7);
-    const e = Signal.ok(9);
-
-    const ite = Signal.ifThenElse(Signal.ok(true), t, e);
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(7);
-
-    const ite2 = Signal.ifThenElse(Signal.ok(false), t, e);
-    expect(ite2.value.type === 'ok' && ite2.value.ok).toBe(9);
-  });
-
-  it('propagates errors', () => {
-    const t = Signal.ok(7);
-    const e = Signal.ok(9);
-
-    const ite = Signal.ifThenElse(Signal.ok(true), t, Signal.err(err));
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(7);
-
-    const ite2 = Signal.ifThenElse(Signal.ok(true), Signal.err(err), e);
-    expect(ite2.value.type === 'err' && ite2.value.err).toBe(err);
-
-    const ite3 = Signal.ifThenElse(Signal.ok(false), t, Signal.err(err));
-    expect(ite3.value.type === 'err' && ite3.value.err).toBe(err);
-
-    const ite4 = Signal.ifThenElse(Signal.ok(false), Signal.err(err), e);
-    expect(ite4.value.type === 'ok' && ite4.value.ok).toBe(9);
-  });
-
-  it('propagates changes', () => {
-    const i = Signal.cellOk(true);
-    const t = Signal.cellOk(7);
-    const e = Signal.cellOk(9);
-    const ite = Signal.ifThenElse(i, t, e);
-
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(7);
-    expect(ite.version).toBe(0);
-
-    t.setOk(11);
-    Signal.update(ite);
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(11);
-    expect(ite.version).toBe(1);
-
-    i.setOk(false);
-    Signal.update(ite);
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(9);
-    expect(ite.version).toBe(2);
-
-    e.setOk(13);
-    Signal.update(ite);
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(13);
-    expect(ite.version).toBe(3);
-  });
-
-  it('does not bump version on equal value', () => {
-    const i = Signal.cellOk(true);
-    const t = Signal.cellOk(7);
-    const e = Signal.cellOk(9);
-    const ite = Signal.ifThenElse(i, t, e);
-
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(7);
-    expect(ite.version).toBe(0);
-
-    i.setOk(false);
-    t.setOk(9);
-    e.setOk(7);
-    Signal.update(ite);
-    expect(ite.value.type === 'ok' && ite.value.ok).toBe(7);
-    expect(ite.version).toBe(0);
   });
 });
