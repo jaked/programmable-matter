@@ -6,6 +6,7 @@ import * as Immutable from 'immutable';
 
 import { Atom, Lens } from '@grammarly/focal';
 
+import { Cell } from './util/Cell';
 import * as data from './data';
 import { Watcher } from './files/Watcher';
 
@@ -79,7 +80,7 @@ function immutableMapLens<T>(key: string): Lens<Immutable.Map<string, T>, T> {
   )
 }
 
-function getLet(module: string, name: string, init: any): Atom<any> {
+function mkCell(module: string, name: string, init: any): Cell<any> {
   const noteLetsAtom = letsAtom.lens(immutableMapLens<Immutable.Map<string, any>>(module));
   if (noteLetsAtom.get() === null) {
     noteLetsAtom.set(Immutable.Map());
@@ -96,7 +97,7 @@ function getLet(module: string, name: string, init: any): Atom<any> {
 let currentCompiledNotes: data.Notes = Immutable.Map();
 let compiledNotesAtom = notesAtom.view(notes => {
   currentCompiledNotes =
-    Compile.compileNotes(currentCompiledNotes, notes, getLet);
+    Compile.compileNotes(currentCompiledNotes, notes, mkCell);
   return currentCompiledNotes;
 });
 

@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as AcornJsxAst from '../lang/acornJsxAst';
 
-import { Atom, ReadOnlyAtom } from '@grammarly/focal';
+import { Cell } from '../util/Cell';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
@@ -23,7 +23,7 @@ export function evaluateExpression(
       if (typeof ast.atom === 'undefined')
         throw new Error('expected AST to be typechecked');
       if (ast.atom) {
-        return (<ReadOnlyAtom<any>>value).get();
+        return (<Cell<any>>value).get();
       } else {
         return value;
       }
@@ -56,7 +56,7 @@ export function evaluateExpression(
       // TODO(jaked) for what elements does this make sense? only input?
       if (name === 'input' && attrs.id) {
         if (env.has(attrs.id)) {
-          const atom = env.get(attrs.id) as Atom<any>;
+          const atom = env.get(attrs.id) as Cell<any>;
           attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             atom.set(e.currentTarget.value);
           }
@@ -120,7 +120,7 @@ export function evaluateExpression(
       if (typeof ast.atom === 'undefined')
         throw new Error('expected AST to be typechecked');
       if (ast.atom) {
-        return (<ReadOnlyAtom<any>>value).get();
+        return (<Cell<any>>value).get();
       } else {
         return value;
       }

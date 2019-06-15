@@ -13,7 +13,7 @@ import Gist from 'react-gist';
 
 import { InlineMath, BlockMath } from 'react-katex';
 
-import { Atom } from '@grammarly/focal';
+import { Cell } from '../util/Cell';
 
 import * as MDXHAST from './mdxhast';
 import * as Evaluator from './evaluator';
@@ -26,14 +26,14 @@ function evaluateMdxBindings(
   ast: MDXHAST.Node,
   module: string,
   env: Env,
-  getLet: (module: string, name: string, init: any) => Atom<any>,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
   exportValues: { [s: string]: any }
 ): Env {
   switch (ast.type) {
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, module, env, getLet, exportValues)
+        env = evaluateMdxBindings(child, module, env, mkCell, exportValues)
       );
       return env;
 
@@ -73,7 +73,7 @@ function evaluateMdxBindings(
                   //   throw new Error('atom initializer must be static');
                   // }
                   const name = declarator.id.name;
-                  const letAtom = getLet(module, name, init);
+                  const letAtom = mkCell(module, name, init);
                   exportValues[name] = letAtom;
                   env = env.set(name, letAtom);
                 });
@@ -133,10 +133,10 @@ export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
   env: Env,
-  getLet: (module: string, name: string, init: any) => Atom<any>,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
   exportValues: { [s: string]: any }
 ): React.ReactNode {
-  const env2 = evaluateMdxBindings(ast, module, env, getLet, exportValues);
+  const env2 = evaluateMdxBindings(ast, module, env, mkCell, exportValues);
   return renderMdxElements(ast, module, env2);
 }
 

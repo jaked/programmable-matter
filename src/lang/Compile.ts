@@ -1,4 +1,4 @@
-import { Atom } from '@grammarly/focal';
+import { Cell } from '../util/Cell';
 import Try from '../util/Try';
 import * as data from '../data';
 import * as MDXHAST from './mdxhast';
@@ -39,7 +39,7 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
 export function compileNotes(
   oldNotes: data.Notes,
   newNotes: data.Notes,
-  getLet: (module: string, name: string, init?: any) => Atom<any>,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): data.Notes {
   const dirty = new Set<string>();
 
@@ -138,8 +138,8 @@ export function compileNotes(
         Typecheck.checkMdx(ast, typeEnv, exportTypes);
         const exportType = Type.module(exportTypes);
         typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
-        Render.renderMdx(ast, capitalizedTag, valueEnv, getLet, exportValue);
-        const rendered = () => Render.renderMdx(ast, capitalizedTag, valueEnv, getLet, exportValue);
+        Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
+        const rendered = () => Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
         valueEnv = valueEnv.set(capitalizedTag, exportValue);
         compiled = Try.ok({ exportType, exportValue, rendered });
       } catch (e) {
