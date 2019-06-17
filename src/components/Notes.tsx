@@ -1,5 +1,5 @@
 import React from 'react';
-import List from '@material-ui/core/List';
+import { Box } from 'rebass';
 import * as data from '../data';
 import { Note } from './Note';
 
@@ -22,7 +22,7 @@ export class Notes extends React.Component<Props, State> {
     const notesArray = notes.valueSeq().toArray();
 
     return (
-      <List dense disablePadding>
+      <Box>
       {notesArray.map((note) =>
         <Note
           key={note.tag}
@@ -31,7 +31,7 @@ export class Notes extends React.Component<Props, State> {
           onClick={ () => onSelect(note.tag) }
         />
       )}
-      </List>
+      </Box>
     );
   }
 }

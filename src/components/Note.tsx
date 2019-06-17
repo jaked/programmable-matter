@@ -1,6 +1,6 @@
 import * as React from 'react';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemText from '@material-ui/core/ListItemText';
+import { Box as BaseBox } from 'rebass';
+import styled from 'styled-components';
 import * as data from '../data';
 
 interface Props {
@@ -9,25 +9,20 @@ interface Props {
   onClick: () => void;
 }
 
-interface State {
+const Box = styled(BaseBox)`
+  :hover { background-color: #cccccc; }
+`;
 
-}
-
-export class Note extends React.Component<Props, State> {
-  render() {
-    const { note: { tag, content}, selected, onClick } = this.props;
+export const Note: React.FunctionComponent<Props> =
+  function({ note: { tag, content }, selected, onClick }) {
     return (
-      <ListItem
-        button
-        dense
-        disableRipple
-        selected={selected}
+      <Box
+        width={1}
+        padding={2}
+        backgroundColor={selected ? '#888888' : '#ffffff'}
         onClick={onClick}
       >
-        <ListItemText
-          primary={tag}
-        />
-      </ListItem>
+        {tag}
+      </Box>
     );
   }
-}

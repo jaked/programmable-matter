@@ -1,8 +1,5 @@
 import * as React from 'react';
-
-import CssBaseline from '@material-ui/core/CssBaseline';
-import Grid from '@material-ui/core/Grid';
-import TextField from '@material-ui/core/TextField';
+import { Flex, Box } from 'rebass';
 
 import * as data from '../data';
 
@@ -22,29 +19,28 @@ interface Props {
 
 export function Main({ notes, selected, content, compiledNote, onSelect, onChange }: Props) {
   return (
-    <React.Fragment>
-      <CssBaseline />
-      <Grid container direction='row' style={{ height: '100vh' }}>
-        <Grid item xs={2} style={{ height: '100%', overflowY: 'auto' }}>
+    <>
+      <Flex style={{ height: '100vh' }}>
+        <Box width={1/6}>
           <Notes
             notes={notes}
             selected={selected}
             onSelect={onSelect}
           />
-        </Grid>
-        <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
+        </Box>
+        <Box width={5/12}>
           <Editor
             content={content}
             compiledNote={compiledNote}
             onChange={onChange}
           />
-        </Grid>
-        <Grid item xs={5} style={{ height: '100%', overflowY: 'auto' }}>
+        </Box>
+        <Box width={5/12}>
           <Catch>
             <Display compiledNote={compiledNote} />
           </Catch>
-        </Grid>
-      </Grid>
-    </React.Fragment>
+        </Box>
+      </Flex>
+    </>
   );
 }
