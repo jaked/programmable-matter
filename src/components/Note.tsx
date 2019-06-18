@@ -10,7 +10,10 @@ interface Props {
 }
 
 const Box = styled(BaseBox)`
-  :hover { background-color: #cccccc; }
+  :hover {
+    background-color: #cccccc;
+    cursor: pointer;
+  }
 `;
 
 export const Note: React.FunctionComponent<Props> =

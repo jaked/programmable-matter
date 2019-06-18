@@ -25,6 +25,7 @@ const ROOT = process.cwd();
 
 const notesCell = Signal.cellOk<data.Notes>(Immutable.Map());
 const selectedCell = Signal.cellOk<string | null>(null);
+const searchCell = Signal.cellOk<string>('');
 let letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
 
 function setNotes(notes: data.Notes) {
@@ -36,6 +37,22 @@ function setSelected(selected: string | null) {
   selectedCell.setOk(selected);
   render();
 }
+
+function setSearch(search: string) {
+  searchCell.setOk(search);
+  render();
+}
+
+const matchingNotesSignal = Signal.joinMap(notesCell, searchCell, (notes, search) => {
+  if (search) {
+    // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+    const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+    const regexp = RegExp(escaped, 'i');
+    return notes.filter(note => note.content.match(regexp));
+  } else {
+    return notes;
+  }
+});
 
 const contentSignal = Signal.joinMap(notesCell, selectedCell, (notes, selected) => {
   if (selected) {
@@ -106,15 +123,19 @@ let compiledNoteSignal =
 let level = 0;
 function render() {
   level++;
+  // TODO(jaked) write this as a join instead of .get()s
   contentSignal.update(level);
   compiledNoteSignal.update(level);
+  matchingNotesSignal.update(level);
   ReactDOM.render(
     <Main
-      notes={notesCell.get()}
+      notes={matchingNotesSignal.get()}
       selected={selectedCell.get()}
+      search={searchCell.get()}
       content={contentSignal.get()}
       compiledNote={compiledNoteSignal.get()}
       onSelect={tag => setSelected(tag) }
+      onSearch={setSearch}
       onChange={setContent}
     />,
     document.getElementById('main')
