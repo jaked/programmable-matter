@@ -11,7 +11,6 @@ interface Props {
 
 const Box = styled(BaseBox)`
   :hover {
-    background-color: #cccccc;
     cursor: pointer;
   }
 `;
@@ -22,7 +21,7 @@ export const Note: React.FunctionComponent<Props> =
       <Box
         width={1}
         padding={2}
-        backgroundColor={selected ? '#888888' : '#ffffff'}
+        backgroundColor={selected ? '#cccccc' : '#ffffff'}
         onClick={onClick}
       >
         {tag}

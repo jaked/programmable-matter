@@ -1,7 +1,13 @@
 import React from 'react';
-import { Box } from 'rebass';
+import { Box as BoxBase } from 'rebass';
+import styled from 'styled-components';
 import * as data from '../data';
 import { Note } from './Note';
+
+// TODO(jaked) make this a global style? or should there be (lighter) outlines?
+const Box = styled(BoxBase)({
+  outline: 'none'
+});
 
 interface Props {
   notes: data.Notes;
@@ -9,20 +15,47 @@ interface Props {
   onSelect: (tag: string) => void;
 }
 
-interface State {
-}
+export function Notes({ notes, selected, onSelect }: Props) {
+  const notesArray = notes.valueSeq().toArray();
 
-export class Notes extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
+  function nextNote(prev: boolean): boolean {
+    if (notesArray.length === 0) return false;
+    let nextTagIndex: number;
+    const tagIndex = notesArray.findIndex(note => note.tag === selected);
+    if (tagIndex === -1) {
+      nextTagIndex = prev ? (notesArray.length - 1) : 0;
+    } else {
+      nextTagIndex = (tagIndex + (prev ? -1 : 1));
+      if (nextTagIndex === -1) nextTagIndex = notesArray.length - 1;
+      else if (nextTagIndex === notesArray.length) nextTagIndex = 0;
+    }
+    const nextTag = notesArray[nextTagIndex].tag;
+    onSelect(nextTag);
+    return true;
   }
 
-  render() {
-    const { notes, selected, onSelect } = this.props;
-    const notesArray = notes.valueSeq().toArray();
+  function onKeyPress(key: string): boolean {
+    console.log(`Notes.onKeyPress(${key})`)
+    switch (key) {
+      case 'ArrowUp':
+        return nextNote(true);
 
-    return (
-      <Box>
+      case 'ArrowDown':
+        return nextNote(false);
+
+      default: return false;
+    }
+  }
+
+  return (
+    <Box
+      tabIndex='0'
+      // TODO(jaked) onKeyPress doesn't work, why not?
+      onKeyDown={(e: React.KeyboardEvent) => {
+        if (onKeyPress(e.key))
+          e.preventDefault();
+      }}
+    >
       {notesArray.map((note) =>
         <Note
           key={note.tag}
@@ -31,7 +64,6 @@ export class Notes extends React.Component<Props, State> {
           onClick={ () => onSelect(note.tag) }
         />
       )}
-      </Box>
-    );
-  }
+    </Box>
+  );
 }
