@@ -1,6 +1,7 @@
 import * as React from 'react';
 import RSCEditor from './react-simple-code-editor';
 
+import styled from 'styled-components';
 import * as MDXHAST from '../lang/mdxhast';
 import * as AcornJsxAst from '../lang/acornJsxAst';
 
@@ -13,18 +14,19 @@ interface Props {
   onChange: (content: string) => void;
 }
 
-type Span = { start: number, end: number, color: string };
-
-const colors = {
-  default: '#000000',
-  atom: '#221199',
-  number: '#116644',
-  string: '#AA1111',
-  keyword: '#770088',
-  definition: '#0000ff',
-  variable: '#268bd2',
-  property: '#b58900',
+const components =
+{
+  default:    styled.span({ color: '#000000' }),
+  atom:       styled.span({ color: '#221199' }),
+  number:     styled.span({ color: '#116644' }),
+  string:     styled.span({ color: '#aa1111' }),
+  keyword:    styled.span({ color: '#770088' }),
+  definition: styled.span({ color: '#0000ff' }),
+  variable:   styled.span({ color: '#268bd2' }),
+  property:   styled.span({ color: '#b58900' }),
 }
+
+type Span = { start: number, end: number, Component: React.FunctionComponent };
 
 function computeJsSpans(
   ast: AcornJsxAst.Node,
@@ -35,12 +37,16 @@ function computeJsSpans(
       case 'Literal': {
         const start = ast.start;
         const end = ast.end;
-        let color: string = colors.default;
-        if (typeof ast.value === 'string') color = colors.string;
-        else if (typeof ast.value === 'number') color = colors.number;
-        else if (typeof ast.value === 'boolean') color = colors.atom;
-        else if (typeof ast.value === 'object') color = colors.atom;
-        spans.push({ start, end, color });
+        const Component = (() => {
+          switch (typeof ast.value) {
+            case 'string': return components.string;
+            case 'number': return components.number;
+            case 'boolean': return components.atom;
+            case 'object': return components.atom;
+            default: return components.default;
+          }
+        })();
+        spans.push({ start, end, Component });
       }
       return;
 
@@ -48,8 +54,8 @@ function computeJsSpans(
       case 'Identifier': {
         const start = ast.start;
         const end = ast.end;
-        const color = colors.variable;
-        spans.push({ start, end, color });
+        const Component = components.variable;
+        spans.push({ start, end, Component });
       }
       return;
 
@@ -57,8 +63,8 @@ function computeJsSpans(
         if (ast.key.type === 'Identifier') {
           const start = ast.key.start;
           const end = ast.key.end;
-          const color = colors.property;
-          spans.push({ start, end, color });
+          const Component = components.property;
+          spans.push({ start, end, Component });
 
           AcornJsxAst.visit(ast.value, fn);
           return false;
@@ -69,8 +75,8 @@ function computeJsSpans(
       case 'JSXAttribute': {
         const start = ast.name.start;
         const end = ast.name.end;
-        const color = colors.property;
-        spans.push({ start, end, color });
+        const Component = components.property;
+        spans.push({ start, end, Component });
 
         AcornJsxAst.visit(ast.value, fn);
         return false;
@@ -80,8 +86,8 @@ function computeJsSpans(
         // TODO(jaked) handle `from`
         const start = ast.start;
         const end = ast.start + 6; // import
-        const color = colors.keyword;
-        spans.push({ start, end, color });
+        const Component = components.keyword;
+        spans.push({ start, end, Component });
       }
       return;
 
@@ -90,38 +96,38 @@ function computeJsSpans(
         {
           const start = ast.start;
           const end = ast.start + 1; // *
-          const color = colors.variable;
-          spans.push({ start, end, color });
+          const Component = components.variable;
+          spans.push({ start, end, Component });
         }
         {
           const start = ast.local.start;
           const end = ast.local.end;
-          const color = colors.definition;
-          spans.push({ start, end, color });
+          const Component = components.definition;
+          spans.push({ start, end, Component });
         }
         return false;
 
       case 'ExportNamedDeclaration': {
         const start = ast.start;
         const end = ast.start + 6; // export
-        const color = colors.keyword;
-        spans.push({ start, end, color });
+        const Component = components.keyword;
+        spans.push({ start, end, Component });
       }
       return;
 
       case 'VariableDeclaration': {
         const start = ast.start;
         const end = ast.start + ast.kind.length;
-        const color = colors.keyword;
-        spans.push({ start, end, color });
+        const Component = components.keyword;
+        spans.push({ start, end, Component });
       }
       return;
 
       case 'VariableDeclarator': {
         const start = ast.id.start;
         const end = ast.id.end;
-        const color = colors.definition;
-        spans.push({ start, end, color });
+        const Component = components.definition;
+        spans.push({ start, end, Component });
 
         AcornJsxAst.visit(ast.init, fn);
         return false;
@@ -178,9 +184,9 @@ function computeHighlight(content: string, compiledNote: data.Note) {
     if (last < span.start) {
       elements.push(content.slice(last, span.start));
     }
-    const color = span.color;
+    const Component = span.Component;
     const chunk = content.slice(span.start, span.end);
-    elements.push(<span style={{ color }}>{chunk}</span>);
+    elements.push(<Component key={i}>{chunk}</Component>);
     last = span.end;
   }
   if (last < content.length) {
