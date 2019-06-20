@@ -192,7 +192,7 @@ function computeHighlight(content: string, compiledNote: data.Note) {
   let lastOffset = 0;
 
   function pushLine() {
-    lines.push(<div>{lineNodes}</div>);
+    lines.push(lineNodes);
     lineNodes = [];
     lastOffset = lineEnd;
     line += 1;

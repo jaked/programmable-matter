@@ -12,7 +12,7 @@ import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
 
 interface Props {
-  notes: data.Notes;
+  notes: Array<data.Note>;
   selected: string | null;
   search: string;
   content: string | null;
@@ -27,13 +27,39 @@ const Box = styled(BoxBase)({
 }, borders);
 
 export function Main({ notes, selected, search, content, compiledNote, onSelect, onSearch, onChange }: Props) {
+  const notesRef = React.createRef<HTMLDivElement>();
+
+  function onKeyDown(key: string): boolean {
+    switch (key) {
+      case 'ArrowUp':
+        notesRef.current && notesRef.current.focus();
+        onSelect(notes[notes.length - 1].tag);
+        return true;
+
+      case 'ArrowDown':
+        notesRef.current && notesRef.current.focus();
+        onSelect(notes[0].tag);
+        return true;
+
+      case 'Enter':
+        return true;
+
+      default: return false;
+    }
+  }
+
   return (
     <>
       <Flex style={{ height: '100vh' }}>
         <Box width={1/6}>
           <Flex flexDirection='column'>
-            <SearchBox search={search} onSearch={onSearch} />
+            <SearchBox
+              search={search}
+              onSearch={onSearch}
+              onKeyDown={onKeyDown}
+            />
             <Notes
+              ref={notesRef}
               notes={notes}
               selected={selected}
               onSelect={onSelect}

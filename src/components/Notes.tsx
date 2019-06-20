@@ -10,38 +10,35 @@ const Box = styled(BoxBase)({
 });
 
 interface Props {
-  notes: data.Notes;
+  notes: Array<data.Note>;
   selected: string | null;
   onSelect: (tag: string) => void;
 }
 
-export function Notes({ notes, selected, onSelect }: Props) {
-  const notesArray = notes.valueSeq().toArray();
-
-  function nextNote(prev: boolean): boolean {
-    if (notesArray.length === 0) return false;
+export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect }, ref) => {
+  function nextNote(dir: 'prev' | 'next'): boolean {
+    if (notes.length === 0) return false;
     let nextTagIndex: number;
-    const tagIndex = notesArray.findIndex(note => note.tag === selected);
+    const tagIndex = notes.findIndex(note => note.tag === selected);
     if (tagIndex === -1) {
-      nextTagIndex = prev ? (notesArray.length - 1) : 0;
+      nextTagIndex = dir === 'prev' ? (notes.length - 1) : 0;
     } else {
-      nextTagIndex = (tagIndex + (prev ? -1 : 1));
-      if (nextTagIndex === -1) nextTagIndex = notesArray.length - 1;
-      else if (nextTagIndex === notesArray.length) nextTagIndex = 0;
+      nextTagIndex = (tagIndex + (dir === 'prev' ? -1 : 1));
+      if (nextTagIndex === -1) nextTagIndex = notes.length - 1;
+      else if (nextTagIndex === notes.length) nextTagIndex = 0;
     }
-    const nextTag = notesArray[nextTagIndex].tag;
+    const nextTag = notes[nextTagIndex].tag;
     onSelect(nextTag);
     return true;
   }
 
-  function onKeyPress(key: string): boolean {
-    console.log(`Notes.onKeyPress(${key})`)
+  function onKeyDown(key: string): boolean {
     switch (key) {
       case 'ArrowUp':
-        return nextNote(true);
+        return nextNote('prev');
 
       case 'ArrowDown':
-        return nextNote(false);
+        return nextNote('next');
 
       default: return false;
     }
@@ -49,14 +46,14 @@ export function Notes({ notes, selected, onSelect }: Props) {
 
   return (
     <Box
+      ref={ref}
       tabIndex='0'
-      // TODO(jaked) onKeyPress doesn't work, why not?
       onKeyDown={(e: React.KeyboardEvent) => {
-        if (onKeyPress(e.key))
+        if (onKeyDown(e.key))
           e.preventDefault();
       }}
     >
-      {notesArray.map((note) =>
+      {notes.map((note) =>
         <Note
           key={note.tag}
           note={note}
@@ -66,4 +63,4 @@ export function Notes({ notes, selected, onSelect }: Props) {
       )}
     </Box>
   );
-}
+});
