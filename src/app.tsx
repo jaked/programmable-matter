@@ -15,6 +15,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import { Main } from './components/Main';
+import * as RSCEditor from './components/react-simple-code-editor';
 
 import Unhandled from 'electron-unhandled';
 
@@ -24,6 +25,7 @@ Unhandled();
 const ROOT = process.cwd();
 
 const notesCell = Signal.cellOk<data.Notes>(Immutable.Map());
+const sessionsCell = Signal.cellOk<Immutable.Map<string, RSCEditor.Session>>(Immutable.Map());
 const selectedCell = Signal.cellOk<string | null>(null);
 const searchCell = Signal.cellOk<string>('');
 let letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
@@ -81,6 +83,32 @@ function setContent(content: string | null) {
   }
 }
 
+const sessionSignal = Signal.joinMap(sessionsCell, selectedCell, (sessions, selected) => {
+  if (selected) {
+    const session = sessions.get(selected);
+    if (session) {
+      return session;
+    }
+  }
+  // TODO(jaked)
+  // empty session should be defined on RSCEditor
+  return {
+    history: {
+      stack: [],
+      offset: -1,
+    }
+  };
+});
+
+function saveSession(session: RSCEditor.Session) {
+  const selected = selectedCell.get();
+  if (selected) {
+    const sessions = sessionsCell.get().set(selected, session);
+    sessionsCell.setOk(sessions);
+    render();
+  }
+}
+
 let watcher = new Watcher(f => {
   setNotes(f(notesCell.get()));
 });
@@ -130,6 +158,7 @@ function render() {
   contentSignal.update(level);
   compiledNoteSignal.update(level);
   matchingNotesSignal.update(level);
+  sessionSignal.update(level);
   ReactDOM.render(
     <Main
       notes={matchingNotesSignal.get()}
@@ -137,9 +166,11 @@ function render() {
       search={searchCell.get()}
       content={contentSignal.get()}
       compiledNote={compiledNoteSignal.get()}
-      onSelect={tag => setSelected(tag) }
+      session={sessionSignal.get()}
+      onSelect={setSelected}
       onSearch={setSearch}
       onChange={setContent}
+      saveSession={saveSession}
     />,
     document.getElementById('main')
   );

@@ -8,6 +8,7 @@ import * as data from '../data';
 import { Catch } from './Catch';
 import { Display } from './Display';
 import { Editor } from './Editor';
+import * as RSCEditor from './react-simple-code-editor';
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
 
@@ -17,16 +18,18 @@ interface Props {
   search: string;
   content: string | null;
   compiledNote: data.Note | null;
+  session: RSCEditor.Session;
   onSelect: (tag: string | null) => void;
   onSearch: (search: string) => void;
   onChange: (content: string | null) => void;
+  saveSession: (session: RSCEditor.Session) => void;
 }
 
 const Box = styled(BoxBase)({
   overflow: 'auto',
 }, borders);
 
-export function Main({ notes, selected, search, content, compiledNote, onSelect, onSearch, onChange }: Props) {
+export function Main({ notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession }: Props) {
   const notesRef = React.createRef<HTMLDivElement>();
 
   function onKeyDown(key: string): boolean {
@@ -68,9 +71,12 @@ export function Main({ notes, selected, search, content, compiledNote, onSelect,
         </Box>
         <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
           <Editor
+            selected={selected}
             content={content}
             compiledNote={compiledNote}
+            session={session}
             onChange={onChange}
+            saveSession={saveSession}
           />
         </Box>
         <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>

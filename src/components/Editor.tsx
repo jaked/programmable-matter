@@ -1,6 +1,6 @@
 import * as React from 'react';
 // import { FixedSizeList } from 'react-window';
-import RSCEditor from './react-simple-code-editor';
+import RSCEditor, { Session } from './react-simple-code-editor';
 
 import styled from 'styled-components';
 import * as MDXHAST from '../lang/mdxhast';
@@ -9,10 +9,13 @@ import * as AcornJsxAst from '../lang/acornJsxAst';
 import * as data from '../data';
 
 interface Props {
+  selected: string | null;
   content: string | null;
   compiledNote: data.Note | null;
+  session: Session;
 
   onChange: (content: string) => void;
+  saveSession: (session: Session) => void;
 }
 
 const components =
@@ -262,13 +265,34 @@ function computeHighlight(content: string, compiledNote: data.Note) {
 }
 
 export class Editor extends React.Component<Props, {}> {
-  handleChange = (content: string) => {
-    this.props.onChange(content)
+  rscEditorRef = React.createRef<RSCEditor>();
+
+  constructor(props: Props) {
+    super(props);
+
+    this.onValueChange = this.onValueChange.bind(this);
+  }
+
+  // TODO(jaked)
+  // would be nice if session were a prop on RSCEditor
+  setSession() {
+    if (this.rscEditorRef.current) {
+      this.rscEditorRef.current.session = this.props.session;
+    }
+  }
+  componentDidMount() { this.setSession(); }
+  componentDidUpdate() { this.setSession(); }
+
+  onValueChange(x: string) {
+    this.props.onChange(x);
+    if (this.rscEditorRef.current) {
+      this.props.saveSession(this.rscEditorRef.current.session);
+    }
   }
 
   render() {
-    const { content, compiledNote } = this.props;
-    if (content === null || compiledNote === null) {
+    const { selected, content, compiledNote } = this.props;
+    if (selected === null || content === null || compiledNote === null) {
       return <span>no note</span>
     } else {
       const highlight = computeHighlight(content, compiledNote);
@@ -278,8 +302,10 @@ export class Editor extends React.Component<Props, {}> {
           fontSize: '14px',
         }}>
           <RSCEditor
+            ref={this.rscEditorRef}
+            name={selected}
             value={content}
-            onValueChange={this.handleChange}
+            onValueChange={this.onValueChange}
             highlight={_ => highlight}
           />
         </div>

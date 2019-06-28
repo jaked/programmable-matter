@@ -1,9 +1,6 @@
 import * as React from 'react';
 
-type Props = React.DetailedHTMLProps<
-  React.HTMLAttributes<HTMLDivElement>,
-  HTMLDivElement
-> & {
+type Props = {
   // Props for the component
   value: string,
   onValueChange: (value: string) => void,
@@ -46,6 +43,10 @@ type History = {
   stack: Array<Record & { timestamp: number }>,
   offset: number,
 };
+
+export type Session = {
+  history: History;
+}
 
 const KEYCODE_ENTER = 13;
 const KEYCODE_TAB = 9;
@@ -482,13 +483,13 @@ export default class Editor extends React.Component<Props, State> {
 
   _input: HTMLTextAreaElement | null = null;
 
-  get session() {
+  get session(): Session {
     return {
       history: this._history,
     };
   }
 
-  set session(session: { history: History }) {
+  set session(session: Session) {
     this._history = session.history;
   }
 
