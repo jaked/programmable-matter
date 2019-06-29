@@ -10,7 +10,9 @@ import * as data from '../data';
 // TODO(jaked)
 const ROOT = process.cwd();
 
+const readdir = util.promisify(fs.readdir)
 const readFile = util.promisify(fs.readFile);
+const stat = util.promisify(fs.stat);
 
 type SetNotesState = (updateNotes: (notes: data.Notes) => data.Notes) => void
 
@@ -47,16 +49,21 @@ export class Watcher {
   }
 
   async start() {
-    const dir = path.resolve(ROOT, 'docs');
-    const dirents = await util.promisify(fs.readdir)(dir, { encoding: 'utf8'});
-    const events: Array<NsfwEvent> =
-      dirents.map(function (file) {
-        return {
-          action: 0, // add
-          file: file,
-          directory: dir,
-        };
-      });
+    const events: Array<NsfwEvent> = [];
+    async function walkDir(directory: string, events: Array<NsfwEvent>) {
+      const dirents = await readdir(directory, { encoding: 'utf8'});
+      return Promise.all(dirents.map(function (file: string) {
+        const dirFile = path.resolve(directory, file);
+        return stat(dirFile).then(async function(stats: fs.Stats) {
+          if (stats.isFile())
+            events.push({ action: 0, file, directory });
+          else if (stats.isDirectory())
+            return walkDir(dirFile, events);
+          else throw new Error(`unhandled file type for '${dirFile}'`);
+        });
+      }));
+    }
+    await walkDir(path.resolve(ROOT, 'docs'), events);
     await this.handleNsfwEvents(events);
     this.watcher.start();
   }
