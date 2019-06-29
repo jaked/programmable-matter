@@ -30,6 +30,27 @@ type NsfwEvent =
     newFile: string;
   }
 
+type Event =
+  {
+    type: 'update',
+    dir: string,
+    base: string,
+    ext: string,
+    content: string
+  } | {
+    type: 'rename',
+    dir: string,
+    base: string,
+    ext: string,
+    content: string,
+    oldDir: string,
+    oldBase: string
+  } | {
+    type: 'delete',
+    dir: string,
+    base: string
+  }
+
 export class Watcher {
   watcher: any;
   setNotesState: SetNotesState;
@@ -52,15 +73,14 @@ export class Watcher {
     const events: Array<NsfwEvent> = [];
     async function walkDir(directory: string, events: Array<NsfwEvent>) {
       const dirents = await readdir(directory, { encoding: 'utf8'});
-      return Promise.all(dirents.map(function (file: string) {
+      return Promise.all(dirents.map(async function (file: string) {
         const dirFile = path.resolve(directory, file);
-        return stat(dirFile).then(async function(stats: fs.Stats) {
-          if (stats.isFile())
-            events.push({ action: 0, file, directory });
-          else if (stats.isDirectory())
-            return walkDir(dirFile, events);
-          else throw new Error(`unhandled file type for '${dirFile}'`);
-        });
+        const stats = await stat(dirFile);
+        if (stats.isFile())
+          events.push({ action: 0, file, directory });
+        else if (stats.isDirectory())
+          return walkDir(dirFile, events);
+        else throw new Error(`unhandled file type for '${dirFile}'`);
       }));
     }
     await walkDir(path.resolve(ROOT, 'docs'), events);
@@ -76,28 +96,66 @@ export class Watcher {
     throw error;
   }
 
-  async handleNsfwEvents(events: Array<NsfwEvent>) {
-    const eventContents = await Promise.all(
-      events.map(function(event: NsfwEvent): Promise<[NsfwEvent, string]> {
+  async handleNsfwEvents(nsfwEvents: Array<NsfwEvent>) {
+    function baseExt(file: string) {
+      const ext = path.extname(file);
+      const base = path.basename(file, ext);
+      return [ base, ext ];
+    }
+
+    function readContent(directory: string, file: string) {
+      return readFile(
+        path.resolve(directory, file),
+        { encoding: 'utf8' }
+      );
+    }
+
+    const events = await Promise.all(
+      nsfwEvents.map(async function(event: NsfwEvent): Promise<Event> {
         switch (event.action) {
-          case 0: // created
-          case 2: // modified
-            return readFile(
-              path.resolve(event.directory, event.file),
-              { encoding: 'utf8' }
-            ).then(contents => [event, contents]);
-          default:
-            return Promise.resolve([event, '']);
+          case 0:   // created
+          case 2: { // modified
+            const dir = event.directory;
+            const [ base, ext ] = baseExt(event.file);
+            const content = await readContent(dir, event.file);
+            return { type: 'update', dir, base, ext, content };
+          }
+
+          case 3: { // renamed
+            const dir = event.newDirectory;
+            const [ base, ext ] = baseExt(event.newFile);
+            const oldDir = event.directory;
+            const oldBase = event.oldFile;
+            const content = await readContent(dir, event.newFile);
+            return { type: 'rename', dir, base, ext, content, oldDir, oldBase };
+          }
+
+          case 1: { // deleted
+            const dir = event.directory;
+            const [ base, ext ] = baseExt(event.file);
+            return  { type: 'delete', dir, base };
+          }
         }
       })
     )
 
     this.setNotesState(function (notes: data.Notes) {
 
-      function updateNote(notes: data.Notes, tag: string, content: string) {
+      function updateNote(notes: data.Notes, dir: string, tag: string, ext: string, content: string) {
         const note = notes.get(tag);
         const version = note ? note.version + 1 : 0;
-        return notes.set(tag, { tag, content, version });
+        const type: 'txt' | 'mdx' | 'json' = (() => {
+          switch (ext) {
+            case '': return 'mdx';
+            case '.txt': return 'txt';
+            case '.mdx': return 'mdx';
+            case '.json': return 'json';
+            default:
+              throw new Error(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
+          }
+        })();
+        const meta = { type };
+        return notes.set(tag, { dir, tag, meta, content, version });
       }
 
       function deleteNote(notes: data.Notes, tag: string) {
@@ -108,20 +166,19 @@ export class Watcher {
       // TODO(jaked) rethink this
       const deleted = new Set<string>();
       notes =
-        eventContents.reduce((notes, [event, content]) => {
-          switch (event.action) {
-            case 0: // created
-            case 2: // modified
-              deleted.delete(event.file);
-              return updateNote(notes, event.file, content);
+        events.reduce((notes, ev) => {
+          switch (ev.type) {
+            case 'update':
+              deleted.delete(ev.base);
+              return updateNote(notes, ev.dir, ev.base, ev.ext, ev.content);
 
-            case 1: // deleted
-              deleted.add(event.file);
+            case 'delete':
+              deleted.add(ev.base);
               return notes;
 
-            case 3: // renamed
-              deleted.add(event.oldFile);
-              return updateNote(notes, event.newFile, content);
+            case 'rename':
+              deleted.add(ev.oldBase);
+              return updateNote(notes, ev.dir, ev.base, ev.ext, ev.content);
           }
         }, notes);
 

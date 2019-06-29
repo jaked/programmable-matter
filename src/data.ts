@@ -15,8 +15,14 @@ export interface Compiled {
   rendered: () => React.ReactNode;
 }
 
+export interface Meta {
+  type: 'txt' | 'mdx' | 'json';
+}
+
 export interface Note {
+  dir: string;
   tag: string;
+  meta: Meta;
   content: string;
   version: number;
   parsed?: Try<Parsed>;

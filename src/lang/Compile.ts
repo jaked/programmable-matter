@@ -70,16 +70,58 @@ export function compileNotes(
 
   newNotes = newNotes.map((note, tag) => {
     if (dirty.has(tag)) {
-      let parsed: Try<data.Parsed>;
-      try {
-        const ast = Parser.parse(note.content);
-        const imports = new Set<string>();
-        findImports(ast, imports);
-        parsed = Try.ok({ ast, imports });
-      } catch (e) {
-        parsed = Try.err(e);
+      switch (note.meta.type) {
+        case 'mdx': {
+          let parsed: Try<data.Parsed>;
+          try {
+            const ast = Parser.parse(note.content);
+            const imports = new Set<string>();
+            findImports(ast, imports);
+            parsed = Try.ok({ ast, imports });
+          } catch (e) {
+            parsed = Try.err(e);
+          }
+          return Object.assign({}, note, { parsed });
+        }
+
+        case 'json': {
+          // TODO(jaked)
+          // should have a separate structure for parsed JSON
+          let parsed: Try<data.Parsed>;
+          try {
+            const expression = Parser.parseExpression(note.content);
+            const start = expression.start;
+            const end = expression.end;
+            const ast: MDXHAST.Node = {
+              type: 'root',
+              children: [{
+                type: 'jsx',
+                value: '',
+                jsxElement: Try.ok({
+                  type: 'JSXFragment',
+                  children: [{
+                    type: 'JSXExpressionContainer',
+                    expression,
+                    start,
+                    end
+                  }],
+                  start,
+                  end
+                })
+              }]
+            }
+            const imports = new Set<string>();
+            parsed = Try.ok({ ast, imports });
+          } catch (e) {
+            parsed = Try.err(e);
+          }
+          return Object.assign({}, note, { parsed });
+        }
+        break;
+
+        default:
+          throw new Error(`unhandled note type '${note.meta.type}' for '${note.tag}'`);
       }
-      return Object.assign({}, note, { parsed });
     } else {
       return note;
     }
