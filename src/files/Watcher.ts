@@ -30,27 +30,6 @@ type NsfwEvent =
     newFile: string;
   }
 
-type Event =
-  {
-    type: 'update',
-    dir: string,
-    base: string,
-    ext: string,
-    content: string
-  } | {
-    type: 'rename',
-    dir: string,
-    base: string,
-    ext: string,
-    content: string,
-    oldDir: string,
-    oldBase: string
-  } | {
-    type: 'delete',
-    dir: string,
-    base: string
-  }
-
 export class Watcher {
   watcher: any;
   setNotesState: SetNotesState;
@@ -111,29 +90,21 @@ export class Watcher {
     }
 
     const events = await Promise.all(
-      nsfwEvents.map(async function(event: NsfwEvent): Promise<Event> {
-        switch (event.action) {
+      nsfwEvents.map(async function(ev: NsfwEvent): Promise<[ NsfwEvent, string ]> {
+        switch (ev.action) {
           case 0:   // created
           case 2: { // modified
-            const dir = event.directory;
-            const [ base, ext ] = baseExt(event.file);
-            const content = await readContent(dir, event.file);
-            return { type: 'update', dir, base, ext, content };
+            const content = await readContent(ev.directory, ev.file);
+            return [ ev, content ];
           }
 
           case 3: { // renamed
-            const dir = event.newDirectory;
-            const [ base, ext ] = baseExt(event.newFile);
-            const oldDir = event.directory;
-            const oldBase = event.oldFile;
-            const content = await readContent(dir, event.newFile);
-            return { type: 'rename', dir, base, ext, content, oldDir, oldBase };
+            const content = await readContent(ev.newDirectory, ev.newFile);
+            return [ ev, content ];
           }
 
           case 1: { // deleted
-            const dir = event.directory;
-            const [ base, ext ] = baseExt(event.file);
-            return  { type: 'delete', dir, base };
+            return [ ev, '' ];
           }
         }
       })
@@ -141,9 +112,18 @@ export class Watcher {
 
     this.setNotesState(function (notes: data.Notes) {
 
-      function updateNote(notes: data.Notes, dir: string, tag: string, ext: string, content: string) {
-        const note = notes.get(tag);
-        const version = note ? note.version + 1 : 0;
+      function noteTag(directory: string, file: string) {
+        const ext = path.extname(file);
+        const base = path.basename(file, ext);
+        return path.relative(
+          path.resolve(ROOT, 'docs'),
+          path.resolve(directory, base)
+        );
+      }
+
+      function updateNote(notes: data.Notes, dir: string, file: string, content: string) {
+        const tag = noteTag(dir, file);
+        const ext = path.extname(file);
         const type: 'txt' | 'mdx' | 'json' = (() => {
           switch (ext) {
             case '': return 'mdx';
@@ -154,8 +134,15 @@ export class Watcher {
               throw new Error(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
           }
         })();
-        const meta = { type };
-        return notes.set(tag, { dir, tag, meta, content, version });
+        const oldNote = notes.get(tag);
+        const note = {
+          path: path.resolve(dir, file),
+          tag,
+          meta: { type },
+          content,
+          version: oldNote ? oldNote.version + 1 : 0
+        }
+        return notes.set(tag, note);
       }
 
       function deleteNote(notes: data.Notes, tag: string) {
@@ -166,19 +153,22 @@ export class Watcher {
       // TODO(jaked) rethink this
       const deleted = new Set<string>();
       notes =
-        events.reduce((notes, ev) => {
-          switch (ev.type) {
-            case 'update':
-              deleted.delete(ev.base);
-              return updateNote(notes, ev.dir, ev.base, ev.ext, ev.content);
+        events.reduce((notes, [ ev, content ]) => {
+          switch (ev.action) {
+            case 0:   // created
+            case 2: { // modified
+              const tag = noteTag(ev.directory, ev.file);
+              deleted.delete(tag);
+              return updateNote(notes, ev.directory, ev.file, content);
+            }
 
-            case 'delete':
-              deleted.add(ev.base);
+            case 3: { // renamed
+              deleted.add(noteTag(ev.directory, ev.oldFile));
+              return updateNote(notes, ev.newDirectory, ev.newFile, content);
+            }
+            case 1:
+              deleted.add(noteTag(ev.directory, ev.file));
               return notes;
-
-            case 'rename':
-              deleted.add(ev.oldBase);
-              return updateNote(notes, ev.dir, ev.base, ev.ext, ev.content);
           }
         }, notes);
 

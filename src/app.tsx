@@ -70,11 +70,8 @@ const contentSignal = Signal.joinMap(notesCell, selectedCell, (notes, selected) 
 function setContent(content: string | null) {
   const selected = selectedCell.get();
   if (content != null && selected) {
-    // TODO(jaked)
-    // can we make this a separate reaction to an atom?
-    fs.writeFileSync(path.resolve(ROOT, 'docs', selected), content);
-
     const notes = notesCell.get().update(selected, note => {
+      fs.writeFileSync(note.path, content);
       const version = note.version + 1;
       return Object.assign({}, note, { content, version });
     });

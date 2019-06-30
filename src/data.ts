@@ -20,8 +20,8 @@ export interface Meta {
 }
 
 export interface Note {
-  dir: string;
   tag: string;
+  path: string;
   meta: Meta;
   content: string;
   version: number;
