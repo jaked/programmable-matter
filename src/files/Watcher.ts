@@ -124,21 +124,22 @@ export class Watcher {
       function updateNote(notes: data.Notes, dir: string, file: string, content: string) {
         const tag = noteTag(dir, file);
         const ext = path.extname(file);
-        const type: 'txt' | 'mdx' | 'json' = (() => {
-          switch (ext) {
-            case '': return 'mdx';
-            case '.txt': return 'txt';
-            case '.mdx': return 'mdx';
-            case '.json': return 'json';
-            default:
-              throw new Error(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
-          }
-        })();
+        // TODO(jaked) this doesn't work for some reason
+        // let type: 'mdx' | 'txt' | 'json';
+        let type;
+        switch (ext) {
+          case '': type = 'mdx'; break;
+          case '.txt': type = 'txt'; break;
+          case '.mdx': type = 'mdx'; break;
+          case '.json': type = 'json'; break;
+          default:
+            throw new Error(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
+        }
         const oldNote = notes.get(tag);
         const note = {
           path: path.resolve(dir, file),
           tag,
-          meta: { type },
+          type,
           content,
           version: oldNote ? oldNote.version + 1 : 0
         }

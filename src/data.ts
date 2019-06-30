@@ -2,10 +2,11 @@ import Immutable from 'immutable';
 import React from 'react';
 import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
+import * as AcornJsxAst from './lang/acornJsxAst';
 import * as Type from './lang/Type';
 
-export interface Parsed {
-  ast: MDXHAST.Root;
+export type Parsed<Ast> = {
+  ast: Ast;
   imports: Set<string>;
 }
 
@@ -15,18 +16,22 @@ export interface Compiled {
   rendered: () => React.ReactNode;
 }
 
-export interface Meta {
-  type: 'txt' | 'mdx' | 'json';
-}
-
-export interface Note {
+export type Note = {
   tag: string;
   path: string;
-  meta: Meta;
+  type: 'txt' | 'mdx' | 'json';
   content: string;
   version: number;
-  parsed?: Try<Parsed>;
   compiled?: Try<Compiled>;
-}
+} & ({
+  type: 'mdx';
+  parsed?: Try<Parsed<MDXHAST.Root>>;
+} | {
+  type: 'json';
+  parsed?: Try<Parsed<AcornJsxAst.Expression>>;
+} | {
+  type: 'txt';
+  parsed?: Try<never>;
+});
 
 export type Notes = Immutable.Map<string, Note>;

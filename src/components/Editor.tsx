@@ -172,14 +172,24 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
 }
 
 function computeHighlight(content: string, compiledNote: data.Note) {
-  if (!compiledNote.parsed) throw new Error('expected note to be parsed');
-
   const spans: Array<Span> = [];
   // TODO(jaked)
   // parsing should always succeed with some AST
-  compiledNote.parsed.forEach(parsed => {
-    computeSpans(parsed.ast, spans);
-  });
+  switch (compiledNote.type) {
+    case 'mdx':
+      if (!compiledNote.parsed) throw new Error('expected note to be parsed');
+      compiledNote.parsed.forEach(parsed => {
+        computeSpans(parsed.ast, spans);
+      });
+      break;
+
+    case 'json':
+      if (!compiledNote.parsed) throw new Error('expected note to be parsed');
+      compiledNote.parsed.forEach(parsed => {
+        computeJsSpans(parsed.ast, spans);
+      });
+      break;
+  }
 
   // TODO(jaked) this could use some tests
   const lineStartOffsets: Array<number> = [0];

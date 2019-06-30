@@ -1,10 +1,18 @@
+import * as Immutable from 'immutable';
+
+import * as React from 'react';
+import 'regenerator-runtime/runtime'; // required for react-inspector
+import { Inspector } from 'react-inspector';
+
 import { Cell } from '../util/Cell';
 import Try from '../util/Try';
 import * as data from '../data';
 import * as MDXHAST from './mdxhast';
+import * as AcornJsxAst from './acornJsxAst';
 import * as Parser from './Parser';
 import * as Type from './Type';
 import * as Typecheck from './Typecheck';
+import * as Evaluator from './Evaluator';
 import * as Render from './Render';
 import * as String from '../util/String';
 
@@ -34,6 +42,46 @@ function findImports(ast: MDXHAST.Node, imports: Set<string>) {
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
+}
+
+function compileNote(
+  note: data.Note,
+  typeEnv: Typecheck.Env,
+  valueEnv: Evaluator.Env,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
+): Try<data.Compiled> {
+  return Try.apply(() => {
+    // TODO(jaked) build per-note envs with specific imports
+    const capitalizedTag = String.capitalize(note.tag);
+
+    switch (note.type) {
+      case 'mdx': {
+        if (!note.parsed) throw new Error('expected note.parsed');
+        const ast = note.parsed.get().ast;
+        const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
+        const exportValue: { [s: string]: any } = {};
+        Typecheck.checkMdx(ast, typeEnv, exportTypes);
+        const exportType = Type.module(exportTypes);
+        Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
+        const rendered = () => Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
+        return { exportType, exportValue, rendered };
+      }
+
+      case 'json': {
+        if (!note.parsed) throw new Error('expected note.parsed');
+        const ast = note.parsed.get().ast;
+        const type = Typecheck.synth(ast, Immutable.Map());
+        const exportType = Type.module({ default: type });
+        const value = Evaluator.evaluateExpression(ast, Immutable.Map());
+        const exportValue = { default: value }
+        const rendered = () => React.createElement(Inspector, { data: value, expandLevel: 1 });
+        return { exportType, exportValue, rendered };
+      }
+
+      default:
+        throw new Error(`unhandled note type '${note.type}'`);
+    }
+  });
 }
 
 export function compileNotes(
@@ -70,9 +118,9 @@ export function compileNotes(
 
   newNotes = newNotes.map((note, tag) => {
     if (dirty.has(tag)) {
-      switch (note.meta.type) {
+      switch (note.type) {
         case 'mdx': {
-          let parsed: Try<data.Parsed>;
+          let parsed: Try<data.Parsed<MDXHAST.Root>>;
           try {
             const ast = Parser.parse(note.content);
             const imports = new Set<string>();
@@ -85,31 +133,9 @@ export function compileNotes(
         }
 
         case 'json': {
-          // TODO(jaked)
-          // should have a separate structure for parsed JSON
-          let parsed: Try<data.Parsed>;
+          let parsed: Try<data.Parsed<AcornJsxAst.Expression>>;
           try {
-            const expression = Parser.parseExpression(note.content);
-            const start = expression.start;
-            const end = expression.end;
-            const ast: MDXHAST.Node = {
-              type: 'root',
-              children: [{
-                type: 'jsx',
-                value: '',
-                jsxElement: Try.ok({
-                  type: 'JSXFragment',
-                  children: [{
-                    type: 'JSXExpressionContainer',
-                    expression,
-                    start,
-                    end
-                  }],
-                  start,
-                  end
-                })
-              }]
-            }
+            const ast = Parser.parseExpression(note.content);
             const imports = new Set<string>();
             parsed = Try.ok({ ast, imports });
           } catch (e) {
@@ -117,10 +143,9 @@ export function compileNotes(
           }
           return Object.assign({}, note, { parsed });
         }
-        break;
 
         default:
-          throw new Error(`unhandled note type '${note.meta.type}' for '${note.tag}'`);
+          throw new Error(`unhandled note type '${note.type}' for '${note.tag}'`);
       }
     } else {
       return note;
@@ -166,32 +191,21 @@ export function compileNotes(
   let typeEnv = Render.initTypeEnv;
   let valueEnv = Render.initValueEnv;
   orderedTags.forEach(tag => {
-    const capitalizedTag = String.capitalize(tag);
     const note = newNotes.get(tag);
+    if (!note) throw new Error('expected note');
+    const capitalizedTag = String.capitalize(note.tag);
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking / rendering' + tag);
-      if (!note || !note.parsed) throw new Error('expected note && note.parsed');
-      let compiled: Try<data.Compiled>;
-      try {
-        // TODO(jaked) build per-note envs with specific imports
-        const ast = note.parsed.get().ast;
-        const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
-        const exportValue: { [s: string]: any } = {};
-        Typecheck.checkMdx(ast, typeEnv, exportTypes);
-        const exportType = Type.module(exportTypes);
-        typeEnv = typeEnv.set(capitalizedTag, [exportType, false]);
-        Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
-        const rendered = () => Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
-        valueEnv = valueEnv.set(capitalizedTag, exportValue);
-        compiled = Try.ok({ exportType, exportValue, rendered });
-      } catch (e) {
-        compiled = Try.err(e);
-      }
+      const compiled = compileNote(note, typeEnv, valueEnv, mkCell);
+      compiled.forEach(compiled => {
+        typeEnv = typeEnv.set(capitalizedTag, [compiled.exportType, false]);
+        valueEnv = valueEnv.set(capitalizedTag, compiled.exportValue);
+      });
       const note2 = Object.assign({}, note, { compiled });
       newNotes = newNotes.set(tag, note2);
     } else {
       if (debug) console.log('adding type / value env for ' + tag);
-      if (!note || !note.compiled) throw new Error('expected note && note.compiled');
+      if (!note.compiled) throw new Error('expected note.compiled');
       note.compiled.forEach(compiled => {
         typeEnv = typeEnv.set(capitalizedTag, [compiled.exportType, false]);
         valueEnv = valueEnv.set(capitalizedTag, compiled.exportValue);
