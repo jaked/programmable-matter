@@ -180,17 +180,17 @@ function dirtyTransitively(
 function compileMdx(
   ast: MDXHAST.Root,
   capitalizedTag: string,
-  typeEnv: Typecheck.Env,
-  valueEnv: Evaluator.Env,
+  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
+  moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): data.Compiled {
   const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
   const exportValue: { [s: string]: any } = {};
-  Typecheck.checkMdx(ast, typeEnv, exportTypes);
+  Typecheck.checkMdx(ast, moduleTypeEnv, Render.initTypeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
-  Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
+  Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
   const rendered = () =>
-    Render.renderMdx(ast, capitalizedTag, valueEnv, mkCell, exportValue);
+    Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
   return { exportType, exportValue, rendered };
 }
 
@@ -208,19 +208,18 @@ function compileJson(
 
 function compileNote(
   note: data.Note,
-  typeEnv: Typecheck.Env,
+  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   valueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): Try<data.Compiled> {
   return Try.apply(() => {
-    // TODO(jaked) build per-note envs with specific imports
     switch (note.type) {
       case 'mdx':
         if (!note.parsed) throw new Error('expected note.parsed');
         return compileMdx(
           note.parsed.get().ast,
           String.capitalize(note.tag),
-          typeEnv,
+          moduleTypeEnv,
           valueEnv,
           mkCell
         );
@@ -242,18 +241,17 @@ function compileDirtyNotes(
   dirty: Set<string>,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): data.Notes {
-  let typeEnv = Render.initTypeEnv;
-  let valueEnv = Render.initValueEnv;
+  let moduleTypeEnv: Immutable.Map<string, Type.ModuleType> = Immutable.Map();
+  let moduleValueEnv: Evaluator.Env = Immutable.Map();
   orderedTags.forEach(tag => {
     const note = notes.get(tag);
     if (!note) throw new Error('expected note');
-    const capitalizedTag = String.capitalize(note.tag);
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking / rendering' + tag);
-      const compiled = compileNote(note, typeEnv, valueEnv, mkCell);
+      const compiled = compileNote(note, moduleTypeEnv, moduleValueEnv, mkCell);
       compiled.forEach(compiled => {
-        typeEnv = typeEnv.set(capitalizedTag, [compiled.exportType, false]);
-        valueEnv = valueEnv.set(capitalizedTag, compiled.exportValue);
+        moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
+        moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
       });
       const note2 = Object.assign({}, note, { compiled });
       notes = notes.set(tag, note2);
@@ -261,8 +259,8 @@ function compileDirtyNotes(
       if (debug) console.log('adding type / value env for ' + tag);
       if (!note.compiled) throw new Error('expected note.compiled');
       note.compiled.forEach(compiled => {
-        typeEnv = typeEnv.set(capitalizedTag, [compiled.exportType, false]);
-        valueEnv = valueEnv.set(capitalizedTag, compiled.exportValue);
+        moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
+        moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
       });
     }
   });

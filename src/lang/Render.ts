@@ -16,15 +16,47 @@ import { InlineMath, BlockMath } from 'react-katex';
 import { Cell } from '../util/Cell';
 
 import * as MDXHAST from './mdxhast';
+import * as AcornJsxAst from './acornJsxAst';
 import * as Evaluator from './evaluator';
 import * as Type from './Type';
 import * as Typecheck from './Typecheck';
 
 export type Env = Evaluator.Env;
 
+function extendEnvWithImport(
+  decl: AcornJsxAst.ImportDeclaration,
+  moduleEnv: Env,
+  env: Env,
+): Env {
+  const module = moduleEnv.get(decl.source.value);
+  if (!module)
+    throw new Error(`expected module '${decl.source.value}'`);
+  decl.specifiers.forEach(spec => {
+    switch (spec.type) {
+      case 'ImportNamespaceSpecifier':
+        env = env.set(spec.local.name, module);
+        break;
+      case 'ImportDefaultSpecifier':
+        const defaultField = module['default'];
+        if (defaultField === undefined)
+          throw new Error(`expected default export on '${decl.source.value}'`);
+        env = env.set(spec.local.name, defaultField);
+        break;
+      case 'ImportSpecifier':
+        const importedField = module[spec.imported.name];
+        if (importedField === undefined)
+          throw new Error(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`);
+        env = env.set(spec.local.name, importedField);
+        break;
+    }
+  });
+  return env;
+}
+
 function evaluateMdxBindings(
   ast: MDXHAST.Node,
   module: string,
+  moduleEnv: Env,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   exportValues: { [s: string]: any }
@@ -33,7 +65,7 @@ function evaluateMdxBindings(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, module, env, mkCell, exportValues)
+        env = evaluateMdxBindings(child, module, moduleEnv, env, mkCell, exportValues)
       );
       return env;
 
@@ -46,10 +78,9 @@ function evaluateMdxBindings(
       if (!ast.declarations) throw new Error('expected import/export node to be parsed');
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
-          case 'ImportDeclaration': {
-            // TODO(jaked)
-          }
-          break;
+          case 'ImportDeclaration':
+            env = extendEnvWithImport(decl, moduleEnv, env);
+            break;
 
           case 'ExportNamedDeclaration': {
             const declaration = decl.declaration;
@@ -132,11 +163,14 @@ function renderMdxElements(ast: MDXHAST.Node, module: string, env: Env): React.R
 export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
+  moduleEnv: Env,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   exportValues: { [s: string]: any }
 ): React.ReactNode {
-  const env2 = evaluateMdxBindings(ast, module, env, mkCell, exportValues);
+  const env2 = evaluateMdxBindings(ast, module, moduleEnv, env, mkCell, exportValues);
+  // TODO(jaked)
+  // merge evaluteMdxBindings / renderMdxElements here
   return renderMdxElements(ast, module, env2);
 }
 

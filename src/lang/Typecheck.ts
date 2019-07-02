@@ -6,8 +6,6 @@ import * as AcornJsxAst from './acornJsxAst';
 
 import * as Type from './Type';
 
-import * as String from '../util/String';
-
 export type Env = Immutable.Map<string, [Type.Type, boolean]>;
 
 function prettyPrint(type: Type.Type): string {
@@ -15,7 +13,7 @@ function prettyPrint(type: Type.Type): string {
   return JSON.stringify(type);
 }
 
-function location(ast: AcornJsxAst.Expression): string {
+function location(ast: AcornJsxAst.Node): string {
   // TODO(jaked) print location
   return Recast.print(ast).code;
 }
@@ -489,11 +487,45 @@ const reactNodeType_ =
 const reactNodeType =
   Type.union(reactNodeType_, Type.array(reactNodeType_));
 
-function checkMdxElements(ast: MDXHAST.Node, env: Env) {
+function extendEnvWithImport(
+  decl: AcornJsxAst.ImportDeclaration,
+  moduleEnv: Immutable.Map<string, Type.ModuleType>,
+  env: Env
+): Env {
+  const module = moduleEnv.get(decl.source.value);
+  if (!module)
+    throw new Error(`no module '${decl.source.value}' at ${location(decl)}`);
+  decl.specifiers.forEach(spec => {
+    switch (spec.type) {
+      case 'ImportNamespaceSpecifier':
+        env = env.set(spec.local.name, [module, false]);
+        break;
+      case 'ImportDefaultSpecifier':
+        const defaultField = module.fields.find(ft => ft.field === 'default');
+        if (!defaultField)
+          throw new Error(`no default export on '${decl.source.value}' at ${location(decl)}`);
+        env = env.set(spec.local.name, [defaultField.type, defaultField.atom]);
+        break;
+      case 'ImportSpecifier':
+        const importedField = module.fields.find(ft => ft.field === spec.imported.name)
+        if (!importedField)
+          throw new Error(`no exported member '${spec.imported.name}' on '${decl.source.value}' at ${location(decl)}`);
+        env = env.set(spec.local.name, [importedField.type, importedField.atom]);
+        break;
+    }
+  });
+  return env;
+}
+
+function checkMdxElements(
+  ast: MDXHAST.Node,
+  moduleEnv: Immutable.Map<string, Type.ModuleType>,
+  env: Env
+) {
   switch (ast.type) {
     case 'root':
     case 'element':
-      return ast.children.forEach(child => checkMdxElements(child, env));
+      return ast.children.forEach(child => checkMdxElements(child, moduleEnv, env));
 
     case 'text':
       return;
@@ -512,6 +544,7 @@ function checkMdxElements(ast: MDXHAST.Node, env: Env) {
 
 function synthMdxBindings(
   ast: MDXHAST.Node,
+  moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
   exportTypes: { [s: string]: [Type.Type, boolean] }
 ): Env {
@@ -524,7 +557,7 @@ function synthMdxBindings(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdxBindings(child, env, exportTypes)
+        env = synthMdxBindings(child, moduleEnv, env, exportTypes)
       );
       return env;
 
@@ -538,20 +571,7 @@ function synthMdxBindings(
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
-            const source = String.capitalize(<string>decl.source.value);
-            decl.specifiers.forEach(spec => {
-              switch (spec.type) {
-                case 'ImportNamespaceSpecifier':
-                  if (spec.local.name !== source) {
-                    throw new Error('unimplemented: ImportNamespaceSpecifier');
-                  }
-                  else return; // namespace object is already in env
-                case 'ImportDefaultSpecifier':
-                  throw new Error('unimplemented: ImportDefaultSpecifier');
-                case 'ImportSpecifier':
-                  throw new Error('unimplemented: ImportSpecifier');
-              }
-            });
+            env = extendEnvWithImport(decl, moduleEnv, env);
             break;
 
           case 'ExportNamedDeclaration':
@@ -580,9 +600,12 @@ function synthMdxBindings(
 
 export function checkMdx(
   ast: MDXHAST.Node,
+  moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
   exportTypes: { [s: string]: [Type.Type, boolean] }
 ) {
-  const env2 = synthMdxBindings(ast, env, exportTypes);
-  checkMdxElements(ast, env2);
+  const env2 = synthMdxBindings(ast, moduleEnv, env, exportTypes);
+  // TODO(jaked)
+  // merge synth/check here
+  checkMdxElements(ast, moduleEnv, env2);
 }
