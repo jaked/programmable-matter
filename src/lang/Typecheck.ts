@@ -517,32 +517,7 @@ function extendEnvWithImport(
   return env;
 }
 
-function checkMdxElements(
-  ast: MDXHAST.Node,
-  moduleEnv: Immutable.Map<string, Type.ModuleType>,
-  env: Env
-) {
-  switch (ast.type) {
-    case 'root':
-    case 'element':
-      return ast.children.forEach(child => checkMdxElements(child, moduleEnv, env));
-
-    case 'text':
-      return;
-
-    case 'jsx':
-      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
-      return ast.jsxElement.forEach(elem => check(elem, env, reactNodeType));
-
-    case 'import':
-    case 'export':
-      return;
-
-    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
-  }
-}
-
-function synthMdxBindings(
+export function checkMdx(
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
@@ -557,12 +532,16 @@ function synthMdxBindings(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdxBindings(child, moduleEnv, env, exportTypes)
+        env = checkMdx(child, moduleEnv, env, exportTypes)
       );
       return env;
 
     case 'text':
+      return env;
+
     case 'jsx':
+      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
+      ast.jsxElement.forEach(elem => check(elem, env, reactNodeType));
       return env;
 
     case 'import':
@@ -596,16 +575,4 @@ function synthMdxBindings(
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
-}
-
-export function checkMdx(
-  ast: MDXHAST.Node,
-  moduleEnv: Immutable.Map<string, Type.ModuleType>,
-  env: Env,
-  exportTypes: { [s: string]: [Type.Type, boolean] }
-) {
-  const env2 = synthMdxBindings(ast, moduleEnv, env, exportTypes);
-  // TODO(jaked)
-  // merge synth/check here
-  checkMdxElements(ast, moduleEnv, env2);
 }

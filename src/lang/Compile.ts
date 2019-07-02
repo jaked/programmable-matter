@@ -188,9 +188,17 @@ function compileMdx(
   const exportValue: { [s: string]: any } = {};
   Typecheck.checkMdx(ast, moduleTypeEnv, Render.initTypeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
+  // TODO(jaked)
+  // first call to renderMdx computes exportType / exportValue
+  // second call picks up current values of signals
+  // instead we should render to a Signal<React.ReactNode>
+  // and update() it to pick up current values
   Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
-  const rendered = () =>
-    Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
+  const rendered = () => {
+    const [_, node] =
+      Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
+    return node;
+  }
   return { exportType, exportValue, rendered };
 }
 

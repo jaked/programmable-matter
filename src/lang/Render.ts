@@ -53,25 +53,51 @@ function extendEnvWithImport(
   return env;
 }
 
-function evaluateMdxBindings(
+export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
   moduleEnv: Env,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   exportValues: { [s: string]: any }
-): Env {
+): [Env, React.ReactNode] {
   switch (ast.type) {
-    case 'root':
-    case 'element':
-      ast.children.forEach(child =>
-        env = evaluateMdxBindings(child, module, moduleEnv, env, mkCell, exportValues)
-      );
-      return env;
+    case 'root': {
+      const childNodes: Array<React.ReactNode> = [];
+      ast.children.forEach(child => {
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
+        env = env2;
+        childNodes.push(childNode);
+      });
+      const node = React.createElement('div', {}, ...childNodes);
+      return [env, node];
+    }
+
+    case 'element': {
+      const childNodes: Array<React.ReactNode> = [];
+      ast.children.forEach(child => {
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
+        env = env2;
+        childNodes.push(childNode);
+      });
+      const node = React.createElement(ast.tagName, ast.properties, ...childNodes);
+      return [env, node];
+    }
 
     case 'text':
+      return [env, ast.value];
+
     case 'jsx':
-      return env;
+      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
+      switch (ast.jsxElement.type) {
+        case 'ok':
+          return [env, Evaluator.evaluateExpression(ast.jsxElement.ok, env)];
+        case 'err':
+          return [env, null];
+        default:
+          // not sure why TS can't see that ok / err is exhaustive
+          throw new Error('unreachable');
+      }
 
     case 'import':
     case 'export':
@@ -117,61 +143,11 @@ function evaluateMdxBindings(
           break;
         }
       }));
-      return env;
+      return [env, null];
 
-    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
+    default:
+      throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
-}
-
-function renderMdxElements(ast: MDXHAST.Node, module: string, env: Env): React.ReactNode {
-  switch (ast.type) {
-    case 'root':
-      return React.createElement(
-        'div',
-        {},
-        ...ast.children.map(child => renderMdxElements(child, module, env))
-      );
-
-    case 'element':
-      return React.createElement(
-        ast.tagName,
-        ast.properties,
-        ...ast.children.map(child => renderMdxElements(child, module, env))
-      );
-
-    case 'text':
-      return ast.value;
-
-    case 'jsx':
-      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
-      switch (ast.jsxElement.type) {
-        case 'ok':
-          return Evaluator.evaluateExpression(ast.jsxElement.ok, env);
-        case 'err':
-          return null;
-      }
-      break;
-
-    case 'import':
-    case 'export':
-      return undefined;
-
-    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
-  }
-}
-
-export function renderMdx(
-  ast: MDXHAST.Node,
-  module: string,
-  moduleEnv: Env,
-  env: Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
-  exportValues: { [s: string]: any }
-): React.ReactNode {
-  const env2 = evaluateMdxBindings(ast, module, moduleEnv, env, mkCell, exportValues);
-  // TODO(jaked)
-  // merge evaluteMdxBindings / renderMdxElements here
-  return renderMdxElements(ast, module, env2);
 }
 
 // TODO(jaked) move to Typecheck?
