@@ -54,21 +54,21 @@ export function Main({ notes, selected, search, content, compiledNote, session, 
   return (
     <>
       <Flex style={{ height: '100vh' }}>
-        <Box width={1/6}>
-          <Flex flexDirection='column'>
-            <SearchBox
-              search={search}
-              onSearch={onSearch}
-              onKeyDown={onKeyDown}
-            />
+        <Flex width={1/6} flexDirection='column'>
+          <SearchBox
+            search={search}
+            onSearch={onSearch}
+            onKeyDown={onKeyDown}
+          />
+          <Box>
             <Notes
               ref={notesRef}
               notes={notes}
               selected={selected}
               onSelect={onSelect}
             />
-          </Flex>
-        </Box>
+          </Box>
+        </Flex>
         <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
           <Editor
             selected={selected}
