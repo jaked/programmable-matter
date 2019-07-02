@@ -44,6 +44,37 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
     }
   }
 
+  const selectedRef = React.createRef<HTMLDivElement>();
+  React.useEffect(() => {
+    // scrollIntoViewIfNeeded is nonstandard, not in React type
+    const current: any = selectedRef.current;
+    if (current) current.scrollIntoViewIfNeeded();
+  });
+
+  const noteNodes =
+    notes.map((note) => {
+      if (note.tag === selected) {
+        return (
+          <Note
+            ref={selectedRef}
+            key={note.tag}
+            note={note}
+            selected={true}
+            onClick={ () => onSelect(note.tag) }
+          />
+        );
+      } else {
+        return (
+          <Note
+            key={note.tag}
+            note={note}
+            selected={false}
+            onClick={ () => onSelect(note.tag) }
+          />
+        );
+      }
+    });
+
   return (
     <Box
       ref={ref}
@@ -53,14 +84,7 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
           e.preventDefault();
       }}
     >
-      {notes.map((note) =>
-        <Note
-          key={note.tag}
-          note={note}
-          selected={note.tag === selected}
-          onClick={ () => onSelect(note.tag) }
-        />
-      )}
+      {noteNodes}
     </Box>
   );
 });

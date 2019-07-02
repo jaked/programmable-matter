@@ -15,16 +15,16 @@ const Box = styled(BaseBox)`
   }
 `;
 
-export const Note: React.FunctionComponent<Props> =
-  function({ note: { tag, content }, selected, onClick }) {
-    return (
-      <Box
-        width={1}
-        padding={2}
-        backgroundColor={selected ? '#cccccc' : '#ffffff'}
-        onClick={onClick}
-      >
-        {tag}
-      </Box>
-    );
-  }
+export const Note = React.forwardRef<HTMLDivElement, Props>(({ note: { tag, content}, selected, onClick }, ref) => {
+  return (
+    <Box
+      ref={ref}
+      width={1}
+      padding={2}
+      backgroundColor={selected ? '#cccccc' : '#ffffff'}
+      onClick={onClick}
+    >
+      {tag}
+    </Box>
+  );
+});
