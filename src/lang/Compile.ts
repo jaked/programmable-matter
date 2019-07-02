@@ -107,7 +107,7 @@ function parseDirtyNotes(
 }
 
 function sortNotes(notes: data.Notes): Array<string> {
-  const orderedTags: Array<string> = [];
+  const sortedTags: Array<string> = [];
   const remaining = new Set(notes.keys());
   let again = true;
   while (again) {
@@ -118,9 +118,9 @@ function sortNotes(notes: data.Notes): Array<string> {
       if (note.parsed.type === 'ok') {
         const imports = [...note.parsed.ok.imports.values()];
         if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
-        if (imports.every(tag => orderedTags.includes(tag))) {
+        if (imports.every(tag => sortedTags.includes(tag))) {
           if (debug) console.log('adding ' + tag + ' to order');
-          orderedTags.push(tag);
+          sortedTags.push(tag);
           remaining.delete(tag);
           again = true;
         }
@@ -133,9 +133,9 @@ function sortNotes(notes: data.Notes): Array<string> {
   // any remaining notes can't be parsed, or are part of a dependency loop
   remaining.forEach(tag => {
     if (debug) console.log(tag + ' failed to parse or has a loop');
-    orderedTags.push(tag)
+    sortedTags.push(tag)
   });
-  return orderedTags;
+  return sortedTags;
 }
 
 function dirtyDeletedNotes(
@@ -177,6 +177,153 @@ function dirtyTransitively(
   });
 }
 
+function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
+  const free: Array<string> = [];
+
+  function fn(
+    expr: AcornJsxAst.Expression,
+    bound: Immutable.Set<string>,
+  ) {
+    AcornJsxAst.visit(expr, node => {
+      switch (node.type) {
+        case 'Identifier':
+          const id = node.name;
+          if (!bound.contains(id) && !free.includes(id))
+            free.push(id);
+          break;
+
+        case 'ArrowFunctionExpression':
+          node.params.forEach(ident => {
+            bound = bound.add(ident.name)
+          });
+          fn(node.body, bound);
+          return false;
+      }
+    });
+  }
+  fn(expr, Immutable.Set());
+  return free;
+}
+
+// topologically sort bindings
+// TODO(jaked)
+// we do this by rearranging the AST
+// but that's going to get hairy when we want to provide
+// typechecking feedback in the editor
+// we need to be careful to retain locations
+// or leave the AST alone, but typecheck in toplogical order
+function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
+  const imports: Array<AcornJsxAst.ImportDeclaration> = [];
+  const exportLets: Array<AcornJsxAst.ExportNamedDeclaration> = [];
+  const exportConsts: Array<AcornJsxAst.ExportNamedDeclaration> = [];
+
+  function collectImportsExports(ast: MDXHAST.Node): MDXHAST.Node {
+    switch (ast.type) {
+      case 'root':
+      case 'element': {
+        const children: Array<MDXHAST.Node> = [];
+        ast.children.forEach(child => {
+          switch (child.type) {
+            case 'import':
+            case 'export':
+              if (!child.declarations) throw new Error('expected import/export node to be parsed');
+              child.declarations.forEach(decls => decls.forEach(decl => {
+                switch (decl.type) {
+                  case 'ImportDeclaration':
+                    imports.push(decl);
+                    break;
+                  case 'ExportNamedDeclaration':
+                    switch (decl.declaration.kind) {
+                      case 'let':
+                        exportLets.push(decl);
+                        break;
+                      case 'const':
+                        exportConsts.push(decl);
+                        break;
+                    }
+                    break;
+                }
+              }));
+              break;
+
+            default:
+              children.push(collectImportsExports(child));
+          }
+        });
+        return Object.assign({}, ast, { children });
+      }
+
+      default:
+        return ast;
+    }
+  }
+
+  const ast2 = collectImportsExports(ast) as MDXHAST.Root;
+
+  let decls: Array<[ AcornJsxAst.VariableDeclarator, Array<string> ]> = [];
+  exportConsts.forEach(decl => {
+    decl.declaration.declarations.forEach(decl => {
+      decls.push([ decl, freeIdentifiers(decl.init) ])
+    })
+  })
+
+  const sortedDecls: Array<AcornJsxAst.VariableDeclarator> = [];
+  let again = true;
+  while (again) {
+    again = false;
+    decls = decls.filter(([ decl, free ]) => {
+      if (free.every(id => sortedDecls.some(decl => decl.id.name === id))) {
+        sortedDecls.push(decl);
+        again = true;
+        return false;
+      } else {
+        return true;
+      }
+    });
+  }
+  // remaining decls are part of a dependency loop
+  decls.forEach(([ decl, _ ]) => {
+    sortedDecls.push(decl);
+  });
+
+  // keep the ExportNamedDeclaration nodes so we can highlight keywords
+  // but put all the sorted VariableDeclarators in the first one
+  const sortedExportConsts = exportConsts.map((decl, i) => {
+    if (i === 0) {
+      const declaration =
+        Object.assign({}, decl.declaration, { declarations: sortedDecls });
+      return Object.assign({}, decl, { declaration });
+    } else {
+      const declaration =
+        Object.assign({}, decl.declaration, { declarations: [] });
+      return Object.assign({}, decl, { declaration });
+    }
+  });
+
+  const children = [
+    {
+      type: 'import',
+      value: '',
+      declarations: Try.ok(imports),
+    },
+    {
+      // TODO(jaked)
+      // a cell should not depend on another definition
+      // in its initializer
+      type: 'export',
+      value: '',
+      declarations: Try.ok(exportLets),
+    },
+    {
+      type: 'export',
+      value: '',
+      declarations: Try.ok(sortedExportConsts),
+    },
+    ...ast2.children
+  ];
+  return Object.assign({}, ast2, { children });
+}
+
 function compileMdx(
   ast: MDXHAST.Root,
   capitalizedTag: string,
@@ -186,17 +333,19 @@ function compileMdx(
 ): data.Compiled {
   const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
   const exportValue: { [s: string]: any } = {};
-  Typecheck.checkMdx(ast, moduleTypeEnv, Render.initTypeEnv, exportTypes);
+
+  const sortedAst = sortMdx(ast);
+  Typecheck.checkMdx(sortedAst, moduleTypeEnv, Render.initTypeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
   // TODO(jaked)
   // first call to renderMdx computes exportType / exportValue
   // second call picks up current values of signals
   // instead we should render to a Signal<React.ReactNode>
   // and update() it to pick up current values
-  Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
+  Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
   const rendered = () => {
     const [_, node] =
-      Render.renderMdx(ast, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
+      Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
     return node;
   }
   return { exportType, exportValue, rendered };

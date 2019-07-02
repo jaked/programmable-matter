@@ -24,7 +24,7 @@ interface NodeImpl {
 }
 
 interface ParentImpl extends NodeImpl {
-  children: Array<Element | Text | Jsx>;
+  children: Array<Node>;
 }
 
 export interface Root extends ParentImpl {

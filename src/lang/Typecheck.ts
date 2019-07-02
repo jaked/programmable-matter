@@ -523,11 +523,6 @@ export function checkMdx(
   env: Env,
   exportTypes: { [s: string]: [Type.Type, boolean] }
 ): Env {
-  // TODO(jaked)
-  // - topologically sort bindings
-  // - check for cycles
-  // - synthesize types bottom up
-
   switch (ast.type) {
     case 'root':
     case 'element':
