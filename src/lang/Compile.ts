@@ -77,6 +77,11 @@ function parseJson(content: string): data.Parsed<AcornJsxAst.Expression> {
 
 function parseNote(note: data.Note): data.Note {
   switch (note.type) {
+    case 'txt': {
+      const parsed = Try.ok({ ast: note.content, imports: new Set<string>() });
+      return Object.assign({}, note, { parsed });
+    }
+
     case 'mdx': {
       const parsed = Try.apply(() => parseMdx(note.content));
       return Object.assign({}, note, { parsed });
@@ -88,7 +93,7 @@ function parseNote(note: data.Note): data.Note {
     }
 
     default:
-      throw new Error(`unhandled note type '${note.type}' for '${note.tag}'`);
+      throw new Error(`unhandled note type '${(<data.Note>note).type}' for '${(<data.Note>note).tag}'`);
   }
 }
 
@@ -324,6 +329,16 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
   return Object.assign({}, ast2, { children });
 }
 
+function compileTxt(
+  content: string
+): data.Compiled {
+  const exportType = Type.module({ default: [Type.string, false] });
+  const exportValue = { default: content }
+  const rendered = () =>
+    React.createElement('pre', null, content);
+  return { exportType, exportValue, rendered };
+}
+
 function compileMdx(
   ast: MDXHAST.Root,
   capitalizedTag: string,
@@ -371,6 +386,10 @@ function compileNote(
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (note.type) {
+      case 'txt':
+        if (!note.parsed) throw new Error('expected note.parsed');
+        return compileTxt(note.parsed.get().ast);
+
       case 'mdx':
         if (!note.parsed) throw new Error('expected note.parsed');
         return compileMdx(
@@ -387,7 +406,7 @@ function compileNote(
       }
 
       default:
-        throw new Error(`unhandled note type '${note.type}'`);
+        throw new Error(`unhandled note type '${(<data.Note>note).type}'`);
     }
   });
 }

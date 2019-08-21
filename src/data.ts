@@ -31,7 +31,7 @@ export type Note = {
   parsed?: Try<Parsed<AcornJsxAst.Expression>>;
 } | {
   type: 'txt';
-  parsed?: Try<never>;
+  parsed?: Try<Parsed<string>>;
 });
 
 export type Notes = Immutable.Map<string, Note>;
