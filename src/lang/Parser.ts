@@ -1,6 +1,7 @@
 import unified from 'unified';
 import toMDAST from 'remark-parse';
 import remarkMdx from './remark-mdx';
+import remarkEmoji from 'remark-emoji';
 import squeeze from 'remark-squeeze-paragraphs';
 import toMDXAST from '@mdx-js/mdx/md-ast-to-mdx-ast';
 import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
@@ -16,6 +17,7 @@ const mdxParser =
   unified()
     .use(toMDAST)
     .use(remarkMdx)
+    .use(remarkEmoji)
     .use(squeeze)
     .use(toMDXAST)
     .use(mdxAstToMdxHast)
