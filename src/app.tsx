@@ -51,7 +51,7 @@ const matchingNotesSignal = Signal.joinMap(notesCell, searchCell, (notes, search
     const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
     const regexp = RegExp(escaped, 'i');
     return notes
-      .filter(note => note.content.match(regexp))
+      .filter(note => note.content.match(regexp) || note.tag.match(regexp))
       .valueSeq().toArray();
   } else {
     return notes
