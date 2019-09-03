@@ -16,7 +16,10 @@ import * as AcornJsxAst from './acornJsxAst';
 const mdxParser =
   unified()
     .use(toMDAST)
-    .use(remarkMdx)
+
+    // TODO(jaked) get type of remarkMdx to match `use` signature
+    .use(remarkMdx as any)
+
     .use(remarkEmoji)
     .use(squeeze)
     .use(toMDXAST)
