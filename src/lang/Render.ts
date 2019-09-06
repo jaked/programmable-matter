@@ -1,3 +1,5 @@
+import * as url from 'url';
+
 import * as Immutable from 'immutable';
 
 import * as React from 'react';
@@ -59,13 +61,14 @@ export function renderMdx(
   moduleEnv: Env,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
+  setSelected: (note: string) => void,
   exportValues: { [s: string]: any }
 ): [Env, React.ReactNode] {
   switch (ast.type) {
     case 'root': {
       const childNodes: Array<React.ReactNode> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, setSelected, exportValues);
         env = env2;
         childNodes.push(childNode);
       });
@@ -76,11 +79,26 @@ export function renderMdx(
     case 'element': {
       const childNodes: Array<React.ReactNode> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, setSelected, exportValues);
         env = env2;
         childNodes.push(childNode);
       });
-      const node = React.createElement(ast.tagName, ast.properties, ...childNodes);
+      let properties = ast.properties;
+      if (ast.tagName === 'a') {
+        // TODO(jaked) tighten this up. are tag attributes case-sensitive?
+        const href = properties['href'];
+        const hrefUrl = url.parse(href);
+        if (!hrefUrl.protocol) { // internal link
+          if (!hrefUrl.path) throw new Error(`expected url path for '${href}'`);
+          const path = hrefUrl.path;
+          const onClick = (e: React.MouseEvent) => {
+            e.preventDefault();
+            setSelected(path);
+          }
+          properties = Object.assign({}, properties, { href: '', onClick });
+        }
+      }
+      const node = React.createElement(ast.tagName, properties, ...childNodes);
       return [env, node];
     }
 
@@ -150,6 +168,18 @@ export function renderMdx(
   }
 }
 
+function Link(
+  setSelected: (note: string) => void,
+) {
+  return function ({ to, children }) {
+    const onClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setSelected(to);
+    }
+    return React.createElement('a', { href: "", onClick }, ...children);
+  }
+}
+
 // TODO(jaked) move to Typecheck?
 function componentType(props: { [f: string]: Type.Type }): Type.Type {
   return Type.abstract('React.Component', Type.object(props));
@@ -158,6 +188,8 @@ function componentType(props: { [f: string]: Type.Type }): Type.Type {
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
 export const initTypeEnv: Typecheck.Env = Immutable.Map({
+  'Link': [componentType({ to: Type.string }), false],
+
   'Tweet': [componentType({ tweetId: Type.string }), false],
   'YouTube': [componentType({ videoId: Type.string }), false],
   'Gist': [componentType({ id: Type.string }), false],
@@ -180,14 +212,19 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
   }), false],
 });
 
-export const initValueEnv: Evaluator.Env = Immutable.Map({
-  Inspector: Inspector,
-  Tweet: TwitterTweetEmbed,
-  YouTube: YouTube,
-  VictoryBar: VictoryBar,
-  VictoryChart: VictoryChart,
-  InlineMath: InlineMath,
-  BlockMath: BlockMath,
-  Table: ReactTable,
-  Gist: Gist,
-});
+export function initValueEnv(
+  setSelected: (note: string) => void,
+): Evaluator.Env {
+  return Immutable.Map({
+    Link: Link(setSelected),
+    Inspector: Inspector,
+    Tweet: TwitterTweetEmbed,
+    YouTube: YouTube,
+    VictoryBar: VictoryBar,
+    VictoryChart: VictoryChart,
+    InlineMath: InlineMath,
+    BlockMath: BlockMath,
+    Table: ReactTable,
+    Gist: Gist,
+  });
+}

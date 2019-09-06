@@ -2,6 +2,7 @@ import unified from 'unified';
 import toMDAST from 'remark-parse';
 import remarkMdx from './remark-mdx';
 import remarkEmoji from 'remark-emoji';
+import remarkWikiLink from 'remark-wiki-link';
 import squeeze from 'remark-squeeze-paragraphs';
 import toMDXAST from '@mdx-js/mdx/md-ast-to-mdx-ast';
 import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
@@ -21,6 +22,7 @@ const mdxParser =
     .use(remarkMdx as any)
 
     .use(remarkEmoji)
+    .use(remarkWikiLink, { aliasDivider: '|', hrefTemplate: (s: string) => s })
     .use(squeeze)
     .use(toMDXAST)
     .use(mdxAstToMdxHast)

@@ -135,7 +135,7 @@ function mkCell(module: string, name: string, init: any): Cell<any> {
 let currentCompiledNotes: data.Notes = Immutable.Map();
 let compiledNotesSignal = notesCell.map(notes => {
   currentCompiledNotes =
-    Compile.compileNotes(currentCompiledNotes, notes, mkCell);
+    Compile.compileNotes(currentCompiledNotes, notes, mkCell, setSelected);
   return currentCompiledNotes;
 });
 

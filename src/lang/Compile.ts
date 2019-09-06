@@ -342,25 +342,28 @@ function compileTxt(
 function compileMdx(
   ast: MDXHAST.Root,
   capitalizedTag: string,
+  typeEnv: Typecheck.Env,
+  valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
+  setSelected: (note: string) => void,
 ): data.Compiled {
   const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
   const exportValue: { [s: string]: any } = {};
 
   const sortedAst = sortMdx(ast);
-  Typecheck.checkMdx(sortedAst, moduleTypeEnv, Render.initTypeEnv, exportTypes);
+  Typecheck.checkMdx(sortedAst, moduleTypeEnv, typeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
   // TODO(jaked)
   // first call to renderMdx computes exportType / exportValue
   // second call picks up current values of signals
   // instead we should render to a Signal<React.ReactNode>
   // and update() it to pick up current values
-  Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
+  Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, setSelected, exportValue);
   const rendered = () => {
     const [_, node] =
-      Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, Render.initValueEnv, mkCell, exportValue);
+      Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, setSelected, exportValue);
     return node;
   }
   return { exportType, exportValue, rendered };
@@ -380,9 +383,12 @@ function compileJson(
 
 function compileNote(
   note: data.Note,
-  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
+  typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
+  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
+  moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
+  setSelected: (note: string) => void,
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (note.type) {
@@ -395,9 +401,12 @@ function compileNote(
         return compileMdx(
           note.parsed.get().ast,
           String.capitalize(note.tag),
-          moduleTypeEnv,
+          typeEnv,
           valueEnv,
-          mkCell
+          moduleTypeEnv,
+          moduleValueEnv,
+          mkCell,
+          setSelected,
         );
 
       case 'json': {
@@ -416,7 +425,10 @@ function compileDirtyNotes(
   notes: data.Notes,
   dirty: Set<string>,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
+  setSelected: (note: string) => void,
 ): data.Notes {
+  let typeEnv = Render.initTypeEnv;
+  let valueEnv = Render.initValueEnv(setSelected);
   let moduleTypeEnv: Immutable.Map<string, Type.ModuleType> = Immutable.Map();
   let moduleValueEnv: Evaluator.Env = Immutable.Map();
   orderedTags.forEach(tag => {
@@ -424,7 +436,7 @@ function compileDirtyNotes(
     if (!note) throw new Error('expected note');
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking / rendering' + tag);
-      const compiled = compileNote(note, moduleTypeEnv, moduleValueEnv, mkCell);
+      const compiled = compileNote(note, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell, setSelected);
       compiled.forEach(compiled => {
         moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
         moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
@@ -447,6 +459,7 @@ export function compileNotes(
   oldNotes: data.Notes,
   notes: data.Notes,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
+  setSelected: (note: string) => void,
 ): data.Notes {
   // TODO(jaked)
   // maybe we should propagate a change set
@@ -471,5 +484,5 @@ export function compileNotes(
   dirtyTransitively(orderedTags, notes, dirty);
 
   // compile dirty notes (post-sorting for dependency ordering)
-  return compileDirtyNotes(orderedTags, notes, dirty, mkCell);
+  return compileDirtyNotes(orderedTags, notes, dirty, mkCell, setSelected);
 }
