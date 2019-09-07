@@ -347,7 +347,6 @@ function compileMdx(
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
-  setSelected: (note: string) => void,
 ): data.Compiled {
   const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
   const exportValue: { [s: string]: any } = {};
@@ -360,10 +359,10 @@ function compileMdx(
   // second call picks up current values of signals
   // instead we should render to a Signal<React.ReactNode>
   // and update() it to pick up current values
-  Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, setSelected, exportValue);
+  Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
   const rendered = () => {
     const [_, node] =
-      Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, setSelected, exportValue);
+      Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
     return node;
   }
   return { exportType, exportValue, rendered };
@@ -388,7 +387,6 @@ function compileNote(
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
-  setSelected: (note: string) => void,
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (note.type) {
@@ -406,7 +404,6 @@ function compileNote(
           moduleTypeEnv,
           moduleValueEnv,
           mkCell,
-          setSelected,
         );
 
       case 'json': {
@@ -436,7 +433,7 @@ function compileDirtyNotes(
     if (!note) throw new Error('expected note');
     if (dirty.has(tag)) {
       if (debug) console.log('typechecking / rendering' + tag);
-      const compiled = compileNote(note, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell, setSelected);
+      const compiled = compileNote(note, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell);
       compiled.forEach(compiled => {
         moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
         moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);

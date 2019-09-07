@@ -1,5 +1,3 @@
-import * as url from 'url';
-
 import * as Immutable from 'immutable';
 
 import * as React from 'react';
@@ -61,14 +59,13 @@ export function renderMdx(
   moduleEnv: Env,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
-  setSelected: (note: string) => void,
   exportValues: { [s: string]: any }
 ): [Env, React.ReactNode] {
   switch (ast.type) {
     case 'root': {
       const childNodes: Array<React.ReactNode> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, setSelected, exportValues);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
         env = env2;
         childNodes.push(childNode);
       });
@@ -79,26 +76,19 @@ export function renderMdx(
     case 'element': {
       const childNodes: Array<React.ReactNode> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, setSelected, exportValues);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
         env = env2;
         childNodes.push(childNode);
       });
       let properties = ast.properties;
+      let elem: any = ast.tagName;
       if (ast.tagName === 'a') {
-        // TODO(jaked) tighten this up. are tag attributes case-sensitive?
-        const href = properties['href'];
-        const hrefUrl = url.parse(href);
-        if (!hrefUrl.protocol) { // internal link
-          if (!hrefUrl.path) throw new Error(`expected url path for '${href}'`);
-          const path = hrefUrl.path;
-          const onClick = (e: React.MouseEvent) => {
-            e.preventDefault();
-            setSelected(path);
-          }
-          properties = Object.assign({}, properties, { href: '', onClick });
-        }
+        // TODO(jaked) fix hack somehow
+        elem = env.get('Link')
+        const to = properties['href'];
+        properties = Object.assign({}, properties, { to });
       }
-      const node = React.createElement(ast.tagName, properties, ...childNodes);
+      const node = React.createElement(elem, properties, ...childNodes);
       return [env, node];
     }
 

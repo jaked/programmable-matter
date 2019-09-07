@@ -39,19 +39,24 @@ export function evaluateExpression(
     }
 
     case 'JSXElement': {
+      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
+        return { [name.name]: evaluateExpression(value, env) };
+      });
+      const attrs = Object.assign({}, ...attrObjs);
+
       let elem: any;
       const name = ast.openingElement.name.name;
       if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
         elem = env.get(name);
         if (typeof elem === 'undefined')
           throw new Error(`unbound identifier ${name}`);
+      } else if (name === 'a') {
+        // TODO(jaked) fix hack somehow
+        elem = env.get('Link');
+        attrs['to'] = attrs['href']
       } else {
         elem = name;
       }
-      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
-        return { [name.name]: evaluateExpression(value, env) };
-      });
-      const attrs = Object.assign({}, ...attrObjs);
 
       // TODO(jaked) for what elements does this make sense? only input?
       if (name === 'input' && attrs.id) {
