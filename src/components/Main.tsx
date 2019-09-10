@@ -32,6 +32,7 @@ const Box = styled(BoxBase)({
 
 export function Main({ notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession, newNote }: Props) {
   const notesRef = React.createRef<HTMLDivElement>();
+  const editorRef = React.createRef<Editor>();
 
   function onKeyDown(key: string): boolean {
     switch (key) {
@@ -46,12 +47,12 @@ export function Main({ notes, selected, search, content, compiledNote, session, 
         return true;
 
       case 'Enter':
-        if (notes.some(note => note.tag === search)) {
-          onSelect(search);
-        } else {
+        if (notes.every(note => note.tag !== search)) {
           newNote(search);
-          onSelect(search);
-          // TODO(jaked) set focus on editor
+        }
+        onSelect(search);
+        if (editorRef.current) {
+          editorRef.current.focus();
         }
         return true;
 
@@ -79,6 +80,7 @@ export function Main({ notes, selected, search, content, compiledNote, session, 
         </Flex>
         <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
           <Editor
+            ref={editorRef}
             selected={selected}
             content={content}
             compiledNote={compiledNote}

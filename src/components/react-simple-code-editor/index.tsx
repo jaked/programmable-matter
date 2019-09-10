@@ -483,6 +483,12 @@ export default class Editor extends React.Component<Props, State> {
 
   _input: HTMLTextAreaElement | null = null;
 
+  focus() {
+    if (this._input) {
+      this._input.focus();
+    }
+  }
+
   get session(): Session {
     return {
       history: this._history,

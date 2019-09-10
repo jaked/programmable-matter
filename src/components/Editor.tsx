@@ -283,6 +283,12 @@ export class Editor extends React.Component<Props, {}> {
     this.onValueChange = this.onValueChange.bind(this);
   }
 
+  focus() {
+    if (this.rscEditorRef.current) {
+      this.rscEditorRef.current.focus();
+    }
+  }
+
   // TODO(jaked)
   // would be nice if session were a prop on RSCEditor
   setSession() {
