@@ -23,13 +23,14 @@ interface Props {
   onSearch: (search: string) => void;
   onChange: (content: string | null) => void;
   saveSession: (session: RSCEditor.Session) => void;
+  newNote: (tag: string) => void;
 }
 
 const Box = styled(BoxBase)({
   overflow: 'auto',
 }, borders);
 
-export function Main({ notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession }: Props) {
+export function Main({ notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession, newNote }: Props) {
   const notesRef = React.createRef<HTMLDivElement>();
 
   function onKeyDown(key: string): boolean {
@@ -45,6 +46,13 @@ export function Main({ notes, selected, search, content, compiledNote, session, 
         return true;
 
       case 'Enter':
+        if (notes.some(note => note.tag === search)) {
+          onSelect(search);
+        } else {
+          newNote(search);
+          onSelect(search);
+          // TODO(jaked) set focus on editor
+        }
         return true;
 
       default: return false;

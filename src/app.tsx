@@ -80,6 +80,17 @@ function setContent(content: string | null) {
   }
 }
 
+function newNote(tag: string) {
+  const note = {
+    path: path.resolve(ROOT, 'docs', tag + '.mdx'),
+    tag,
+    type: 'mdx',
+    content: '',
+    version: 0
+  } as const
+  notesCell.setOk(notesCell.get().set(tag, note))
+}
+
 const sessionSignal = Signal.joinMap(sessionsCell, selectedCell, (sessions, selected) => {
   if (selected) {
     const session = sessions.get(selected);
@@ -168,6 +179,7 @@ function render() {
       onSearch={setSearch}
       onChange={setContent}
       saveSession={saveSession}
+      newNote={newNote}
     />,
     document.getElementById('main')
   );
