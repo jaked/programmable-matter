@@ -21,8 +21,8 @@ import Unhandled from 'electron-unhandled';
 
 Unhandled();
 
-// TODO(jaked)
-const ROOT = process.cwd();
+// TODO(jaked) make this configurable
+const notesPath = fs.realpathSync(path.resolve(process.cwd(), 'docs'));
 
 const notesCell = Signal.cellOk<data.Notes>(Immutable.Map());
 const sessionsCell = Signal.cellOk<Immutable.Map<string, RSCEditor.Session>>(Immutable.Map());
@@ -82,7 +82,7 @@ function setContent(content: string | null) {
 
 function newNote(tag: string) {
   const note = {
-    path: path.resolve(ROOT, 'docs', tag + '.mdx'),
+    path: path.resolve(notesPath, tag + '.mdx'),
     tag,
     type: 'mdx',
     content: '',
@@ -117,7 +117,7 @@ function saveSession(session: RSCEditor.Session) {
   }
 }
 
-let watcher = new Watcher(f => {
+let watcher = new Watcher(notesPath, f => {
   setNotes(f(notesCell.get()));
 });
 watcher.start(); // TODO(jaked) stop this on shutdown

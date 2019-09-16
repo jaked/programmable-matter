@@ -1,18 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as process from 'process';
 import * as util from 'util';
 
 import nsfw from 'nsfw';
 
 import * as data from '../data';
 
-// TODO(jaked)
-const ROOT = process.cwd();
-
 const readdir = util.promisify(fs.readdir)
 const readFile = util.promisify(fs.readFile);
 const stat = util.promisify(fs.stat);
+
+const debug = false;
 
 type SetNotesState = (updateNotes: (notes: data.Notes) => data.Notes) => void
 
@@ -31,10 +29,15 @@ type NsfwEvent =
   }
 
 export class Watcher {
+  notesPath: string;
   watcher: any;
   setNotesState: SetNotesState;
 
-  constructor(setNotesState: SetNotesState) {
+  constructor(
+    notesPath: string,
+    setNotesState: SetNotesState
+  ) {
+    this.notesPath = notesPath;
     this.setNotesState = setNotesState;
 
     this.handleNsfwEvents = this.handleNsfwEvents.bind(this)
@@ -42,7 +45,7 @@ export class Watcher {
 
     this.watcher = new nsfw(
       500, // debounceMS
-      path.resolve(ROOT, 'docs'), // watch path
+      this.notesPath,
       this.handleNsfwEvents,
       this.handleNsfwError
     )
@@ -55,14 +58,18 @@ export class Watcher {
       return Promise.all(dirents.map(async function (file: string) {
         const dirFile = path.resolve(directory, file);
         const stats = await stat(dirFile);
-        if (stats.isFile())
+        if (debug)
+          console.log(`${directory} / ${file}`);
+        if (stats.isFile()) {
+          if (debug) console.log('isFile');
           events.push({ action: 0, file, directory });
-        else if (stats.isDirectory())
+        } else if (stats.isDirectory()) {
+          if (debug) console.log('isDirectory');
           return walkDir(dirFile, events);
-        else throw new Error(`unhandled file type for '${dirFile}'`);
+        } else throw new Error(`unhandled file type for '${dirFile}'`);
       }));
     }
-    await walkDir(path.resolve(ROOT, 'docs'), events);
+    await walkDir(this.notesPath, events);
     await this.handleNsfwEvents(events);
     this.watcher.start();
   }
@@ -72,16 +79,11 @@ export class Watcher {
   }
 
   handleNsfwError(error) {
+    console.log(error);
     throw error;
   }
 
   async handleNsfwEvents(nsfwEvents: Array<NsfwEvent>) {
-    function baseExt(file: string) {
-      const ext = path.extname(file);
-      const base = path.basename(file, ext);
-      return [ base, ext ];
-    }
-
     function readContent(directory: string, file: string) {
       return readFile(
         path.resolve(directory, file),
@@ -94,29 +96,36 @@ export class Watcher {
         switch (ev.action) {
           case 0:   // created
           case 2: { // modified
+            if (debug)
+              console.log(`${ev.directory} / ${ev.file} was ${ev.action == 0 ? 'created' : 'modified'}`);
             const content = await readContent(ev.directory, ev.file);
             return [ ev, content ];
           }
 
           case 3: { // renamed
+            if (debug)
+              console.log(`${ev.directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
             const content = await readContent(ev.newDirectory, ev.newFile);
             return [ ev, content ];
           }
 
           case 1: { // deleted
+            if (debug)
+              console.log(`${ev.directory} / ${ev.file} was deleted`);
             return [ ev, '' ];
           }
         }
       })
     )
 
+    const notesPath = this.notesPath;
     this.setNotesState(function (notes: data.Notes) {
 
       function noteTag(directory: string, file: string) {
         const ext = path.extname(file);
         const base = path.basename(file, ext);
         return path.relative(
-          path.resolve(ROOT, 'docs'),
+          notesPath,
           path.resolve(directory, base)
         );
       }
@@ -130,10 +139,12 @@ export class Watcher {
         switch (ext) {
           case '': type = 'mdx'; break;
           case '.txt': type = 'txt'; break;
+          case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
           case '.mdx': type = 'mdx'; break;
           case '.json': type = 'json'; break;
           default:
-            throw new Error(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
+            console.log(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
+            return notes;
         }
         const oldNote = notes.get(tag);
         const note = {
