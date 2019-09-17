@@ -1,4 +1,5 @@
 import deepEqual from 'deep-equal';
+import * as Immutable from 'immutable';
 import Try from '../Try';
 
 /**
@@ -104,7 +105,7 @@ class CellImpl<T> implements CellIntf<T> {
   update(level: number) { }
 
   set(t: Try<T>) {
-    if (deepEqual(t, this.value)) return;
+    if (equal(t, this.value)) return;
     this.value = t;
     this.version++;
   }
@@ -140,7 +141,7 @@ class Map<T, U> implements Signal<U> {
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     const value = this.s.value.map(this.f);
-    if (deepEqual(value, this.value)) return;
+    if (equal(value, this.value)) return;
     this.value = value;
     this.version++;
   }
@@ -187,7 +188,7 @@ class FlatMap<T, U> implements Signal<U> {
     } else {
       value = <Try<U>><unknown>this.s.value;
     }
-    if (deepEqual(value, this.value)) return;
+    if (equal(value, this.value)) return;
     this.value = value;
     this.version++;
   }
@@ -233,9 +234,17 @@ class JoinMap<T1, T2, R> implements Signal<R> {
     this.s1Version = this.s1.version;
     this.s2Version = this.s2.version;
     const value = Try.joinMap2(this.s1.value, this.s2.value, this.f);
-    if (deepEqual(value, this.value)) return;
+    if (equal(value, this.value)) return;
     this.value = value;
     this.version++;
+  }
+}
+
+function equal(v1: any, v2: any): boolean {
+  if (Immutable.isValueObject(v1) && Immutable.isValueObject(v2)) {
+    return Immutable.is(v1, v2);
+  } else {
+    return deepEqual(v1, v2);
   }
 }
 

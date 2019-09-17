@@ -1,3 +1,5 @@
+import * as Immutable from 'immutable';
+
 // TODO(jaked) this must exist already
 // TODO(jaked) is there a way to get Scala-ish Try(() => ...) ?
 
@@ -15,6 +17,17 @@ class Ok<T> {
     else return <Try<U>><unknown>tt;
   }
   forEach(f: (t: T) => void) { return f(this.ok); }
+
+  equals(other: any): boolean {
+    return (
+      this === other ||
+      other && other.ok && Immutable.is(this.ok, other.ok)
+    )
+  }
+
+  hashCode(): number {
+    return Immutable.hash(this.ok);
+  }
 }
 
 class Err {
@@ -27,6 +40,17 @@ class Err {
   map<U>(f: (t: never) => U): Try<never> { return this; }
   flatMap<U>(f: (t: never) => Try<U>): Try<never> { return this; }
   forEach(f: (t: never) => void) { }
+
+  equals(other: any): boolean {
+    return (
+      this === other ||
+      other && other.ok && Immutable.is(this.err, other.err)
+    )
+  }
+
+  hashCode(): number {
+    return Immutable.hash(this.err);
+  }
 }
 
 type Try<T> = {
