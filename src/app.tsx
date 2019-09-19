@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from 'path';
 import * as process from 'process';
 
+import * as Graymatter from 'gray-matter';
 import * as Immutable from 'immutable';
 
 import Signal from './util/Signal';
@@ -71,7 +72,16 @@ function setContent(content: string | null) {
   const selected = selectedCell.get();
   if (content != null && selected) {
     const notes = notesCell.get().update(selected, note => {
-      fs.writeFileSync(note.path, content);
+      if (note.content === content) return note;
+
+      // TODO(jaked) don't perturb frontmatter unnecessarily
+      let matter = Graymatter.stringify(content, note.meta, { language: 'json' });
+      // stringify adds trailing newline
+      if (content.slice(-1) !== '\n')  {
+        matter = matter.slice(0, -1);
+      }
+      fs.writeFileSync(note.path, matter);
+
       const version = note.version + 1;
       return Object.assign({}, note, { content, version });
     });
@@ -82,7 +92,8 @@ function setContent(content: string | null) {
 
 function newNote(tag: string) {
   const note = {
-    path: path.resolve(notesPath, tag + '.mdx'),
+    meta: { type: 'mdx' },
+    path: path.resolve(notesPath, tag),
     tag,
     type: 'mdx',
     content: '',

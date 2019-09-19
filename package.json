@@ -38,6 +38,7 @@
     "deep-equal": "^1.1.0",
     "electron-reload": "^1.5.0",
     "electron-unhandled": "^2.2.0",
+    "gray-matter": "^4.0.2",
     "immutable": "^4.0.0-rc.12",
     "lodash": "^4.17.15",
     "nsfw": "^1.2.5",

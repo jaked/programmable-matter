@@ -5,6 +5,12 @@ import * as MDXHAST from './lang/mdxhast';
 import * as AcornJsxAst from './lang/acornJsxAst';
 import * as Type from './lang/Type';
 
+export interface Meta {
+  type?: 'mdx' | 'json' | 'txt';
+  title?: string;
+  tags?: Array<string>;
+}
+
 export type Parsed<Ast> = {
   ast: Ast;
   imports: Set<string>;
@@ -17,6 +23,7 @@ export interface Compiled {
 }
 
 export type Note = {
+  meta: Meta;
   tag: string;
   path: string;
   type: 'txt' | 'mdx' | 'json';

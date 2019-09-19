@@ -2,7 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
 
+import deepEqual from 'deep-equal'
 import nsfw from 'nsfw';
+import * as Graymatter from 'gray-matter';
 
 import * as data from '../data';
 
@@ -27,6 +29,33 @@ type NsfwEvent =
     newDirectory: string;
     newFile: string;
   }
+
+function sanitizeMeta(obj: any): data.Meta {
+  // TODO(jaked) json-schema instead of hand-coding this?
+  // TODO(jaked) report errors somehow
+  const type: 'mdx' | 'json' | 'txt' =
+    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt') ?
+    obj.type : undefined;
+
+  const title: string =
+    typeof obj.title === 'string' ?
+    obj.title : undefined;
+
+  const tags: Array<string> =
+    (Array.isArray(obj.tags) && obj.tags.every(s => typeof s === 'string')) ?
+    obj.tags : undefined;
+
+  return { type, title, tags };
+}
+
+function noteTag(notesPath: string, directory: string, file: string) {
+  const ext = path.extname(file);
+  const base = path.basename(file, ext);
+  return path.relative(
+    notesPath,
+    path.resolve(directory, base)
+  );
+}
 
 export class Watcher {
   notesPath: string;
@@ -120,34 +149,37 @@ export class Watcher {
 
     const notesPath = this.notesPath;
     this.setNotesState(function (notes: data.Notes) {
-
-      function noteTag(directory: string, file: string) {
+      function updateNote(notes: data.Notes, dir: string, file: string, matter: string) {
+        const graymatter = Graymatter.default(matter);
+        const meta = sanitizeMeta(graymatter.data);
+        const tag = noteTag(notesPath, dir, file);
         const ext = path.extname(file);
-        const base = path.basename(file, ext);
-        return path.relative(
-          notesPath,
-          path.resolve(directory, base)
-        );
-      }
-
-      function updateNote(notes: data.Notes, dir: string, file: string, content: string) {
-        const tag = noteTag(dir, file);
-        const ext = path.extname(file);
-        // TODO(jaked) this doesn't work for some reason
-        // let type: 'mdx' | 'txt' | 'json';
-        let type;
-        switch (ext) {
-          case '': type = 'mdx'; break;
-          case '.txt': type = 'txt'; break;
-          case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
-          case '.mdx': type = 'mdx'; break;
-          case '.json': type = 'json'; break;
-          default:
-            console.log(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
-            return notes;
-        }
         const oldNote = notes.get(tag);
+        const content = graymatter.content;
+
+        if (oldNote && deepEqual(oldNote.meta, meta) && oldNote.content === content) {
+          return notes;
+        }
+
+        let type;
+        if (meta.type) {
+          // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
+          type = meta.type
+        } else {
+          switch (ext) {
+            case '': type = 'mdx'; break;
+            case '.txt': type = 'txt'; break;
+            case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
+            case '.mdx': type = 'mdx'; break;
+            case '.json': type = 'json'; break;
+            default:
+              console.log(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
+              return notes;
+          }
+        }
+
         const note = {
+          meta,
           path: path.resolve(dir, file),
           tag,
           type,
@@ -155,10 +187,6 @@ export class Watcher {
           version: oldNote ? oldNote.version + 1 : 0
         }
         return notes.set(tag, note);
-      }
-
-      function deleteNote(notes: data.Notes, tag: string) {
-        return notes.delete(tag);
       }
 
       // defer deletions to account for delete/add
@@ -169,22 +197,22 @@ export class Watcher {
           switch (ev.action) {
             case 0:   // created
             case 2: { // modified
-              const tag = noteTag(ev.directory, ev.file);
+              const tag = noteTag(notesPath, ev.directory, ev.file);
               deleted.delete(tag);
               return updateNote(notes, ev.directory, ev.file, content);
             }
 
             case 3: { // renamed
-              deleted.add(noteTag(ev.directory, ev.oldFile));
+              deleted.add(noteTag(notesPath, ev.directory, ev.oldFile));
               return updateNote(notes, ev.newDirectory, ev.newFile, content);
             }
             case 1:
-              deleted.add(noteTag(ev.directory, ev.file));
+              deleted.add(noteTag(notesPath, ev.directory, ev.file));
               return notes;
           }
         }, notes);
 
-      deleted.forEach(tag => { notes = deleteNote(notes, tag) });
+      deleted.forEach(tag => { notes = notes.delete(tag) });
       return notes;
     });
   }
