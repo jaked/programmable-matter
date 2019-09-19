@@ -51,8 +51,15 @@ const matchingNotesSignal = Signal.joinMap(notesCell, searchCell, (notes, search
     // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
     const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
     const regexp = RegExp(escaped, 'i');
+
+    function matches(note: data.Note): boolean {
+      if (note.content.match(regexp)) return true;
+      if (note.tag.match(regexp)) return true;
+      if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
+      return false;
+    }
     return notes
-      .filter(note => note.content.match(regexp) || note.tag.match(regexp))
+      .filter(matches)
       .valueSeq().toArray();
   } else {
     return notes
