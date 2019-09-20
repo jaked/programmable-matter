@@ -22,7 +22,11 @@ const mdxParser =
     .use(remarkMdx as any)
 
     .use(remarkEmoji)
-    .use(remarkWikiLink, { aliasDivider: '|', hrefTemplate: (s: string) => s })
+    .use(remarkWikiLink, {
+      aliasDivider: '|',
+      hrefTemplate: (s: string) => s,
+      pageResolver: (s: string) => [ s ]
+    })
     .use(squeeze)
     .use(toMDXAST)
     .use(mdxAstToMdxHast)

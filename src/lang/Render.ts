@@ -166,7 +166,7 @@ function Link(
       e.preventDefault();
       setSelected(to);
     }
-    return React.createElement('a', { href: "", onClick }, ...children);
+    return React.createElement('a', { href: "", onClick }, children);
   }
 }
 
