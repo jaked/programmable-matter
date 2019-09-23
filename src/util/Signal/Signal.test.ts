@@ -1,6 +1,8 @@
 import Signal from './index';
+import Trace from '../Trace';
 
 const err = new Error('fail');
+const trace = new Trace();
 
 describe('constant', () => {
   describe('ok', () => {
@@ -64,7 +66,7 @@ describe('cell', () => {
   it('setOk', () => {
     const s = Signal.cellOk(7);
     s.setOk(8);
-    s.update(1);
+    s.update(trace, 1);
     expect(s.value.type === 'ok' && s.value.ok).toBe(8);
     expect(s.get()).toBe(8);
   });
@@ -72,7 +74,7 @@ describe('cell', () => {
   it('setErr', () => {
     const s = Signal.cellOk(7);
     s.setErr(err);
-    s.update(1);
+    s.update(trace, 1);
     expect(s.value.type === 'err' && s.value.err).toBe(err);
     expect(() => s.get()).toThrow(err);
   });
@@ -81,7 +83,7 @@ describe('cell', () => {
     const s = Signal.cellOk(7);
     expect(s.version).toBe(0);
     s.setOk(7);
-    s.update(1);
+    s.update(trace, 1);
     expect(s.version).toBe(0);
     expect(s.value.type === 'ok' && s.value.ok).toBe(7);
     expect(s.get()).toBe(7);
@@ -98,12 +100,12 @@ describe('map', () => {
     expect(calls).toBe(1);
 
     c.setOk(7);
-    m.update(1);
+    m.update(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    m.update(2);
+    m.update(trace, 2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
     expect(calls).toBe(2);
   });
@@ -118,7 +120,7 @@ describe('map', () => {
     expect(m.version).toBe(0);
 
     c.setOk(9);
-    m.update(1);
+    m.update(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(0);
@@ -135,12 +137,12 @@ describe('flatMap', () => {
     expect(calls).toBe(1);
 
     c.setOk(7);
-    m.update(1);
+    m.update(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    m.update(2);
+    m.update(trace, 2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
     expect(calls).toBe(2);
   });
@@ -155,7 +157,7 @@ describe('flatMap', () => {
     expect(m.version).toBe(0);
 
     c.setOk(9);
-    m.update(1);
+    m.update(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(0);
@@ -192,17 +194,17 @@ describe('joinMap', () => {
     expect(calls).toBe(1);
 
     c1.setOk(7);
-    j.update(1);
+    j.update(trace, 1);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c2.setOk(9);
-    j.update(2);
+    j.update(trace, 2);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c1.setOk(11);
-    j.update(3);
+    j.update(trace, 3);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([11, 9]);
     expect(calls).toBe(2);
   });
@@ -217,7 +219,7 @@ describe('joinMap', () => {
 
     c1.setOk(9);
     c2.setOk(7);
-    j.update(1);
+    j.update(trace, 1);
     expect(j.value.type === 'ok' && j.value.ok).toBe(16);
     expect(j.version).toBe(0);
   });

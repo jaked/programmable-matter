@@ -7,6 +7,7 @@ import * as Immutable from 'immutable';
 
 import Signal from './util/Signal';
 import { Cell } from './util/Cell';
+import Trace from './util/Trace';
 import * as data from './data';
 import { Watcher } from './files/Watcher';
 
@@ -21,6 +22,12 @@ import * as RSCEditor from './components/react-simple-code-editor';
 import Unhandled from 'electron-unhandled';
 
 Unhandled();
+
+// TODO(jaked)
+// global for the benefit of functions inside of Signal.map etc.
+// maybe build trace argument into Signal?
+// or have a current active trace in Trace instead of threading it around
+let __trace = new Trace();
 
 // TODO(jaked) make this configurable
 const notesPath = fs.realpathSync(path.resolve(process.cwd(), 'docs'));
@@ -46,34 +53,40 @@ function setSearch(search: string) {
   render();
 }
 
-const matchingNotesSignal = Signal.joinMap(notesCell, searchCell, (notes, search) => {
-  if (search) {
-    // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-    const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-    const regexp = RegExp(escaped, 'i');
+const matchingNotesSignal =
+  Signal.label('matchingNotes',
+    Signal.joinMap(notesCell, searchCell, (notes, search) => {
+      if (search) {
+        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+        const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+        const regexp = RegExp(escaped, 'i');
 
-    function matches(note: data.Note): boolean {
-      if (note.content.match(regexp)) return true;
-      if (note.tag.match(regexp)) return true;
-      if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
-      return false;
-    }
-    return notes
-      .filter(matches)
-      .valueSeq().toArray();
-  } else {
-    return notes
-      .valueSeq().toArray();
-  }
-});
+        function matches(note: data.Note): boolean {
+          if (note.content.match(regexp)) return true;
+          if (note.tag.match(regexp)) return true;
+          if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
+          return false;
+        }
+        return notes
+          .filter(matches)
+          .valueSeq().toArray();
+      } else {
+        return notes
+          .valueSeq().toArray();
+      }
+    })
+  );
 
-const contentSignal = Signal.joinMap(notesCell, selectedCell, (notes, selected) => {
-  if (selected) {
-    const note = notes.get(selected);
-    if (note) return note.content;
-  }
-  return null;
-});
+const contentSignal =
+  Signal.label('content',
+    Signal.joinMap(notesCell, selectedCell, (notes, selected) => {
+      if (selected) {
+        const note = notes.get(selected);
+        if (note) return note.content;
+      }
+      return null;
+    })
+  );
 
 function setContent(content: string | null) {
   const selected = selectedCell.get();
@@ -109,22 +122,25 @@ function newNote(tag: string) {
   notesCell.setOk(notesCell.get().set(tag, note))
 }
 
-const sessionSignal = Signal.joinMap(sessionsCell, selectedCell, (sessions, selected) => {
-  if (selected) {
-    const session = sessions.get(selected);
-    if (session) {
-      return session;
-    }
-  }
-  // TODO(jaked)
-  // empty session should be defined on RSCEditor
-  return {
-    history: {
-      stack: [],
-      offset: -1,
-    }
-  };
-});
+const sessionSignal =
+  Signal.label('session',
+    Signal.joinMap(sessionsCell, selectedCell, (sessions, selected) => {
+      if (selected) {
+        const session = sessions.get(selected);
+        if (session) {
+          return session;
+        }
+      }
+      // TODO(jaked)
+      // empty session should be defined on RSCEditor
+      return {
+        history: {
+          stack: [],
+          offset: -1,
+        }
+      };
+    })
+  );
 
 function saveSession(session: RSCEditor.Session) {
   const selected = selectedCell.get();
@@ -162,29 +178,36 @@ function mkCell(module: string, name: string, init: any): Cell<any> {
 // there might be a way to organize this with an Atom per note
 // but it's a lot simpler to handle them all at once
 let currentCompiledNotes: data.Notes = Immutable.Map();
-let compiledNotesSignal = notesCell.map(notes => {
-  currentCompiledNotes =
-    Compile.compileNotes(currentCompiledNotes, notes, mkCell, setSelected);
-  return currentCompiledNotes;
-});
+let compiledNotesSignal =
+  Signal.label('compiledNotes',
+    notesCell.map(notes => {
+      currentCompiledNotes =
+        Compile.compileNotes(__trace, currentCompiledNotes, notes, mkCell, setSelected);
+      return currentCompiledNotes;
+    })
+  );
 
 let compiledNoteSignal =
-  Signal.joinMap(compiledNotesSignal, selectedCell, (compiledNotes, selected) => {
-    if (selected) {
-      const note = compiledNotes.get(selected);
-      if (note) return note;
-    }
-    return null;
-  });
+  Signal.label('compiledNote',
+    Signal.joinMap(compiledNotesSignal, selectedCell, (compiledNotes, selected) => {
+      if (selected) {
+        const note = compiledNotes.get(selected);
+        if (note) return note;
+      }
+      return null;
+    })
+  );
 
 let level = 0;
 function render() {
+  __trace = new Trace();
   level++;
   // TODO(jaked) write this as a join instead of .get()s
-  contentSignal.update(level);
-  compiledNoteSignal.update(level);
-  matchingNotesSignal.update(level);
-  sessionSignal.update(level);
+  contentSignal.update(__trace, level);
+  compiledNoteSignal.update(__trace, level);
+  matchingNotesSignal.update(__trace, level);
+  sessionSignal.update(__trace, level);
+  __trace.open('ReactDOM.render');
   ReactDOM.render(
     <Main
       notes={matchingNotesSignal.get()}
@@ -201,6 +224,8 @@ function render() {
     />,
     document.getElementById('main')
   );
+  __trace.close();
+  console.log(__trace.finish());
 }
 
 render();

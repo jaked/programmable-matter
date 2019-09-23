@@ -10,6 +10,7 @@ import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 import * as Acorn from 'acorn';
 import AcornJsx from 'acorn-jsx';
 
+import Trace from '../util/Trace';
 import Try from '../util/Try';
 import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
@@ -105,8 +106,8 @@ function parseJsxNodes(ast: MDXHAST.Node) {
   }
 }
 
-export function parse(input: string): MDXHAST.Root {
-  const ast = parseMdx(input);
-  parseJsxNodes(ast);
+export function parse(trace: Trace, input: string): MDXHAST.Root {
+  const ast = trace.time('parseMdx', () => parseMdx(input));
+  trace.time('parseJsxNodes', () => parseJsxNodes(ast));
   return ast;
 }

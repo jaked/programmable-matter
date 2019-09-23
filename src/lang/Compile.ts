@@ -5,6 +5,7 @@ import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
 
 import { Cell } from '../util/Cell';
+import Trace from '../util/Trace';
 import Try from '../util/Try';
 import * as data from '../data';
 import * as MDXHAST from './mdxhast';
@@ -62,10 +63,10 @@ function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
   }
 }
 
-function parseMdx(content: string): data.Parsed<MDXHAST.Root> {
-  const ast = Parser.parse(content);
+function parseMdx(trace: Trace, content: string): data.Parsed<MDXHAST.Root> {
+  const ast = Parser.parse(trace, content);
   const imports = new Set<string>();
-  findImportsMdx(ast, imports);
+  trace.time('findImportsMdx', () => findImportsMdx(ast, imports));
   return { ast, imports };
 }
 
@@ -75,7 +76,7 @@ function parseJson(content: string): data.Parsed<AcornJsxAst.Expression> {
   return { ast, imports };
 }
 
-function parseNote(note: data.Note): data.Note {
+function parseNote(trace: Trace, note: data.Note): data.Note {
   switch (note.type) {
     case 'txt': {
       const parsed = Try.ok({ ast: note.content, imports: new Set<string>() });
@@ -83,7 +84,7 @@ function parseNote(note: data.Note): data.Note {
     }
 
     case 'mdx': {
-      const parsed = Try.apply(() => parseMdx(note.content));
+      const parsed = Try.apply(() => parseMdx(trace, note.content));
       return Object.assign({}, note, { parsed });
     }
 
@@ -99,12 +100,13 @@ function parseNote(note: data.Note): data.Note {
 
 // also computes imports
 function parseDirtyNotes(
+  trace: Trace,
   notes: data.Notes,
   dirty: Set<string>
 ) {
   return notes.map((note, tag) => {
     if (dirty.has(tag)) {
-      return parseNote(note);
+      return trace.time(note.tag, () => parseNote(trace, note));
     } else {
       return note;
     }
@@ -453,6 +455,7 @@ function compileDirtyNotes(
 }
 
 export function compileNotes(
+  trace: Trace,
   oldNotes: data.Notes,
   notes: data.Notes,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
@@ -466,20 +469,20 @@ export function compileNotes(
   const dirty = new Set<string>();
 
   // mark changed notes dirty, retain parsed / compiled fields on others
-  notes = dirtyChangedNotes(oldNotes, notes, dirty);
+  notes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(oldNotes, notes, dirty));
 
   // parse dirty notes + compute imports
-  notes = parseDirtyNotes(notes, dirty);
+  notes = trace.time('parseDirtyNotes', () => parseDirtyNotes(trace, notes, dirty));
 
   // topologically sort notes according to imports
-  const orderedTags = sortNotes(notes);
+  const orderedTags = trace.time('sortNotes', () => sortNotes(notes));
 
   // mark deleted notes dirty so dependents are rebuilt
-  dirtyDeletedNotes(oldNotes, notes, dirty);
+  trace.time('dirtyDeletedNotes', () => dirtyDeletedNotes(oldNotes, notes, dirty));
 
   // dirty notes that import a dirty note (post-sorting for transitivity)
-  dirtyTransitively(orderedTags, notes, dirty);
+  trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, notes, dirty));
 
   // compile dirty notes (post-sorting for dependency ordering)
-  return compileDirtyNotes(orderedTags, notes, dirty, mkCell, setSelected);
+  return trace.time('compileDirtyNotes', () => compileDirtyNotes(orderedTags, notes, dirty, mkCell, setSelected));
 }

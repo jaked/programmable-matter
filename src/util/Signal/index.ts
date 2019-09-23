@@ -1,5 +1,6 @@
 import deepEqual from 'deep-equal';
 import * as Immutable from 'immutable';
+import Trace from '../Trace';
 import Try from '../Try';
 
 /**
@@ -63,7 +64,15 @@ interface Signal<T> {
    *
    * `update` must be called with monotonically increasing numbers.
    */
-  update(level: number): void;
+  update(trace: Trace, level: number): void;
+}
+
+function equal(v1: any, v2: any): boolean {
+  if (Immutable.isValueObject(v1) && Immutable.isValueObject(v2)) {
+    return Immutable.is(v1, v2);
+  } else {
+    return deepEqual(v1, v2);
+  }
 }
 
 class Const<T> implements Signal<T> {
@@ -79,7 +88,7 @@ class Const<T> implements Signal<T> {
   get version(): 0 { return 0; }
   // don't need to track `level` because `update` is a no-op
   get level(): 0 { return 0; }
-  update(level: number) { }
+  update(trace: Trace, level: number) { }
 }
 
 interface CellIntf<T> extends Signal<T> {
@@ -102,7 +111,7 @@ class CellImpl<T> implements CellIntf<T> {
   version: number;
   // don't need to track `level` because `update` is a no-op
   get level(): 0 { return 0; }
-  update(level: number) { }
+  update(trace: Trace, level: number) { }
 
   set(t: Try<T>) {
     if (equal(t, this.value)) return;
@@ -134,10 +143,10 @@ class Map<T, U> implements Signal<U> {
   value: Try<U>;
   version: number;
   level: number;
-  update(level: number) {
+  update(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s.update(level);
+    this.s.update(trace, level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     const value = this.s.value.map(this.f);
@@ -174,16 +183,16 @@ class FlatMap<T, U> implements Signal<U> {
   value: Try<U>;
   version: number;
   level: number;
-  update(level: number) {
+  update(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s.update(level);
+    this.s.update(trace, level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     let value: Try<U>;
     if (this.s.value.type === 'ok') {
       const fs = this.f(this.s.value.ok);
-      fs.update(level);
+      fs.update(trace, level);
       value = fs.value;
     } else {
       value = <Try<U>><unknown>this.s.value;
@@ -223,11 +232,11 @@ class JoinMap<T1, T2, R> implements Signal<R> {
   value: Try<R>;
   version: number;
   level: number;
-  update(level: number) {
+  update(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s1.update(level);
-    this.s2.update(level);
+    this.s1.update(trace, level);
+    this.s2.update(trace, level);
     if (this.s1Version === this.s1.version &&
         this.s2Version === this.s2.version)
       return;
@@ -240,11 +249,26 @@ class JoinMap<T1, T2, R> implements Signal<R> {
   }
 }
 
-function equal(v1: any, v2: any): boolean {
-  if (Immutable.isValueObject(v1) && Immutable.isValueObject(v2)) {
-    return Immutable.is(v1, v2);
-  } else {
-    return deepEqual(v1, v2);
+class Label<T> implements Signal<T> {
+  constructor(label: string, s: Signal<T>) {
+    this.label = label;
+    this.s = s;
+  }
+
+  get() { return this.s.get(); }
+  map<U>(f: (t: T) => U) { return new Map(this, f); }
+  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
+
+  label: string;
+  s: Signal<T>;
+  get value() { return this.s.value; }
+  get version() { return this.s.version; }
+  // don't need to track `level` because `update` is a no-op
+  get level() { return this.s.level; }
+  update(trace: Trace, level: number) {
+    trace.open(this.label);
+    this.s.update(trace, level);
+    trace.close();
   }
 }
 
@@ -260,6 +284,8 @@ module Signal {
   export function err(err: Error): Signal<never> {
     return constant(Try.err(err));
   }
+
+  export type Cell<T> = CellIntf<T>;
 
   export function cell<T>(t: Try<T>): Cell<T> {
     return new CellImpl(t);
@@ -281,7 +307,9 @@ module Signal {
     return new JoinMap(s1, s2, f);
   }
 
-  export type Cell<T> = CellIntf<T>;
+  export function label<T>(label: string, s: Signal<T>): Signal<T> {
+    return new Label(label, s);
+  }
 }
 
 export default Signal;
