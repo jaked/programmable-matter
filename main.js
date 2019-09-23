@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow} = require('electron')
+const { app, BrowserWindow, globalShortcut } = require('electron')
 
 const path = require('path')
 require('electron-reload')(path.resolve(__dirname, 'build'));
@@ -26,6 +26,17 @@ function createWindow () {
 
   // and load the index.html of the app.
   mainWindow.loadFile('index.html')
+
+  const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
+    if (mainWindow === null) {
+      createWindow();
+    } else if (!mainWindow.isFocused()) {
+      app.focus();
+    } else {
+      app.hide();
+    }
+    // TODO(jaked) and focus search box
+  });
 
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
