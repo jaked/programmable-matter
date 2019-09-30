@@ -18,25 +18,39 @@ const Input = styled.input({
 
 const Box = styled(BoxBase)({}, borders);
 
-export function SearchBox({ search, onSearch, onKeyDown }: Props) {
-  return (
-    <Box width={1} padding={1}>
-      <Box width={1} padding={1} borderWidth={1} borderStyle='solid'>
-        <Input
-          width={1}
-          type='text'
-          maxLength={100}
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            e.preventDefault();
-            onSearch(e.currentTarget.value);
-          }}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (onKeyDown(e.key))
+export class SearchBox extends React.Component<Props, {}> {
+  inputRef = React.createRef<HTMLInputElement>();
+
+  constructor(props: Props) {
+    super(props);
+  }
+
+  focus() {
+    this.inputRef.current && this.inputRef.current.focus();
+  }
+
+  render() {
+    const { search, onSearch, onKeyDown } = this.props;
+    return (
+      <Box width={1} padding={1}>
+        <Box width={1} padding={1} borderWidth={1} borderStyle='solid'>
+          <Input
+            ref={this.inputRef}
+            width={1}
+            type='text'
+            maxLength={100}
+            value={search}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               e.preventDefault();
-          }}
-        />
+              onSearch(e.currentTarget.value);
+            }}
+            onKeyDown={(e: React.KeyboardEvent) => {
+              if (onKeyDown(e.key))
+                e.preventDefault();
+            }}
+          />
+        </Box>
       </Box>
-    </Box>
-  );
+    );
+  }
 }

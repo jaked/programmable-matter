@@ -40,12 +40,17 @@ function createWindow () {
   })
 }
 
+function focusSearchBox() {
+  mainWindow && mainWindow.webContents.send('focus-search-box');
+}
+
 function initGlobalShortcut() {
   const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
     if (mainWindow === null) {
       createWindow();
     } else if (!mainWindow.isFocused()) {
       app.focus();
+      focusSearchBox();
     } else {
       app.hide();
     }
@@ -97,6 +102,11 @@ function initMenu() {
     {
       label: 'File',
       submenu: [
+        {
+          label: 'Search...',
+          accelerator: 'CmdOrCtrl+L',
+          click: focusSearchBox,
+        }
       ]
     },
     {

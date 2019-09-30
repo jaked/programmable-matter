@@ -1,3 +1,5 @@
+import { ipcRenderer as ipc } from 'electron';
+
 import * as React from 'react';
 import { Flex, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
@@ -30,71 +32,96 @@ const Box = styled(BoxBase)({
   overflow: 'auto',
 }, borders);
 
-export function Main({ notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession, newNote }: Props) {
-  const notesRef = React.createRef<HTMLDivElement>();
-  const editorRef = React.createRef<Editor>();
+export class Main extends React.Component<Props, {}> {
+  notesRef = React.createRef<HTMLDivElement>();
+  editorRef = React.createRef<Editor>();
+  searchBoxRef = React.createRef<SearchBox>();
 
-  function onKeyDown(key: string): boolean {
-    switch (key) {
-      case 'ArrowUp':
-        notesRef.current && notesRef.current.focus();
-        onSelect(notes[notes.length - 1].tag);
-        return true;
-
-      case 'ArrowDown':
-        notesRef.current && notesRef.current.focus();
-        onSelect(notes[0].tag);
-        return true;
-
-      case 'Enter':
-        if (notes.every(note => note.tag !== search)) {
-          newNote(search);
-        }
-        onSelect(search);
-        if (editorRef.current) {
-          editorRef.current.focus();
-        }
-        return true;
-
-      default: return false;
-    }
+  constructor(props: Props) {
+    super(props);
+    this.focusSearchBox = this.focusSearchBox.bind(this);
   }
 
-  return (
-    <>
-      <Flex style={{ height: '100vh' }}>
-        <Flex width={1/6} flexDirection='column'>
-          <SearchBox
-            search={search}
-            onSearch={onSearch}
-            onKeyDown={onKeyDown}
-          />
-          <Box>
-            <Notes
-              ref={notesRef}
-              notes={notes}
+  componentDidMount() {
+    ipc.on('focus-search-box', this.focusSearchBox);
+  }
+
+  componentWillUnmount() {
+    ipc.removeListener('focus-search-box', this.focusSearchBox);
+  }
+
+  focusSearchBox() {
+    this.searchBoxRef.current && this.searchBoxRef.current.focus();
+  }
+
+  render() {
+    const { notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession, newNote } = this.props;
+    const self = this;
+
+      // TODO(jaked) replace with a bound method
+    function onKeyDown(key: string): boolean {
+      switch (key) {
+        case 'ArrowUp':
+          self.notesRef.current && self.notesRef.current.focus();
+          onSelect(notes[notes.length - 1].tag);
+          return true;
+
+        case 'ArrowDown':
+          self.notesRef.current && self.notesRef.current.focus();
+          onSelect(notes[0].tag);
+          return true;
+
+        case 'Enter':
+          if (notes.every(note => note.tag !== search)) {
+            newNote(search);
+          }
+          onSelect(search);
+          if (self.editorRef.current) {
+            self.editorRef.current.focus();
+          }
+          return true;
+
+        default: return false;
+      }
+    }
+
+    return (
+      <>
+        <Flex style={{ height: '100vh' }}>
+          <Flex width={1/6} flexDirection='column'>
+            <SearchBox
+              ref={this.searchBoxRef}
+              search={search}
+              onSearch={onSearch}
+              onKeyDown={onKeyDown}
+            />
+            <Box>
+              <Notes
+                ref={this.notesRef}
+                notes={notes}
+                selected={selected}
+                onSelect={onSelect}
+              />
+            </Box>
+          </Flex>
+          <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
+            <Editor
+              ref={this.editorRef}
               selected={selected}
-              onSelect={onSelect}
+              content={content}
+              compiledNote={compiledNote}
+              session={session}
+              onChange={onChange}
+              saveSession={saveSession}
             />
           </Box>
+          <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
+            <Catch>
+              <Display compiledNote={compiledNote} />
+            </Catch>
+          </Box>
         </Flex>
-        <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
-          <Editor
-            ref={editorRef}
-            selected={selected}
-            content={content}
-            compiledNote={compiledNote}
-            session={session}
-            onChange={onChange}
-            saveSession={saveSession}
-          />
-        </Box>
-        <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
-          <Catch>
-            <Display compiledNote={compiledNote} />
-          </Catch>
-        </Box>
-      </Flex>
-    </>
-  );
+      </>
+    );
+  }
 }
