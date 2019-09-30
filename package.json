@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@mdx-js/mdx": "^1.4.5",
+    "@types/styled-components": "^4.1.19",
     "acorn": "^6.3.0",
     "acorn-jsx": "^5.0.2",
     "deep-equal": "^1.1.0",

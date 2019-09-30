@@ -23,6 +23,9 @@
       "ScriptHost",
       "ES2015.Collection"
     ],
+
+    // see https://github.com/DefinitelyTyped/DefinitelyTyped/issues/33015
+    "types": ["node", "jest"],
   },
   "include": [
     "./src/"
