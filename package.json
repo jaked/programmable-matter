@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Text files that do stuff",
-  "main": "main.js",
+  "main": "./build/main.js",
   "scripts": {
     "start": "electron .",
     "compile": "tsc --watch",
