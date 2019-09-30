@@ -26,7 +26,11 @@ export class SearchBox extends React.Component<Props, {}> {
   }
 
   focus() {
-    this.inputRef.current && this.inputRef.current.focus();
+    const input = this.inputRef.current;
+    if (input) {
+      input.setSelectionRange(0, input.value.length)
+      input.focus();
+    }
   }
 
   render() {

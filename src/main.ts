@@ -54,7 +54,6 @@ function initGlobalShortcut() {
     } else {
       app.hide();
     }
-    // TODO(jaked) and focus search box
   });
 }
 
