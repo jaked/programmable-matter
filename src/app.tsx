@@ -13,6 +13,8 @@ import { Watcher } from './files/Watcher';
 
 import * as Compile from './lang/Compile';
 
+import Server from './Server';
+
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
@@ -229,5 +231,7 @@ function render() {
   __trace.close();
   console.log(__trace.finish());
 }
+
+const server = new Server();
 
 render();
