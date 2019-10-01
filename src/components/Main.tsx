@@ -3,6 +3,13 @@ import * as Immutable from 'immutable';
 import { ipcRenderer as ipc, remote, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import util from 'util';
+import rimrafCallback from 'rimraf';
+import ghPages from 'gh-pages';
+const rimraf = util.promisify(rimrafCallback);
+const writeFile = util.promisify(fs.writeFile);
+const mkdir = util.promisify(fs.mkdir);
+const publish = util.promisify(ghPages.publish);
 
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
@@ -49,38 +56,52 @@ export class Main extends React.Component<Props, {}> {
   constructor(props: Props) {
     super(props);
     this.focusSearchBox = this.focusSearchBox.bind(this);
-    this.buildStaticSite = this.buildStaticSite.bind(this);
+    this.publishSite = this.publishSite.bind(this);
   }
 
   componentDidMount() {
     ipc.on('focus-search-box', this.focusSearchBox);
-    ipc.on('build-static-site', this.buildStaticSite);
+    ipc.on('publish-site', this.publishSite);
   }
 
   componentWillUnmount() {
     ipc.removeListener('focus-search-box', this.focusSearchBox);
-    ipc.removeListener('build-static-site', this.buildStaticSite);
+    ipc.removeListener('publish-site', this.publishSite);
   }
 
   focusSearchBox() {
     this.searchBoxRef.current && this.searchBoxRef.current.focus();
   }
 
-  buildStaticSite() {
+  async publishSite() {
     const { compiledNotes } = this.props;
     // TODO(jaked) generate random dir name?
     const tempdir = path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-    compiledNotes.forEach(note => {
+    // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
+    await rimraf(tempdir, { glob: false })
+    await mkdir(tempdir);
+    await writeFile(path.resolve(tempdir, '.nojekyll'), '');
+    await Promise.all(compiledNotes.map(async note => {
       const notePath = path.resolve(tempdir, path.relative(this.props.notesPath, note.path)) + '.html';
       if (!note.compiled) { throw new Error('expected compiled note') }
       const node = note.compiled.get().rendered();
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-      fs.mkdirSync(path.dirname(notePath), { recursive: true });
-      fs.writeFileSync(notePath, html);
-    });
+      await mkdir(path.dirname(notePath), { recursive: true });
+      await writeFile(notePath, html);
+    }).values());
     // TODO(jaked) this opens in Finder
     // maybe should serve locally over HTTP?
     shell.openExternal(`file://${tempdir}`);
+
+    await publish(tempdir, {
+      src: '**',
+      dotfiles: true,
+      branch: 'master',
+      repo: 'https://github.com/jaked/symmetrical-rotary-phone.git',
+      message: 'published from Programmable Matter',
+      name: 'Jake Donham',
+      email: 'jake.donham@gmail.com',
+    });
   }
 
   render() {

@@ -44,8 +44,8 @@ function focusSearchBox() {
   mainWindow && mainWindow.webContents.send('focus-search-box');
 }
 
-function buildStaticSite() {
-  mainWindow && mainWindow.webContents.send('build-static-site');
+function publishSite() {
+  mainWindow && mainWindow.webContents.send('publish-site');
 }
 
 function initGlobalShortcut() {
@@ -114,8 +114,8 @@ function initMenu() {
           type: 'separator'
         },
         {
-          label: 'Build Static Site',
-          click: buildStaticSite,
+          label: 'Publish Site',
+          click: publishSite,
         }
       ]
     },

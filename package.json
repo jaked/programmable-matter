@@ -33,12 +33,14 @@
   },
   "dependencies": {
     "@mdx-js/mdx": "^1.4.5",
+    "@types/node": "^12.0.0",
     "@types/styled-components": "^4.1.19",
     "acorn": "^6.3.0",
     "acorn-jsx": "^5.0.2",
     "deep-equal": "^1.1.0",
     "electron-reload": "^1.5.0",
     "electron-unhandled": "^2.2.0",
+    "gh-pages": "^2.1.1",
     "gray-matter": "^4.0.2",
     "immutable": "^4.0.0-rc.12",
     "lodash": "^4.17.15",
@@ -56,6 +58,7 @@
     "recast": "^0.17.6",
     "remark-emoji": "^2.0.2",
     "remark-wiki-link": "0.0.4",
+    "rimraf": "^3.0.0",
     "styled-components": "^4.3.2",
     "victory": "^32.3.7"
   }
