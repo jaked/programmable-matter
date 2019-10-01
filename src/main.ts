@@ -44,6 +44,10 @@ function focusSearchBox() {
   mainWindow && mainWindow.webContents.send('focus-search-box');
 }
 
+function buildStaticSite() {
+  mainWindow && mainWindow.webContents.send('build-static-site');
+}
+
 function initGlobalShortcut() {
   const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
     if (mainWindow === null) {
@@ -105,6 +109,13 @@ function initMenu() {
           label: 'Search...',
           accelerator: 'CmdOrCtrl+L',
           click: focusSearchBox,
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Build Static Site',
+          click: buildStaticSite,
         }
       ]
     },

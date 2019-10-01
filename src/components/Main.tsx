@@ -1,6 +1,11 @@
-import { ipcRenderer as ipc } from 'electron';
+import * as Immutable from 'immutable';
 
-import * as React from 'react';
+import { ipcRenderer as ipc, remote, shell } from 'electron';
+import fs from 'fs';
+import path from 'path';
+
+import React from 'react';
+import ReactDOMServer from 'react-dom/server';
 import { Flex, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
@@ -26,6 +31,10 @@ interface Props {
   onChange: (content: string | null) => void;
   saveSession: (session: RSCEditor.Session) => void;
   newNote: (tag: string) => void;
+
+  // TODO(jaked) for site build, move elsewhere
+  notesPath: string;
+  compiledNotes: Immutable.Map<string, data.Note>;
 }
 
 const Box = styled(BoxBase)({
@@ -40,18 +49,38 @@ export class Main extends React.Component<Props, {}> {
   constructor(props: Props) {
     super(props);
     this.focusSearchBox = this.focusSearchBox.bind(this);
+    this.buildStaticSite = this.buildStaticSite.bind(this);
   }
 
   componentDidMount() {
     ipc.on('focus-search-box', this.focusSearchBox);
+    ipc.on('build-static-site', this.buildStaticSite);
   }
 
   componentWillUnmount() {
     ipc.removeListener('focus-search-box', this.focusSearchBox);
+    ipc.removeListener('build-static-site', this.buildStaticSite);
   }
 
   focusSearchBox() {
     this.searchBoxRef.current && this.searchBoxRef.current.focus();
+  }
+
+  buildStaticSite() {
+    const { compiledNotes } = this.props;
+    // TODO(jaked) generate random dir name?
+    const tempdir = path.resolve(remote.app.getPath("temp"), 'programmable-matter');
+    compiledNotes.forEach(note => {
+      const notePath = path.resolve(tempdir, path.relative(this.props.notesPath, note.path)) + '.html';
+      if (!note.compiled) { throw new Error('expected compiled note') }
+      const node = note.compiled.get().rendered();
+      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+      fs.mkdirSync(path.dirname(notePath), { recursive: true });
+      fs.writeFileSync(notePath, html);
+    });
+    // TODO(jaked) this opens in Finder
+    // maybe should serve locally over HTTP?
+    shell.openExternal(`file://${tempdir}`);
   }
 
   render() {
