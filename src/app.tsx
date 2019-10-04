@@ -232,6 +232,6 @@ function render() {
   console.log(__trace.finish());
 }
 
-const server = new Server();
+const server = new Server(compiledNotesSignal);
 
 render();
