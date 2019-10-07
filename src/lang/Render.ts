@@ -121,8 +121,7 @@ export function renderMdx(
         env = env2;
         childNodes.push(childNode);
       });
-      const node = React.createElement('div', {}, ...childNodes);
-      return [env, node];
+      return [env, childNodes];
     }
 
     case 'element': {

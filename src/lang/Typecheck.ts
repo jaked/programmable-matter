@@ -111,8 +111,14 @@ function checkFunction(ast: AcornJsxAst.Expression, env: Env, type: Type.Functio
     case 'ArrowFunctionExpression':
       if (type.args.length != ast.params.length)
         throwWrongArgsLength(ast, type.args.length, ast.params.length);
-      ast.params.forEach((id, i) => {
-        env = env.set(id.name, [ type.args[i].type, false ]);
+      ast.params.forEach((pat, i) => {
+        switch (pat.type) {
+          case 'Identifier':
+            env = env.set(pat.name, [ type.args[i].type, false ]);
+            break;
+
+          default: throw new Error('unexpected AST type ' + (pat as AcornJsxAst.Pattern).type);
+        }
       });
       return check(ast.body, env, type.ret);
 
@@ -382,9 +388,20 @@ function synthArrowFunctionExpression(
   ast: AcornJsxAst.ArrowFunctionExpression,
   env: Env
 ): [Type.Type, boolean] {
-  if (ast.params.length > 0)
+  // TODO(jaked)
+  // special temporary hack for layout components
+  if (ast.params.length === 1 &&
+      ast.params[0].type === 'ObjectPattern' &&
+      ast.params[0].properties.length === 1 &&
+      ast.params[0].properties[0].key.start === ast.params[0].properties[0].value.start &&
+      ast.params[0].properties[0].key.type === 'Identifier' &&
+      ast.params[0].properties[0].key.name === 'children') {
+    env = env.set('children', [reactNodeType, false]);
+
+  } else if (ast.params.length > 0) {
     // TODO(jaked) need arg type annotations to synth a function
     throw new Error('can\'t synth a function with args');
+  }
   // TODO(jaked) carry body atomness as effect on Type.function
   const [type, atom] = synth(ast.body, env);
   return [Type.function([], type), false];

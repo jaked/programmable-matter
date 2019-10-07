@@ -222,8 +222,25 @@ function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
           break;
 
         case 'ArrowFunctionExpression':
-          node.params.forEach(ident => {
-            bound = bound.add(ident.name)
+          // TODO(jaked) properly handle argument patterns
+          node.params.forEach(pat => {
+            switch (pat.type) {
+              case 'Identifier':
+                bound = bound.add(pat.name);
+                break;
+
+              case 'ObjectPattern':
+                pat.properties.forEach(pat => {
+                  if (pat.key.type === 'Identifier') {
+                    bound = bound.add(pat.key.name);
+                  } else {
+                    throw new Error ('expected Identifier');
+                  }
+                });
+                break;
+
+              default: throw new Error('unexpected AST ' + (pat as AcornJsxAst.Pattern).type)
+            }
           });
           fn(node.body, bound);
           return false;

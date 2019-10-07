@@ -152,9 +152,26 @@ export function evaluateExpression(
 
     case 'ArrowFunctionExpression':
       return function(...args: Array<any>) {
-        ast.params.forEach((id, i) => {
-          env = env.set(id.name, args[i]);
-        });
+        ast.params.forEach((pat, i) => {
+          switch (pat.type) {
+            case 'Identifier':
+              env = env.set(pat.name, args[i]);
+              break;
+
+            // TODO(jaked)
+            // special temporary hack for layout components
+            case 'ObjectPattern':
+              if (pat.properties.length === 1 &&
+                  pat.properties[0].key.start === pat.properties[0].value.start &&
+                  pat.properties[0].key.type === 'Identifier' &&
+                  pat.properties[0].key.name === 'children') {
+                env = env.set('children', args[i]['children']);
+                break;
+              } else {
+                throw new Error('unexpected ObjectPattern');
+              }
+            }
+          });
         return evaluateExpression(ast.body, env);
       };
 

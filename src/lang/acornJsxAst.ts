@@ -126,7 +126,7 @@ export interface ArrayExpression extends NodeImpl {
 
 export interface ArrowFunctionExpression extends NodeImpl {
   type: 'ArrowFunctionExpression';
-  params: Array<Identifier>;
+  params: Array<Pattern>;
   body: Expression;
 }
 
@@ -142,6 +142,15 @@ export type Expression =
   ObjectExpression |
   ArrayExpression |
   ArrowFunctionExpression;
+
+export interface ObjectPattern extends NodeImpl {
+  type: 'ObjectPattern';
+  properties: Array<Property>;
+}
+
+export type Pattern =
+  Identifier |
+  ObjectPattern;
 
 // import { Foo as Bar }
 export interface ImportSpecifier extends NodeImpl {
@@ -198,6 +207,7 @@ export type Node =
   JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
   Literal | Identifier | BinaryExpression | MemberExpression | Property |
   ObjectExpression | ArrayExpression | ArrowFunctionExpression |
+  ObjectPattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
   VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration;
 
@@ -276,7 +286,10 @@ export function visit(
       visit(ast.params, fn);
       return visit(ast.body, fn);
 
-    case 'ImportSpecifier':
+    case 'ObjectPattern':
+      return visit(ast.properties, fn);
+
+      case 'ImportSpecifier':
       // "import { x }" has x in both `imported` and `local`
       // visit it only once
       if (ast.imported.start != ast.local.start)
