@@ -2,6 +2,8 @@ import * as Immutable from 'immutable';
 
 import * as React from 'react';
 
+import { remote } from 'electron';
+
 import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
 
@@ -161,17 +163,26 @@ export function renderMdx(
 function Link(
   setSelected: (note: string) => void,
 ) {
-  return function ({ to, children }) {
-    const onClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      setSelected(to);
+  return function ({ to, children }: { to: string, children: React.ReactNodeArray }) {
+    // TODO(jaked) validate URL
+    if (to.startsWith('http://')) {
+      const onClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        remote.shell.openExternal(to);
+      }
+      return React.createElement('a', { href: to, onClick }, children);
+    } else {
+      const onClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setSelected(to);
+      }
+      // this href is used when note is rendered statically
+      // TODO(jaked)
+      // handle path components properly
+      // handle mounting note tree somewhere other than / ?
+      const href = `/${encodeURIComponent(to)}`;
+      return React.createElement('a', { href: href, onClick }, children);
     }
-    // this href is used when note is rendered statically
-    // TODO(jaked)
-    // handle path components properly
-    // handle mounting note tree somewhere other than / ?
-    const href = `/${encodeURIComponent(to)}`;
-    return React.createElement('a', { href: href, onClick }, children);
   }
 }
 

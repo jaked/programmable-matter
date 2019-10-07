@@ -84,7 +84,7 @@ export class Main extends React.Component<Props, {}> {
     await Promise.all(compiledNotes.map(async note => {
       const notePath = path.resolve(tempdir, path.relative(this.props.notesPath, note.path)) + '.html';
       if (!note.compiled) { throw new Error('expected compiled note') }
-      const node = note.compiled.get().rendered();
+      const node = note.compiled.get().rendered();  // TODO(jaked) fix Try.get()
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
       await mkdir(path.dirname(notePath), { recursive: true });
       await writeFile(notePath, html);
