@@ -33,8 +33,8 @@ type NsfwEvent =
 function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
-  const type: 'mdx' | 'json' | 'txt' =
-    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt') ?
+  const type: 'mdx' | 'json' | 'txt' | 'ts' =
+    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt' || obj.type === 'ts') ?
     obj.type : undefined;
 
   const title: string =
@@ -168,10 +168,11 @@ export class Watcher {
         } else {
           switch (ext) {
             case '': type = 'mdx'; break;
-            case '.txt': type = 'txt'; break;
             case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
             case '.mdx': type = 'mdx'; break;
             case '.json': type = 'json'; break;
+            case '.txt': type = 'txt'; break;
+            case '.ts': type = 'ts'; break;
             default:
               console.log(`unhandled extension '${ext}' for '${path.resolve(dir, tag)}'`);
               return notes;

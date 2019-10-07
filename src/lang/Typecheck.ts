@@ -517,7 +517,29 @@ function extendEnvWithImport(
   return env;
 }
 
-export function checkMdx(
+function extendEnvWithNamedExport(
+  decl: AcornJsxAst.ExportNamedDeclaration,
+  exportTypes: { [s: string]: [Type.Type, boolean] },
+  env: Env
+): Env {
+  const declAtom = decl.declaration.kind === 'let';
+  decl.declaration.declarations.forEach(declarator => {
+    const [type, atom] = synth(declarator.init, env);
+    // a let binding is always an atom (its initializer is a non-atom)
+    // a const binding is an atom if its initializer is an atom
+    // TODO(jaked)
+    // let bindings of type T should also have type T => void
+    // so they can be set in event handlers
+    // TODO(jaked) temporarily ignore atomness of initializer
+    const typeAtom: [Type.Type, boolean] = [type, /* atom || */ declAtom];
+    exportTypes[declarator.id.name] = typeAtom;
+    env = env.set(declarator.id.name, typeAtom);
+  });
+  return env;
+}
+
+// TODO(jaked) this interface is a little weird
+export function synthMdx(
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
@@ -527,7 +549,7 @@ export function checkMdx(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = checkMdx(child, moduleEnv, env, exportTypes)
+        env = synthMdx(child, moduleEnv, env, exportTypes)
       );
       return env;
 
@@ -549,25 +571,41 @@ export function checkMdx(
             break;
 
           case 'ExportNamedDeclaration':
-            const declAtom = decl.declaration.kind === 'let';
-            decl.declaration.declarations.forEach(declarator => {
-              const [type, atom] = synth(declarator.init, env);
-              // a let binding is always an atom (its initializer is a non-atom)
-              // a const binding is an atom if its initializer is an atom
-              // TODO(jaked)
-              // let bindings of type T should also have type T => void
-              // so they can be set in event handlers
-              // TODO(jaked) temporarily ignore atomness of initializer
-              const typeAtom: [Type.Type, boolean] = [type, /* atom || */ declAtom];
-              exportTypes[declarator.id.name] = typeAtom;
-              env = env.set(declarator.id.name, typeAtom);
-            });
+            env = extendEnvWithNamedExport(decl, exportTypes, env);
             break;
+
+          // TODO(jaked) handle ExportDefaultDeclaration
         }
       }));
       return env;
     }
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
+  }
+}
+
+// TODO(jaked) this interface is a little weird
+export function synthProgram(
+  ast: AcornJsxAst.Node,
+  moduleEnv: Immutable.Map<string, Type.ModuleType>,
+  env: Env,
+  exportTypes: { [s: string]: [Type.Type, boolean] }
+): Env {
+  switch (ast.type) {
+    case 'Program':
+      ast.body.forEach(child =>
+        env = synthProgram(child, moduleEnv, env, exportTypes)
+      );
+      return env;
+
+    case 'ImportDeclaration':
+      return extendEnvWithImport(ast, moduleEnv, env);
+
+    case 'ExportNamedDeclaration':
+      return extendEnvWithNamedExport(ast, exportTypes, env);
+
+    // TODO(jaked) handle ExportDefaultDeclaration
+
+    default: throw new Error('unexpected AST ' + (ast as AcornJsxAst.Node).type);
   }
 }

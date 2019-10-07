@@ -76,13 +76,25 @@ function parseJson(content: string): data.Parsed<AcornJsxAst.Expression> {
   return { ast, imports };
 }
 
+function findImportsTs(ast: AcornJsxAst.Node, imports: Set<string>) {
+  function fn(node: AcornJsxAst.Node) {
+    switch (node.type) {
+      case 'ImportDeclaration':
+        imports.add(node.source.value);
+    }
+  }
+  AcornJsxAst.visit(ast, fn);
+}
+
+function parseTs(trace: Trace, content: string): data.Parsed<AcornJsxAst.Program> {
+  const ast = Parser.parseProgram(content);
+  const imports = new Set<string>();
+  findImportsTs(ast, imports);
+  return { ast, imports };
+}
+
 function parseNote(trace: Trace, note: data.Note): data.Note {
   switch (note.type) {
-    case 'txt': {
-      const parsed = Try.ok({ ast: note.content, imports: new Set<string>() });
-      return Object.assign({}, note, { parsed });
-    }
-
     case 'mdx': {
       const parsed = Try.apply(() => parseMdx(trace, note.content));
       return Object.assign({}, note, { parsed });
@@ -90,6 +102,16 @@ function parseNote(trace: Trace, note: data.Note): data.Note {
 
     case 'json': {
       const parsed = Try.apply(() => parseJson(note.content));
+      return Object.assign({}, note, { parsed });
+    }
+
+    case 'txt': {
+      const parsed = Try.ok({ ast: note.content, imports: new Set<string>() });
+      return Object.assign({}, note, { parsed });
+    }
+
+    case 'ts': {
+      const parsed = Try.apply(() => parseTs(trace, note.content));
       return Object.assign({}, note, { parsed });
     }
 
@@ -210,6 +232,12 @@ function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
   }
   fn(expr, Immutable.Set());
   return free;
+}
+
+function sortProgram(ast: AcornJsxAst.Program): AcornJsxAst.Program {
+  // TODO(jaked)
+  // topologically sort bindings as we do for MDX
+  return ast;
 }
 
 // topologically sort bindings
@@ -353,18 +381,18 @@ function compileMdx(
   const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
   const exportValue: { [s: string]: any } = {};
 
-  const sortedAst = sortMdx(ast);
-  Typecheck.checkMdx(sortedAst, moduleTypeEnv, typeEnv, exportTypes);
+  ast = sortMdx(ast);
+  Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
   // TODO(jaked)
   // first call to renderMdx computes exportType / exportValue
   // second call picks up current values of signals
   // instead we should render to a Signal<React.ReactNode>
   // and update() it to pick up current values
-  Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
+  Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
   const rendered = () => {
     const [_, node] =
-      Render.renderMdx(sortedAst, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
+      Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
     return node;
   }
   return { exportType, exportValue, rendered };
@@ -382,6 +410,30 @@ function compileJson(
   return { exportType, exportValue, rendered };
 }
 
+function compileTs(
+  ast: AcornJsxAst.Program,
+  capitalizedTag: string,
+  typeEnv: Typecheck.Env,
+  valueEnv: Evaluator.Env,
+  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
+  moduleValueEnv: Evaluator.Env,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
+): data.Compiled {
+  const exportTypes: { [s: string]: [Type.Type, boolean] } = {};
+  const exportValue: { [s: string]: any } = {};
+
+  ast = sortProgram(ast);
+  Typecheck.synthProgram(ast, moduleTypeEnv, typeEnv, exportTypes);
+  const exportType = Type.module(exportTypes);
+  // TODO(jaked)
+  // we don't have an opportunity to pick up current signal values
+  // as we do for MDX; should compile to a Signal and update()
+  // TODO(jaked) how to render a TS note?
+  const rendered = () => 'unimplemented';
+  Render.renderProgram(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue)
+  return { exportType, exportValue, rendered };
+}
+
 function compileNote(
   note: data.Note,
   typeEnv: Typecheck.Env,
@@ -392,10 +444,6 @@ function compileNote(
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (note.type) {
-      case 'txt':
-        if (!note.parsed) throw new Error('expected note.parsed');
-        return compileTxt(note.parsed.get().ast);
-
       case 'mdx':
         if (!note.parsed) throw new Error('expected note.parsed');
         return compileMdx(
@@ -412,6 +460,22 @@ function compileNote(
         if (!note.parsed) throw new Error('expected note.parsed');
         return compileJson(note.parsed.get().ast);
       }
+
+      case 'txt':
+        if (!note.parsed) throw new Error('expected note.parsed');
+        return compileTxt(note.parsed.get().ast);
+
+      case 'ts':
+        if (!note.parsed) throw new Error('expected note.parsed');
+        return compileTs(
+          note.parsed.get().ast,
+          String.capitalize(note.tag),
+          typeEnv,
+          valueEnv,
+          moduleTypeEnv,
+          moduleValueEnv,
+          mkCell
+        );
 
       default:
         throw new Error(`unhandled note type '${(<data.Note>note).type}'`);

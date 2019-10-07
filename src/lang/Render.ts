@@ -55,19 +55,59 @@ function extendEnvWithImport(
   return env;
 }
 
+function extendEnvWithNamedExport(
+  decl: AcornJsxAst.ExportNamedDeclaration,
+  module: string,
+  env: Env,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  exportValue: { [s: string]: any }
+): Env {
+  const declaration = decl.declaration;
+  switch (declaration.kind) {
+    case 'const': {
+      declaration.declarations.forEach(declarator => {
+        let name = declarator.id.name;
+        let value = Evaluator.evaluateExpression(declarator.init, env);
+        exportValue[name] = value;
+        env = env.set(name, value);
+      });
+    }
+    break;
+
+    case 'let': {
+      declaration.declarations.forEach(declarator => {
+        const init =
+          Evaluator.evaluateExpression(declarator.init, env);
+        // TODO(jaked) check this statically
+        // if (evaluatedAst.type !== 'Literal') {
+        //   throw new Error('atom initializer must be static');
+        // }
+        const name = declarator.id.name;
+        const cell = mkCell(module, name, init);
+        exportValue[name] = cell;
+        env = env.set(name, cell);
+      });
+      break;
+    }
+
+    default: throw new Error('unexpected AST ' + declaration.kind);
+  }
+  return env;
+}
+
 export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
   moduleEnv: Env,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
-  exportValues: { [s: string]: any }
+  exportValue: { [s: string]: any }
 ): [Env, React.ReactNode] {
   switch (ast.type) {
     case 'root': {
       const childNodes: Array<React.ReactNode> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -78,7 +118,7 @@ export function renderMdx(
     case 'element': {
       const childNodes: Array<React.ReactNode> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValues);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -118,45 +158,40 @@ export function renderMdx(
             env = extendEnvWithImport(decl, moduleEnv, env);
             break;
 
-          case 'ExportNamedDeclaration': {
-            const declaration = decl.declaration;
-            switch (declaration.kind) {
-              case 'const': {
-                declaration.declarations.forEach(declarator => {
-                  let name = declarator.id.name;
-                  let value = Evaluator.evaluateExpression(declarator.init, env);
-                  exportValues[name] = value;
-                  env = env.set(name, value);
-                });
-              }
-              break;
-
-              case 'let': {
-                declaration.declarations.forEach(declarator => {
-                  const init =
-                    Evaluator.evaluateExpression(declarator.init, env);
-                  // TODO(jaked) check this statically
-                  // if (evaluatedAst.type !== 'Literal') {
-                  //   throw new Error('atom initializer must be static');
-                  // }
-                  const name = declarator.id.name;
-                  const cell = mkCell(module, name, init);
-                  exportValues[name] = cell;
-                  env = env.set(name, cell);
-                });
-                break;
-              }
-
-              default: throw new Error('unexpected AST ' + declaration.kind);
-            }
-          }
-          break;
+          case 'ExportNamedDeclaration':
+            env = extendEnvWithNamedExport(decl, module, env, mkCell, exportValue);
+            break;
         }
       }));
       return [env, null];
 
     default:
       throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
+  }
+}
+
+export function renderProgram(
+  ast: AcornJsxAst.Node,
+  module: string,
+  moduleEnv: Env,
+  env: Env,
+  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  exportValue: { [s: string]: any }
+): Env {
+  switch (ast.type) {
+    case 'Program':
+      ast.body.forEach(child => {
+        env = renderProgram(child, module, moduleEnv, env, mkCell, exportValue);
+      });
+      return env;
+
+    case 'ImportDeclaration':
+      return extendEnvWithImport(ast, moduleEnv, env);
+
+    case 'ExportNamedDeclaration':
+      return extendEnvWithNamedExport(ast, module, env, mkCell, exportValue);
+
+    default: throw new Error('unexpected AST ' + (ast as AcornJsxAst.Node).type);
   }
 }
 

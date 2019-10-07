@@ -189,7 +189,14 @@ function computeHighlight(content: string, compiledNote: data.Note) {
         computeJsSpans(parsed.ast, spans);
       });
       break;
-  }
+
+    case 'ts':
+      if (!compiledNote.parsed) throw new Error('expected note to be parsed');
+      compiledNote.parsed.forEach(parsed => {
+        computeJsSpans(parsed.ast, spans);
+      });
+      break;
+    }
 
   // TODO(jaked) this could use some tests
   const lineStartOffsets: Array<number> = [0];

@@ -52,6 +52,10 @@ function parseJsx(input: string, position?: MDXHAST.Position): AcornJsxAst.Node 
   return ast;
 }
 
+export function parseProgram(input: string): AcornJsxAst.Program {
+  return jsxParser.parse(input, { sourceType: 'module' }) as AcornJsxAst.Program;
+}
+
 export function parseExpression(input: string, position?: MDXHAST.Position): AcornJsxAst.Expression {
   const ast = jsxParser.parseExpressionAt(input, 0) as AcornJsxAst.Expression;
   fixPositions(ast, position);

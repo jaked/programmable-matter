@@ -6,7 +6,7 @@ import * as AcornJsxAst from './lang/acornJsxAst';
 import * as Type from './lang/Type';
 
 export interface Meta {
-  type?: 'mdx' | 'json' | 'txt';
+  type?: 'mdx' | 'json' | 'txt' | 'ts';
   title?: string;
   tags?: Array<string>;
 }
@@ -26,7 +26,7 @@ export type Note = {
   meta: Meta;
   tag: string;
   path: string;
-  type: 'txt' | 'mdx' | 'json';
+  type: 'mdx' | 'json' | 'txt' | 'ts';
   content: string;
   version: number;
   compiled?: Try<Compiled>;
@@ -39,6 +39,9 @@ export type Note = {
 } | {
   type: 'txt';
   parsed?: Try<Parsed<string>>;
+} | {
+  type: 'ts';
+  parsed?: Try<Parsed<AcornJsxAst.Program>>;
 });
 
 export type Notes = Immutable.Map<string, Note>;
