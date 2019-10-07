@@ -166,7 +166,12 @@ function Link(
       e.preventDefault();
       setSelected(to);
     }
-    return React.createElement('a', { href: "", onClick }, children);
+    // this href is used when note is rendered statically
+    // TODO(jaked)
+    // handle path components properly
+    // handle mounting note tree somewhere other than / ?
+    const href = `/${encodeURIComponent(to)}`;
+    return React.createElement('a', { href: href, onClick }, children);
   }
 }
 
