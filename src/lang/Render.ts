@@ -95,6 +95,16 @@ function extendEnvWithNamedExport(
   return env;
 }
 
+function extendEnvWithDefaultExport(
+  decl: AcornJsxAst.ExportDefaultDeclaration,
+  env: Env,
+  exportValue: { [s: string]: any }
+): Env {
+  exportValue['default'] =
+    Evaluator.evaluateExpression(decl.declaration, env);
+  return env;
+}
+
 export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
@@ -161,6 +171,10 @@ export function renderMdx(
           case 'ExportNamedDeclaration':
             env = extendEnvWithNamedExport(decl, module, env, mkCell, exportValue);
             break;
+
+          case 'ExportDefaultDeclaration':
+            env = extendEnvWithDefaultExport(decl, env, exportValue);
+            break;
         }
       }));
       return [env, null];
@@ -190,6 +204,9 @@ export function renderProgram(
 
     case 'ExportNamedDeclaration':
       return extendEnvWithNamedExport(ast, module, env, mkCell, exportValue);
+
+    case 'ExportDefaultDeclaration':
+      return extendEnvWithDefaultExport(ast, env, exportValue);
 
     default: throw new Error('unexpected AST ' + (ast as AcornJsxAst.Node).type);
   }

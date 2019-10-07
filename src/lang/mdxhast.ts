@@ -51,6 +51,7 @@ export interface Jsx extends NodeImpl {
 type Declaration =
   AcornJsxAst.ImportDeclaration |
   AcornJsxAst.ExportNamedDeclaration |
+  AcornJsxAst.ExportDefaultDeclaration |
   AcornJsxAst.VariableDeclaration;
 
 export interface Import extends NodeImpl {

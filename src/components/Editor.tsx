@@ -119,6 +119,17 @@ function computeJsSpans(
       }
       return;
 
+      case 'ExportDefaultDeclaration': {
+        // TODO(jaked)
+        // if you stick a comment between `export` and `default`
+        // the whole thing is rendered as a keyword
+        const start = ast.start;
+        const end = ast.declaration.start;
+        const Component = components.keyword;
+        spans.push({ start, end, Component });
+      }
+      return;
+
       case 'VariableDeclaration': {
         const start = ast.start;
         const end = ast.start + ast.kind.length;

@@ -16,7 +16,7 @@ interface NodeImpl {
 
 export interface Program extends NodeImpl {
   type: 'Program';
-  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration | VariableDeclaration >;
+  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration | VariableDeclaration >;
   sourceType: 'module';
 }
 
@@ -187,6 +187,11 @@ export interface ExportNamedDeclaration extends NodeImpl {
   source: null; // ???
 }
 
+export interface ExportDefaultDeclaration extends NodeImpl {
+  type: 'ExportDefaultDeclaration';
+  declaration: Expression;
+}
+
 export type Node =
   Program | ExpressionStatement |
   JSXFragment | JSXText | JSXElement | JSXOpeningElement |
@@ -194,7 +199,7 @@ export type Node =
   Literal | Identifier | BinaryExpression | MemberExpression | Property |
   ObjectExpression | ArrayExpression | ArrowFunctionExpression |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
-  VariableDeclarator | VariableDeclaration | ExportNamedDeclaration;
+  VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration;
 
 // if fn returns false, don't recurse into children
 // (caller must visit children itself if needed)
@@ -296,6 +301,9 @@ export function visit(
       return visit(ast.declarations, fn);
 
     case 'ExportNamedDeclaration':
+      return visit(ast.declaration, fn);
+
+    case 'ExportDefaultDeclaration':
       return visit(ast.declaration, fn);
 
     default:

@@ -538,6 +538,15 @@ function extendEnvWithNamedExport(
   return env;
 }
 
+function extendEnvWithDefaultExport(
+  decl: AcornJsxAst.ExportDefaultDeclaration,
+  exportTypes: { [s: string]: [Type.Type, boolean] },
+  env: Env
+): Env {
+  exportTypes['default'] = synth(decl.declaration, env);
+  return env;
+}
+
 // TODO(jaked) this interface is a little weird
 export function synthMdx(
   ast: MDXHAST.Node,
@@ -574,7 +583,9 @@ export function synthMdx(
             env = extendEnvWithNamedExport(decl, exportTypes, env);
             break;
 
-          // TODO(jaked) handle ExportDefaultDeclaration
+          case 'ExportDefaultDeclaration':
+            env = extendEnvWithDefaultExport(decl, exportTypes, env);
+            break;
         }
       }));
       return env;
@@ -604,7 +615,8 @@ export function synthProgram(
     case 'ExportNamedDeclaration':
       return extendEnvWithNamedExport(ast, exportTypes, env);
 
-    // TODO(jaked) handle ExportDefaultDeclaration
+    case 'ExportDefaultDeclaration':
+      return extendEnvWithDefaultExport(ast, exportTypes, env);
 
     default: throw new Error('unexpected AST ' + (ast as AcornJsxAst.Node).type);
   }
