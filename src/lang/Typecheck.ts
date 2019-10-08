@@ -397,14 +397,21 @@ function synthArrowFunctionExpression(
       ast.params[0].properties[0].key.type === 'Identifier' &&
       ast.params[0].properties[0].key.name === 'children') {
     env = env.set('children', [reactNodeType, false]);
-
+    // TODO(jaked) carry body atomness as effect on Type.function
+    const [type, atom] = synth(ast.body, env);
+    const funcType = Type.function([{
+      name: 'props',
+      type: Type.object({ children: reactNodeType })
+    }], type);
+    return [funcType, false];
   } else if (ast.params.length > 0) {
     // TODO(jaked) need arg type annotations to synth a function
     throw new Error('can\'t synth a function with args');
+  } else {
+    // TODO(jaked) carry body atomness as effect on Type.function
+    const [type, atom] = synth(ast.body, env);
+    return [Type.function([], type), false];
   }
-  // TODO(jaked) carry body atomness as effect on Type.function
-  const [type, atom] = synth(ast.body, env);
-  return [Type.function([], type), false];
 }
 
 // TODO(jaked) for HTML types, temporarily
@@ -501,7 +508,8 @@ const reactElementType = Type.abstract('React.Element');
 // in the meantime we'll permit top-level fragments only
 const reactNodeType_ =
   Type.union(reactElementType, Type.boolean, Type.number, Type.string, Type.null, Type.undefined);
-const reactNodeType =
+// TODO(jaked) this probably belongs on Type
+  export const reactNodeType =
   Type.union(reactNodeType_, Type.array(reactNodeType_));
 
 function extendEnvWithImport(

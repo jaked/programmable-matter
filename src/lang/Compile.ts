@@ -63,9 +63,10 @@ function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
   }
 }
 
-function parseMdx(trace: Trace, content: string): data.Parsed<MDXHAST.Root> {
+function parseMdx(trace: Trace, content: string, layout: string | undefined): data.Parsed<MDXHAST.Root> {
   const ast = Parser.parse(trace, content);
   const imports = new Set<string>();
+  if (layout) imports.add(layout);
   trace.time('findImportsMdx', () => findImportsMdx(ast, imports));
   return { ast, imports };
 }
@@ -96,7 +97,7 @@ function parseTs(trace: Trace, content: string): data.Parsed<AcornJsxAst.Program
 function parseNote(trace: Trace, note: data.Note): data.Note {
   switch (note.type) {
     case 'mdx': {
-      const parsed = Try.apply(() => parseMdx(trace, note.content));
+      const parsed = Try.apply(() => parseMdx(trace, note.content, note.meta.layout));
       return Object.assign({}, note, { parsed });
     }
 
@@ -389,6 +390,7 @@ function compileTxt(
 function compileMdx(
   ast: MDXHAST.Root,
   capitalizedTag: string,
+  layout: string | undefined,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
@@ -401,6 +403,28 @@ function compileMdx(
   ast = sortMdx(ast);
   Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
+
+  let layoutFunction = (n: React.ReactNode) => n;
+  if (layout) {
+    const layoutType =
+    Type.function([{
+        name: 'props',
+        type: Type.object({ children: Typecheck.reactNodeType })
+      }], Typecheck.reactNodeType);
+    const layoutModule = moduleTypeEnv.get(layout);
+    if (layoutModule) {
+      // TODO(jaked) add a .get method on Type.ModuleType
+      const defaultField = layoutModule.fields.find(field => field.field === 'default');
+      if (defaultField) {
+        if (Type.isSubtype(defaultField.type, layoutType)) {
+          const layoutTsFunction = moduleValueEnv.get(layout)['default'];
+          // TODO(jaked) pass note metadata as props
+          layoutFunction = (n: React.ReactNode) => layoutTsFunction({ children: n });
+        }
+      }
+    }
+  }
+
   // TODO(jaked)
   // first call to renderMdx computes exportType / exportValue
   // second call picks up current values of signals
@@ -410,7 +434,7 @@ function compileMdx(
   const rendered = () => {
     const [_, node] =
       Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
-    return node;
+    return layoutFunction(node);
   }
   return { exportType, exportValue, rendered };
 }
@@ -466,6 +490,7 @@ function compileNote(
         return compileMdx(
           note.parsed.get().ast,
           String.capitalize(note.tag),
+          note.meta.layout,
           typeEnv,
           valueEnv,
           moduleTypeEnv,

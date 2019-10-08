@@ -9,6 +9,7 @@ export interface Meta {
   type?: 'mdx' | 'json' | 'txt' | 'ts';
   title?: string;
   tags?: Array<string>;
+  layout?: string;
 }
 
 export type Parsed<Ast> = {

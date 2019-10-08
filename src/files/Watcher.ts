@@ -45,7 +45,11 @@ function sanitizeMeta(obj: any): data.Meta {
     (Array.isArray(obj.tags) && obj.tags.every(s => typeof s === 'string')) ?
     obj.tags : undefined;
 
-  return { type, title, tags };
+  const layout: string =
+    typeof obj.layout === 'string' ?
+    obj.layout : undefined;
+
+  return { type, title, tags, layout };
 }
 
 function noteTag(notesPath: string, directory: string, file: string) {
