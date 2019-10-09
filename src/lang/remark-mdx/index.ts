@@ -1,22 +1,17 @@
-import * as Acorn from 'acorn';
-import AcornJsx from 'acorn-jsx';
-
 import isAlphabetical from 'is-alphabetical';
+import { isImport, isExport, EMPTY_NEWLINE } from '@mdx-js/util';
 import block from './block';
 import { tag } from './tag';
 
-const JsxParser = Acorn.Parser.extend(AcornJsx())
-
-const IMPORT_REGEX = /^import/
-const EXPORT_REGEX = /^export/
-const EMPTY_NEWLINE = '\n\n'
 const LESS_THAN = '<'
 const GREATER_THAN = '>'
 const SLASH = '/'
 const EXCLAMATION = '!'
 
-const isImport = (text: string) => IMPORT_REGEX.test(text)
-const isExport = (text: string) => EXPORT_REGEX.test(text)
+import * as Acorn from 'acorn';
+import AcornJsx from 'acorn-jsx';
+
+const JsxParser = Acorn.Parser.extend(AcornJsx())
 
 tokenizeEsSyntax.locator = tokenizeEsSyntaxLocator
 
@@ -41,7 +36,9 @@ function attachParser(parser) {
 
   blocks.esSyntax = tokenizeEsSyntax
   blocks.html = wrap(block)
-  inlines.html = wrap(inlines.html, inlineJsx)
+  inlines.html = wrap(inlines.html, inlineJsx);
+
+  (<any>tokenizeEsSyntax).notInBlock = true
 
   methods.splice(methods.indexOf('paragraph'), 0, 'esSyntax')
 
