@@ -70,8 +70,7 @@ function computeJsSpans(
           const Component = components.property;
           spans.push({ start, end, Component });
 
-          if (ast.value.start !== ast.key.start) {
-            // value.start === key.start for property value shorthand
+          if (!ast.shorthand) {
             AcornJsxAst.visit(ast.value, fn);
           }
           return false;

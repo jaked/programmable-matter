@@ -41,6 +41,15 @@ function fixPositions(ast: AcornJsxAst.Node, position?: MDXHAST.Position) {
     function fn(ast: AcornJsxAst.Node) {
       ast.start += offset;
       ast.end += offset;
+      switch (ast.type) {
+        // for shorthand properties, the same subtree is returned in both key and value
+        // so we should not mutate it twice :(
+        case 'Property':
+          if (ast.shorthand) {
+            AcornJsxAst.visit(ast.key, fn);
+            return false;
+          }
+      }
     }
     AcornJsxAst.visit(ast, fn);
   }
