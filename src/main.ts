@@ -180,7 +180,7 @@ function initMenu() {
       submenu: [
         {
           role: 'toggledevtools',
-          accelerator: ''
+          accelerator: 'CommandOrControl+Alt+I'
         }
       ]
     }
