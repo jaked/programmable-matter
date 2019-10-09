@@ -103,6 +103,7 @@ function parseJsxNodes(ast: MDXHAST.Node) {
             switch (decl.type) {
               case 'ImportDeclaration':
               case 'ExportNamedDeclaration':
+              case 'ExportDefaultDeclaration':
               case 'VariableDeclaration':
                 return decl;
               default:
