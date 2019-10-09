@@ -93,15 +93,17 @@ export class Main extends React.Component<Props, {}> {
     // maybe should serve locally over HTTP?
     shell.openExternal(`file://${tempdir}`);
 
-    await publish(tempdir, {
-      src: '**',
-      dotfiles: true,
-      branch: 'master',
-      repo: 'https://github.com/jaked/symmetrical-rotary-phone.git',
-      message: 'published from Programmable Matter',
-      name: 'Jake Donham',
-      email: 'jake.donham@gmail.com',
-    });
+    if (false) {
+      await publish(tempdir, {
+        src: '**',
+        dotfiles: true,
+        branch: 'master',
+        repo: 'https://github.com/jaked/symmetrical-rotary-phone.git',
+        message: 'published from Programmable Matter',
+        name: 'Jake Donham',
+        email: 'jake.donham@gmail.com',
+      });
+    }
   }
 
   render() {
