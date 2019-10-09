@@ -139,7 +139,9 @@ const sessionSignal =
         history: {
           stack: [],
           offset: -1,
-        }
+        },
+        selectionStart: 0,
+        selectionEnd: 0
       };
     })
   );

@@ -46,6 +46,8 @@ type History = {
 
 export type Session = {
   history: History;
+  selectionStart: number;
+  selectionEnd: number;
 }
 
 const KEYCODE_ENTER = 13;
@@ -112,6 +114,18 @@ export default class Editor extends React.Component<Props, State> {
     this._recordCurrentState();
   }
 
+  getSnapshotBeforeUpdate() {
+    this._saveSelection();
+  }
+
+  componentDidUpdate() {
+    this._restoreSelection();
+    if (this._history.offset < 0) {
+      // ensure current state is top of stack
+      this._recordCurrentState();
+    }
+  }
+
   _recordCurrentState = () => {
     const input = this._input;
 
@@ -126,6 +140,20 @@ export default class Editor extends React.Component<Props, State> {
       selectionEnd,
     });
   };
+
+  _saveSelection = () => {
+    const input = this._input;
+    if (!input) return;
+    this._selectionStart = input.selectionStart;
+    this._selectionEnd = input.selectionEnd;
+  }
+
+  _restoreSelection = () => {
+    const input = this._input;
+    if (!input) return;
+    input.selectionStart = this._selectionStart;
+    input.selectionEnd = this._selectionEnd;
+  }
 
   _getLines = (text: string, position: number) =>
     text.substring(0, position).split('\n');
@@ -481,6 +509,14 @@ export default class Editor extends React.Component<Props, State> {
     offset: -1,
   };
 
+  // save/restore the current selection around renders
+  // we don't use the history stack for this because
+  // it gets initialized with the current state of the input
+  // which might already have a selection (when switching notes)
+  // TODO(jaked) could use a rethink
+  _selectionStart: number = 0;
+  _selectionEnd: number = 0;
+
   _input: HTMLTextAreaElement | null = null;
 
   focus() {
@@ -492,11 +528,15 @@ export default class Editor extends React.Component<Props, State> {
   get session(): Session {
     return {
       history: this._history,
+      selectionStart: this._selectionStart,
+      selectionEnd: this._selectionEnd
     };
   }
 
   set session(session: Session) {
     this._history = session.history;
+    this._selectionStart = session.selectionStart;
+    this._selectionEnd = session.selectionEnd;
   }
 
   render() {
