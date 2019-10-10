@@ -1,41 +1,66 @@
-import Express from 'express';
+import * as Http from 'http';
+import * as Url from 'url';
+
+import BrowserSync from 'browser-sync';
 import ReactDOMServer from 'react-dom/server';
 
 import * as data from './data';
 import Signal from './util/Signal';
+import Trace from './util/Trace';
 
 export default class Server {
   notes: Signal<data.Notes>;
-  app: Express.Express;
+  browserSync: BrowserSync.BrowserSyncInstance;
 
   constructor(notes: Signal<data.Notes>) {
+    this.handle = this.handle.bind(this);
+
     this.notes = notes;
-    this.app = Express();
-    this.app.get('*', function (req, res) {
-      const tag = decodeURIComponent(req.path.slice(1, req.path.length));
-
-      // TODO(jaked)
-      // what's the update model here?
-      // if we just call Signal.get it may not be up to date
-      // could track latest top-level version and update just in case
-      // how should this interact with atom updates?
-      //   - ignore them?
-      //   - stream them to client?
-      //   - you get what you get when you load the page?
-      //   - client has separate atom state?
-      const note = notes.get().get(tag);
-
-      if (!note) {
-        res.status(404).send(`no note ${tag}`);
-      } else {
-        if (!note.compiled) { throw new Error('expected compiled note'); }
-        const node = note.compiled.get().rendered(); // TODO(jaked) fix Try.get()
-
-        // TODO(jaked) compute at note compile time?
-        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-        res.send(html);
-      }
+    this.browserSync = BrowserSync.create();
+    this.browserSync.init({
+      logLevel: 'silent',
+      middleware: this.handle,
+      open: false,
+      port: 3000,
+      notify: false,
     });
-    this.app.listen(3000);
+  }
+
+  update(trace: Trace, level: number) {
+    // TODO(jaked)
+    // for now this is always called from app.render() and we always reload
+    // we should only reload when something relevant has changed
+    // how do we track which pages browsers are looking at?
+    this.browserSync.reload();
+  }
+
+  handle(req: Http.IncomingMessage, res: Http.ServerResponse) {
+    let url = Url.parse(req.url || '');
+    let path = url.path || '';
+    const tag = decodeURIComponent(path.slice(1, path.length));
+
+    // TODO(jaked)
+    // what's the update model here?
+    // if we just call Signal.get it may not be up to date
+    // could track latest top-level version and update just in case
+    // how should this interact with atom updates?
+    //   - ignore them?
+    //   - stream them to client?
+    //   - you get what you get when you load the page?
+    //   - client has separate atom state?
+    const note = this.notes.get().get(tag);
+
+    if (!note) {
+      res.statusCode = 404;
+      res.end(`no note ${tag}`);
+    } else {
+      if (!note.compiled) { throw new Error('expected compiled note'); }
+      const node = note.compiled.get().rendered(); // TODO(jaked) fix Try.get()
+
+      // TODO(jaked) compute at note compile time?
+      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+      res.setHeader("Content-Type", "text/html; charset=UTF-8")
+      res.end(html);
+    }
   }
 }

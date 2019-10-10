@@ -202,7 +202,10 @@ let compiledNoteSignal =
     })
   );
 
+const server = new Server(compiledNotesSignal);
+
 let level = 0;
+
 function render() {
   __trace = new Trace();
   level++;
@@ -211,6 +214,9 @@ function render() {
   compiledNoteSignal.update(__trace, level);
   matchingNotesSignal.update(__trace, level);
   sessionSignal.update(__trace, level);
+
+  server.update(__trace, level);
+
   __trace.open('ReactDOM.render');
   ReactDOM.render(
     <Main
@@ -233,7 +239,5 @@ function render() {
   __trace.close();
   console.log(__trace.finish());
 }
-
-const server = new Server(compiledNotesSignal);
 
 render();
