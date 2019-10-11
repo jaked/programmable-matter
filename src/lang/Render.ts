@@ -2,6 +2,8 @@ import * as Immutable from 'immutable';
 
 import * as React from 'react';
 
+import * as Url from 'url';
+
 import { remote } from 'electron';
 
 import 'regenerator-runtime/runtime'; // required for react-inspector
@@ -216,7 +218,8 @@ function Link(
 ) {
   return function ({ to, children }: { to: string, children: React.ReactNodeArray }) {
     // TODO(jaked) validate URL
-    if (to.startsWith('http://')) {
+    const url = Url.parse(to);
+    if (url.protocol) {
       const onClick = (e: React.MouseEvent) => {
         e.preventDefault();
         remote.shell.openExternal(to);
