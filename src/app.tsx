@@ -55,6 +55,13 @@ function setSearch(search: string) {
   render();
 }
 
+const sideBarVisibleCell = Signal.cellOk<boolean>(true);
+function toggleSideBarVisible() {
+  // TODO(jaked) `update` method on cells
+  sideBarVisibleCell.setOk(!sideBarVisibleCell.get());
+  render();
+};
+
 const matchingNotesSignal =
   Signal.label('matchingNotes',
     Signal.joinMap(notesCell, searchCell, (notes, search) => {
@@ -220,6 +227,8 @@ function render() {
   __trace.open('ReactDOM.render');
   ReactDOM.render(
     <Main
+      sideBarVisible={sideBarVisibleCell.get()}
+      toggleSideBarVisible={toggleSideBarVisible}
       notes={matchingNotesSignal.get()}
       selected={selectedCell.get()}
       search={searchCell.get()}

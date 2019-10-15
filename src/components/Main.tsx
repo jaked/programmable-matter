@@ -27,6 +27,8 @@ import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
 
 interface Props {
+  sideBarVisible: boolean;
+  toggleSideBarVisible: () => void;
   notes: Array<data.Note>;
   selected: string | null;
   search: string;
@@ -55,25 +57,25 @@ export class Main extends React.Component<Props, {}> {
 
   constructor(props: Props) {
     super(props);
-    this.focusSearchBox = this.focusSearchBox.bind(this);
-    this.publishSite = this.publishSite.bind(this);
   }
 
   componentDidMount() {
     ipc.on('focus-search-box', this.focusSearchBox);
     ipc.on('publish-site', this.publishSite);
+    ipc.on('toggle-side-bar-visible', this.toggleSideBarVisible);
   }
 
   componentWillUnmount() {
     ipc.removeListener('focus-search-box', this.focusSearchBox);
     ipc.removeListener('publish-site', this.publishSite);
+    ipc.removeListener('toggle-side-bar-visible', this.toggleSideBarVisible);
   }
 
-  focusSearchBox() {
+  focusSearchBox = () => {
     this.searchBoxRef.current && this.searchBoxRef.current.focus();
   }
 
-  async publishSite() {
+  publishSite = async () => {
     const { compiledNotes } = this.props;
     // TODO(jaked) generate random dir name?
     const tempdir = path.resolve(remote.app.getPath("temp"), 'programmable-matter');
@@ -106,74 +108,94 @@ export class Main extends React.Component<Props, {}> {
     }
   }
 
-  render() {
-    const { notes, selected, search, content, compiledNote, session, onSelect, onSearch, onChange, saveSession, newNote } = this.props;
-    const self = this;
+  toggleSideBarVisible = () => {
+    this.props.toggleSideBarVisible();
+  }
 
-      // TODO(jaked) replace with a bound method
-    function onKeyDown(key: string): boolean {
-      switch (key) {
-        case 'ArrowUp':
-          self.notesRef.current && self.notesRef.current.focus();
-          onSelect(notes[notes.length - 1].tag);
-          return true;
+  onKeyDown = (key: string): boolean => {
+    switch (key) {
+      case 'ArrowUp':
+        this.notesRef.current && this.notesRef.current.focus();
+        this.props.onSelect(this.props.notes[this.props.notes.length - 1].tag);
+        return true;
 
-        case 'ArrowDown':
-          self.notesRef.current && self.notesRef.current.focus();
-          onSelect(notes[0].tag);
-          return true;
+      case 'ArrowDown':
+        this.notesRef.current && this.notesRef.current.focus();
+        this.props.onSelect(this.props.notes[0].tag);
+        return true;
 
-        case 'Enter':
-          if (notes.every(note => note.tag !== search)) {
-            newNote(search);
-          }
-          onSelect(search);
-          if (self.editorRef.current) {
-            self.editorRef.current.focus();
-          }
-          return true;
+      case 'Enter':
+        if (this.props.notes.every(note => note.tag !== this.props.search)) {
+          this.props.newNote(this.props.search);
+        }
+        this.props.onSelect(this.props.search);
+        if (this.editorRef.current) {
+          this.editorRef.current.focus();
+        }
+        return true;
 
-        default: return false;
-      }
+      default: return false;
     }
+  }
 
-    return (
-      <>
-        <Flex style={{ height: '100vh' }}>
-          <Flex width={1/6} flexDirection='column'>
-            <SearchBox
-              ref={this.searchBoxRef}
-              search={search}
-              onSearch={onSearch}
-              onKeyDown={onKeyDown}
-            />
-            <Box>
-              <Notes
-                ref={this.notesRef}
-                notes={notes}
-                selected={selected}
-                onSelect={onSelect}
-              />
-            </Box>
+  SideBar = ({ width }: { width: number }) =>
+    <Flex width={width} flexDirection='column'>
+      <SearchBox
+        ref={this.searchBoxRef}
+        search={this.props.search}
+        onSearch={this.props.onSearch}
+        onKeyDown={this.onKeyDown}
+      />
+      <Box>
+        <Notes
+          ref={this.notesRef}
+          notes={this.props.notes}
+          selected={this.props.selected}
+          onSelect={this.props.onSelect}
+        />
+      </Box>
+    </Flex>
+
+  EditorPane = ({ width }: { width: number }) =>
+    <Box width={width} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
+      <Editor
+        ref={this.editorRef}
+        selected={this.props.selected}
+        content={this.props.content}
+        compiledNote={this.props.compiledNote}
+        session={this.props.session}
+        onChange={this.props.onChange}
+        saveSession={this.props.saveSession}
+      />
+    </Box>
+
+  DisplayPane = ({ width }: { width: number }) =>
+    <Box width={width} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
+      <Catch>
+        <Display compiledNote={this.props.compiledNote} />
+      </Catch>
+    </Box>
+
+  render() {
+    if (this.props.sideBarVisible) {
+      return (
+        <>
+          <Flex style={{ height: '100vh' }}>
+            <this.SideBar width={1/6} />
+            <this.EditorPane width={5/12} />
+            <this.DisplayPane width={5/12} />
           </Flex>
-          <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
-            <Editor
-              ref={this.editorRef}
-              selected={selected}
-              content={content}
-              compiledNote={compiledNote}
-              session={session}
-              onChange={onChange}
-              saveSession={saveSession}
-            />
-          </Box>
-          <Box width={5/12} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
-            <Catch>
-              <Display compiledNote={compiledNote} />
-            </Catch>
-          </Box>
-        </Flex>
-      </>
-    );
+        </>
+      );
+    } else {
+      return (
+        <>
+          <Flex style={{ height: '100vh' }}>
+            <this.EditorPane width={1/2} />
+            <this.DisplayPane width={1/2} />
+          </Flex>
+        </>
+      );
+    }
   }
 }

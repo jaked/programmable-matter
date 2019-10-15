@@ -48,6 +48,10 @@ function publishSite() {
   mainWindow && mainWindow.webContents.send('publish-site');
 }
 
+function toggleSideBarVisible() {
+  mainWindow && mainWindow.webContents.send('toggle-side-bar-visible');
+}
+
 function initGlobalShortcut() {
   const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
     if (mainWindow === null) {
@@ -139,6 +143,13 @@ function initMenu() {
     {
       label: 'View',
       submenu: [
+        {
+          // TODO(jaked) show current state of side bar in menu
+          label: 'Toggle Side Bar',
+          accelerator: 'CmdOrCtrl+B',
+          click: toggleSideBarVisible
+        },
+        { type: 'separator'},
         {
           role: 'reload',
           visible: isDevelopment
