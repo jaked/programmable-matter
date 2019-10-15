@@ -29,6 +29,8 @@ import { SearchBox } from './SearchBox';
 interface Props {
   sideBarVisible: boolean;
   toggleSideBarVisible: () => void;
+  mainPaneView: 'code' | 'display' | 'split';
+  setMainPaneView: (view: 'code' | 'display' | 'split') => void,
   notes: Array<data.Note>;
   selected: string | null;
   search: string;
@@ -63,12 +65,18 @@ export class Main extends React.Component<Props, {}> {
     ipc.on('focus-search-box', this.focusSearchBox);
     ipc.on('publish-site', this.publishSite);
     ipc.on('toggle-side-bar-visible', this.toggleSideBarVisible);
+    ipc.on('set-main-pane-view-code', this.setMainPaneViewCode);
+    ipc.on('set-main-pane-view-display', this.setMainPaneViewDisplay);
+    ipc.on('set-main-pane-view-split', this.setMainPaneViewSplit);
   }
 
   componentWillUnmount() {
     ipc.removeListener('focus-search-box', this.focusSearchBox);
     ipc.removeListener('publish-site', this.publishSite);
     ipc.removeListener('toggle-side-bar-visible', this.toggleSideBarVisible);
+    ipc.removeListener('set-main-pane-view-code', this.setMainPaneViewCode);
+    ipc.removeListener('set-main-pane-view-display', this.setMainPaneViewDisplay);
+    ipc.removeListener('set-main-pane-view-split', this.setMainPaneViewSplit);
   }
 
   focusSearchBox = () => {
@@ -111,6 +119,10 @@ export class Main extends React.Component<Props, {}> {
   toggleSideBarVisible = () => {
     this.props.toggleSideBarVisible();
   }
+
+  setMainPaneViewCode = () => this.props.setMainPaneView('code');
+  setMainPaneViewDisplay = () => this.props.setMainPaneView('display');
+  setMainPaneViewSplit = () => this.props.setMainPaneView('split');
 
   onKeyDown = (key: string): boolean => {
     switch (key) {
@@ -177,25 +189,22 @@ export class Main extends React.Component<Props, {}> {
     </Box>
 
   render() {
-    if (this.props.sideBarVisible) {
-      return (
-        <>
-          <Flex style={{ height: '100vh' }}>
-            <this.SideBar width={1/6} />
-            <this.EditorPane width={5/12} />
-            <this.DisplayPane width={5/12} />
-          </Flex>
-        </>
-      );
-    } else {
-      return (
-        <>
-          <Flex style={{ height: '100vh' }}>
-            <this.EditorPane width={1/2} />
-            <this.DisplayPane width={1/2} />
-          </Flex>
-        </>
-      );
-    }
+    const [sideBarWidth, mainPaneWidth] =
+      this.props.sideBarVisible ? [ 1/6, 5/6 ] : [ 0, 1 ];
+    const [editorPaneWidth, displayPaneWidth] = (
+      this.props.mainPaneView === 'code' ? [1, 0] :
+      this.props.mainPaneView === 'display' ? [0, 1] :
+      /* this.props.mainPaneView === 'split' ? */ [1/2, 1/2]
+    ).map(w => w * mainPaneWidth);
+
+    return (
+      <>
+        <Flex style={{ height: '100vh' }}>
+          { sideBarWidth === 0 ? null : <this.SideBar width={sideBarWidth} /> }
+          { editorPaneWidth === 0 ? null : <this.EditorPane width={editorPaneWidth} /> }
+          { displayPaneWidth === 0 ? null : <this.DisplayPane width={displayPaneWidth} /> }
+        </Flex>
+      </>
+    );
   }
 }

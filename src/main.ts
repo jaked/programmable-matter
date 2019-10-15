@@ -52,6 +52,10 @@ function toggleSideBarVisible() {
   mainWindow && mainWindow.webContents.send('toggle-side-bar-visible');
 }
 
+function setMainPaneView(view: 'code' | 'display' | 'split') {
+  mainWindow && mainWindow.webContents.send(`set-main-pane-view-${view}`);
+}
+
 function initGlobalShortcut() {
   const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
     if (mainWindow === null) {
@@ -148,6 +152,24 @@ function initMenu() {
           label: 'Toggle Side Bar',
           accelerator: 'CmdOrCtrl+B',
           click: toggleSideBarVisible
+        },
+        {
+          // TODO(jaked) show current state of main pane in menu
+          label: 'Code View',
+          accelerator: 'CmdOrCtrl+Alt+C',
+          click: () => setMainPaneView('code')
+        },
+        {
+          // TODO(jaked) show current state of main pane in menu
+          label: 'Display View',
+          accelerator: 'CmdOrCtrl+Alt+D',
+          click: () => setMainPaneView('display')
+        },
+        {
+          // TODO(jaked) show current state of main pane in menu
+          label: 'Split View',
+          accelerator: 'CmdOrCtrl+Alt+S',
+          click: () => setMainPaneView('split')
         },
         { type: 'separator'},
         {

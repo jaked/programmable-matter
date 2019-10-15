@@ -62,6 +62,12 @@ function toggleSideBarVisible() {
   render();
 };
 
+const mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
+function setMainPaneView(view: 'code' | 'display' | 'split') {
+  mainPaneViewCell.setOk(view);
+  render();
+}
+
 const matchingNotesSignal =
   Signal.label('matchingNotes',
     Signal.joinMap(notesCell, searchCell, (notes, search) => {
@@ -229,6 +235,8 @@ function render() {
     <Main
       sideBarVisible={sideBarVisibleCell.get()}
       toggleSideBarVisible={toggleSideBarVisible}
+      mainPaneView={mainPaneViewCell.get()}
+      setMainPaneView={setMainPaneView}
       notes={matchingNotesSignal.get()}
       selected={selectedCell.get()}
       search={searchCell.get()}
