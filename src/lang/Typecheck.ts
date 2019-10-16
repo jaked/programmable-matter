@@ -18,9 +18,14 @@ function location(ast: AcornJsxAst.Node): string {
   return Recast.print(ast).code;
 }
 
-function throwExpectedType(ast: AcornJsxAst.Expression, expected: Type.Type, actual?: Type.Type): never {
-  let msg = 'expected ' + prettyPrint(expected);
-  if (actual) msg += ', got ' + prettyPrint(actual);
+function throwExpectedType(ast: AcornJsxAst.Expression, expected: string | Type.Type, actual?: string | Type.Type): never {
+  if (typeof expected !== 'string')
+    expected = prettyPrint(expected);
+  if (actual && typeof actual !== 'string')
+    actual = prettyPrint(actual);
+
+  let msg = 'expected ' + expected;
+  if (actual) msg += ', got ' + actual;
   msg += ' at ' + location(ast);
   throw new Error(msg);
 }
@@ -384,6 +389,28 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
   }
 }
 
+function synthCallExpression(
+  ast: AcornJsxAst.CallExpression,
+  env:Env
+): [Type.Type, boolean] {
+  const [calleeType, calleeAtom] = synth(ast.callee, env);
+  if (calleeType.kind !== 'Function')
+    return throwExpectedType(ast.callee, 'function', calleeType)
+  if (calleeType.args.length !== ast.arguments.length)
+    // TODO(jaked) support short arg lists if arg type contains undefined
+    // TODO(jaked) check how this works in Typescript
+    throwExpectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
+
+  let atom = calleeAtom;
+  calleeType.args.every(({ name, type }, i) => {
+    const [argType, argAtom] = synth(ast.arguments[i], env);
+    if (!Type.isSubtype(argType, type))
+      throwExpectedType(ast.arguments[i], type, argType);
+    atom = atom || argAtom;
+  });
+  return [calleeType.ret, atom];
+}
+
 function synthArrowFunctionExpression(
   ast: AcornJsxAst.ArrowFunctionExpression,
   env: Env
@@ -483,6 +510,7 @@ function synthHelper(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolean
                               return synthArrowFunctionExpression(ast, env);
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
+    case 'CallExpression':    return synthCallExpression(ast, env);
     case 'JSXElement':        return synthJSXElement(ast, env);
     case 'JSXFragment':       return synthJSXFragment(ast, env);
     case 'JSXExpressionContainer':

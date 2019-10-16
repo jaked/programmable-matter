@@ -104,6 +104,12 @@ export interface MemberExpression extends NodeImpl {
   computed: boolean;
 }
 
+export interface CallExpression extends NodeImpl {
+  type: 'CallExpression';
+  callee: Expression;
+  arguments: Array<Expression>;
+}
+
 export interface Property extends NodeImpl {
   type: 'Property';
   method: boolean;
@@ -139,6 +145,7 @@ export type Expression =
   JSXElement |
   BinaryExpression |
   MemberExpression |
+  CallExpression |
   ObjectExpression |
   ArrayExpression |
   ArrowFunctionExpression;
@@ -205,7 +212,8 @@ export type Node =
   Program | ExpressionStatement |
   JSXFragment | JSXText | JSXElement | JSXOpeningElement |
   JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
-  Literal | Identifier | BinaryExpression | MemberExpression | Property |
+  Literal | Identifier | BinaryExpression | MemberExpression | CallExpression |
+  Property |
   ObjectExpression | ArrayExpression | ArrowFunctionExpression |
   ObjectPattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
@@ -271,6 +279,10 @@ export function visit(
     case 'MemberExpression':
       visit(ast.object, fn);
       return visit(ast.property, fn);
+
+    case 'CallExpression':
+      visit(ast.callee, fn);
+      return visit(ast.arguments, fn);
 
     case 'Property':
       visit(ast.key, fn);

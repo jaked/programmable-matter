@@ -270,6 +270,9 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
     })),
     pageSize: Type.number,
   }), false],
+
+  'parseInt':
+    [Type.functionType([{ name: 's', type: Type.string }], Type.number), false],
 });
 
 export function initValueEnv(
@@ -286,5 +289,6 @@ export function initValueEnv(
     BlockMath: BlockMath,
     Table: ReactTable,
     Gist: Gist,
+    parseInt: (s: string) => parseInt(s)
   });
 }

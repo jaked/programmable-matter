@@ -330,4 +330,32 @@ describe('synth', () => {
       );
     });
   });
+
+  describe('function calls', () => {
+    const env: Typecheck.Env = Immutable.Map({
+      f: [Type.function([{ name: 'x', type: Type.number }], Type.string), false]
+    });
+
+    it('ok', () => {
+      expectSynth('f(7)', Type.string, env);
+    });
+
+    it('throws when callee is not a function', () => {
+      expectSynthThrows('7(9)');
+    });
+
+    it('throws when not enough args', () => {
+      expectSynthThrows('f()');
+    });
+
+    it('throws when too many args', () => {
+      expectSynthThrows('f(7, 9)');
+    });
+
+    it('throws when arg is wrong type', () => {
+      expectSynthThrows('f("seven")');
+    });
+
+    // TODO(jaked) verify that atomness synths correctly
+  });
 });
