@@ -7,8 +7,7 @@ import squeeze from 'remark-squeeze-paragraphs';
 import toMDXAST from '@mdx-js/mdx/md-ast-to-mdx-ast';
 import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 
-import * as Acorn from 'acorn';
-import AcornJsx from 'acorn-jsx';
+import * as Babel from '@babel/parser';
 
 import Trace from '../util/Trace';
 import Try from '../util/Try';
@@ -33,7 +32,31 @@ const mdxParser =
     .use(mdxAstToMdxHast)
     .freeze();
 
-const jsxParser = Acorn.Parser.extend(AcornJsx())
+export function parseProgram(input: string, position?: MDXHAST.Position) {
+  const ast = Babel.parse(input, {
+    sourceType: 'module',
+    plugins: [
+      'jsx',
+      'typescript',
+      'estree'
+    ]
+  }).program as AcornJsxAst.Program;
+  fixPositions(ast, position);
+  return ast;
+}
+
+export function parseExpression(input: string, position?: MDXHAST.Position) {
+  const ast = Babel.parseExpression(input, {
+    sourceType: 'module',
+    plugins: [
+      'jsx',
+      'typescript',
+      'estree'
+    ]
+  }) as AcornJsxAst.Expression;
+  fixPositions(ast, position);
+  return ast;
+}
 
 function fixPositions(ast: AcornJsxAst.Node, position?: MDXHAST.Position) {
   if (position && position.start.offset) {
@@ -41,34 +64,9 @@ function fixPositions(ast: AcornJsxAst.Node, position?: MDXHAST.Position) {
     function fn(ast: AcornJsxAst.Node) {
       ast.start += offset;
       ast.end += offset;
-      switch (ast.type) {
-        // for shorthand properties, the same subtree is returned in both key and value
-        // so we should not mutate it twice :(
-        case 'Property':
-          if (ast.shorthand) {
-            AcornJsxAst.visit(ast.key, fn);
-            return false;
-          }
-      }
     }
     AcornJsxAst.visit(ast, fn);
   }
-}
-
-function parseJsx(input: string, position?: MDXHAST.Position): AcornJsxAst.Node {
-  const ast = jsxParser.parse(input, { sourceType: 'module' }) as AcornJsxAst.Node;
-  fixPositions(ast, position);
-  return ast;
-}
-
-export function parseProgram(input: string): AcornJsxAst.Program {
-  return jsxParser.parse(input, { sourceType: 'module' }) as AcornJsxAst.Program;
-}
-
-export function parseExpression(input: string, position?: MDXHAST.Position): AcornJsxAst.Expression {
-  const ast = jsxParser.parseExpressionAt(input, 0) as AcornJsxAst.Expression;
-  fixPositions(ast, position);
-  return ast;
 }
 
 function parseMdx(input: string): MDXHAST.Root {
@@ -97,7 +95,7 @@ function parseJsxNodes(ast: MDXHAST.Node) {
     case 'import':
     case 'export':
       ast.declarations = Try.apply(() => {
-        const jsxAst = parseJsx(ast.value, ast.position);
+        const jsxAst = parseProgram(ast.value, ast.position);
         if (jsxAst.type === 'Program') {
           return jsxAst.body.map(decl => {
             switch (decl.type) {

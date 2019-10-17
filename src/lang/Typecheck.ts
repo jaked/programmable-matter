@@ -417,10 +417,10 @@ function synthArrowFunctionExpression(
 ): [Type.Type, boolean] {
   // TODO(jaked)
   // special temporary hack for layout components
-  if (ast.params.length === 1 &&
+if (ast.params.length === 1 &&
       ast.params[0].type === 'ObjectPattern' &&
       ast.params[0].properties.length === 1 &&
-      ast.params[0].properties[0].key.start === ast.params[0].properties[0].value.start &&
+      ast.params[0].properties[0].shorthand &&
       ast.params[0].properties[0].key.type === 'Identifier' &&
       ast.params[0].properties[0].key.name === 'children') {
     env = env.set('children', [reactNodeType, false]);

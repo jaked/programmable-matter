@@ -302,10 +302,7 @@ export function visit(
       return visit(ast.properties, fn);
 
       case 'ImportSpecifier':
-      // "import { x }" has x in both `imported` and `local`
-      // visit it only once
-      if (ast.imported.start != ast.local.start)
-        visit(ast.imported, fn);
+      visit(ast.imported, fn);
       return visit(ast.local, fn);
 
     case 'ImportNamespaceSpecifier':

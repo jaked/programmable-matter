@@ -3,12 +3,10 @@
 //
 // MIT License https://github.com/remarkjs/remark/blob/master/license
 
-import * as Acorn from 'acorn';
-import AcornJsx from 'acorn-jsx';
+import * as Babel from '@babel/parser';
+import * as AcornJsxAst from '../acornJsxAst';
 
 import { openCloseTag } from './tag';
-
-const JsxParser = Acorn.Parser.extend(AcornJsx())
 
 const tab = '\t'
 const space = ' '
@@ -28,10 +26,38 @@ const cdataCloseExpression = /\]\]>/
 const elementCloseExpression = /^$/
 const otherElementOpenExpression = new RegExp(openCloseTag.source + '\\s*$')
 
-function parseExprAtom(input: string, offset: number) {
-  const parser = new JsxParser({}, input, 0) as any;
-  parser.nextToken();
-  return parser.parseExprAtom();
+function parseExpression(input: string) {
+  return Babel.parseExpression(input, {
+    sourceType: 'module',
+    plugins: [
+      'jsx',
+      'typescript',
+      'estree'
+    ]
+  }) as AcornJsxAst.Expression;
+}
+
+// Babel has no exported way to parse only an atomic expresion
+// so we can't stop it from parsing past the end of the JSX expression
+// when there is trailing stuff that looks like a compound expression.
+// instead we parse it all then find the underlying JSX expression.
+function findJsxExpression(ast: AcornJsxAst.Expression) {
+  switch (ast.type) {
+    case 'JSXElement':
+    case  'JSXFragment':
+      return ast;
+
+    case 'BinaryExpression': return findJsxExpression(ast.left);
+    case 'MemberExpression': return findJsxExpression(ast.object);
+    case 'CallExpression': return findJsxExpression(ast.callee);
+
+    default: throw new Error('unexpected ast ' + ast.type);
+  }
+}
+
+function parseJsxExpression(input: string, offset: number) {
+  const ast = parseExpression(input);
+  return findJsxExpression(ast);
 }
 
 export default function blockHtml(eat, value, silent) {
@@ -90,7 +116,7 @@ export default function blockHtml(eat, value, silent) {
 
   if (!sequence) {
     try {
-      const ast = parseExprAtom(value, index);
+      const ast = parseJsxExpression(value, index);
       const subvalue = value.slice(0, ast.end);
       return eat(subvalue)({type: 'html', value: subvalue})
     } catch (e) {
@@ -98,7 +124,7 @@ export default function blockHtml(eat, value, silent) {
         // parsing fails if there's additional Markdown after a JSX block
         // so try parsing up to the error location
         try {
-          const ast = parseExprAtom(value.slice(0, e.pos), index);
+          const ast = parseJsxExpression(value.slice(0, e.pos), index);
           const subvalue = value.slice(0, ast.end);
           return eat(subvalue)({type: 'html', value: subvalue});
         } catch (e) {

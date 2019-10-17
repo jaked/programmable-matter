@@ -97,6 +97,22 @@ function computeJsSpans(
       }
       return;
 
+      case 'ImportSpecifier':
+        // TODO(jaked) handle `as`
+        {
+          const start = ast.local.start;
+          const end = ast.local.end;
+          const Component = components.definition;
+          spans.push({ start, end, Component });
+        }
+        if (ast.imported.start != ast.local.start) {
+          const start = ast.imported.start;
+          const end = ast.imported.end;
+          const Component = components.variable;
+          spans.push({ start, end, Component });
+        }
+        return false;
+
       case 'ImportNamespaceSpecifier':
         // TODO(jaked) handle `as`
         {
@@ -105,6 +121,15 @@ function computeJsSpans(
           const Component = components.variable;
           spans.push({ start, end, Component });
         }
+        {
+          const start = ast.local.start;
+          const end = ast.local.end;
+          const Component = components.definition;
+          spans.push({ start, end, Component });
+        }
+        return false;
+
+      case 'ImportDefaultSpecifier':
         {
           const start = ast.local.start;
           const end = ast.local.end;
