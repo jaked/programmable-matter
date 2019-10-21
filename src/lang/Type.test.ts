@@ -164,9 +164,4 @@ describe('isSubtype', () => {
       expect(Type.isSubtype(a, b)).toBe(true);
     });
   });
-
-  describe('reactNodeType', () => {
-    expect(Type.isSubtype(Type.reactNodeType, Type.reactNodeType));
-    expect(Type.isSubtype(Type.array(Type.reactNodeType), Type.array(Type.reactNodeType)));
-  });
 });
