@@ -408,7 +408,7 @@ function compileMdx(
   if (layout) {
     const layoutType =
     Type.function(
-      [ Type.object({ children: Type.reactNodeType }) ],
+      [ Type.object({ children: Type.array(Type.reactNodeType) }) ],
       Type.reactNodeType);
     const layoutModule = moduleTypeEnv.get(layout);
     if (layoutModule) {
