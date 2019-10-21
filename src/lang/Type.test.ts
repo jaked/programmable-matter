@@ -77,17 +77,17 @@ describe('isSubtype', () => {
   describe('Function', () => {
     it('ok', () => {
       const a = Type.function(
-        [ { name: 'p', type: Type.number } ],
+        [ Type.number ],
         Type.string);
       const b = Type.function(
-        [ { name: 'p', type: Type.never } ],
+        [ Type.never ],
         Type.unknown);
       expect(Type.isSubtype(a, b)).toBe(true);
     });
 
     it('wrong number of args', () => {
       const a = Type.function(
-        [ { name: 'p', type: Type.number } ],
+        [ Type.number ],
         Type.string);
       const b = Type.function(
         [ ],
@@ -97,20 +97,20 @@ describe('isSubtype', () => {
 
     it('wrong arg variance', () => {
       const a = Type.function(
-        [ { name: 'p', type: Type.number } ],
+        [ Type.number ],
         Type.string);
       const b = Type.function(
-        [ { name: 'p', type: Type.unknown } ],
+        [ Type.unknown ],
         Type.unknown);
       expect(Type.isSubtype(a, b)).toBe(false);
     });
 
     it('wrong return variance', () => {
       const a = Type.function(
-        [ { name: 'p', type: Type.number } ],
+        [ Type.number ],
         Type.string);
       const b = Type.function(
-        [ { name: 'p', type: Type.never } ],
+        [ Type.never ],
         Type.never);
       expect(Type.isSubtype(a, b)).toBe(false);
     });

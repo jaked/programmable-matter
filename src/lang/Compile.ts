@@ -407,10 +407,9 @@ function compileMdx(
   let layoutFunction = (n: React.ReactNode) => n;
   if (layout) {
     const layoutType =
-    Type.function([{
-        name: 'props',
-        type: Type.object({ children: Typecheck.reactNodeType })
-      }], Typecheck.reactNodeType);
+    Type.function(
+      [ Type.object({ children: Typecheck.reactNodeType }) ],
+      Typecheck.reactNodeType);
     const layoutModule = moduleTypeEnv.get(layout);
     if (layoutModule) {
       // TODO(jaked) add a .get method on Type.ModuleType

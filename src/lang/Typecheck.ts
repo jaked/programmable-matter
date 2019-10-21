@@ -119,7 +119,7 @@ function checkFunction(ast: AcornJsxAst.Expression, env: Env, type: Type.Functio
       ast.params.forEach((pat, i) => {
         switch (pat.type) {
           case 'Identifier':
-            env = env.set(pat.name, [ type.args[i].type, false ]);
+            env = env.set(pat.name, [ type.args[i], false ]);
             break;
 
           default: throw new Error('unexpected AST type ' + (pat as AcornJsxAst.Pattern).type);
@@ -402,7 +402,7 @@ function synthCallExpression(
     throwExpectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
 
   let atom = calleeAtom;
-  calleeType.args.every(({ name, type }, i) => {
+  calleeType.args.every((type, i) => {
     const [argType, argAtom] = synth(ast.arguments[i], env);
     if (!Type.isSubtype(argType, type))
       throwExpectedType(ast.arguments[i], type, argType);
@@ -426,10 +426,9 @@ if (ast.params.length === 1 &&
     env = env.set('children', [reactNodeType, false]);
     // TODO(jaked) carry body atomness as effect on Type.function
     const [type, atom] = synth(ast.body, env);
-    const funcType = Type.function([{
-      name: 'props',
-      type: Type.object({ children: reactNodeType })
-    }], type);
+    const funcType = Type.function(
+      [ Type.object({ children: reactNodeType }) ],
+      type);
     return [funcType, false];
   } else if (ast.params.length > 0) {
     // TODO(jaked) need arg type annotations to synth a function
@@ -452,9 +451,9 @@ function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): [Type.Type, boo
     if (type.args.length === 0) {
       propsType = Type.object({});
     } else {
-      if (type.args[0].type.kind !== 'Object')
+      if (type.args[0].kind !== 'Object')
         throw new Error('expected object arg');
-      propsType = type.args[0].type;
+      propsType = type.args[0];
     }
     // TODO(jaked) check return type against reactNodeType
   } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.length === 1) {

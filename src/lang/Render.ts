@@ -272,7 +272,7 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
   }), false],
 
   'parseInt':
-    [Type.functionType([{ name: 's', type: Type.string }], Type.number), false],
+    [Type.functionType([ Type.string ], Type.number), false],
 });
 
 export function initValueEnv(

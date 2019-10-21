@@ -105,7 +105,7 @@ describe('check', () => {
   describe('function expressions', () => {
     const type =
       Type.function(
-        [ { name: 'p', type: Type.number } ],
+        [ Type.number ],
         Type.string
       );
 
@@ -333,7 +333,7 @@ describe('synth', () => {
 
   describe('function calls', () => {
     const env: Typecheck.Env = Immutable.Map({
-      f: [Type.function([{ name: 'x', type: Type.number }], Type.string), false]
+      f: [Type.function([ Type.number ], Type.string), false]
     });
 
     it('ok', () => {

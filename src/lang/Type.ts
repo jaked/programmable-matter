@@ -16,7 +16,7 @@ export type AbstractType = { kind: 'Abstract', label: string, params: Array<Type
 // invariant: no duplicate arg names
 export type FunctionType = {
   kind: 'Function',
-  args: Array<{ name: string, type: Type }>,
+  args: Array<Type>,
   ret: Type
 };
 
@@ -95,7 +95,7 @@ export function abstract(label: string, ...params: Array<Type>): AbstractType {
 }
 
 export function functionType(
-  args: Array<{ name: string, type: Type }>,
+  args: Array<Type>,
   ret: Type
 ): FunctionType {
   return { kind: 'Function', args, ret };
@@ -216,7 +216,7 @@ export function isSubtype(a: Type, b: Type): boolean {
   }
   else if (a.kind === 'Function' && b.kind === 'Function') {
     return a.args.length === b.args.length &&
-      a.args.every((a, i) => isSubtype(b.args[i].type, a.type)) &&
+      a.args.every((a, i) => isSubtype(b.args[i], a)) &&
       isSubtype(a.ret, b.ret);
   }
   else return false;
