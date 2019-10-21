@@ -432,9 +432,9 @@ function patTypeEnvIdentifier(ast: AcornJsxAst.Identifier, t: Type.Type, env: En
 function patTypeEnvObjectPattern(ast: AcornJsxAst.ObjectPattern, t: Type.ObjectType, env: Env): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
-    const field = t.fields.find(field => field.field === prop.key.name)
+    const field = t.fields.find(field => field.field === key.name)
     if (!field)
-      return throwUnknownField(prop.key, prop.key.name);
+      return throwUnknownField(key, key.name);
     env = patTypeEnv(prop.value, field.type, env);
   });
   return env;

@@ -8,6 +8,25 @@ const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 export type Env = Immutable.Map<string, any>;
 
+function patValueEnvIdentifier(ast: AcornJsxAst.Identifier, value: any, env: Env): Env {
+  return env.set(ast.name, value);
+}
+
+function patValueEnvObjectPattern(ast: AcornJsxAst.ObjectPattern, value: any, env: Env): Env {
+  ast.properties.forEach(prop => {
+    env = patValueEnv(prop.value, value[prop.key.name], env);
+  });
+  return env;
+}
+
+function patValueEnv(ast: AcornJsxAst.Pattern, value: any, env: Env): Env {
+  if (ast.type === 'Identifier')
+    return patValueEnvIdentifier(ast, value, env);
+  else if (ast.type === 'ObjectPattern')
+    return patValueEnvObjectPattern(ast, value, env);
+  else throw new Error(`unexpected AST type ${(ast as AcornJsxAst.Pattern).type}`);
+}
+
 export function evaluateExpression(
   ast: AcornJsxAst.Expression,
   env: Env,
@@ -159,25 +178,8 @@ export function evaluateExpression(
     case 'ArrowFunctionExpression':
       return function(...args: Array<any>) {
         ast.params.forEach((pat, i) => {
-          switch (pat.type) {
-            case 'Identifier':
-              env = env.set(pat.name, args[i]);
-              break;
-
-            // TODO(jaked)
-            // special temporary hack for layout components
-            case 'ObjectPattern':
-              if (pat.properties.length === 1 &&
-                  pat.properties[0].key.start === pat.properties[0].value.start &&
-                  pat.properties[0].key.type === 'Identifier' &&
-                  pat.properties[0].key.name === 'children') {
-                env = env.set('children', args[i]['children']);
-                break;
-              } else {
-                throw new Error('unexpected ObjectPattern');
-              }
-            }
-          });
+          env = patValueEnv(pat, args[i], env);
+        });
         return evaluateExpression(ast.body, env);
       };
 
