@@ -188,9 +188,24 @@ export interface TSLiteralType extends NodeImpl {
   literal: Literal;
 }
 
+export interface TSTypeReference extends NodeImpl {
+  type: 'TSTypeReference';
+  typeName: QualifiedIdentifier;
+}
+
+export interface TSQualifiedName extends NodeImpl {
+  type: 'TSQualifiedName';
+  left: QualifiedIdentifier;
+  right: QualifiedIdentifier;
+}
+
+export type QualifiedIdentifier =
+  Identifier | TSQualifiedName;
+
 export type TypeAnnotation =
   TSBooleanKeyword | TSNumberKeyword | TSStringKeyword |
-  TSArrayType | TSTupleType | TSTypeLiteral | TSLiteralType;
+  TSArrayType | TSTupleType | TSTypeLiteral | TSLiteralType |
+  TSTypeReference;
 
 export interface TSTypeAnnotation extends NodeImpl {
   type: 'TSTypeAnnotation';

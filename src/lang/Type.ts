@@ -221,3 +221,13 @@ export function isSubtype(a: Type, b: Type): boolean {
   }
   else return false;
 }
+
+export const reactElementType = abstract('React.Element');
+// TODO(jaked)
+// fragments are also permitted here (see ReactNode in React typing)
+// but we need recursive types to express it (ReactFragment = Array<ReactNode>)
+// in the meantime we'll permit top-level fragments only
+const reactNodeType_ =
+  union(reactElementType, booleanType, numberType, stringType, nullType, undefinedType);
+export const reactNodeType =
+  union(reactNodeType_, array(reactNodeType_));

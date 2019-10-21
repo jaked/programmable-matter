@@ -472,6 +472,12 @@ function typeOfTypeAnnotation(ann: AcornJsxAst.TypeAnnotation): Type.Type {
         case 'object': return Type.singleton(Type.null, value);
         default: throw new Error(`unexpected literal type ${ann.literal.value}`);
       }
+    case 'TSTypeReference':
+      if (ann.typeName.type === 'TSQualifiedName' &&
+          ann.typeName.left.type === 'Identifier' && ann.typeName.left.name === 'React' &&
+          ann.typeName.right.type === 'Identifier' && ann.typeName.right.name === 'ReactNode')
+            return Type.reactNodeType;
+      else throw new Error(`unimplemented TSTypeReference`);
   }
 }
 
@@ -500,35 +506,57 @@ const defaultElementType = Type.abstract('React.Component', Type.object({}));
 function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): [Type.Type, boolean] {
   const name = ast.openingElement.name.name;
   const [type, _] = env.get(name, [defaultElementType, false]);
+
   let propsType: Type.ObjectType;
-  if (type.kind === 'Function' && type.args.length < 2) {
+  let retType: Type.Type;
+  if (type.kind === 'Function') {
+    retType = type.ret;
     if (type.args.length === 0) {
       propsType = Type.object({});
-    } else {
+    } else if (type.args.length === 1) {
       if (type.args[0].kind !== 'Object')
         throw new Error('expected object arg');
       propsType = type.args[0];
-    }
-    // TODO(jaked) check return type against reactNodeType
+      const childrenField = propsType.fields.find(field => field.field === 'children');
+      if (childrenField) {
+        if (!Type.isSubtype(Type.array(Type.reactNodeType), childrenField.type))
+          throw new Error('expected children type');
+      }
+    } else throw new Error('expected 0- or 1-arg function');
   } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.length === 1) {
-    const param = type.params[0];
-    if (param.kind !== 'Object')
+    if (type.params[0].kind !== 'Object')
       throw new Error('expected object arg');
-    propsType = param;
+    retType = Type.reactElementType;
+    propsType = type.params[0];
   } else throw new Error('expected component type');
-  // TODO(jaked) add `children: Type.array(reactNodeType)` to `propsType`
 
-  const fieldTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
+  const attrNames =
+    new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
+  propsType.fields.forEach(({ field }) => {
+    if (field !== 'children' && !attrNames.has(field))
+      return throwMissingField(ast, field);
+  });
+
+  const propTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
   const attrsAtom = ast.openingElement.attributes.map(({ name, value }) => {
-    const type = fieldTypes.get(name.name) || Type.unknown; // TODO(jaked) required/optional props
-    return check(value, env, type);
+    const type = propTypes.get(name.name);
+    if (type) return check(value, env, type);
+    else {
+      // TODO(jaked)
+      // fill out type signatures of builtin components so we can check this
+      //   return throwExtraField(ast, name.name);
+      // for now, synth the arg so it can be evaluated
+      synth(value, env);
+    }
   }).some(x => x);
+
   let childrenAtom =
     ast.children.map(child =>
-      check(child, env, reactNodeType)
+      // TODO(jaked) see comment about recursive types on Type.reactNodeType
+      check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)))
     ).some(x => x);
 
-  return [reactElementType, attrsAtom || childrenAtom];
+  return [retType, attrsAtom || childrenAtom];
 }
 
 function synthJSXFragment(ast: AcornJsxAst.JSXFragment, env: Env): [Type.Type, boolean] {
@@ -581,17 +609,6 @@ export function synth(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolea
   ast.atom = atom;
   return typeAtom;
 }
-
-const reactElementType = Type.abstract('React.Element');
-// TODO(jaked)
-// fragments are also permitted here (see ReactNode in React typing)
-// but we need recursive types to express it (ReactFragment = Array<ReactNode>)
-// in the meantime we'll permit top-level fragments only
-const reactNodeType_ =
-  Type.union(reactElementType, Type.boolean, Type.number, Type.string, Type.null, Type.undefined);
-// TODO(jaked) this probably belongs on Type
-  export const reactNodeType =
-  Type.union(reactNodeType_, Type.array(reactNodeType_));
 
 function extendEnvWithImport(
   decl: AcornJsxAst.ImportDeclaration,
@@ -673,7 +690,7 @@ export function synthMdx(
 
     case 'jsx':
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
-      ast.jsxElement.forEach(elem => check(elem, env, reactNodeType));
+      ast.jsxElement.forEach(elem => check(elem, env, Type.reactNodeType));
       return env;
 
     case 'import':

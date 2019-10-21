@@ -368,4 +368,45 @@ describe('synth', () => {
 
     // TODO(jaked) verify that atomness synths correctly
   });
+
+  describe('JSX elements', () => {
+    const env: Typecheck.Env = Immutable.Map({
+      Component: [
+        Type.function([ Type.object({ foo: Type.number }) ], Type.string),
+        false
+      ],
+      NotFunction: [ Type.string, false ],
+      TooManyParams: [ Type.function([ Type.string, Type.number ], Type.boolean), false ],
+      ParamNotObject: [ Type.function([ Type.string ], Type.boolean), false ],
+      WrongChildrenType: [ Type.function([ Type.object({ children: Type.number }) ], Type.boolean), false ],
+    });
+
+    it('ok', () => {
+      expectSynth('<Component foo={7} />', Type.string, env);
+    });
+
+    it('throws when prop is missing', () => {
+      expectSynthThrows('<Component />', env);
+    });
+
+    it('throws when prop has wrong type', () => {
+      expectSynthThrows('<Component foo={"bar"} />', env);
+    });
+
+    it('throws when not a function', () => {
+      expectSynthThrows('<NotFunction />', env);
+    });
+
+    it('throws when too many params', () => {
+      expectSynthThrows('<TooManyParams />', env);
+    });
+
+    it('throws when param is not an object', () => {
+      expectSynthThrows('<ParamNotObject />', env);
+    });
+
+    it('throws when wrong children type', () => {
+      expectSynthThrows('<WrongChildrenType />', env);
+    });
+  });
 });
