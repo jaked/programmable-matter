@@ -13,7 +13,6 @@ export type SetType = { kind: 'Set', elem: Type };
 export type MapType = { kind: 'Map', key: Type, value: Type };
 export type AbstractType = { kind: 'Abstract', label: string, params: Array<Type> };
 
-// invariant: no duplicate arg names
 export type FunctionType = {
   kind: 'Function',
   args: Array<Type>,
@@ -117,6 +116,7 @@ export function module(obj: { [f: string]: [Type, boolean] }): ModuleType {
 export function singleton(base: BooleanType, value: boolean): SingletonType
 export function singleton(base: NumberType, value: number): SingletonType
 export function singleton(base: StringType, value: string): SingletonType
+export function singleton(base: NullType, value: null): SingletonType
 export function singleton(base: Type, value: any): SingletonType {
  return { kind: 'Singleton', base, value };
 }

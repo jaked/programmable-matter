@@ -132,7 +132,7 @@ export interface ArrayExpression extends NodeImpl {
 
 export interface ArrowFunctionExpression extends NodeImpl {
   type: 'ArrowFunctionExpression';
-  params: Array<Pattern>;
+  params: Array<Pattern & { typeAnnotation?: TSTypeAnnotation }>;
   body: Expression;
 }
 
@@ -150,9 +150,65 @@ export type Expression =
   ArrayExpression |
   ArrowFunctionExpression;
 
+export interface TSBooleanKeyword extends NodeImpl {
+  type: 'TSBooleanKeyword';
+}
+
+export interface TSNumberKeyword extends NodeImpl {
+  type: 'TSNumberKeyword';
+}
+
+export interface TSStringKeyword extends NodeImpl {
+  type: 'TSStringKeyword';
+}
+
+export interface TSArrayType extends NodeImpl {
+  type: 'TSArrayType';
+  elementType: TypeAnnotation;
+}
+
+export interface TSTupleType extends NodeImpl {
+  type: 'TSTupleType';
+  elementTypes: TypeAnnotation[];
+}
+
+export interface TSTypeLiteral extends NodeImpl {
+  type: 'TSTypeLiteral';
+  members: TSPropertySignature[];
+}
+
+export interface TSPropertySignature extends NodeImpl {
+  type: 'TSPropertySignature';
+  key: Identifier;
+  typeAnnotation: TSTypeAnnotation;
+}
+
+export interface TSLiteralType extends NodeImpl {
+  type: 'TSLiteralType';
+  literal: Literal;
+}
+
+export type TypeAnnotation =
+  TSBooleanKeyword | TSNumberKeyword | TSStringKeyword |
+  TSArrayType | TSTupleType | TSTypeLiteral | TSLiteralType;
+
+export interface TSTypeAnnotation extends NodeImpl {
+  type: 'TSTypeAnnotation';
+  typeAnnotation: TypeAnnotation;
+}
+
+// ESTree puts Property in ObjectPattern
+// we give it a different type to restrict the key / value types
+export interface PropertyPattern extends NodeImpl {
+  type: 'Property';
+  key: Identifier;
+  value: Pattern;
+  shorthand: boolean;
+}
+
 export interface ObjectPattern extends NodeImpl {
   type: 'ObjectPattern';
-  properties: Array<Property>;
+  properties: Array<PropertyPattern>;
 }
 
 export type Pattern =
@@ -213,7 +269,7 @@ export type Node =
   JSXFragment | JSXText | JSXElement | JSXOpeningElement |
   JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
   Literal | Identifier | BinaryExpression | MemberExpression | CallExpression |
-  Property |
+  Property | PropertyPattern |
   ObjectExpression | ArrayExpression | ArrowFunctionExpression |
   ObjectPattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |

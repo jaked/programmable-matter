@@ -329,6 +329,16 @@ describe('synth', () => {
         Type.function([], Type.singleton(Type.number, 7))
       );
     });
+
+    it('ok with params', () => {
+      expectSynth(
+        '(x: number, y: 7) => x + y',
+        Type.function(
+          [ Type.number, Type.singleton(Type.number, 7) ],
+          Type.number
+        )
+      );
+    });
   });
 
   describe('function calls', () => {

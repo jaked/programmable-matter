@@ -6,6 +6,12 @@ import * as AcornJsxAst from './acornJsxAst';
 
 import * as Type from './Type';
 
+// TODO(jaked)
+// function and pattern environments don't need to track atomness
+// - we join on all the args at a function call
+// - patterns match over direct values
+// but module environments need to track atomness
+// should we split out the module environment to avoid a nuisance flag?
 export type Env = Immutable.Map<string, [Type.Type, boolean]>;
 
 function prettyPrint(type: Type.Type): string {
@@ -18,6 +24,11 @@ function location(ast: AcornJsxAst.Node): string {
   return Recast.print(ast).code;
 }
 
+function throwWithLocation(ast, msg): never {
+  msg += ' at ' + location(ast);
+  throw new Error(msg);
+}
+
 function throwExpectedType(ast: AcornJsxAst.Expression, expected: string | Type.Type, actual?: string | Type.Type): never {
   if (typeof expected !== 'string')
     expected = prettyPrint(expected);
@@ -26,24 +37,23 @@ function throwExpectedType(ast: AcornJsxAst.Expression, expected: string | Type.
 
   let msg = 'expected ' + expected;
   if (actual) msg += ', got ' + actual;
-  msg += ' at ' + location(ast);
-  throw new Error(msg);
+  return throwWithLocation(ast, msg);
 }
 
 function throwUnknownField(ast: AcornJsxAst.Expression, field: string): never {
-  throw new Error('unknown field \'' + field + '\' at ' + location(ast));
+  return throwWithLocation(ast, `unknown field '${field}'`);
 }
 
 function throwMissingField(ast: AcornJsxAst.Expression, field: string): never {
-  throw new Error('missing field \'' + field + '\' at ' + location(ast));
+  return throwWithLocation(ast, `missing field '${field}'`);
 }
 
 function throwExtraField(ast: AcornJsxAst.Expression, field: string): never {
-  throw new Error('extra field \'' + field + '\' at ' + location(ast));
+  return throwWithLocation(ast, `extra field ${field}`);
 }
 
 function throwWrongArgsLength(ast: AcornJsxAst.Expression, expected: number, actual: number) {
-  throw new Error(`expected ${expected} args, function has ${actual} args at ${location(ast)}`);
+  return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
 }
 
 function checkSubtype(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
@@ -411,33 +421,77 @@ function synthCallExpression(
   return [calleeType.ret, atom];
 }
 
+function patTypeEnvIdentifier(ast: AcornJsxAst.Identifier, t: Type.Type, env: Env): Env {
+  if (ast.type !== 'Identifier')
+    return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(t)}`);
+  if (env.has(ast.name))
+    return throwWithLocation(ast, `identifier ${ast.name} already bound in pattern`);
+  return env.set(ast.name, [t, false]);
+}
+
+function patTypeEnvObjectPattern(ast: AcornJsxAst.ObjectPattern, t: Type.ObjectType, env: Env): Env {
+  ast.properties.forEach(prop => {
+    const key = prop.key;
+    const field = t.fields.find(field => field.field === prop.key.name)
+    if (!field)
+      return throwUnknownField(prop.key, prop.key.name);
+    env = patTypeEnv(prop.value, field.type, env);
+  });
+  return env;
+}
+
+function patTypeEnv(ast: AcornJsxAst.Pattern, t: Type.Type, env: Env): Env {
+  if (ast.type === 'ObjectPattern' && t.kind === 'Object')
+    return patTypeEnvObjectPattern(ast, t, env);
+  else if (ast.type === 'Identifier')
+    return patTypeEnvIdentifier(ast, t, env);
+  else
+    return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(t)}`);
+}
+
+function typeOfTypeAnnotation(ann: AcornJsxAst.TypeAnnotation): Type.Type {
+  switch (ann.type) {
+    case 'TSBooleanKeyword': return Type.boolean;
+    case 'TSNumberKeyword': return Type.number;
+    case 'TSStringKeyword': return Type.string;
+    case 'TSArrayType':
+      return Type.array(typeOfTypeAnnotation(ann.elementType));
+    case 'TSTupleType':
+      return Type.tuple(...ann.elementTypes.map(typeOfTypeAnnotation));
+    case 'TSTypeLiteral':
+      const members =
+        ann.members.map(mem => ({ [mem.key.name]: typeOfTypeAnnotation(mem.typeAnnotation.typeAnnotation) }));
+      return Type.object(Object.assign({}, ...members));
+    case 'TSLiteralType':
+      // TODO(jaked) move this dispatch to Type
+      const value = ann.literal.value;
+      switch (typeof value) {
+        case 'boolean': return Type.singleton(Type.boolean, value);
+        case 'number': return Type.singleton(Type.number, value);
+        case 'string': return Type.singleton(Type.string, value);
+        case 'object': return Type.singleton(Type.null, value);
+        default: throw new Error(`unexpected literal type ${ann.literal.value}`);
+      }
+  }
+}
+
 function synthArrowFunctionExpression(
   ast: AcornJsxAst.ArrowFunctionExpression,
   env: Env
 ): [Type.Type, boolean] {
-  // TODO(jaked)
-  // special temporary hack for layout components
-if (ast.params.length === 1 &&
-      ast.params[0].type === 'ObjectPattern' &&
-      ast.params[0].properties.length === 1 &&
-      ast.params[0].properties[0].shorthand &&
-      ast.params[0].properties[0].key.type === 'Identifier' &&
-      ast.params[0].properties[0].key.name === 'children') {
-    env = env.set('children', [reactNodeType, false]);
-    // TODO(jaked) carry body atomness as effect on Type.function
-    const [type, atom] = synth(ast.body, env);
-    const funcType = Type.function(
-      [ Type.object({ children: reactNodeType }) ],
-      type);
-    return [funcType, false];
-  } else if (ast.params.length > 0) {
-    // TODO(jaked) need arg type annotations to synth a function
-    throw new Error('can\'t synth a function with args');
-  } else {
-    // TODO(jaked) carry body atomness as effect on Type.function
-    const [type, atom] = synth(ast.body, env);
-    return [Type.function([], type), false];
-  }
+  let patEnv: Env = Immutable.Map();
+  const paramTypes = ast.params.map(param => {
+    if (!param.typeAnnotation)
+      return throwWithLocation(param, `function parameter must have a type`);
+    const t = typeOfTypeAnnotation(param.typeAnnotation.typeAnnotation);
+    patEnv = patTypeEnv(param, t, patEnv);
+    return t;
+  });
+  env = env.concat(patEnv);
+  // TODO(jaked) carry body atomness as effect on Type.function
+  const [type, atom] = synth(ast.body, env);
+  const funcType = Type.function(paramTypes, type);
+  return [funcType, false];
 }
 
 // TODO(jaked) for HTML types, temporarily
