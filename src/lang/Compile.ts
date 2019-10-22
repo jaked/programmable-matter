@@ -269,6 +269,7 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
   const imports: Array<AcornJsxAst.ImportDeclaration> = [];
   const exportLets: Array<AcornJsxAst.ExportNamedDeclaration> = [];
   const exportConsts: Array<AcornJsxAst.ExportNamedDeclaration> = [];
+  const exportDefault: Array<AcornJsxAst.ExportDefaultDeclaration> = [];
 
   function collectImportsExports(ast: MDXHAST.Node): MDXHAST.Node {
     switch (ast.type) {
@@ -295,6 +296,8 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
                         break;
                     }
                     break;
+                  case 'ExportDefaultDeclaration':
+                    exportDefault.push(decl);
                 }
               }));
               break;
@@ -371,6 +374,11 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
       type: 'export',
       value: '',
       declarations: Try.ok(sortedExportConsts),
+    },
+    {
+      type: 'export',
+      value: '',
+      declarations: Try.ok(exportDefault),
     },
     ...ast2.children
   ];
