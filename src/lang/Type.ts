@@ -107,9 +107,9 @@ export function object(obj: { [f: string]: Type }): ObjectType {
   return { kind: 'Object', fields };
 }
 
-export function module(obj: { [f: string]: [Type, boolean] }): ModuleType {
+export function module(obj: { [f: string]: { type: Type, atom: boolean } }): ModuleType {
   const fields =
-    Object.entries(obj).map(([ field, [ type, atom ]]) => ({ field, type, atom }));
+    Object.entries(obj).map(([ field, { type, atom }]) => ({ field, type, atom }));
   return { kind: 'Module', fields };
 }
 

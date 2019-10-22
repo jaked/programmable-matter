@@ -40,7 +40,7 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: [Type.boolean, true] });
+      const env: Typecheck.Env = Immutable.Map({ foo: { type: Type.boolean, atom: true } });
       expectCheck('foo', Type.boolean, env, true);
     });
   });
@@ -59,7 +59,7 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env =  Immutable.Map({ foo: [type, true] });
+      const env: Typecheck.Env =  Immutable.Map({ foo: { type, atom: true } });
       expectCheck('foo', type, env, true)
     });
 
@@ -82,7 +82,7 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env =  Immutable.Map({ foo: [type, true] });
+      const env: Typecheck.Env =  Immutable.Map({ foo: { type, atom: true } });
       expectCheck('foo', type, env, true);
     });
   });
@@ -96,7 +96,7 @@ describe('check', () => {
 
     it('permits excess properties in non-literal', () => {
       const env: Typecheck.Env = Immutable.Map({
-        foo: [Type.object({ bar: Type.number }), true],
+        foo: { type: Type.object({ bar: Type.number }), atom: true },
       });
       expectCheck('foo', type, env, true);
     });
@@ -188,12 +188,12 @@ describe('synth', () => {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.synth(expr, env)).toEqual([type, atom]);
+    expect(Typecheck.synth(expr, env)).toEqual({ type, atom });
   }
 
   describe('identifiers', () => {
     it('succeeds', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: [Type.boolean, true] });
+      const env: Typecheck.Env = Immutable.Map({ foo: { type: Type.boolean, atom: true } });
       expectSynth('foo', Type.boolean, env, true);
     });
 
@@ -268,17 +268,17 @@ describe('synth', () => {
 
   describe('member expressions', () => {
     const env: Typecheck.Env = Immutable.Map({
-      object: [Type.object({ foo: Type.boolean, bar: Type.number }), false],
-      array: [Type.array(Type.number), false],
-      tuple: [Type.tuple(Type.boolean, Type.number), false],
-      numberUnion: [Type.union(
+      object: { type: Type.object({ foo: Type.boolean, bar: Type.number }), atom: false },
+      array: { type: Type.array(Type.number), atom: false },
+      tuple: { type: Type.tuple(Type.boolean, Type.number), atom: false },
+      numberUnion: { type: Type.union(
         Type.singleton(Type.number, 0),
         Type.singleton(Type.number, 1),
-      ), false],
-      stringUnion: [Type.union(
+      ), atom: false },
+      stringUnion: { type: Type.union(
         Type.singleton(Type.string, 'foo'),
         Type.singleton(Type.string, 'bar'),
-      ), false]
+      ), atom: false }
     });
 
     it('property names', () => {
@@ -343,7 +343,7 @@ describe('synth', () => {
 
   describe('function calls', () => {
     const env: Typecheck.Env = Immutable.Map({
-      f: [Type.function([ Type.number ], Type.string), false]
+      f: { type: Type.function([ Type.number ], Type.string), atom: false }
     });
 
     it('ok', () => {
@@ -371,14 +371,14 @@ describe('synth', () => {
 
   describe('JSX elements', () => {
     const env: Typecheck.Env = Immutable.Map({
-      Component: [
-        Type.function([ Type.object({ foo: Type.number }) ], Type.string),
-        false
-      ],
-      NotFunction: [ Type.string, false ],
-      TooManyParams: [ Type.function([ Type.string, Type.number ], Type.boolean), false ],
-      ParamNotObject: [ Type.function([ Type.string ], Type.boolean), false ],
-      WrongChildrenType: [ Type.function([ Type.object({ children: Type.number }) ], Type.boolean), false ],
+      Component: {
+        type: Type.function([ Type.object({ foo: Type.number }) ], Type.string),
+        atom: false
+      },
+      NotFunction: { type: Type.string, atom: false },
+      TooManyParams: { type: Type.function([ Type.string, Type.number ], Type.boolean), atom: false },
+      ParamNotObject: { type: Type.function([ Type.string ], Type.boolean), atom: false },
+      WrongChildrenType: { type: Type.function([ Type.object({ children: Type.number }) ], Type.boolean), atom: false },
     });
 
     it('ok', () => {

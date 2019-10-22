@@ -5,6 +5,9 @@ import * as MDXHAST from './mdxhast';
 import * as AcornJsxAst from './acornJsxAst';
 
 import * as Type from './Type';
+import Try from '../util/Try';
+
+export type TypeAtom = { type: Type.Type, atom: boolean };
 
 // TODO(jaked)
 // function and pattern environments don't need to track atomness
@@ -12,7 +15,7 @@ import * as Type from './Type';
 // - patterns match over direct values
 // but module environments need to track atomness
 // should we split out the module environment to avoid a nuisance flag?
-export type Env = Immutable.Map<string, [Type.Type, boolean]>;
+export type Env = Immutable.Map<string, TypeAtom>;
 
 function prettyPrint(type: Type.Type): string {
   // TODO(jaked) print prettily
@@ -62,7 +65,7 @@ function checkSubtype(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): b
       return check(ast.expression, env, type);
 
     default:
-      const [actual, atom] = synth(ast, env);
+      const { type: actual, atom } = synth(ast, env);
       if (!Type.isSubtype(actual, type))
         throwExpectedType(ast, type, actual);
       return atom;
@@ -129,7 +132,7 @@ function checkFunction(ast: AcornJsxAst.Expression, env: Env, type: Type.Functio
       ast.params.forEach((pat, i) => {
         switch (pat.type) {
           case 'Identifier':
-            env = env.set(pat.name, [ type.args[i], false ]);
+            env = env.set(pat.name, { type: type.args[i], atom: false });
             break;
 
           default: throw new Error('unexpected AST type ' + (pat as AcornJsxAst.Pattern).type);
@@ -226,12 +229,11 @@ function checkHelper(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): bo
 
 export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
   const atom = checkHelper(ast, env, type);
-  ast.etype = type;
-  ast.atom = atom;
+  ast.etype = Try.ok({ type, atom });
   return atom;
 }
 
-function synthIdentifier(ast: AcornJsxAst.Identifier, env: Env): [Type.Type, boolean] {
+function synthIdentifier(ast: AcornJsxAst.Identifier, env: Env): TypeAtom {
   const typeAtom = env.get(ast.name);
   if (typeAtom) return typeAtom;
   else throw new Error('unbound identifier ' + ast.name);
@@ -248,22 +250,22 @@ function synthLiteralHelper(ast: AcornJsxAst.Literal, env: Env): Type.Type {
   }
 }
 
-function synthLiteral(ast: AcornJsxAst.Literal, env: Env): [Type.Type, boolean] {
+function synthLiteral(ast: AcornJsxAst.Literal, env: Env): TypeAtom {
   const type = synthLiteralHelper(ast, env);
-  return [type, false];
+  return { type, atom: false };
 }
 
-function synthArrayExpression(ast: AcornJsxAst.ArrayExpression, env: Env): [Type.Type, boolean] {
+function synthArrayExpression(ast: AcornJsxAst.ArrayExpression, env: Env): TypeAtom {
   const typesAtoms = ast.elements.map(e => synth(e, env));
-  const types = typesAtoms.map(([type, _]) => type);
-  const atom = typesAtoms.some(([_, atom]) => atom);
+  const types = typesAtoms.map(({ type }) => type);
+  const atom = typesAtoms.some(({ atom }) => atom);
   const elem = Type.leastUpperBound(...types);
-  return [Type.array(elem), atom];
+  return { type: Type.array(elem), atom };
 }
 
-function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): [Type.Type, boolean] {
+function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): TypeAtom {
   const seen = new Set();
-  const fields: Array<[string, [Type.Type, boolean]]> =
+  const fields: Array<[string, TypeAtom]> =
     ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
@@ -275,15 +277,15 @@ function synthObjectExpression(ast: AcornJsxAst.ObjectExpression, env: Env): [Ty
       else seen.add(name);
       return [ name, synth(prop.value, env) ];
     });
-  const fieldTypes = fields.map(([name, [type, _]]) => ({ [name]: type }));
-  const atom = fields.some(([_, [__, atom]]) => atom);
+  const fieldTypes = fields.map(([name, { type }]) => ({ [name]: type }));
+  const atom = fields.some(([_, { atom }]) => atom);
   const type = Type.object(Object.assign({}, ...fieldTypes));
-  return [type, atom];
+  return { type, atom };
 }
 
-function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): [Type.Type, boolean] {
-  let [left, leftAtom] = synth(ast.left, env);
-  let [right, rightAtom] = synth(ast.right, env);
+function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): TypeAtom {
+  let { type: left, atom: leftAtom } = synth(ast.left, env);
+  let { type: right, atom: rightAtom } = synth(ast.right, env);
   const atom = leftAtom || rightAtom;
 
   if (left.kind === 'Singleton') left = left.base;
@@ -298,16 +300,16 @@ function synthBinaryExpression(ast: AcornJsxAst.BinaryExpression, env: Env): [Ty
   else if (left.kind === 'number' && right.kind === 'string') type = Type.string;
   else throw new Error('unimplemented: synthBinaryExpression');
 
-  return [type, atom];
+  return { type, atom };
 }
 
-function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Type.Type, boolean] {
-  const [object, objAtom] = synth(ast.object, env);
+function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): TypeAtom {
+  const { type: object, atom: objAtom } = synth(ast.object, env);
   if (ast.computed) {
     switch (object.kind) {
       case 'Array':
         const propAtom = check(ast.property, env, Type.number);
-        return [object.elem, objAtom || propAtom];
+        return { type: object.elem, atom: objAtom || propAtom };
 
       case 'Tuple': {
         // check against union of valid indexes
@@ -316,7 +318,7 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
-        const [propertyType, propAtom] = synth(ast.property, env);
+        const { type: propertyType, atom: propAtom } = synth(ast.property, env);
         const presentIndexes: Array<number> = [];
         if (propertyType.kind === 'Singleton') {
           presentIndexes.push(propertyType.value);
@@ -330,7 +332,7 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
         // and return union of element types of present indexes
         const presentTypes =
           presentIndexes.map(i => object.elems[i]);
-        return [Type.union(...presentTypes), objAtom || propAtom];
+        return { type: Type.union(...presentTypes), atom: objAtom || propAtom };
       }
 
       case 'Object': {
@@ -340,7 +342,7 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
-        const [propertyType, propAtom] = synth(ast.property, env);
+        const { type: propertyType, atom: propAtom } = synth(ast.property, env);
         const presentIndexes: Array<string> = [];
         if (propertyType.kind === 'Singleton') {
           presentIndexes.push(propertyType.value);
@@ -358,7 +360,7 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
             if (fieldType) return fieldType.type;
             else throw new Error('expected valid index');
           });
-        return [Type.union(...presentTypes), objAtom || propAtom];
+        return { type: Type.union(...presentTypes), atom: objAtom || propAtom };
       }
 
       // case 'Module':
@@ -374,19 +376,19 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
       switch (object.kind) {
         case 'Array':
           switch (name) {
-            case 'length': return [Type.number, objAtom];
+            case 'length': return { type: Type.number, atom: objAtom };
             default: return throwUnknownField(ast, name);
           }
 
         case 'Object': {
           const field = object.fields.find(ft => ft.field === name);
-          if (field) return [field.type, objAtom];
+          if (field) return { type: field.type, atom: objAtom };
           else return throwUnknownField(ast, name);
         }
 
         case 'Module': {
           const field = object.fields.find(ft => ft.field === name);
-          if (field) return [field.type, objAtom || field.atom];
+          if (field) return { type: field.type, atom: objAtom || field.atom };
           else return throwUnknownField(ast, name);
         }
 
@@ -402,8 +404,8 @@ function synthMemberExpression(ast: AcornJsxAst.MemberExpression, env: Env): [Ty
 function synthCallExpression(
   ast: AcornJsxAst.CallExpression,
   env:Env
-): [Type.Type, boolean] {
-  const [calleeType, calleeAtom] = synth(ast.callee, env);
+): TypeAtom {
+  const { type: calleeType, atom: calleeAtom } = synth(ast.callee, env);
   if (calleeType.kind !== 'Function')
     return throwExpectedType(ast.callee, 'function', calleeType)
   if (calleeType.args.length !== ast.arguments.length)
@@ -413,20 +415,20 @@ function synthCallExpression(
 
   let atom = calleeAtom;
   calleeType.args.every((type, i) => {
-    const [argType, argAtom] = synth(ast.arguments[i], env);
+    const { type: argType, atom: argAtom } = synth(ast.arguments[i], env);
     if (!Type.isSubtype(argType, type))
       throwExpectedType(ast.arguments[i], type, argType);
     atom = atom || argAtom;
   });
-  return [calleeType.ret, atom];
+  return { type: calleeType.ret, atom };
 }
 
-function patTypeEnvIdentifier(ast: AcornJsxAst.Identifier, t: Type.Type, env: Env): Env {
+function patTypeEnvIdentifier(ast: AcornJsxAst.Identifier, type: Type.Type, env: Env): Env {
   if (ast.type !== 'Identifier')
-    return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(t)}`);
+    return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(type)}`);
   if (env.has(ast.name))
     return throwWithLocation(ast, `identifier ${ast.name} already bound in pattern`);
-  return env.set(ast.name, [t, false]);
+  return env.set(ast.name, { type, atom: false });
 }
 
 function patTypeEnvObjectPattern(ast: AcornJsxAst.ObjectPattern, t: Type.ObjectType, env: Env): Env {
@@ -484,7 +486,7 @@ function typeOfTypeAnnotation(ann: AcornJsxAst.TypeAnnotation): Type.Type {
 function synthArrowFunctionExpression(
   ast: AcornJsxAst.ArrowFunctionExpression,
   env: Env
-): [Type.Type, boolean] {
+): TypeAtom {
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
     if (!param.typeAnnotation)
@@ -495,17 +497,17 @@ function synthArrowFunctionExpression(
   });
   env = env.concat(patEnv);
   // TODO(jaked) carry body atomness as effect on Type.function
-  const [type, atom] = synth(ast.body, env);
+  const { type, atom } = synth(ast.body, env);
   const funcType = Type.function(paramTypes, type);
-  return [funcType, false];
+  return { type: funcType, atom: false };
 }
 
 // TODO(jaked) for HTML types, temporarily
 const defaultElementType = Type.abstract('React.Component', Type.object({}));
 
-function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): [Type.Type, boolean] {
+function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): TypeAtom {
   const name = ast.openingElement.name.name;
-  const [type, _] = env.get(name, [defaultElementType, false]);
+  const { type } = env.get(name, { type: defaultElementType, atom: false });
 
   let propsType: Type.ObjectType;
   let retType: Type.Type;
@@ -556,15 +558,15 @@ function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): [Type.Type, boo
       check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)))
     ).some(x => x);
 
-  return [retType, attrsAtom || childrenAtom];
+  return { type: retType, atom: attrsAtom || childrenAtom };
 }
 
-function synthJSXFragment(ast: AcornJsxAst.JSXFragment, env: Env): [Type.Type, boolean] {
+function synthJSXFragment(ast: AcornJsxAst.JSXFragment, env: Env): TypeAtom {
   const typesAtoms = ast.children.map(e => synth(e, env));
-  const types = typesAtoms.map(([type, _]) => type);
-  const atom = typesAtoms.some(([_, atom]) => atom);
+  const types = typesAtoms.map(({ type }) => type);
+  const atom = typesAtoms.some(({ atom }) => atom);
   const elem = Type.leastUpperBound(...types);
-  return [Type.array(elem), atom];
+  return { type: Type.array(elem), atom };
   // TODO(jaked) we know children should satisfy `reactNodeType`
   // we could check that explicitly (as above in synthJSXElement)
   // see also comments on checkArray and checkUnion
@@ -573,15 +575,15 @@ function synthJSXFragment(ast: AcornJsxAst.JSXFragment, env: Env): [Type.Type, b
 function synthJSXExpressionContainer(
   ast: AcornJsxAst.JSXExpressionContainer,
   env: Env
-): [Type.Type, boolean] {
+): TypeAtom {
   return synth(ast.expression, env);
 }
 
-function synthJSXText(ast: AcornJsxAst.JSXText, env: Env): [Type.Type, boolean] {
-  return [Type.string, false];
+function synthJSXText(ast: AcornJsxAst.JSXText, env: Env): TypeAtom {
+  return { type: Type.string, atom: false };
 }
 
-function synthHelper(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolean] {
+function synthHelper(ast: AcornJsxAst.Expression, env: Env): { type: Type.Type, atom: boolean } {
   switch (ast.type) {
     case 'Identifier':        return synthIdentifier(ast, env);
     case 'Literal':           return synthLiteral(ast, env);
@@ -602,11 +604,9 @@ function synthHelper(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolean
   }
 }
 
-export function synth(ast: AcornJsxAst.Expression, env: Env): [Type.Type, boolean] {
+export function synth(ast: AcornJsxAst.Expression, env: Env): TypeAtom {
   const typeAtom = synthHelper(ast, env);
-  const [type, atom] = typeAtom;  // TODO(jaked) is there @ / as binding
-  ast.etype = type;
-  ast.atom = atom;
+  ast.etype = Try.ok(typeAtom);
   return typeAtom;
 }
 
@@ -621,19 +621,19 @@ function extendEnvWithImport(
   decl.specifiers.forEach(spec => {
     switch (spec.type) {
       case 'ImportNamespaceSpecifier':
-        env = env.set(spec.local.name, [module, false]);
+        env = env.set(spec.local.name, { type: module, atom: false });
         break;
       case 'ImportDefaultSpecifier':
         const defaultField = module.fields.find(ft => ft.field === 'default');
         if (!defaultField)
           throw new Error(`no default export on '${decl.source.value}' at ${location(decl)}`);
-        env = env.set(spec.local.name, [defaultField.type, defaultField.atom]);
+        env = env.set(spec.local.name, { type: defaultField.type, atom: defaultField.atom });
         break;
       case 'ImportSpecifier':
         const importedField = module.fields.find(ft => ft.field === spec.imported.name)
         if (!importedField)
           throw new Error(`no exported member '${spec.imported.name}' on '${decl.source.value}' at ${location(decl)}`);
-        env = env.set(spec.local.name, [importedField.type, importedField.atom]);
+        env = env.set(spec.local.name, { type: importedField.type, atom: importedField.atom });
         break;
     }
   });
@@ -642,19 +642,19 @@ function extendEnvWithImport(
 
 function extendEnvWithNamedExport(
   decl: AcornJsxAst.ExportNamedDeclaration,
-  exportTypes: { [s: string]: [Type.Type, boolean] },
+  exportTypes: { [s: string]: TypeAtom },
   env: Env
 ): Env {
   const declAtom = decl.declaration.kind === 'let';
   decl.declaration.declarations.forEach(declarator => {
-    const [type, atom] = synth(declarator.init, env);
+    const { type } = synth(declarator.init, env);
     // a let binding is always an atom (its initializer is a non-atom)
     // a const binding is an atom if its initializer is an atom
     // TODO(jaked)
     // let bindings of type T should also have type T => void
     // so they can be set in event handlers
     // TODO(jaked) temporarily ignore atomness of initializer
-    const typeAtom: [Type.Type, boolean] = [type, /* atom || */ declAtom];
+    const typeAtom: TypeAtom = { type, atom: /* atom || */ declAtom };
     exportTypes[declarator.id.name] = typeAtom;
     env = env.set(declarator.id.name, typeAtom);
   });
@@ -663,7 +663,7 @@ function extendEnvWithNamedExport(
 
 function extendEnvWithDefaultExport(
   decl: AcornJsxAst.ExportDefaultDeclaration,
-  exportTypes: { [s: string]: [Type.Type, boolean] },
+  exportTypes: { [s: string]: TypeAtom },
   env: Env
 ): Env {
   exportTypes['default'] = synth(decl.declaration, env);
@@ -675,7 +675,7 @@ export function synthMdx(
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
-  exportTypes: { [s: string]: [Type.Type, boolean] }
+  exportTypes: { [s: string]: TypeAtom }
 ): Env {
   switch (ast.type) {
     case 'root':
@@ -723,7 +723,7 @@ export function synthProgram(
   ast: AcornJsxAst.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
-  exportTypes: { [s: string]: [Type.Type, boolean] }
+  exportTypes: { [s: string]: TypeAtom }
 ): Env {
   switch (ast.type) {
     case 'Program':

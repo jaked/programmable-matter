@@ -3,6 +3,7 @@
 //  https://github.com/RReverser/acorn-jsx
 
 import * as Type from './Type';
+import Try from '../util/Try';
 
 interface NodeImpl {
   type: string;
@@ -10,8 +11,7 @@ interface NodeImpl {
   end: number;
 
   // set in typechecking
-  etype?: Type.Type;
-  atom?: boolean;
+  etype?: Try<{ type: Type.Type, atom: boolean }>;
 }
 
 export interface Program extends NodeImpl {

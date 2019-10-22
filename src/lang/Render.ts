@@ -248,18 +248,18 @@ function componentType(props: { [f: string]: Type.Type }): Type.Type {
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
 export const initTypeEnv: Typecheck.Env = Immutable.Map({
-  'Link': [componentType({ to: Type.string }), false],
+  'Link': { type: componentType({ to: Type.string }), atom: false },
 
-  'Tweet': [componentType({ tweetId: Type.string }), false],
-  'YouTube': [componentType({ videoId: Type.string }), false],
-  'Gist': [componentType({ id: Type.string }), false],
+  'Tweet': { type: componentType({ tweetId: Type.string }), atom: false },
+  'YouTube': { type: componentType({ videoId: Type.string }), atom: false },
+  'Gist': { type: componentType({ id: Type.string }), atom: false },
 
-  'VictoryBar': [componentType({}), false],
-  'VictoryChart': [componentType({}), false],
+  'VictoryBar': { type: componentType({}), atom: false },
+  'VictoryChart': { type: componentType({}), atom: false },
 
-  'Inspector': [componentType({}), false],
+  'Inspector': { type: componentType({}), atom: false },
 
-  'Table': [componentType({
+  'Table': { type: componentType({
     data: Type.array(Type.object({})),
     // TODO(jaked)
     // column accessor types depend on data type (for Victory too)
@@ -269,10 +269,10 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
       accessor: Type.string,
     })),
     pageSize: Type.number,
-  }), false],
+  }), atom: false },
 
   'parseInt':
-    [Type.functionType([ Type.string ], Type.number), false],
+    { type: Type.functionType([ Type.string ], Type.number), atom: false },
 });
 
 export function initValueEnv(

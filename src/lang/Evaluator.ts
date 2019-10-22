@@ -39,9 +39,10 @@ export function evaluateExpression(
       const value = env.get(ast.name);
       if (typeof value === 'undefined')
         throw new Error(`unbound identifier ${ast.name}`);
-      if (typeof ast.atom === 'undefined')
+      if (typeof ast.etype === 'undefined')
         throw new Error('expected AST to be typechecked');
-      if (ast.atom) {
+      const { atom } = ast.etype.get();
+      if (atom) {
         return (<Cell<any>>value).get();
       } else {
         return value;
@@ -141,9 +142,10 @@ export function evaluateExpression(
           throw new Error('expected identifier on non-computed property');
         value = object[ast.property.name];
       }
-      if (typeof ast.atom === 'undefined')
+      if (typeof ast.etype === 'undefined')
         throw new Error('expected AST to be typechecked');
-      if (ast.atom) {
+      const { atom } = ast.etype.get();
+      if (atom) {
         return (<Cell<any>>value).get();
       } else {
         return value;
