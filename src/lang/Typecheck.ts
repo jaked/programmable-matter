@@ -228,9 +228,14 @@ function checkHelper(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): bo
 }
 
 export function check(ast: AcornJsxAst.Expression, env: Env, type: Type.Type): boolean {
-  const atom = checkHelper(ast, env, type);
-  ast.etype = Try.ok({ type, atom });
-  return atom;
+  try {
+    const atom = checkHelper(ast, env, type);
+    ast.etype = Try.ok({ type, atom });
+    return atom;
+  } catch (e) {
+    ast.etype = Try.err(e);
+    throw e;
+  }
 }
 
 function synthIdentifier(ast: AcornJsxAst.Identifier, env: Env): TypeAtom {
@@ -605,9 +610,14 @@ function synthHelper(ast: AcornJsxAst.Expression, env: Env): { type: Type.Type, 
 }
 
 export function synth(ast: AcornJsxAst.Expression, env: Env): TypeAtom {
-  const typeAtom = synthHelper(ast, env);
-  ast.etype = Try.ok(typeAtom);
-  return typeAtom;
+  try {
+    const typeAtom = synthHelper(ast, env);
+    ast.etype = Try.ok(typeAtom);
+    return typeAtom;
+  } catch (e) {
+    ast.etype = Try.err(e);
+    throw e;
+  }
 }
 
 function extendEnvWithImport(

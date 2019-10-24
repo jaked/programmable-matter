@@ -55,6 +55,12 @@ function setSearch(search: string) {
   render();
 }
 
+const statusCell = Signal.cellOk<string | undefined>(undefined);
+function setStatus(status: string | undefined) {
+  statusCell.setOk(status);
+  render();
+}
+
 const sideBarVisibleCell = Signal.cellOk<boolean>(true);
 function toggleSideBarVisible() {
   // TODO(jaked) `update` method on cells
@@ -235,6 +241,8 @@ function render() {
     <Main
       sideBarVisible={sideBarVisibleCell.get()}
       toggleSideBarVisible={toggleSideBarVisible}
+      status={statusCell.get()}
+      setStatus={setStatus}
       mainPaneView={mainPaneViewCell.get()}
       setMainPaneView={setMainPaneView}
       notes={matchingNotesSignal.get()}

@@ -10,6 +10,7 @@ type Props = {
   ignoreTabKey: boolean,
   padding: number | string,
   style?: {},
+  setStatus: (status: string | undefined) => void,
 
   // Props for the textarea
   textareaId?: string,
@@ -504,6 +505,24 @@ export default class Editor extends React.Component<Props, State> {
     this.props.onValueChange(value);
   };
 
+  _onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    if (this._pre) {
+      let status: string | undefined = undefined;
+      for (let i = 0; i < this._pre.children.length; i++) {
+        const child = this._pre.children.item(i);
+        if (child) {
+          const clientRect = child.getBoundingClientRect();
+          if (e.clientX >= clientRect.left && e.clientX <= clientRect.right &&
+              e.clientY >= clientRect.top && e.clientY <= clientRect.bottom) {
+            status = (child as HTMLElement).dataset.status;
+            break;
+          }
+        }
+      }
+      this.props.setStatus(status);
+    }
+  }
+
   _history: History = {
     stack: [],
     offset: -1,
@@ -518,6 +537,7 @@ export default class Editor extends React.Component<Props, State> {
   _selectionEnd: number = 0;
 
   _input: HTMLTextAreaElement | null = null;
+  _pre: HTMLPreElement | null = null;
 
   focus() {
     if (this._input) {
@@ -596,6 +616,8 @@ export default class Editor extends React.Component<Props, State> {
           onKeyUp={onKeyUp}
           onFocus={onFocus}
           onBlur={onBlur}
+          onMouseOver={this._onMouseEvent}
+          onMouseMove={this._onMouseEvent}
           disabled={disabled}
           form={form}
           maxLength={maxLength}
@@ -612,6 +634,7 @@ export default class Editor extends React.Component<Props, State> {
           data-gramm={false}
         />
         <pre
+          ref={c => (this._pre = c)}
           aria-hidden="true"
           style={{ ...styles.editor, ...styles.highlight, ...contentStyle }}
           {...(typeof highlighted === 'string'

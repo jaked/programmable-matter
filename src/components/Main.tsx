@@ -29,6 +29,8 @@ import { SearchBox } from './SearchBox';
 interface Props {
   sideBarVisible: boolean;
   toggleSideBarVisible: () => void;
+  status: string | undefined;
+  setStatus: (status: string | undefined) => void;
   mainPaneView: 'code' | 'display' | 'split';
   setMainPaneView: (view: 'code' | 'display' | 'split') => void,
   notes: Array<data.Note>;
@@ -169,17 +171,28 @@ export class Main extends React.Component<Props, {}> {
     </Flex>
 
   EditorPane = ({ width }: { width: number }) =>
-    <Box width={width} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
-      <Editor
-        ref={this.editorRef}
-        selected={this.props.selected}
-        content={this.props.content}
-        compiledNote={this.props.compiledNote}
-        session={this.props.session}
-        onChange={this.props.onChange}
-        saveSession={this.props.saveSession}
-      />
-    </Box>
+    <Flex
+      flexDirection='column'
+      justifyContent='space-between'
+      width={width}
+      padding={1}
+      borderStyle='solid'
+      borderWidth='0px 0px 0px 1px'
+    >
+      <Box>
+        <Editor
+          ref={this.editorRef}
+          selected={this.props.selected}
+          content={this.props.content}
+          compiledNote={this.props.compiledNote}
+          session={this.props.session}
+          onChange={this.props.onChange}
+          saveSession={this.props.saveSession}
+          setStatus={this.props.setStatus}
+        />
+      </Box>
+      <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.status}</div>
+    </Flex>
 
   DisplayPane = ({ width }: { width: number }) =>
     <Box width={width} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>

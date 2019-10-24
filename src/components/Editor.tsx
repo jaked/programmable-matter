@@ -1,4 +1,5 @@
 import * as React from 'react';
+
 // import { FixedSizeList } from 'react-window';
 import RSCEditor, { Session } from './react-simple-code-editor';
 
@@ -16,9 +17,10 @@ interface Props {
 
   onChange: (content: string) => void;
   saveSession: (session: Session) => void;
+  setStatus: (status: string | undefined) => void;
 }
 
-const components =
+const okComponents =
 {
   default:    styled.span({ color: '#000000' }),
   atom:       styled.span({ color: '#221199' }),
@@ -30,13 +32,41 @@ const components =
   property:   styled.span({ color: '#b58900' }),
 }
 
-type Span = { start: number, end: number, Component: React.FunctionComponent };
+const errStyle = { backgroundColor: '#ffc0c0' };
+
+const errComponents =
+{
+  default:    styled(okComponents.default)(errStyle),
+  atom:       styled(okComponents.atom)(errStyle),
+  number:     styled(okComponents.number)(errStyle),
+  string:     styled(okComponents.string)(errStyle),
+  keyword:    styled(okComponents.keyword)(errStyle),
+  definition: styled(okComponents.definition)(errStyle),
+  variable:   styled(okComponents.variable)(errStyle),
+  property:   styled(okComponents.property)(errStyle),
+}
+
+type Span = {
+  start: number,
+  end: number,
+  Component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
+  status: string
+};
 
 function computeJsSpans(
   ast: AcornJsxAst.Node,
   spans: Array<Span>
 ) {
   function fn(ast: AcornJsxAst.Node) {
+    let components = okComponents;
+    let status = '';
+    if (ast.etype) {
+      if (ast.etype.type === 'err') {
+        components = errComponents;
+        status = ast.etype.err.toString();
+      }
+    }
+
     switch (ast.type) {
       case 'Literal': {
         const start = ast.start;
@@ -50,7 +80,7 @@ function computeJsSpans(
             default: return components.default;
           }
         })();
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
       }
       return;
 
@@ -59,7 +89,7 @@ function computeJsSpans(
         const start = ast.start;
         const end = ast.end;
         const Component = components.variable;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
       }
       return;
 
@@ -68,7 +98,7 @@ function computeJsSpans(
           const start = ast.key.start;
           const end = ast.key.end;
           const Component = components.property;
-          spans.push({ start, end, Component });
+          spans.push({ start, end, Component, status });
 
           if (!ast.shorthand) {
             AcornJsxAst.visit(ast.value, fn);
@@ -82,7 +112,7 @@ function computeJsSpans(
         const start = ast.name.start;
         const end = ast.name.end;
         const Component = components.property;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
 
         AcornJsxAst.visit(ast.value, fn);
         return false;
@@ -93,7 +123,7 @@ function computeJsSpans(
         const start = ast.start;
         const end = ast.start + 6; // import
         const Component = components.keyword;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
       }
       return;
 
@@ -103,13 +133,13 @@ function computeJsSpans(
           const start = ast.local.start;
           const end = ast.local.end;
           const Component = components.definition;
-          spans.push({ start, end, Component });
+          spans.push({ start, end, Component, status });
         }
         if (ast.imported.start != ast.local.start) {
           const start = ast.imported.start;
           const end = ast.imported.end;
           const Component = components.variable;
-          spans.push({ start, end, Component });
+          spans.push({ start, end, Component, status });
         }
         return false;
 
@@ -119,13 +149,13 @@ function computeJsSpans(
           const start = ast.start;
           const end = ast.start + 1; // *
           const Component = components.variable;
-          spans.push({ start, end, Component });
+          spans.push({ start, end, Component, status });
         }
         {
           const start = ast.local.start;
           const end = ast.local.end;
           const Component = components.definition;
-          spans.push({ start, end, Component });
+          spans.push({ start, end, Component, status });
         }
         return false;
 
@@ -134,7 +164,7 @@ function computeJsSpans(
           const start = ast.local.start;
           const end = ast.local.end;
           const Component = components.definition;
-          spans.push({ start, end, Component });
+          spans.push({ start, end, Component, status });
         }
         return false;
 
@@ -142,7 +172,7 @@ function computeJsSpans(
         const start = ast.start;
         const end = ast.start + 6; // export
         const Component = components.keyword;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
       }
       return;
 
@@ -153,7 +183,7 @@ function computeJsSpans(
         const start = ast.start;
         const end = ast.declaration.start;
         const Component = components.keyword;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
       }
       return;
 
@@ -161,7 +191,7 @@ function computeJsSpans(
         const start = ast.start;
         const end = ast.start + ast.kind.length;
         const Component = components.keyword;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
       }
       return;
 
@@ -169,7 +199,7 @@ function computeJsSpans(
         const start = ast.id.start;
         const end = ast.id.end;
         const Component = components.definition;
-        spans.push({ start, end, Component });
+        spans.push({ start, end, Component, status });
 
         AcornJsxAst.visit(ast.init, fn);
         return false;
@@ -270,7 +300,9 @@ function computeHighlight(content: string, compiledNote: data.Note) {
     }
     const Component = span.Component;
     const chunk = content.slice(span.start, span.end);
-    lineNodes.push(<Component>{chunk}</Component>);
+    lineNodes.push(
+      <Component data-status={span.status}>{chunk}</Component>
+    );
     lastOffset = span.end;
   }
   if (lastOffset < content.length) {
@@ -368,6 +400,7 @@ export class Editor extends React.Component<Props, {}> {
             value={content}
             onValueChange={this.onValueChange}
             highlight={_ => highlight}
+            setStatus={this.props.setStatus}
           />
         </div>
       );
