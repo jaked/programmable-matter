@@ -165,6 +165,10 @@ export function intersection(...types: Array<Type>): Type {
   }
 }
 
+export function optional(type: Type): Type {
+  return union(type, undefinedType);
+}
+
 export function leastUpperBound(...types: Array<Type>): Type {
   switch (types.length) {
     case 0: return never;

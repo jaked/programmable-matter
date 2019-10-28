@@ -461,11 +461,14 @@ function typeOfTypeAnnotation(ann: AcornJsxAst.TypeAnnotation): Type.Type {
     case 'TSBooleanKeyword': return Type.boolean;
     case 'TSNumberKeyword': return Type.number;
     case 'TSStringKeyword': return Type.string;
+    case 'TSNullKeyword': return Type.null;
+    case 'TSUndefinedKeyword': return Type.undefined;
     case 'TSArrayType':
       return Type.array(typeOfTypeAnnotation(ann.elementType));
     case 'TSTupleType':
       return Type.tuple(...ann.elementTypes.map(typeOfTypeAnnotation));
     case 'TSTypeLiteral':
+      // TODO(jaked) handle optional members
       const members =
         ann.members.map(mem => ({ [mem.key.name]: typeOfTypeAnnotation(mem.typeAnnotation.typeAnnotation) }));
       return Type.object(Object.assign({}, ...members));
@@ -479,12 +482,18 @@ function typeOfTypeAnnotation(ann: AcornJsxAst.TypeAnnotation): Type.Type {
         case 'object': return Type.singleton(Type.null, value);
         default: throw new Error(`unexpected literal type ${ann.literal.value}`);
       }
+    case 'TSUnionType':
+      return Type.union(...ann.types.map(typeOfTypeAnnotation));
+    case 'TSIntersectionType':
+      return Type.intersection(...ann.types.map(typeOfTypeAnnotation));
     case 'TSTypeReference':
       if (ann.typeName.type === 'TSQualifiedName' &&
           ann.typeName.left.type === 'Identifier' && ann.typeName.left.name === 'React' &&
           ann.typeName.right.type === 'Identifier' && ann.typeName.right.name === 'ReactNode')
             return Type.reactNodeType;
       else throw new Error(`unimplemented TSTypeReference`);
+
+    default: throw new Error(`unknown AST ${(ann as AcornJsxAst.TypeAnnotation).type}`);
   }
 }
 

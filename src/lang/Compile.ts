@@ -395,10 +395,21 @@ function compileTxt(
   return { exportType, exportValue, rendered };
 }
 
+// TODO(jaked)
+// is there a way to internalize Typescript types
+// so we can generate these? like Scala implicits?
+const metaType =
+  Type.object({
+    type: Type.singleton(Type.string, 'mdx'),
+    title: Type.optional(Type.string),
+    tags: Type.optional(Type.array(Type.string)),
+    layout: Type.string
+  })
+
 function compileMdx(
   ast: MDXHAST.Root,
   capitalizedTag: string,
-  layout: string | undefined,
+  meta: data.Meta,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
@@ -413,20 +424,22 @@ function compileMdx(
   const exportType = Type.module(exportTypes);
 
   let layoutFunction = (n: React.ReactNode) => n;
-  if (layout) {
+  if (meta.layout) {
     const layoutType =
     Type.function(
-      [ Type.object({ children: Type.array(Type.reactNodeType) }) ],
+      [ Type.object({
+        children: Type.array(Type.reactNodeType),
+        meta: metaType
+      }) ],
       Type.reactNodeType);
-    const layoutModule = moduleTypeEnv.get(layout);
+    const layoutModule = moduleTypeEnv.get(meta.layout);
     if (layoutModule) {
       // TODO(jaked) add a .get method on Type.ModuleType
       const defaultField = layoutModule.fields.find(field => field.field === 'default');
       if (defaultField) {
         if (Type.isSubtype(defaultField.type, layoutType)) {
-          const layoutTsFunction = moduleValueEnv.get(layout)['default'];
-          // TODO(jaked) pass note metadata as props
-          layoutFunction = (n: React.ReactNode) => layoutTsFunction({ children: n });
+          const layoutTsFunction = moduleValueEnv.get(meta.layout)['default'];
+          layoutFunction = (n: React.ReactNode) => layoutTsFunction({ children: n, meta });
         }
       }
     }
@@ -497,7 +510,7 @@ function compileNote(
         return compileMdx(
           note.parsed.get().ast,
           String.capitalize(note.tag),
-          note.meta.layout,
+          note.meta,
           typeEnv,
           valueEnv,
           moduleTypeEnv,

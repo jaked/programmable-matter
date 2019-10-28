@@ -162,6 +162,14 @@ export interface TSStringKeyword extends NodeImpl {
   type: 'TSStringKeyword';
 }
 
+export interface TSNullKeyword extends NodeImpl {
+  type: 'TSNullKeyword';
+}
+
+export interface TSUndefinedKeyword extends NodeImpl {
+  type: 'TSUndefinedKeyword';
+}
+
 export interface TSArrayType extends NodeImpl {
   type: 'TSArrayType';
   elementType: TypeAnnotation;
@@ -188,6 +196,16 @@ export interface TSLiteralType extends NodeImpl {
   literal: Literal;
 }
 
+export interface TSUnionType extends NodeImpl {
+  type: 'TSUnionType';
+  types: TypeAnnotation[];
+}
+
+export interface TSIntersectionType extends NodeImpl {
+  type: 'TSIntersectionType';
+  types: TypeAnnotation[];
+}
+
 export interface TSTypeReference extends NodeImpl {
   type: 'TSTypeReference';
   typeName: QualifiedIdentifier;
@@ -203,8 +221,9 @@ export type QualifiedIdentifier =
   Identifier | TSQualifiedName;
 
 export type TypeAnnotation =
-  TSBooleanKeyword | TSNumberKeyword | TSStringKeyword |
+  TSBooleanKeyword | TSNumberKeyword | TSStringKeyword | TSNullKeyword | TSUndefinedKeyword |
   TSArrayType | TSTupleType | TSTypeLiteral | TSLiteralType |
+  TSUnionType | TSIntersectionType |
   TSTypeReference;
 
 export interface TSTypeAnnotation extends NodeImpl {
