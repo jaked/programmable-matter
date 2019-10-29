@@ -30,19 +30,27 @@ export type Note = {
   type: 'mdx' | 'json' | 'txt' | 'ts';
   content: string;
   version: number;
-  compiled?: Try<Compiled>;
-} & ({
-  type: 'mdx';
-  parsed?: Try<Parsed<MDXHAST.Root>>;
-} | {
-  type: 'json';
-  parsed?: Try<Parsed<AcornJsxAst.Expression>>;
-} | {
-  type: 'txt';
-  parsed?: Try<Parsed<string>>;
-} | {
-  type: 'ts';
-  parsed?: Try<Parsed<AcornJsxAst.Program>>;
-});
+}
+
+export type ParsedNote = Note &
+  ({
+    type: 'mdx';
+    parsed: Try<Parsed<MDXHAST.Root>>;
+  } | {
+    type: 'json';
+    parsed: Try<Parsed<AcornJsxAst.Expression>>;
+  } | {
+    type: 'txt';
+    parsed: Try<Parsed<string>>;
+  } | {
+    type: 'ts';
+    parsed: Try<Parsed<AcornJsxAst.Program>>;
+  });
+
+export type CompiledNote = ParsedNote & {
+  compiled: Try<Compiled>;
+}
 
 export type Notes = Immutable.Map<string, Note>;
+export type ParsedNotes = Immutable.Map<string, ParsedNote>;
+export type CompiledNotes = Immutable.Map<string, CompiledNote>;

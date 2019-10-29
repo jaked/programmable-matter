@@ -9,13 +9,13 @@ import Signal from './util/Signal';
 import Trace from './util/Trace';
 
 export default class Server {
-  notes: Signal<data.Notes>;
+  compiledNotes: Signal<data.CompiledNotes>;
   browserSync: BrowserSync.BrowserSyncInstance;
 
-  constructor(notes: Signal<data.Notes>) {
+  constructor(compiledNotes: Signal<data.CompiledNotes>) {
     this.handle = this.handle.bind(this);
 
-    this.notes = notes;
+    this.compiledNotes = compiledNotes;
     this.browserSync = BrowserSync.create();
     this.browserSync.init({
       logLevel: 'silent',
@@ -48,13 +48,12 @@ export default class Server {
     //   - stream them to client?
     //   - you get what you get when you load the page?
     //   - client has separate atom state?
-    const note = this.notes.get().get(tag);
+    const note = this.compiledNotes.get().get(tag);
 
     if (!note) {
       res.statusCode = 404;
       res.end(`no note ${tag}`);
     } else {
-      if (!note.compiled) { throw new Error('expected compiled note'); }
       const node = note.compiled.get().rendered(); // TODO(jaked) fix Try.get()
 
       // TODO(jaked) compute at note compile time?

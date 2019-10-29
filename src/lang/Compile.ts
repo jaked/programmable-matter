@@ -20,19 +20,17 @@ import * as String from '../util/String';
 const debug = false;
 
 function dirtyChangedNotes(
-  oldNotes: data.Notes,
-  newNotes: data.Notes,
-  dirty: Set<string>
-): data.Notes {
-  return newNotes.map((note, tag) => {
-    const oldNote = oldNotes.get(tag);
-    if (oldNote && oldNote.version == note.version) {
-      // oldNote has parsed / compiled fields already
-      return oldNote;
+  compiledNotes: data.CompiledNotes,
+  notes: data.Notes
+): data.CompiledNotes {
+  return compiledNotes.filter((oldNote, tag) => {
+    const newNote = notes.get(tag);
+    if (newNote && oldNote.version === newNote.version) {
+      // TODO(jaked) check that path has not changed
+      return true;
     } else {
       if (debug) console.log(tag + ' dirty because file changed')
-      dirty.add(tag);
-      return note;
+      return false;
     }
   });
 }
@@ -94,26 +92,30 @@ function parseTs(trace: Trace, content: string): data.Parsed<AcornJsxAst.Program
   return { ast, imports };
 }
 
-function parseNote(trace: Trace, note: data.Note): data.Note {
+function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   switch (note.type) {
     case 'mdx': {
       const parsed = Try.apply(() => parseMdx(trace, note.content, note.meta.layout));
-      return Object.assign({}, note, { parsed });
+      const type = note.type; // tell TS something it already knows
+      return Object.assign({}, note, { type, parsed });
     }
 
     case 'json': {
       const parsed = Try.apply(() => parseJson(note.content));
-      return Object.assign({}, note, { parsed });
+      const type = note.type; // tell TS something it already knows
+      return Object.assign({}, note, { type, parsed });
     }
 
     case 'txt': {
       const parsed = Try.ok({ ast: note.content, imports: new Set<string>() });
-      return Object.assign({}, note, { parsed });
+      const type = note.type; // tell TS something it already knows
+      return Object.assign({}, note, { type, parsed });
     }
 
     case 'ts': {
       const parsed = Try.apply(() => parseTs(trace, note.content));
-      return Object.assign({}, note, { parsed });
+      const type = note.type; // tell TS something it already knows
+      return Object.assign({}, note, { type, parsed });
     }
 
     default:
@@ -124,19 +126,20 @@ function parseNote(trace: Trace, note: data.Note): data.Note {
 // also computes imports
 function parseDirtyNotes(
   trace: Trace,
-  notes: data.Notes,
-  dirty: Set<string>
-) {
-  return notes.map((note, tag) => {
-    if (dirty.has(tag)) {
-      return trace.time(note.tag, () => parseNote(trace, note));
+  compiledNotes: data.CompiledNotes,
+  notes: data.Notes
+): data.ParsedNotes {
+  return notes.map((newNote, tag) => {
+    const oldNote = compiledNotes.get(tag);
+    if (oldNote) {
+      return oldNote;
     } else {
-      return note;
+      return trace.time(tag, () => parseNote(trace, newNote));
     }
   });
 }
 
-function sortNotes(notes: data.Notes): Array<string> {
+function sortNotes(notes: data.ParsedNotes): Array<string> {
   const sortedTags: Array<string> = [];
   const remaining = new Set(notes.keys());
   let again = true;
@@ -144,7 +147,7 @@ function sortNotes(notes: data.Notes): Array<string> {
     again = false;
     remaining.forEach(tag => {
       const note = notes.get(tag);
-      if (!note || !note.parsed) throw new Error('expected note && note.parsed');
+      if (!note) throw new Error('expected note');
       if (note.parsed.type === 'ok') {
         const imports = [...note.parsed.ok.imports.values()];
         if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
@@ -168,29 +171,23 @@ function sortNotes(notes: data.Notes): Array<string> {
   return sortedTags;
 }
 
-function dirtyDeletedNotes(
-  oldNotes: data.Notes,
-  newNotes: data.Notes,
-  dirty: Set<string>
-) {
-  oldNotes.forEach(note => {
-    if (!newNotes.has(note.tag))
-      dirty.add(note.tag);
-  });
-}
-
 // dirty notes that import a dirty note (post-sorting for transitivity)
 // TODO(jaked)
 // don't need to re-typecheck / re-compile a note if it hasn't changed
 // and its dependencies haven't changed their types
 function dirtyTransitively(
   orderedTags: Array<string>,
-  notes: data.Notes,
-  dirty: Set<string>
-) {
+  compiledNotes: data.CompiledNotes,
+  parsedNotes: data.ParsedNotes
+): data.CompiledNotes {
+  const dirty = new Set<string>();
   orderedTags.forEach(tag => {
-    const note = notes.get(tag);
-    if (!note || !note.parsed) throw new Error('expected note && note.parsed');
+    if (!compiledNotes.has(tag)) {
+      if (debug) console.log(tag + ' dirty because file changed');
+      dirty.add(tag);
+    }
+    const note = parsedNotes.get(tag);
+    if (!note) throw new Error('expected note');
     if (note.parsed.type === 'ok') {
       const imports = [...note.parsed.ok.imports.values()];
       if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
@@ -205,6 +202,7 @@ function dirtyTransitively(
       if (debug) console.log(note.parsed.err);
     }
   });
+  return compiledNotes.filterNot(note => dirty.has(note.tag))
 }
 
 function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
@@ -496,7 +494,7 @@ function compileTs(
 }
 
 function compileNote(
-  note: data.Note,
+  parsedNote: data.ParsedNote,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
@@ -504,13 +502,12 @@ function compileNote(
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): Try<data.Compiled> {
   return Try.apply(() => {
-    switch (note.type) {
+    switch (parsedNote.type) {
       case 'mdx':
-        if (!note.parsed) throw new Error('expected note.parsed');
         return compileMdx(
-          note.parsed.get().ast,
-          String.capitalize(note.tag),
-          note.meta,
+          parsedNote.parsed.get().ast,
+          String.capitalize(parsedNote.tag),
+          parsedNote.meta,
           typeEnv,
           valueEnv,
           moduleTypeEnv,
@@ -519,19 +516,16 @@ function compileNote(
         );
 
       case 'json': {
-        if (!note.parsed) throw new Error('expected note.parsed');
-        return compileJson(note.parsed.get().ast);
+        return compileJson(parsedNote.parsed.get().ast);
       }
 
       case 'txt':
-        if (!note.parsed) throw new Error('expected note.parsed');
-        return compileTxt(note.parsed.get().ast);
+        return compileTxt(parsedNote.parsed.get().ast);
 
       case 'ts':
-        if (!note.parsed) throw new Error('expected note.parsed');
         return compileTs(
-          note.parsed.get().ast,
-          String.capitalize(note.tag),
+          parsedNote.parsed.get().ast,
+          String.capitalize(parsedNote.tag),
           typeEnv,
           valueEnv,
           moduleTypeEnv,
@@ -540,75 +534,69 @@ function compileNote(
         );
 
       default:
-        throw new Error(`unhandled note type '${(<data.Note>note).type}'`);
+        throw new Error(`unhandled note type '${(<data.ParsedNote>parsedNote).type}'`);
     }
   });
 }
 
 function compileDirtyNotes(
   orderedTags: Array<string>,
-  notes: data.Notes,
-  dirty: Set<string>,
+  parsedNotes: data.ParsedNotes,
+  compiledNotes: data.CompiledNotes,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   setSelected: (note: string) => void,
-): data.Notes {
+): data.CompiledNotes {
   let typeEnv = Render.initTypeEnv;
   let valueEnv = Render.initValueEnv(setSelected);
   let moduleTypeEnv: Immutable.Map<string, Type.ModuleType> = Immutable.Map();
   let moduleValueEnv: Evaluator.Env = Immutable.Map();
   orderedTags.forEach(tag => {
-    const note = notes.get(tag);
-    if (!note) throw new Error('expected note');
-    if (dirty.has(tag)) {
-      if (debug) console.log('typechecking / rendering' + tag);
-      const compiled = compileNote(note, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell);
+    const compiledNote = compiledNotes.get(tag);
+    if (compiledNote) {
+      if (debug) console.log('adding type / value env for ' + tag);
+      compiledNote.compiled.forEach(compiled => {
+        moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
+        moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
+      });
+    } else {
+      const parsedNote = parsedNotes.get(tag);
+      if (!parsedNote) throw new Error('expected note');
+      if (debug) console.log('typechecking / rendering ' + tag);
+      const compiled = compileNote(parsedNote, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell);
       compiled.forEach(compiled => {
         moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
         moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
       });
-      const note2 = Object.assign({}, note, { compiled });
-      notes = notes.set(tag, note2);
-    } else {
-      if (debug) console.log('adding type / value env for ' + tag);
-      if (!note.compiled) throw new Error('expected note.compiled');
-      note.compiled.forEach(compiled => {
-        moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
-        moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
-      });
+      const compiledNote = Object.assign({}, parsedNote, { compiled });
+      compiledNotes = compiledNotes.set(tag, compiledNote);
     }
   });
-  return notes;
+  return compiledNotes;
 }
 
 export function compileNotes(
   trace: Trace,
-  oldNotes: data.Notes,
+  compiledNotes: data.CompiledNotes,
   notes: data.Notes,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   setSelected: (note: string) => void,
-): data.Notes {
+): data.CompiledNotes {
   // TODO(jaked)
   // maybe we should propagate a change set
   // instead of the current state of the filesystem
 
-  // tracks notes that must be re-parsed / re-compiled
-  const dirty = new Set<string>();
-
-  // mark changed notes dirty, retain parsed / compiled fields on others
-  notes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(oldNotes, notes, dirty));
+  // filter out changed notes
+  compiledNotes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(compiledNotes, notes));
 
   // parse dirty notes + compute imports
-  notes = trace.time('parseDirtyNotes', () => parseDirtyNotes(trace, notes, dirty));
+  const parsedNotes = trace.time('parseDirtyNotes', () => parseDirtyNotes(trace, compiledNotes, notes));
 
   // topologically sort notes according to imports
-  const orderedTags = trace.time('sortNotes', () => sortNotes(notes));
-
-  // mark deleted notes dirty so dependents are rebuilt
-  trace.time('dirtyDeletedNotes', () => dirtyDeletedNotes(oldNotes, notes, dirty));
+  const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
 
   // dirty notes that import a dirty note (post-sorting for transitivity)
-  trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, notes, dirty));
+  compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
 
   // compile dirty notes (post-sorting for dependency ordering)
-  return trace.time('compileDirtyNotes', () => compileDirtyNotes(orderedTags, notes, dirty, mkCell, setSelected));
+  return trace.time('compileDirtyNotes', () => compileDirtyNotes(orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
 }

@@ -200,7 +200,7 @@ function mkCell(module: string, name: string, init: any): Cell<any> {
 
 // there might be a way to organize this with an Atom per note
 // but it's a lot simpler to handle them all at once
-let currentCompiledNotes: data.Notes = Immutable.Map();
+let currentCompiledNotes: data.CompiledNotes = Immutable.Map();
 const compiledNotesSignal =
   Signal.label('compiledNotes',
     notesCell.map(notes => {

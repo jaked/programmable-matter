@@ -12,7 +12,7 @@ import * as data from '../data';
 interface Props {
   selected: string | null;
   content: string | null;
-  compiledNote: data.Note | null;
+  parsedNote: data.ParsedNote | null;
   session: Session;
 
   onChange: (content: string) => void;
@@ -239,28 +239,25 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
     }
 }
 
-function computeHighlight(content: string, compiledNote: data.Note) {
+function computeHighlight(content: string, parsedNote: data.ParsedNote) {
   const spans: Array<Span> = [];
   // TODO(jaked)
   // parsing should always succeed with some AST
-  switch (compiledNote.type) {
+  switch (parsedNote.type) {
     case 'mdx':
-      if (!compiledNote.parsed) throw new Error('expected note to be parsed');
-      compiledNote.parsed.forEach(parsed => {
+      parsedNote.parsed.forEach(parsed => {
         computeSpans(parsed.ast, spans);
       });
       break;
 
     case 'json':
-      if (!compiledNote.parsed) throw new Error('expected note to be parsed');
-      compiledNote.parsed.forEach(parsed => {
+      parsedNote.parsed.forEach(parsed => {
         computeJsSpans(parsed.ast, spans);
       });
       break;
 
     case 'ts':
-      if (!compiledNote.parsed) throw new Error('expected note to be parsed');
-      compiledNote.parsed.forEach(parsed => {
+      parsedNote.parsed.forEach(parsed => {
         computeJsSpans(parsed.ast, spans);
       });
       break;
@@ -384,11 +381,11 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { selected, content, compiledNote } = this.props;
-    if (selected === null || content === null || compiledNote === null) {
+    const { selected, content, parsedNote } = this.props;
+    if (selected === null || content === null || parsedNote === null) {
       return <span>no note</span>
     } else {
-      const highlight = computeHighlight(content, compiledNote);
+      const highlight = computeHighlight(content, parsedNote);
       return (
         <div style={{
           fontFamily: 'Monaco, monospace',

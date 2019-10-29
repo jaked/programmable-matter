@@ -37,7 +37,7 @@ interface Props {
   selected: string | null;
   search: string;
   content: string | null;
-  compiledNote: data.Note | null;
+  compiledNote: data.CompiledNote | null;
   session: RSCEditor.Session;
   onSelect: (tag: string | null) => void;
   onSearch: (search: string) => void;
@@ -47,7 +47,7 @@ interface Props {
 
   // TODO(jaked) for site build, move elsewhere
   notesPath: string;
-  compiledNotes: Immutable.Map<string, data.Note>;
+  compiledNotes: data.CompiledNotes;
 }
 
 const Box = styled(BoxBase)({
@@ -95,7 +95,6 @@ export class Main extends React.Component<Props, {}> {
     await writeFile(path.resolve(tempdir, '.nojekyll'), '');
     await Promise.all(compiledNotes.map(async note => {
       const notePath = path.resolve(tempdir, path.relative(this.props.notesPath, note.path)) + '.html';
-      if (!note.compiled) { throw new Error('expected compiled note') }
       const node = note.compiled.get().rendered();  // TODO(jaked) fix Try.get()
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
       await mkdir(path.dirname(notePath), { recursive: true });
@@ -184,7 +183,7 @@ export class Main extends React.Component<Props, {}> {
           ref={this.editorRef}
           selected={this.props.selected}
           content={this.props.content}
-          compiledNote={this.props.compiledNote}
+          parsedNote={this.props.compiledNote}
           session={this.props.session}
           onChange={this.props.onChange}
           saveSession={this.props.saveSession}

@@ -4,12 +4,12 @@ import { Catch } from './Catch';
 import * as data from './../data';
 
 interface Props {
-  compiledNote: data.Note | null;
+  compiledNote: data.CompiledNote | null;
 }
 
 export function Display({ compiledNote: note }: Props) {
   try {
-    if (note && note.compiled) {
+    if (note) {
       const rendered = note.compiled.get().rendered();
       return (<Catch>{rendered}</Catch>);
     }
