@@ -1,4 +1,7 @@
+import * as Path from 'path';
+
 import * as Immutable from 'immutable';
+import * as Graymatter from 'gray-matter';
 
 import * as React from 'react';
 import 'regenerator-runtime/runtime'; // required for react-inspector
@@ -18,6 +21,103 @@ import * as Render from './Render';
 import * as String from '../util/String';
 
 const debug = false;
+
+function sanitizeMeta(obj: any): data.Meta {
+  // TODO(jaked) json-schema instead of hand-coding this?
+  // TODO(jaked) report errors somehow
+  const type: 'mdx' | 'json' | 'txt' | 'ts' =
+    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt' || obj.type === 'ts') ?
+    obj.type : undefined;
+
+  const title: string =
+    typeof obj.title === 'string' ?
+    obj.title : undefined;
+
+  const tags: Array<string> =
+    (Array.isArray(obj.tags) && obj.tags.every(s => typeof s === 'string')) ?
+    obj.tags : undefined;
+
+  const layout: string =
+    typeof obj.layout === 'string' ?
+    obj.layout : undefined;
+
+  return { type, title, tags, layout };
+}
+
+function notesOfFiles(
+  files: data.Files,
+  oldNotes: data.Notes
+): data.Notes {
+  let newNotes: data.Notes = Immutable.Map();
+  function addNote(newNote: data.Note) {
+    const note = newNotes.get(newNote.tag);
+    if (note) {
+      throw new Error(`duplicate note tag ${newNote.tag} for ${newNote.path} (${note.path})`);
+    } else {
+      newNotes = newNotes.set(newNote.tag, newNote);
+    }
+  }
+
+  function addFile(file: data.File) {
+    const ext = Path.extname(file.path);
+    const tag = Path.basename(file.path, ext);
+
+    const graymatter = Graymatter.default(file.buffer);
+    const meta = sanitizeMeta(graymatter.data);
+    const content = graymatter.content;
+
+    let type;
+    if (meta.type) {
+      // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
+      type = meta.type
+    } else {
+      switch (ext) {
+        case '': type = 'mdx'; break;
+        case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
+        case '.mdx': type = 'mdx'; break;
+        case '.json': type = 'json'; break;
+        case '.txt': type = 'txt'; break;
+        case '.ts': type = 'ts'; break;
+        default:
+          throw new Error(`unhandled extension '${ext}' for '${file.path}'`);
+      }
+    }
+
+    const note =
+      Object.assign({}, file, { tag, meta, type, content });
+    addNote(note);
+  }
+
+  files.forEach(file => {
+    try {
+      const ext = Path.extname(file.path);
+      const tag = Path.basename(file.path, ext);
+
+      const oldNote = oldNotes.get(tag);
+      if (oldNote) {
+        if (oldNote.path === file.path) {
+          if (oldNote.version === file.version) {
+            addNote(oldNote)
+          } else {
+            addFile(file);
+          }
+        } else {
+          // TODO(jaked)
+          // the version numbers for different files are not comparable
+          // a dependent object needs to track both its own version
+          // and the versions of its dependencies (like Signal)
+          throw new Error(`path for ${tag} changed from ${oldNote.path} to ${file.path}`);
+        }
+      } else {
+        addFile(file);
+      }
+    } catch (e) {
+      // TODO(jaked) surface these errors in UI somehow
+      console.log(e);
+    }
+  });
+  return newNotes;
+}
 
 function dirtyChangedNotes(
   compiledNotes: data.CompiledNotes,
@@ -574,16 +674,18 @@ function compileDirtyNotes(
   return compiledNotes;
 }
 
-export function compileNotes(
+export function compileFiles(
   trace: Trace,
   compiledNotes: data.CompiledNotes,
-  notes: data.Notes,
+  files: data.Files,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
   // TODO(jaked)
   // maybe we should propagate a change set
   // instead of the current state of the filesystem
+
+  const notes = trace.time('notesOfFiles', () => notesOfFiles(files, compiledNotes));
 
   // filter out changed notes
   compiledNotes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(compiledNotes, notes));

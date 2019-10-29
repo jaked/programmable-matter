@@ -46,7 +46,7 @@ interface Props {
   newNote: (tag: string) => void;
 
   // TODO(jaked) for site build, move elsewhere
-  notesPath: string;
+  filesPath: string;
   compiledNotes: data.CompiledNotes;
 }
 
@@ -94,7 +94,7 @@ export class Main extends React.Component<Props, {}> {
     await mkdir(tempdir);
     await writeFile(path.resolve(tempdir, '.nojekyll'), '');
     await Promise.all(compiledNotes.map(async note => {
-      const notePath = path.resolve(tempdir, path.relative(this.props.notesPath, note.path)) + '.html';
+      const notePath = path.resolve(tempdir, path.relative(this.props.filesPath, note.path)) + '.html';
       const node = note.compiled.get().rendered();  // TODO(jaked) fix Try.get()
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
       await mkdir(path.dirname(notePath), { recursive: true });

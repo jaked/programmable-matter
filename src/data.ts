@@ -23,14 +23,19 @@ export interface Compiled {
   rendered: () => React.ReactNode;
 }
 
-export type Note = {
-  meta: Meta;
-  tag: string;
+export type File = {
   path: string;
-  type: 'mdx' | 'json' | 'txt' | 'ts';
-  content: string;
   version: number;
+  buffer: string; // TODO(jaked) Buffer
 }
+
+export type Note = File & {
+  tag: string;
+  meta: Meta;
+} & ({
+    type: 'mdx' | 'json' | 'txt' | 'ts';
+    content: string;
+  });
 
 export type ParsedNote = Note &
   ({
@@ -51,6 +56,10 @@ export type CompiledNote = ParsedNote & {
   compiled: Try<Compiled>;
 }
 
+// indexed by path
+export type Files = Immutable.Map<string, File>;
+
+// indexed by tag
 export type Notes = Immutable.Map<string, Note>;
 export type ParsedNotes = Immutable.Map<string, ParsedNote>;
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;

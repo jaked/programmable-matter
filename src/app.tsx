@@ -1,6 +1,7 @@
 import * as fs from "fs";
-import * as path from 'path';
+import * as Path from 'path';
 import * as process from 'process';
+import * as util from 'util';
 
 import * as Graymatter from 'gray-matter';
 import * as Immutable from 'immutable';
@@ -25,6 +26,8 @@ import Unhandled from 'electron-unhandled';
 
 Unhandled();
 
+const writeFile = util.promisify(fs.writeFile);
+
 // TODO(jaked)
 // global for the benefit of functions inside of Signal.map etc.
 // maybe build trace argument into Signal?
@@ -32,16 +35,16 @@ Unhandled();
 let __trace = new Trace();
 
 // TODO(jaked) make this configurable
-const notesPath = fs.realpathSync(path.resolve(process.cwd(), 'docs'));
+const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
 
-const notesCell = Signal.cellOk<data.Notes>(Immutable.Map());
+const filesCell = Signal.cellOk<data.Files>(Immutable.Map());
 const sessionsCell = Signal.cellOk<Immutable.Map<string, RSCEditor.Session>>(Immutable.Map());
 const selectedCell = Signal.cellOk<string | null>(null);
 const searchCell = Signal.cellOk<string>('');
 let letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
 
-function setNotes(notes: data.Notes) {
-  notesCell.setOk(notes);
+function setFiles(files: data.Files) {
+  filesCell.setOk(files);
   render();
 }
 
@@ -74,73 +77,38 @@ function setMainPaneView(view: 'code' | 'display' | 'split') {
   render();
 }
 
-const matchingNotesSignal =
-  Signal.label('matchingNotes',
-    Signal.joinMap(notesCell, searchCell, (notes, search) => {
-      if (search) {
-        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-        const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-        const regexp = RegExp(escaped, 'i');
-
-        function matches(note: data.Note): boolean {
-          if (note.content.match(regexp)) return true;
-          if (note.tag.match(regexp)) return true;
-          if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
-          return false;
-        }
-        return notes
-          .filter(matches)
-          .valueSeq().toArray();
-      } else {
-        return notes
-          .valueSeq().toArray();
-      }
-    })
-  );
-
-const contentSignal =
-  Signal.label('content',
-    Signal.joinMap(notesCell, selectedCell, (notes, selected) => {
-      if (selected) {
-        const note = notes.get(selected);
-        if (note) return note.content;
-      }
-      return null;
-    })
-  );
-
-function setContent(content: string | null) {
-  const selected = selectedCell.get();
-  if (content != null && selected) {
-    const notes = notesCell.get().update(selected, note => {
-      if (note.content === content) return note;
-
-      // TODO(jaked) don't perturb frontmatter unnecessarily
-      let matter = Graymatter.stringify(content, note.meta, { language: 'json' });
-      // stringify adds trailing newline
-      if (content.slice(-1) !== '\n')  {
-        matter = matter.slice(0, -1);
-      }
-      fs.writeFileSync(note.path, matter);
-
-      const version = note.version + 1;
-      return Object.assign({}, note, { content, version });
-    });
-    notesCell.setOk(notes);
-    render();
+function writeNote(path: string, tag: string, meta: data.Meta, content: string) {
+  // TODO(jaked) don't perturb frontmatter unnecessarily
+  let buffer = Graymatter.stringify(content, meta, { language: 'json' });
+  // stringify adds trailing newline
+  if (content.slice(-1) !== '\n')  {
+    buffer = buffer.slice(0, -1);
   }
+  // TODO(jaked) surface errors
+  writeFile(Path.resolve(filesPath, path), buffer);
+
+  const oldFile = filesCell.get().get(path);
+  var file: data.File;
+  if (oldFile) {
+    // TODO(jaked) check that buffer has changed
+    const version = oldFile.version + 1;
+    file = Object.assign({}, oldFile, { version, buffer })
+  } else {
+    file = { path, version: 0, buffer }
+  }
+  filesCell.setOk(filesCell.get().set(tag, file));
+
+  render();
 }
 
 function newNote(tag: string) {
-  const note = {
-    meta: { type: 'mdx' },
-    path: path.resolve(notesPath, tag),
+  // TODO(jaked) check that we aren't overwriting existing note
+  writeNote(
+    Path.resolve(filesPath, tag),
     tag,
-    type: 'mdx',
-    content: '',
-    version: 0
-  } as const
-  notesCell.setOk(notesCell.get().set(tag, note))
+    { type: 'mdx' },
+    ''
+  )
 }
 
 const sessionSignal =
@@ -174,8 +142,8 @@ function saveSession(session: RSCEditor.Session) {
   }
 }
 
-let watcher = new Watcher(notesPath, f => {
-  setNotes(f(notesCell.get()));
+let watcher = new Watcher(filesPath, f => {
+  setFiles(f(filesCell.get()));
 });
 watcher.start(); // TODO(jaked) stop this on shutdown
 
@@ -203,9 +171,9 @@ function mkCell(module: string, name: string, init: any): Cell<any> {
 let currentCompiledNotes: data.CompiledNotes = Immutable.Map();
 const compiledNotesSignal =
   Signal.label('compiledNotes',
-    notesCell.map(notes => {
+    filesCell.map(notes => {
       currentCompiledNotes =
-        Compile.compileNotes(__trace, currentCompiledNotes, notes, mkCell, setSelected);
+        Compile.compileFiles(__trace, currentCompiledNotes, notes, mkCell, setSelected);
       return currentCompiledNotes;
     })
   );
@@ -221,6 +189,52 @@ let compiledNoteSignal =
     })
   );
 
+const contentSignal =
+  Signal.label('content',
+    Signal.joinMap(compiledNotesSignal, selectedCell, (notes, selected) => {
+      if (selected) {
+        const note = notes.get(selected);
+        if (note) return note.content;
+      }
+      return null;
+    })
+  );
+
+function setContent(content: string | null) {
+  if (!content) return;
+  const selected = selectedCell.get();
+  if (!selected) return;
+  const note = compiledNotesSignal.get().get(selected);
+  if (!note) return;
+  if (note.content === content) return;
+
+  writeNote(note.path, note.tag, note.meta, content);
+}
+
+const matchingNotesSignal =
+  Signal.label('matchingNotes',
+    Signal.joinMap(compiledNotesSignal, searchCell, (notes, search) => {
+      if (search) {
+        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+        const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+        const regexp = RegExp(escaped, 'i');
+
+        function matches(note: data.Note): boolean {
+          if (note.content.match(regexp)) return true;
+          if (note.tag.match(regexp)) return true;
+          if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
+          return false;
+        }
+        return notes
+          .filter(matches)
+          .valueSeq().toArray();
+      } else {
+        return notes
+          .valueSeq().toArray();
+      }
+    })
+  );
+
 const server = new Server(compiledNotesSignal);
 
 let level = 0;
@@ -229,8 +243,8 @@ function render() {
   __trace = new Trace();
   level++;
   // TODO(jaked) write this as a join instead of .get()s
-  contentSignal.update(__trace, level);
   compiledNoteSignal.update(__trace, level);
+  contentSignal.update(__trace, level);
   matchingNotesSignal.update(__trace, level);
   sessionSignal.update(__trace, level);
 
@@ -256,7 +270,7 @@ function render() {
       onChange={setContent}
       saveSession={saveSession}
       newNote={newNote}
-      notesPath={notesPath}
+      filesPath={filesPath}
       compiledNotes={compiledNotesSignal.get()}
     />,
     document.getElementById('main')
