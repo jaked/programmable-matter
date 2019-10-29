@@ -54,12 +54,24 @@ export default class Server {
       res.statusCode = 404;
       res.end(`no note ${tag}`);
     } else {
-      const node = note.compiled.get().rendered(); // TODO(jaked) fix Try.get()
+      // it seems to be necessary to focus on part of the type
+      // for refinement based on the `type` field to work
+      const typedParsedNote: data.TypedParsedNote = note;
 
-      // TODO(jaked) compute at note compile time?
-      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-      res.setHeader("Content-Type", "text/html; charset=UTF-8")
-      res.end(html);
+      switch (typedParsedNote.type) {
+        case 'jpeg':
+          res.setHeader("Content-Type", "image/jpeg");
+          res.end(typedParsedNote.parsed.get().ast.buffer);
+          break;
+
+        default:
+          const node = note.compiled.get().rendered(); // TODO(jaked) fix Try.get()
+
+          // TODO(jaked) compute at note compile time?
+          const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+          res.setHeader("Content-Type", "text/html; charset=UTF-8")
+          res.end(html);
+      }
     }
   }
 }

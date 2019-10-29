@@ -12,7 +12,7 @@ const stat = util.promisify(fs.stat);
 
 const debug = false;
 
-const emptyBuffer = new Buffer('');
+const emptyBuffer = Buffer.from('');
 
 type SetFilesState = (updateFiles: (files: data.Files) => data.Files) => void
 

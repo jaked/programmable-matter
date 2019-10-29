@@ -195,8 +195,8 @@ const contentSignal =
   Signal.label('content',
     Signal.joinMap(compiledNotesSignal, selectedCell, (notes, selected) => {
       if (selected) {
-        const note = notes.get(selected);
-        if (note) return note.content;
+        const note: data.Note | undefined = notes.get(selected);
+        if (note && note.type !== 'jpeg') return note.content;
       }
       return null;
     })
@@ -206,9 +206,13 @@ function setContent(content: string | null) {
   if (!content) return;
   const selected = selectedCell.get();
   if (!selected) return;
-  const note = compiledNotesSignal.get().get(selected);
+
+  // if we let the type of note be CompiledNote then the test against 'jpeg'
+  // doesn't refine the type to deduce the `content` field
+  const note: data.Note | undefined = compiledNotesSignal.get().get(selected);
   if (!note) return;
-  if (note.content === content) return;
+  if (note.type === 'jpeg') return;
+  if (note.content !== content) return;
 
   writeNote(note.path, note.tag, note.meta, content);
 }
@@ -222,7 +226,7 @@ const matchingNotesSignal =
         const regexp = RegExp(escaped, 'i');
 
         function matches(note: data.Note): boolean {
-          if (note.content.match(regexp)) return true;
+          if (note.type !== 'jpeg' && note.content.match(regexp)) return true;
           if (note.tag.match(regexp)) return true;
           if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
           return false;

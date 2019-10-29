@@ -5,8 +5,10 @@ import * as MDXHAST from './lang/mdxhast';
 import * as AcornJsxAst from './lang/acornJsxAst';
 import * as Type from './lang/Type';
 
+export type Types = 'mdx' | 'json' | 'txt' | 'ts' | 'jpeg';
+
 export interface Meta {
-  type?: 'mdx' | 'json' | 'txt' | 'ts';
+  type?: Types;
   title?: string;
   tags?: Array<string>;
   layout?: string;
@@ -29,28 +31,41 @@ export type File = {
   buffer: Buffer;
 }
 
+export type TypedNote = {
+  type: 'jpeg';
+} | {
+  type: 'mdx' | 'json' | 'txt' | 'ts';
+  content: string;
+}
+
 export type Note = File & {
   tag: string;
   meta: Meta;
-} & ({
-    type: 'mdx' | 'json' | 'txt' | 'ts';
-    content: string;
-  });
+} & TypedNote;
 
-export type ParsedNote = Note &
-  ({
-    type: 'mdx';
-    parsed: Try<Parsed<MDXHAST.Root>>;
-  } | {
-    type: 'json';
-    parsed: Try<Parsed<AcornJsxAst.Expression>>;
-  } | {
-    type: 'txt';
-    parsed: Try<Parsed<string>>;
-  } | {
-    type: 'ts';
-    parsed: Try<Parsed<AcornJsxAst.Program>>;
-  });
+// TODO(jaked) what do webpack et al. expose on image imports?
+export type Jpeg = {
+  buffer: Buffer;
+}
+
+export type TypedParsedNote =  {
+  type: 'mdx';
+  parsed: Try<Parsed<MDXHAST.Root>>;
+} | {
+  type: 'json';
+  parsed: Try<Parsed<AcornJsxAst.Expression>>;
+} | {
+  type: 'txt';
+  parsed: Try<Parsed<string>>;
+} | {
+  type: 'ts';
+  parsed: Try<Parsed<AcornJsxAst.Program>>;
+} | {
+  type: 'jpeg';
+  parsed: Try<Parsed<Jpeg>>;
+}
+
+export type ParsedNote = Note & TypedParsedNote
 
 export type CompiledNote = ParsedNote & {
   compiled: Try<Compiled>;

@@ -79,6 +79,8 @@ function notesOfFiles(
         case '.json': type = 'json'; break;
         case '.txt': type = 'txt'; break;
         case '.ts': type = 'ts'; break;
+        case '.jpg': type = 'jpeg'; break;
+        case '.jpeg': type = 'jpeg'; break;
         default:
           throw new Error(`unhandled extension '${ext}' for '${file.path}'`);
       }
@@ -217,6 +219,12 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
       const parsed = Try.apply(() => parseTs(trace, note.content));
       const type = note.type; // tell TS something it already knows
       return Object.assign({}, note, { type, parsed });
+    }
+
+    case 'jpeg': {
+      const parsed = Try.ok({ ast: { buffer: note.buffer }, imports: new Set<string>() });
+      // re-setting type isn't needed here, why?
+      return Object.assign({}, note, { parsed });
     }
 
     default:
@@ -594,6 +602,26 @@ function compileTs(
   return { exportType, exportValue, rendered };
 }
 
+const jpegType = Type.object({
+
+});
+
+function compileJpeg(
+  tag: string,
+  jpeg: data.Jpeg
+): data.Compiled {
+  const exportType = Type.module({ default: { type: jpegType, atom: false } });
+  const exportValue = { default: jpeg }
+  const rendered = () =>
+    // it doesn't seem to be straightforward to create an img node
+    // directly from JPEG data, so we serve it via the dev server
+    // TODO(jaked) plumb port from top-level
+    React.createElement('img', {
+      src: `http://localhost:3000/${tag}`
+    });
+  return { exportType, exportValue, rendered };
+}
+
 function compileNote(
   parsedNote: data.ParsedNote,
   typeEnv: Typecheck.Env,
@@ -603,10 +631,14 @@ function compileNote(
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): Try<data.Compiled> {
   return Try.apply(() => {
-    switch (parsedNote.type) {
+    // it seems to be necessary to focus on part of the type
+    // for refinement based on the `type` field to work
+    const typedParsedNote: data.TypedParsedNote = parsedNote;
+
+    switch (typedParsedNote.type) {
       case 'mdx':
         return compileMdx(
-          parsedNote.parsed.get().ast,
+          typedParsedNote.parsed.get().ast,
           String.capitalize(parsedNote.tag),
           parsedNote.meta,
           typeEnv,
@@ -617,21 +649,27 @@ function compileNote(
         );
 
       case 'json': {
-        return compileJson(parsedNote.parsed.get().ast);
+        return compileJson(typedParsedNote.parsed.get().ast);
       }
 
       case 'txt':
-        return compileTxt(parsedNote.parsed.get().ast);
+        return compileTxt(typedParsedNote.parsed.get().ast);
 
       case 'ts':
         return compileTs(
-          parsedNote.parsed.get().ast,
+          typedParsedNote.parsed.get().ast,
           String.capitalize(parsedNote.tag),
           typeEnv,
           valueEnv,
           moduleTypeEnv,
           moduleValueEnv,
           mkCell
+        );
+
+      case 'jpeg':
+        return compileJpeg(
+          parsedNote.tag,
+          typedParsedNote.parsed.get().ast
         );
 
       default:

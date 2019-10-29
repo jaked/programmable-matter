@@ -15,7 +15,7 @@ const Box = styled(BaseBox)`
   }
 `;
 
-export const Note = React.forwardRef<HTMLDivElement, Props>(({ note: { tag, content}, selected, onClick }, ref) => {
+export const Note = React.forwardRef<HTMLDivElement, Props>(({ note: { tag }, selected, onClick }, ref) => {
   return (
     <Box
       ref={ref}
