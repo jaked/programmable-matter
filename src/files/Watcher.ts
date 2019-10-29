@@ -12,6 +12,8 @@ const stat = util.promisify(fs.stat);
 
 const debug = false;
 
+const emptyBuffer = new Buffer('');
+
 type SetFilesState = (updateFiles: (files: data.Files) => data.Files) => void
 
 type NsfwEvent =
@@ -35,12 +37,11 @@ function canonizePath(filesPath: string, directory: string, file: string) {
 function updateFile(
   files: data.Files,
   path: string,
-  buffer: string
+  buffer: Buffer
 ): data.Files {
   const oldFile = files.get(path);
 
-  // TODO(jaked) when we switch to Buffer, use correct equality
-  if (oldFile && oldFile.buffer === buffer) {
+  if (oldFile && buffer.equals(oldFile.buffer)) {
     return files;
   }
 
@@ -107,15 +108,12 @@ export class Watcher {
   }
 
   async handleNsfwEvents(nsfwEvents: Array<NsfwEvent>) {
-    function readBuffer(directory: string, file: string) {
-      return readFile(
-        path.resolve(directory, file),
-        { encoding: 'utf8' }
-      );
+    function readBuffer(directory: string, file: string): Promise<Buffer> {
+      return readFile(path.resolve(directory, file));
     }
 
     const events = await Promise.all(
-      nsfwEvents.map(async function(ev: NsfwEvent): Promise<[ NsfwEvent, string ]> {
+      nsfwEvents.map(async function(ev: NsfwEvent): Promise<[ NsfwEvent, Buffer ]> {
         switch (ev.action) {
           case 0:   // created
           case 2: { // modified
@@ -132,7 +130,7 @@ export class Watcher {
 
           case 1: { // deleted
             if (debug) console.log(`${ev.directory} / ${ev.file} was deleted`);
-            return [ ev, '' ];
+            return [ ev, emptyBuffer ];
           }
         }
       })

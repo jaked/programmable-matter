@@ -62,7 +62,8 @@ function notesOfFiles(
     const ext = Path.extname(file.path);
     const tag = Path.basename(file.path, ext);
 
-    const graymatter = Graymatter.default(file.buffer);
+    const string = file.buffer.toString('utf8');
+    const graymatter = Graymatter.default(string);
     const meta = sanitizeMeta(graymatter.data);
     const content = graymatter.content;
 

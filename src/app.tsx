@@ -79,11 +79,13 @@ function setMainPaneView(view: 'code' | 'display' | 'split') {
 
 function writeNote(path: string, tag: string, meta: data.Meta, content: string) {
   // TODO(jaked) don't perturb frontmatter unnecessarily
-  let buffer = Graymatter.stringify(content, meta, { language: 'json' });
+  let string = Graymatter.stringify(content, meta, { language: 'json' });
   // stringify adds trailing newline
   if (content.slice(-1) !== '\n')  {
-    buffer = buffer.slice(0, -1);
+    string = string.slice(0, -1);
   }
+
+  let buffer = Buffer.from(string, 'utf8');
   // TODO(jaked) surface errors
   writeFile(Path.resolve(filesPath, path), buffer);
 

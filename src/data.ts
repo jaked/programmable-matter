@@ -26,7 +26,7 @@ export interface Compiled {
 export type File = {
   path: string;
   version: number;
-  buffer: string; // TODO(jaked) Buffer
+  buffer: Buffer;
 }
 
 export type Note = File & {
