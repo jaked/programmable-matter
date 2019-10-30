@@ -60,8 +60,14 @@ function setSearch(search: string) {
 
 const statusCell = Signal.cellOk<string | undefined>(undefined);
 function setStatus(status: string | undefined) {
-  statusCell.setOk(status);
-  render();
+  // TODO(jaked)
+  // handle no-op changes systematically
+  // e.g. track during signal update whether any actual change has occurred
+  // and skip render if not
+  if (status !== statusCell.get()) {
+    statusCell.setOk(status);
+    render();
+  }
 }
 
 const sideBarVisibleCell = Signal.cellOk<boolean>(true);
@@ -106,7 +112,7 @@ function writeNote(path: string, tag: string, meta: data.Meta, content: string) 
 function newNote(tag: string) {
   // TODO(jaked) check that we aren't overwriting existing note
   writeNote(
-    Path.resolve(filesPath, tag),
+    tag,
     tag,
     { type: 'mdx' },
     ''
@@ -203,7 +209,7 @@ const contentSignal =
   );
 
 function setContent(content: string | null) {
-  if (!content) return;
+  if (content === null) return;
   const selected = selectedCell.get();
   if (!selected) return;
 
@@ -212,7 +218,7 @@ function setContent(content: string | null) {
   const note: data.Note | undefined = compiledNotesSignal.get().get(selected);
   if (!note) return;
   if (note.type === 'jpeg') return;
-  if (note.content !== content) return;
+  if (note.content === content) return;
 
   writeNote(note.path, note.tag, note.meta, content);
 }
