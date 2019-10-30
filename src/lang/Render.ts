@@ -219,7 +219,7 @@ function Link(
   return function ({ to, children }: { to: string, children: React.ReactNodeArray }) {
     // TODO(jaked) validate URL
     const url = Url.parse(to);
-    if (url.protocol) {
+    if (url.protocol && url.slashes && url.hostname) {
       const onClick = (e: React.MouseEvent) => {
         e.preventDefault();
         remote.shell.openExternal(to);
