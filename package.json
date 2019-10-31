@@ -60,6 +60,8 @@
     "recast": "^0.17.6",
     "remark-emoji": "^2.0.2",
     "remark-wiki-link": "0.0.4",
+    "retext": "^7.0.0",
+    "retext-smartypants": "^3.0.3",
     "rimraf": "^3.0.0",
     "styled-components": "^4.3.2",
     "victory": "^32.3.7"

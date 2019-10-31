@@ -1,8 +1,8 @@
 import * as Immutable from 'immutable';
-
 import * as React from 'react';
-
 import * as Url from 'url';
+import Retext from 'retext';
+import RetextSmartypants from 'retext-smartypants';
 
 import { remote } from 'electron';
 
@@ -26,6 +26,9 @@ import * as Type from './Type';
 import * as Typecheck from './Typecheck';
 
 export type Env = Evaluator.Env;
+
+const smartypants =
+  Retext().use(RetextSmartypants, { dashes: 'oldschool' })
 
 function extendEnvWithImport(
   decl: AcornJsxAst.ImportDeclaration,
@@ -145,8 +148,12 @@ export function renderMdx(
       return [env, node];
     }
 
-    case 'text':
-      return [env, ast.value];
+    case 'text': {
+      // TODO(jaked) this is pretty slow :(
+      // TODO(jaked) and doesn't work when quotes are split across text nodes
+      const value = smartypants.processSync(ast.value).toString();
+      return [env, value];
+    }
 
     case 'jsx':
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');

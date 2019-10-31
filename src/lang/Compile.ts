@@ -514,6 +514,7 @@ const metaType =
   })
 
 function compileMdx(
+  trace: Trace,
   ast: MDXHAST.Root,
   capitalizedTag: string,
   meta: data.Meta,
@@ -526,8 +527,8 @@ function compileMdx(
   const exportTypes: { [s: string]: Typecheck.TypeAtom } = {};
   const exportValue: { [s: string]: any } = {};
 
-  ast = sortMdx(ast);
-  Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes);
+  ast = trace.time('sortMdx', () => sortMdx(ast));
+  trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes));
   const exportType = Type.module(exportTypes);
 
   let layoutFunction = (n: React.ReactNode) => n;
@@ -557,7 +558,7 @@ function compileMdx(
   // second call picks up current values of signals
   // instead we should render to a Signal<React.ReactNode>
   // and update() it to pick up current values
-  Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
+  trace.time('renderMdx', () => Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue));
   const rendered = () => {
     const [_, node] =
       Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
@@ -623,6 +624,7 @@ function compileJpeg(
 }
 
 function compileNote(
+  trace: Trace,
   parsedNote: data.ParsedNote,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
@@ -638,6 +640,7 @@ function compileNote(
     switch (typedParsedNote.type) {
       case 'mdx':
         return compileMdx(
+          trace,
           typedParsedNote.parsed.get().ast,
           String.capitalize(parsedNote.tag),
           parsedNote.meta,
@@ -679,6 +682,7 @@ function compileNote(
 }
 
 function compileDirtyNotes(
+  trace: Trace,
   orderedTags: Array<string>,
   parsedNotes: data.ParsedNotes,
   compiledNotes: data.CompiledNotes,
@@ -701,7 +705,8 @@ function compileDirtyNotes(
       const parsedNote = parsedNotes.get(tag);
       if (!parsedNote) throw new Error('expected note');
       if (debug) console.log('typechecking / rendering ' + tag);
-      const compiled = compileNote(parsedNote, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell);
+      const compiled =
+        trace.time(tag, () => compileNote(trace, parsedNote, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell));
       compiled.forEach(compiled => {
         moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
         moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
@@ -739,5 +744,5 @@ export function compileFiles(
   compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
 
   // compile dirty notes (post-sorting for dependency ordering)
-  return trace.time('compileDirtyNotes', () => compileDirtyNotes(orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
+  return trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
 }
