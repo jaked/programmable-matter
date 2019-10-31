@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as Path from 'path';
 import * as process from 'process';
-import * as util from 'util';
 
 import * as Graymatter from 'gray-matter';
 import * as Immutable from 'immutable';
@@ -25,8 +24,6 @@ import * as RSCEditor from './components/react-simple-code-editor';
 import Unhandled from 'electron-unhandled';
 
 Unhandled();
-
-const writeFile = util.promisify(fs.writeFile);
 
 // TODO(jaked)
 // global for the benefit of functions inside of Signal.map etc.
@@ -93,7 +90,7 @@ function writeNote(path: string, tag: string, meta: data.Meta, content: string) 
 
   let buffer = Buffer.from(string, 'utf8');
   // TODO(jaked) surface errors
-  writeFile(Path.resolve(filesPath, path), buffer);
+  fs.writeFileSync(Path.resolve(filesPath, path), buffer);
 
   const oldFile = filesCell.get().get(path);
   var file: data.File;
