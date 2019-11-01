@@ -27,12 +27,14 @@ function location(ast: AcornJsxAst.Node): string {
   return Recast.print(ast).code;
 }
 
-function throwWithLocation(ast, msg): never {
+function throwWithLocation(ast: AcornJsxAst.Node, msg): never {
   msg += ' at ' + location(ast);
-  throw new Error(msg);
+  const err = new Error(msg);
+  ast.etype = Try.err(err);
+  throw err;
 }
 
-function throwExpectedType(ast: AcornJsxAst.Expression, expected: string | Type.Type, actual?: string | Type.Type): never {
+function throwExpectedType(ast: AcornJsxAst.Node, expected: string | Type.Type, actual?: string | Type.Type): never {
   if (typeof expected !== 'string')
     expected = prettyPrint(expected);
   if (actual && typeof actual !== 'string')
@@ -43,19 +45,19 @@ function throwExpectedType(ast: AcornJsxAst.Expression, expected: string | Type.
   return throwWithLocation(ast, msg);
 }
 
-function throwUnknownField(ast: AcornJsxAst.Expression, field: string): never {
+function throwUnknownField(ast: AcornJsxAst.Node, field: string): never {
   return throwWithLocation(ast, `unknown field '${field}'`);
 }
 
-function throwMissingField(ast: AcornJsxAst.Expression, field: string): never {
+function throwMissingField(ast: AcornJsxAst.Node, field: string): never {
   return throwWithLocation(ast, `missing field '${field}'`);
 }
 
-function throwExtraField(ast: AcornJsxAst.Expression, field: string): never {
+function throwExtraField(ast: AcornJsxAst.Node, field: string): never {
   return throwWithLocation(ast, `extra field ${field}`);
 }
 
-function throwWrongArgsLength(ast: AcornJsxAst.Expression, expected: number, actual: number) {
+function throwWrongArgsLength(ast: AcornJsxAst.Node, expected: number, actual: number) {
   return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
 }
 
@@ -516,12 +518,14 @@ function synthArrowFunctionExpression(
   return { type: funcType, atom: false };
 }
 
-// TODO(jaked) for HTML types, temporarily
-const defaultElementType = Type.abstract('React.Component', Type.object({}));
+function synthJSXIdentifier(ast: AcornJsxAst.JSXIdentifier, env: Env): TypeAtom {
+  const typeAtom = env.get(ast.name);
+  if (typeAtom) return typeAtom;
+  else throw new Error('unbound identifier ' + ast.name);
+}
 
 function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): TypeAtom {
-  const name = ast.openingElement.name.name;
-  const { type } = env.get(name, { type: defaultElementType, atom: false });
+  const { type } = synth(ast.openingElement.name, env);
 
   let propsType: Type.ObjectType;
   let retType: Type.Type;
@@ -548,22 +552,18 @@ function synthJSXElement(ast: AcornJsxAst.JSXElement, env: Env): TypeAtom {
 
   const attrNames =
     new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
-  propsType.fields.forEach(({ field }) => {
-    if (field !== 'children' && !attrNames.has(field))
-      return throwMissingField(ast, field);
+  propsType.fields.forEach(({ field, type }) => {
+    if (field !== 'children' &&
+        !attrNames.has(field) &&
+        !Type.isSubtype(Type.undefined, type))
+      throwMissingField(ast, field);
   });
 
   const propTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
-  const attrsAtom = ast.openingElement.attributes.map(({ name, value }) => {
-    const type = propTypes.get(name.name);
-    if (type) return check(value, env, type);
-    else {
-      // TODO(jaked)
-      // fill out type signatures of builtin components so we can check this
-      //   return throwExtraField(ast, name.name);
-      // for now, synth the arg so it can be evaluated
-      synth(value, env);
-    }
+  const attrsAtom = ast.openingElement.attributes.map(attr => {
+    const type = propTypes.get(attr.name.name);
+    if (type) return check(attr.value, env, type);
+    else return throwExtraField(attr, attr.name.name);
   }).some(x => x);
 
   let childrenAtom =
@@ -608,6 +608,7 @@ function synthHelper(ast: AcornJsxAst.Expression, env: Env): { type: Type.Type, 
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
     case 'CallExpression':    return synthCallExpression(ast, env);
+    case 'JSXIdentifier':     return synthJSXIdentifier(ast, env);
     case 'JSXElement':        return synthJSXElement(ast, env);
     case 'JSXFragment':       return synthJSXFragment(ast, env);
     case 'JSXExpressionContainer':

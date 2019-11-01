@@ -139,14 +139,19 @@ export interface ArrowFunctionExpression extends NodeImpl {
 export type Expression =
   Literal |
   Identifier |
+  JSXIdentifier |
   JSXText |
   JSXExpressionContainer |
   JSXFragment |
   JSXElement |
+  JSXOpeningElement |
+  JSXClosingElement |
+  JSXAttribute |
   BinaryExpression |
   MemberExpression |
   CallExpression |
   ObjectExpression |
+  Property |
   ArrayExpression |
   ArrowFunctionExpression;
 
@@ -247,7 +252,8 @@ export interface ObjectPattern extends NodeImpl {
 
 export type Pattern =
   Identifier |
-  ObjectPattern;
+  ObjectPattern |
+  PropertyPattern;
 
 // import { Foo as Bar }
 export interface ImportSpecifier extends NodeImpl {
@@ -299,13 +305,7 @@ export interface ExportDefaultDeclaration extends NodeImpl {
 }
 
 export type Node =
-  Program | ExpressionStatement |
-  JSXFragment | JSXText | JSXElement | JSXOpeningElement |
-  JSXClosingElement | JSXAttribute | JSXIdentifier | JSXExpressionContainer |
-  Literal | Identifier | BinaryExpression | MemberExpression | CallExpression |
-  Property | PropertyPattern |
-  ObjectExpression | ArrayExpression | ArrowFunctionExpression |
-  ObjectPattern |
+  Program | ExpressionStatement | Expression | Pattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
   VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration;
 

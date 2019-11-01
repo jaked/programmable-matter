@@ -213,9 +213,8 @@ export function isSubtype(a: Type, b: Type): boolean {
   else if (a.kind === 'Object' && b.kind === 'Object') {
     const fieldTypes = new Map(a.fields.map(({ field, type }) => [field, type]));
     return b.fields.every((ft) => {
-      const a = fieldTypes.get(ft.field);
-      if (a) return isSubtype(a, ft.type);
-      else return false;
+      const a = fieldTypes.get(ft.field) || undefinedType;
+      return isSubtype(a, ft.type);
     });
   }
   else if (a.kind === 'Function' && b.kind === 'Function') {
@@ -225,6 +224,15 @@ export function isSubtype(a: Type, b: Type): boolean {
   }
   else return false;
 }
+
+export function undefinedOr(t: Type) {
+  return union(undefinedType, t);
+}
+
+export const undefinedOrString = undefinedOr(stringType);
+export const undefinedOrNumber = undefinedOr(numberType);
+
+export const numberOrString = union(numberType, stringType);
 
 export const reactElementType = abstract('React.Element');
 // TODO(jaked)

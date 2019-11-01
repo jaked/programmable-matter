@@ -163,5 +163,16 @@ describe('isSubtype', () => {
       const b = Type.union(a, Type.singleton(Type.number, 9));
       expect(Type.isSubtype(a, b)).toBe(true);
     });
+
+    it('fields that may be undefined are optional', () => {
+      const styleType = Type.object({
+        fontSize: Type.undefinedOrString,
+        height: Type.string,
+      });
+      const actual = Type.object({
+        height: Type.singleton(Type.string, '350px')
+      })
+      expect(Type.isSubtype(actual, styleType)).toBe(true);
+    });
   });
 });

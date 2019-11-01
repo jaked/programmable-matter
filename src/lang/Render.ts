@@ -252,19 +252,58 @@ function componentType(props: { [f: string]: Type.Type }): Type.Type {
   return Type.abstract('React.Component', Type.object(props));
 }
 
+const styleType = Type.undefinedOr(Type.object({
+  backgroundColor: Type.undefinedOrString,
+  fontSize: Type.undefinedOrString,
+  height: Type.undefinedOrString,
+  padding: Type.undefinedOrString,
+}));
+
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
 export const initTypeEnv: Typecheck.Env = Immutable.Map({
+  'div': { type: componentType({
+    style: styleType
+  }), atom: false },
+
+  'ellipse': { type: componentType({
+    fill: Type.union(Type.string, Type.undefined),
+    cx: Type.numberOrString,
+    cy: Type.numberOrString,
+    rx: Type.numberOrString,
+    ry: Type.numberOrString,
+  }), atom: false },
+
+  'input': { type: componentType({
+    type: Type.singleton(Type.string, 'range'),
+    id: Type.undefinedOrString,
+    min: Type.numberOrString,
+    max: Type.numberOrString,
+    value: Type.unknown,
+  }), atom: false},
+
+  'svg': { type: componentType({
+    width: Type.numberOrString,
+    height: Type.numberOrString,
+  }), atom: false },
+
   'Link': { type: componentType({ to: Type.string }), atom: false },
 
   'Tweet': { type: componentType({ tweetId: Type.string }), atom: false },
   'YouTube': { type: componentType({ videoId: Type.string }), atom: false },
   'Gist': { type: componentType({ id: Type.string }), atom: false },
 
-  'VictoryBar': { type: componentType({}), atom: false },
-  'VictoryChart': { type: componentType({}), atom: false },
+  // TODO(jaked) tighten this up. need a type parameter for data
+  'VictoryBar': { type: componentType({
+    data: Type.unknown,
+    x: Type.string,
+    y: Type.string,
+  }), atom: false },
+  'VictoryChart': { type: componentType({
+    domainPadding: Type.undefinedOrNumber,
+  }), atom: false },
 
-  'Inspector': { type: componentType({}), atom: false },
+  'Inspector': { type: componentType({ data: Type.unknown }), atom: false },
 
   'Table': { type: componentType({
     data: Type.array(Type.object({})),
@@ -286,6 +325,11 @@ export function initValueEnv(
   setSelected: (note: string) => void,
 ): Evaluator.Env {
   return Immutable.Map({
+    div: 'div',
+    ellipse: 'ellipse',
+    input: 'input',
+    svg: 'svg',
+
     Link: Link(setSelected),
     Inspector: Inspector,
     Tweet: TwitterTweetEmbed,
@@ -296,6 +340,7 @@ export function initValueEnv(
     BlockMath: BlockMath,
     Table: ReactTable,
     Gist: Gist,
+
     parseInt: (s: string) => parseInt(s)
   });
 }
