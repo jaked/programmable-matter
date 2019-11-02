@@ -148,17 +148,19 @@ function checkFunction(ast: AcornJsxAst.Expression, env: Env, type: Type.Functio
 }
 
 function checkUnion(ast: AcornJsxAst.Expression, env: Env, type: Type.UnionType): boolean {
-  // we could independently check against each arm of the union
-  // but it seems like that would not improve the error message
-  // since we don't know which arm is intended
-  // TODO(jaked)
-  // for JSXFragment we check against `reactNodeType`,
-  // which contains simple types (which JSXFragment cannot satisfy)
-  // and an array type (which JSXFragment can satisfy)
-  // if we check against the array we could produce a better error.
-  // somehow we'd like to break down the type / expression together
-  // where possible instead of synth / isSubtype
-  return checkSubtype(ast, env, type);
+  // to get a more localized error message we'd like to decompose the type and expression
+  // as far as possible, but for unions we don't know which arm to break down.
+  // if the outermost AST node corresponds to exactly one arm we'll try that one.
+  // we could get fancier here, and try to figure out which arm best matches the AST,
+  // but we don't know which arm was intended, so the error could be confusing.
+  const matchingArms = type.types.filter(t =>
+    (t.kind === 'Object' && ast.type === 'ObjectExpression') ||
+    (t.kind === 'Array' && ast.type === 'ArrayExpression')
+  );
+  if (matchingArms.length === 1)
+    return check(ast, env, matchingArms[0]);
+  else
+    return checkSubtype(ast, env, type);
 }
 
 function checkIntersection(ast: AcornJsxAst.Expression, env: Env, type: Type.IntersectionType): boolean {
@@ -169,7 +171,7 @@ function checkIntersection(ast: AcornJsxAst.Expression, env: Env, type: Type.Int
   // need to be careful once we have function types carrying an atom effect
   // e.g. a type (T =(true)> U & T =(false)> U) is well-formed
   // but we don't want to union / intersect atom effects
-  return type.types.some(type => check(ast, env, type));
+  return type.types.map(type => check(ast, env, type)).some(x => x);
 }
 
 function checkSingleton(ast: AcornJsxAst.Expression, env: Env, type: Type.SingletonType): boolean {
@@ -191,8 +193,8 @@ function checkObject(ast: AcornJsxAst.Expression, env: Env, type: Type.ObjectTyp
         }
         return name;
       }));
-      type.fields.forEach(({ field }) => {
-        if (!propNames.has(field))
+      type.fields.forEach(({ field, type }) => {
+        if (!propNames.has(field) && !Type.isSubtype(Type.undefined, type))
           return throwMissingField(ast, field);
       });
       const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));

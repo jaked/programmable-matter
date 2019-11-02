@@ -88,7 +88,11 @@ describe('check', () => {
   });
 
   describe('objects', () => {
-    const type = Type.object({});
+    const type = Type.object({ bar: Type.undefinedOrNumber });
+
+    it('undefined properties may be omitted', () => {
+      expectCheck('({ })', type);
+    });
 
     it('throws on excess properties in literals', () => {
       expectCheckThrows('({ foo: 7 })', type);
@@ -96,7 +100,7 @@ describe('check', () => {
 
     it('permits excess properties in non-literal', () => {
       const env: Typecheck.Env = Immutable.Map({
-        foo: { type: Type.object({ bar: Type.number }), atom: true },
+        foo: { type: Type.object({ baz: Type.number }), atom: true },
       });
       expectCheck('foo', type, env, true);
     });
@@ -372,7 +376,10 @@ describe('synth', () => {
   describe('JSX elements', () => {
     const env: Typecheck.Env = Immutable.Map({
       Component: {
-        type: Type.function([ Type.object({ foo: Type.number }) ], Type.string),
+        type: Type.function(
+          [ Type.object({ foo: Type.number, bar: Type.undefinedOrNumber }) ],
+          Type.string
+        ),
         atom: false
       },
       NotFunction: { type: Type.string, atom: false },
@@ -382,6 +389,7 @@ describe('synth', () => {
     });
 
     it('ok', () => {
+      // bar may be omitted because the type may be undefined
       expectSynth('<Component foo={7} />', Type.string, env);
     });
 
