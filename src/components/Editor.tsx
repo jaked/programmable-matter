@@ -118,6 +118,40 @@ function computeJsSpans(
         return false;
       }
 
+      case 'ObjectExpression': {
+        {
+          const start = ast.start;
+          const end = ast.start + 1;
+          const Component = components.default;
+          spans.push({ start, end, Component, status });
+        }
+        AcornJsxAst.visit(ast.properties, fn);
+        {
+          const start = ast.end - 1;
+          const end = ast.end;
+          const Component = components.default;
+          spans.push({ start, end, Component, status });
+        }
+        return false;
+      }
+
+      case 'ArrayExpression': {
+        {
+          const start = ast.start;
+          const end = ast.start + 1;
+          const Component = components.default;
+          spans.push({ start, end, Component, status });
+        }
+        AcornJsxAst.visit(ast.elements, fn);
+        {
+          const start = ast.end - 1;
+          const end = ast.end;
+          const Component = components.default;
+          spans.push({ start, end, Component, status });
+        }
+        return false;
+      }
+
       case 'ImportDeclaration': {
         // TODO(jaked) handle `from`
         const start = ast.start;
