@@ -9,7 +9,7 @@ const SLASH = '/'
 const EXCLAMATION = '!'
 
 import * as Babel from '@babel/parser';
-import * as AcornJsxAst from '../acornJsxAst';
+import * as ESTree from '../ESTree';
 
 tokenizeEsSyntax.locator = tokenizeEsSyntaxLocator
 
@@ -29,14 +29,14 @@ export function parseExpression(input: string) {
       'typescript',
       'estree'
     ]
-  }) as AcornJsxAst.Expression;
+  }) as ESTree.Expression;
 }
 
 // Babel has no exported way to parse only an atomic expresion
 // so we can't stop it from parsing past the end of the JSX expression
 // when there is trailing stuff that looks like a compound expression.
 // instead we parse it all then find the underlying JSX expression.
-function findJsxExpression(ast: AcornJsxAst.Expression) {
+function findJsxExpression(ast: ESTree.Expression) {
   switch (ast.type) {
     case 'JSXElement':
     case  'JSXFragment':

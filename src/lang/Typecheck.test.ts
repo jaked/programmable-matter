@@ -1,12 +1,12 @@
 import * as Immutable from 'immutable';
-import * as AcornJsxAst from './acornJsxAst';
+import * as ESTree from './ESTree';
 import * as Parser from './Parser';
 import * as Type from './Type';
 import * as Typecheck from './Typecheck';
 
 describe('check', () => {
   function expectCheckThrows(
-    exprOrString: AcornJsxAst.Expression | string,
+    exprOrString: ESTree.Expression | string,
     type: Type.Type,
     env: Typecheck.Env = Immutable.Map()
   ) {
@@ -17,7 +17,7 @@ describe('check', () => {
   }
 
   function expectCheck(
-    exprOrString: AcornJsxAst.Expression | string,
+    exprOrString: ESTree.Expression | string,
     type: Type.Type,
     env: Typecheck.Env = Immutable.Map(),
     atom: boolean = false
@@ -174,7 +174,7 @@ describe('check', () => {
 
 describe('synth', () => {
   function expectSynthThrows(
-    exprOrString: AcornJsxAst.Expression | string,
+    exprOrString: ESTree.Expression | string,
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
@@ -184,7 +184,7 @@ describe('synth', () => {
   }
 
   function expectSynth(
-    exprOrString: AcornJsxAst.Expression | string,
+    exprOrString: ESTree.Expression | string,
     type: Type.Type,
     env: Typecheck.Env = Immutable.Map(),
     atom: boolean = false

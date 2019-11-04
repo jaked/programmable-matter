@@ -12,7 +12,7 @@ import * as Babel from '@babel/parser';
 import Trace from '../util/Trace';
 import Try from '../util/Try';
 import * as MDXHAST from './mdxhast';
-import * as AcornJsxAst from './acornJsxAst';
+import * as ESTree from './ESTree';
 
 const mdxParser =
   unified()
@@ -40,7 +40,7 @@ export function parseProgram(input: string, position?: MDXHAST.Position) {
       'typescript',
       'estree'
     ]
-  }).program as AcornJsxAst.Program;
+  }).program as ESTree.Program;
   fixPositions(ast, position);
   return ast;
 }
@@ -53,19 +53,19 @@ export function parseExpression(input: string, position?: MDXHAST.Position) {
       'typescript',
       'estree'
     ]
-  }) as AcornJsxAst.Expression;
+  }) as ESTree.Expression;
   fixPositions(ast, position);
   return ast;
 }
 
-function fixPositions(ast: AcornJsxAst.Node, position?: MDXHAST.Position) {
+function fixPositions(ast: ESTree.Node, position?: MDXHAST.Position) {
   if (position && position.start.offset) {
     const offset = position.start.offset;
-    function fn(ast: AcornJsxAst.Node) {
+    function fn(ast: ESTree.Node) {
       ast.start += offset;
       ast.end += offset;
     }
-    AcornJsxAst.visit(ast, fn);
+    ESTree.visit(ast, fn);
   }
 }
 

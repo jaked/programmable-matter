@@ -20,7 +20,7 @@ import { InlineMath, BlockMath } from 'react-katex';
 import { Cell } from '../util/Cell';
 
 import * as MDXHAST from './mdxhast';
-import * as AcornJsxAst from './acornJsxAst';
+import * as ESTree from './ESTree';
 import * as Evaluator from './evaluator';
 import * as Type from './Type';
 import * as Typecheck from './Typecheck';
@@ -31,7 +31,7 @@ const smartypants =
   Retext().use(RetextSmartypants, { dashes: 'oldschool' })
 
 function extendEnvWithImport(
-  decl: AcornJsxAst.ImportDeclaration,
+  decl: ESTree.ImportDeclaration,
   moduleEnv: Env,
   env: Env,
 ): Env {
@@ -61,7 +61,7 @@ function extendEnvWithImport(
 }
 
 function extendEnvWithNamedExport(
-  decl: AcornJsxAst.ExportNamedDeclaration,
+  decl: ESTree.ExportNamedDeclaration,
   module: string,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
@@ -101,7 +101,7 @@ function extendEnvWithNamedExport(
 }
 
 function extendEnvWithDefaultExport(
-  decl: AcornJsxAst.ExportDefaultDeclaration,
+  decl: ESTree.ExportDefaultDeclaration,
   env: Env,
   exportValue: { [s: string]: any }
 ): Env {
@@ -193,7 +193,7 @@ export function renderMdx(
 }
 
 export function renderProgram(
-  ast: AcornJsxAst.Node,
+  ast: ESTree.Node,
   module: string,
   moduleEnv: Env,
   env: Env,
@@ -216,7 +216,7 @@ export function renderProgram(
     case 'ExportDefaultDeclaration':
       return extendEnvWithDefaultExport(ast, env, exportValue);
 
-    default: throw new Error('unexpected AST ' + (ast as AcornJsxAst.Node).type);
+    default: throw new Error('unexpected AST ' + (ast as ESTree.Node).type);
   }
 }
 

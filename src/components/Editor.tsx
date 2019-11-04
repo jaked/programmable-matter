@@ -5,7 +5,7 @@ import RSCEditor, { Session } from './react-simple-code-editor';
 
 import styled from 'styled-components';
 import * as MDXHAST from '../lang/mdxhast';
-import * as AcornJsxAst from '../lang/acornJsxAst';
+import * as ESTree from '../lang/ESTree';
 
 import * as data from '../data';
 
@@ -54,7 +54,7 @@ type Span = {
 };
 
 function computeJsSpans(
-  ast: AcornJsxAst.Node,
+  ast: ESTree.Node,
   spans: Array<Span>
 ) {
   function span(
@@ -66,7 +66,7 @@ function computeJsSpans(
     spans.push({ start, end, component, status });
   }
 
-  function fn(ast: AcornJsxAst.Node) {
+  function fn(ast: ESTree.Node) {
     let components = okComponents;
     let status = '';
     if (ast.etype) {
@@ -96,7 +96,7 @@ function computeJsSpans(
         if (ast.key.type === 'Identifier') {
           span(ast.key.start, ast.key.end, components.property, status);
           if (!ast.shorthand) {
-            AcornJsxAst.visit(ast.value, fn);
+            ESTree.visit(ast.value, fn);
           }
           return false;
         }
@@ -104,18 +104,18 @@ function computeJsSpans(
 
       case 'JSXAttribute':
         span(ast.name.start, ast.name.end, components.property, status);
-        AcornJsxAst.visit(ast.value, fn);
+        ESTree.visit(ast.value, fn);
         return false;
 
       case 'ObjectExpression':
         span(ast.start, ast.start + 1, components.default, status);
-        AcornJsxAst.visit(ast.properties, fn);
+        ESTree.visit(ast.properties, fn);
         span(ast.end - 1, ast.end, components.default, status);
         return false;
 
       case 'ArrayExpression':
         span(ast.start, ast.start + 1, components.default, status);
-        AcornJsxAst.visit(ast.elements, fn);
+        ESTree.visit(ast.elements, fn);
         span(ast.end - 1, ast.end, components.default, status);
         return false;
 
@@ -155,11 +155,11 @@ function computeJsSpans(
 
       case 'VariableDeclarator':
         span(ast.id.start, ast.id.end, components.definition, status);
-        AcornJsxAst.visit(ast.init, fn);
+        ESTree.visit(ast.init, fn);
         return false;
     }
   }
-  AcornJsxAst.visit(ast, fn);
+  ESTree.visit(ast, fn);
 }
 
 function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {

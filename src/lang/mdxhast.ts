@@ -1,5 +1,5 @@
 import Try from '../util/Try';
-import * as AcornJsxAst from './acornJsxAst';
+import * as ESTree from './ESTree';
 
 // See
 //   https://github.com/syntax-tree/unist
@@ -45,14 +45,14 @@ export interface Text extends NodeImpl {
 export interface Jsx extends NodeImpl {
   type: 'jsx';
   value: string;
-  jsxElement?: Try<AcornJsxAst.JSXElement | AcornJsxAst.JSXFragment>;
+  jsxElement?: Try<ESTree.JSXElement | ESTree.JSXFragment>;
 }
 
 type Declaration =
-  AcornJsxAst.ImportDeclaration |
-  AcornJsxAst.ExportNamedDeclaration |
-  AcornJsxAst.ExportDefaultDeclaration |
-  AcornJsxAst.VariableDeclaration;
+  ESTree.ImportDeclaration |
+  ESTree.ExportNamedDeclaration |
+  ESTree.ExportDefaultDeclaration |
+  ESTree.VariableDeclaration;
 
 export interface Import extends NodeImpl {
   type: 'import';

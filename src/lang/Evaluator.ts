@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
-import * as AcornJsxAst from '../lang/acornJsxAst';
+import * as ESTree from './ESTree';
 
 import { Cell } from '../util/Cell';
 
@@ -8,27 +8,27 @@ const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 export type Env = Immutable.Map<string, any>;
 
-function patValueEnvIdentifier(ast: AcornJsxAst.Identifier, value: any, env: Env): Env {
+function patValueEnvIdentifier(ast: ESTree.Identifier, value: any, env: Env): Env {
   return env.set(ast.name, value);
 }
 
-function patValueEnvObjectPattern(ast: AcornJsxAst.ObjectPattern, value: any, env: Env): Env {
+function patValueEnvObjectPattern(ast: ESTree.ObjectPattern, value: any, env: Env): Env {
   ast.properties.forEach(prop => {
     env = patValueEnv(prop.value, value[prop.key.name], env);
   });
   return env;
 }
 
-function patValueEnv(ast: AcornJsxAst.Pattern, value: any, env: Env): Env {
+function patValueEnv(ast: ESTree.Pattern, value: any, env: Env): Env {
   if (ast.type === 'Identifier')
     return patValueEnvIdentifier(ast, value, env);
   else if (ast.type === 'ObjectPattern')
     return patValueEnvObjectPattern(ast, value, env);
-  else throw new Error(`unexpected AST type ${(ast as AcornJsxAst.Pattern).type}`);
+  else throw new Error(`unexpected AST type ${(ast as ESTree.Pattern).type}`);
 }
 
 export function evaluateExpression(
-  ast: AcornJsxAst.Expression,
+  ast: ESTree.Expression,
   env: Env,
 ): any {
   switch (ast.type) {

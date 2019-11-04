@@ -12,7 +12,7 @@ import Trace from '../util/Trace';
 import Try from '../util/Try';
 import * as data from '../data';
 import * as MDXHAST from './mdxhast';
-import * as AcornJsxAst from './acornJsxAst';
+import * as ESTree from './ESTree';
 import * as Parser from './Parser';
 import * as Type from './Type';
 import * as Typecheck from './Typecheck';
@@ -172,23 +172,23 @@ function parseMdx(trace: Trace, content: string, layout: string | undefined): da
   return { ast, imports };
 }
 
-function parseJson(content: string): data.Parsed<AcornJsxAst.Expression> {
+function parseJson(content: string): data.Parsed<ESTree.Expression> {
   const ast = Parser.parseExpression(content);
   const imports = new Set<string>();
   return { ast, imports };
 }
 
-function findImportsTs(ast: AcornJsxAst.Node, imports: Set<string>) {
-  function fn(node: AcornJsxAst.Node) {
+function findImportsTs(ast: ESTree.Node, imports: Set<string>) {
+  function fn(node: ESTree.Node) {
     switch (node.type) {
       case 'ImportDeclaration':
         imports.add(node.source.value);
     }
   }
-  AcornJsxAst.visit(ast, fn);
+  ESTree.visit(ast, fn);
 }
 
-function parseTs(trace: Trace, content: string): data.Parsed<AcornJsxAst.Program> {
+function parseTs(trace: Trace, content: string): data.Parsed<ESTree.Program> {
   const ast = Parser.parseProgram(content);
   const imports = new Set<string>();
   findImportsTs(ast, imports);
@@ -314,14 +314,14 @@ function dirtyTransitively(
   return compiledNotes.filterNot(note => dirty.has(note.tag))
 }
 
-function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
+function freeIdentifiers(expr: ESTree.Expression): Array<string> {
   const free: Array<string> = [];
 
   function fn(
-    expr: AcornJsxAst.Expression,
+    expr: ESTree.Expression,
     bound: Immutable.Set<string>,
   ) {
-    AcornJsxAst.visit(expr, node => {
+    ESTree.visit(expr, node => {
       switch (node.type) {
         case 'Identifier':
           const id = node.name;
@@ -347,7 +347,7 @@ function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
                 });
                 break;
 
-              default: throw new Error('unexpected AST ' + (pat as AcornJsxAst.Pattern).type)
+              default: throw new Error('unexpected AST ' + (pat as ESTree.Pattern).type)
             }
           });
           fn(node.body, bound);
@@ -359,7 +359,7 @@ function freeIdentifiers(expr: AcornJsxAst.Expression): Array<string> {
   return free;
 }
 
-function sortProgram(ast: AcornJsxAst.Program): AcornJsxAst.Program {
+function sortProgram(ast: ESTree.Program): ESTree.Program {
   // TODO(jaked)
   // topologically sort bindings as we do for MDX
   return ast;
@@ -373,10 +373,10 @@ function sortProgram(ast: AcornJsxAst.Program): AcornJsxAst.Program {
 // we need to be careful to retain locations
 // or leave the AST alone, but typecheck in toplogical order
 function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
-  const imports: Array<AcornJsxAst.ImportDeclaration> = [];
-  const exportLets: Array<AcornJsxAst.ExportNamedDeclaration> = [];
-  const exportConsts: Array<AcornJsxAst.ExportNamedDeclaration> = [];
-  const exportDefault: Array<AcornJsxAst.ExportDefaultDeclaration> = [];
+  const imports: Array<ESTree.ImportDeclaration> = [];
+  const exportLets: Array<ESTree.ExportNamedDeclaration> = [];
+  const exportConsts: Array<ESTree.ExportNamedDeclaration> = [];
+  const exportDefault: Array<ESTree.ExportDefaultDeclaration> = [];
 
   function collectImportsExports(ast: MDXHAST.Node): MDXHAST.Node {
     switch (ast.type) {
@@ -423,14 +423,14 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
 
   const ast2 = collectImportsExports(ast) as MDXHAST.Root;
 
-  let decls: Array<[ AcornJsxAst.VariableDeclarator, Array<string> ]> = [];
+  let decls: Array<[ ESTree.VariableDeclarator, Array<string> ]> = [];
   exportConsts.forEach(decl => {
     decl.declaration.declarations.forEach(decl => {
       decls.push([ decl, freeIdentifiers(decl.init) ])
     })
   })
 
-  const sortedDecls: Array<AcornJsxAst.VariableDeclarator> = [];
+  const sortedDecls: Array<ESTree.VariableDeclarator> = [];
   let again = true;
   while (again) {
     again = false;
@@ -568,7 +568,7 @@ function compileMdx(
 }
 
 function compileJson(
-  ast: AcornJsxAst.Expression
+  ast: ESTree.Expression
 ): data.Compiled {
   const type = Typecheck.synth(ast, Immutable.Map());
   const exportType = Type.module({ default: type });
@@ -580,7 +580,7 @@ function compileJson(
 }
 
 function compileTs(
-  ast: AcornJsxAst.Program,
+  ast: ESTree.Program,
   capitalizedTag: string,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,

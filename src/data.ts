@@ -2,7 +2,7 @@ import Immutable from 'immutable';
 import React from 'react';
 import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
-import * as AcornJsxAst from './lang/acornJsxAst';
+import * as ESTree from './lang/ESTree';
 import * as Type from './lang/Type';
 
 export type Types = 'mdx' | 'json' | 'txt' | 'ts' | 'jpeg';
@@ -53,13 +53,13 @@ export type TypedParsedNote =  {
   parsed: Try<Parsed<MDXHAST.Root>>;
 } | {
   type: 'json';
-  parsed: Try<Parsed<AcornJsxAst.Expression>>;
+  parsed: Try<Parsed<ESTree.Expression>>;
 } | {
   type: 'txt';
   parsed: Try<Parsed<string>>;
 } | {
   type: 'ts';
-  parsed: Try<Parsed<AcornJsxAst.Program>>;
+  parsed: Try<Parsed<ESTree.Program>>;
 } | {
   type: 'jpeg';
   parsed: Try<Parsed<Jpeg>>;
