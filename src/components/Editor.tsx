@@ -49,7 +49,7 @@ const errComponents =
 type Span = {
   start: number,
   end: number,
-  Component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
+  component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
   status: string
 };
 
@@ -57,6 +57,15 @@ function computeJsSpans(
   ast: AcornJsxAst.Node,
   spans: Array<Span>
 ) {
+  function span(
+    start: number,
+    end: number,
+    component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
+    status: string
+  ) {
+    spans.push({ start, end, component, status });
+  }
+
   function fn(ast: AcornJsxAst.Node) {
     let components = okComponents;
     let status = '';
@@ -69,175 +78,85 @@ function computeJsSpans(
 
     switch (ast.type) {
       case 'Literal': {
-        const start = ast.start;
-        const end = ast.end;
-        const Component = (() => {
-          switch (typeof ast.value) {
-            case 'string': return components.string;
-            case 'number': return components.number;
-            case 'boolean': return components.atom;
-            case 'object': return components.atom;
-            default: return components.default;
-          }
-        })();
-        spans.push({ start, end, Component, status });
+        let component = components.default;
+        switch (typeof ast.value) {
+          case 'string': component = components.string; break;
+          case 'number': component = components.number; break;
+          case 'boolean': component = components.atom; break;
+          case 'object': component = components.atom; break;
+        }
+        return span(ast.start, ast.end, component, status);
       }
-      return;
 
       case 'JSXIdentifier':
-      case 'Identifier': {
-        const start = ast.start;
-        const end = ast.end;
-        const Component = components.variable;
-        spans.push({ start, end, Component, status });
-      }
-      return;
+      case 'Identifier':
+        return span(ast.start, ast.end, components.variable, status);
 
-      case 'Property': {
+      case 'Property':
         if (ast.key.type === 'Identifier') {
-          const start = ast.key.start;
-          const end = ast.key.end;
-          const Component = components.property;
-          spans.push({ start, end, Component, status });
-
+          span(ast.key.start, ast.key.end, components.property, status);
           if (!ast.shorthand) {
             AcornJsxAst.visit(ast.value, fn);
           }
           return false;
         }
-      }
-      return;
+        return;
 
-      case 'JSXAttribute': {
-        const start = ast.name.start;
-        const end = ast.name.end;
-        const Component = components.property;
-        spans.push({ start, end, Component, status });
-
+      case 'JSXAttribute':
+        span(ast.name.start, ast.name.end, components.property, status);
         AcornJsxAst.visit(ast.value, fn);
         return false;
-      }
 
-      case 'ObjectExpression': {
-        {
-          const start = ast.start;
-          const end = ast.start + 1;
-          const Component = components.default;
-          spans.push({ start, end, Component, status });
-        }
+      case 'ObjectExpression':
+        span(ast.start, ast.start + 1, components.default, status);
         AcornJsxAst.visit(ast.properties, fn);
-        {
-          const start = ast.end - 1;
-          const end = ast.end;
-          const Component = components.default;
-          spans.push({ start, end, Component, status });
-        }
+        span(ast.end - 1, ast.end, components.default, status);
         return false;
-      }
 
-      case 'ArrayExpression': {
-        {
-          const start = ast.start;
-          const end = ast.start + 1;
-          const Component = components.default;
-          spans.push({ start, end, Component, status });
-        }
+      case 'ArrayExpression':
+        span(ast.start, ast.start + 1, components.default, status);
         AcornJsxAst.visit(ast.elements, fn);
-        {
-          const start = ast.end - 1;
-          const end = ast.end;
-          const Component = components.default;
-          spans.push({ start, end, Component, status });
-        }
+        span(ast.end - 1, ast.end, components.default, status);
         return false;
-      }
 
-      case 'ImportDeclaration': {
+      case 'ImportDeclaration':
         // TODO(jaked) handle `from`
-        const start = ast.start;
-        const end = ast.start + 6; // import
-        const Component = components.keyword;
-        spans.push({ start, end, Component, status });
-      }
-      return;
+        return span(ast.start, ast.start + 6, components.keyword, status); // import
 
       case 'ImportSpecifier':
         // TODO(jaked) handle `as`
-        {
-          const start = ast.local.start;
-          const end = ast.local.end;
-          const Component = components.definition;
-          spans.push({ start, end, Component, status });
-        }
-        if (ast.imported.start != ast.local.start) {
-          const start = ast.imported.start;
-          const end = ast.imported.end;
-          const Component = components.variable;
-          spans.push({ start, end, Component, status });
+        span(ast.local.start, ast.local.end, components.definition, status);
+        if (ast.imported.start !== ast.local.start) {
+          span(ast.imported.start, ast.imported.end, components.variable, status);
         }
         return false;
 
       case 'ImportNamespaceSpecifier':
         // TODO(jaked) handle `as`
-        {
-          const start = ast.start;
-          const end = ast.start + 1; // *
-          const Component = components.variable;
-          spans.push({ start, end, Component, status });
-        }
-        {
-          const start = ast.local.start;
-          const end = ast.local.end;
-          const Component = components.definition;
-          spans.push({ start, end, Component, status });
-        }
+        span(ast.start, ast.start + 1, components.variable, status); // *
+        span(ast.local.start, ast.local.end, components.definition, status);
         return false;
 
       case 'ImportDefaultSpecifier':
-        {
-          const start = ast.local.start;
-          const end = ast.local.end;
-          const Component = components.definition;
-          spans.push({ start, end, Component, status });
-        }
+        span(ast.local.start, ast.local.end, components.definition, status);
         return false;
 
-      case 'ExportNamedDeclaration': {
-        const start = ast.start;
-        const end = ast.start + 6; // export
-        const Component = components.keyword;
-        spans.push({ start, end, Component, status });
-      }
-      return;
+      case 'ExportNamedDeclaration':
+        return span(ast.start, ast.start + 6, components.keyword, status); // export
 
-      case 'ExportDefaultDeclaration': {
+      case 'ExportDefaultDeclaration':
         // TODO(jaked)
         // if you stick a comment between `export` and `default`
         // the whole thing is rendered as a keyword
-        const start = ast.start;
-        const end = ast.declaration.start;
-        const Component = components.keyword;
-        spans.push({ start, end, Component, status });
-      }
-      return;
+        return span(ast.start, ast.declaration.start, components.keyword, status);
 
-      case 'VariableDeclaration': {
-        const start = ast.start;
-        const end = ast.start + ast.kind.length;
-        const Component = components.keyword;
-        spans.push({ start, end, Component, status });
-      }
-      return;
+      case 'VariableDeclaration':
+        return span(ast.start, ast.start + ast.kind.length, components.keyword, status);
 
-      case 'VariableDeclarator': {
-        const start = ast.id.start;
-        const end = ast.id.end;
-        const Component = components.definition;
-        spans.push({ start, end, Component, status });
-
+      case 'VariableDeclarator':
+        span(ast.id.start, ast.id.end, components.definition, status);
         AcornJsxAst.visit(ast.init, fn);
         return false;
-      }
     }
   }
   AcornJsxAst.visit(ast, fn);
@@ -334,7 +253,7 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote) {
         pushLine();
       }
     }
-    const Component = span.Component;
+    const Component = span.component;
     const chunk = content.slice(span.start, span.end);
     lineNodes.push(
       <Component data-status={span.status}>{chunk}</Component>
