@@ -113,12 +113,20 @@ export function module(obj: { [f: string]: { type: Type, atom: boolean } }): Mod
   return { kind: 'Module', fields };
 }
 
-export function singleton(base: BooleanType, value: boolean): SingletonType
-export function singleton(base: NumberType, value: number): SingletonType
-export function singleton(base: StringType, value: string): SingletonType
-export function singleton(base: NullType, value: null): SingletonType
-export function singleton(base: Type, value: any): SingletonType {
- return { kind: 'Singleton', base, value };
+export function singleton(value: any): Type {
+  const type = typeof value;
+  switch (type) {
+    case 'boolean': return { kind: 'Singleton', base: booleanType, value };
+    case 'number': return { kind: 'Singleton', base: numberType, value };
+    case 'string': return { kind: 'Singleton', base: stringType, value };
+    case 'undefined': return undefinedType;
+    case 'object':
+      if (value === null) return nullType;
+      else throw new Error('expected null object');
+    default:
+      // TODO(jaked) handle bigint, symbol, function ?
+      throw new Error(`unexpected type ${type}`);
+  }
 }
 
 // TODO(jaked) find a library for these

@@ -512,7 +512,7 @@ function compileTxt(
 // so we can generate these? like Scala implicits?
 const metaType =
   Type.object({
-    type: Type.singleton(Type.string, 'mdx'),
+    type: Type.singleton('mdx'),
     title: Type.optional(Type.string),
     tags: Type.optional(Type.array(Type.string)),
     layout: Type.string

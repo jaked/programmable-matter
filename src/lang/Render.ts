@@ -255,10 +255,10 @@ function componentType(props: { [f: string]: Type.Type }): Type.Type {
 const styleType = Type.undefinedOr(Type.object({
   backgroundColor: Type.undefinedOrString,
   float: Type.undefinedOr(Type.union(
-    Type.singleton(Type.string, 'left'),
-    Type.singleton(Type.string, 'right'),
-    Type.singleton(Type.string, 'inherit'),
-    Type.singleton(Type.string, 'none'),
+    Type.singleton('left'),
+    Type.singleton('right'),
+    Type.singleton('inherit'),
+    Type.singleton('none'),
   )),
   fontSize: Type.undefinedOrString,
   height: Type.undefinedOrString,
@@ -299,7 +299,7 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
   }), atom: false },
 
   'input': { type: componentType({
-    type: Type.singleton(Type.string, 'range'),
+    type: Type.singleton('range'),
     id: Type.undefinedOrString,
     min: Type.numberOrString,
     max: Type.numberOrString,

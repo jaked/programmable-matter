@@ -132,7 +132,7 @@ describe('isSubtype', () => {
 
   describe('Singleton', () => {
     it('reflexive', () => {
-      const t = Type.singleton(Type.number, 7);
+      const t = Type.singleton(7);
       expect(Type.isSubtype(t, t)).toBe(true);
     });
   });
@@ -159,8 +159,8 @@ describe('isSubtype', () => {
     });
 
     it('singletons', () => {
-      const a = Type.singleton(Type.number, 7);
-      const b = Type.union(a, Type.singleton(Type.number, 9));
+      const a = Type.singleton(7);
+      const b = Type.union(a, Type.singleton(9));
       expect(Type.isSubtype(a, b)).toBe(true);
     });
 
@@ -170,7 +170,7 @@ describe('isSubtype', () => {
         height: Type.string,
       });
       const actual = Type.object({
-        height: Type.singleton(Type.string, '350px')
+        height: Type.singleton('350px')
       })
       expect(Type.isSubtype(actual, styleType)).toBe(true);
     });

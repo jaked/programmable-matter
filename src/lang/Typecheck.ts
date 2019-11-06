@@ -175,9 +175,6 @@ function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.Intersec
 }
 
 function checkSingleton(ast: ESTree.Expression, env: Env, type: Type.SingletonType): boolean {
-  // we could decompose the singleton value along with the expression
-  // to get more localized errors, but it doesn't seem very useful;
-  // I bet compound singletons are rare.
   return checkSubtype(ast, env, type);
 }
 
@@ -248,19 +245,8 @@ function synthIdentifier(ast: ESTree.Identifier, env: Env): TypeAtom {
   else throw new Error('unbound identifier ' + ast.name);
 }
 
-function synthLiteralHelper(ast: ESTree.Literal, env: Env): Type.Type {
-  switch (typeof ast.value) {
-    case 'boolean':   return Type.singleton(Type.boolean, ast.value);
-    case 'number':    return Type.singleton(Type.number, ast.value);
-    case 'string':    return Type.singleton(Type.string, ast.value);
-    case 'undefined': return Type.undefined;
-    case 'object':    return Type.null;
-    default: throw new Error('bug');
-  }
-}
-
 function synthLiteral(ast: ESTree.Literal, env: Env): TypeAtom {
-  const type = synthLiteralHelper(ast, env);
+  const type = Type.singleton(ast.value);
   return { type, atom: false };
 }
 
@@ -323,7 +309,7 @@ function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom
       case 'Tuple': {
         // check against union of valid indexes
         let validIndexes =
-          object.elems.map((_, i) => Type.singleton(Type.number, i));
+          object.elems.map((_, i) => Type.singleton(i));
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
@@ -347,7 +333,7 @@ function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom
       case 'Object': {
         // check against union of valid indexes
         let validIndexes =
-          object.fields.map(({ field }) => Type.singleton(Type.string, field));
+          object.fields.map(({ field }) => Type.singleton(field));
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
@@ -477,15 +463,7 @@ function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type.Type {
         ann.members.map(mem => ({ [mem.key.name]: typeOfTypeAnnotation(mem.typeAnnotation.typeAnnotation) }));
       return Type.object(Object.assign({}, ...members));
     case 'TSLiteralType':
-      // TODO(jaked) move this dispatch to Type
-      const value = ann.literal.value;
-      switch (typeof value) {
-        case 'boolean': return Type.singleton(Type.boolean, value);
-        case 'number': return Type.singleton(Type.number, value);
-        case 'string': return Type.singleton(Type.string, value);
-        case 'object': return Type.singleton(Type.null, value);
-        default: throw new Error(`unexpected literal type ${ann.literal.value}`);
-      }
+      return Type.singleton(ann.literal.value);
     case 'TSUnionType':
       return Type.union(...ann.types.map(typeOfTypeAnnotation));
     case 'TSIntersectionType':

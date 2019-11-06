@@ -127,7 +127,7 @@ describe('check', () => {
   });
 
   describe('singletons', () => {
-    const type = Type.singleton(Type.number, 7);
+    const type = Type.singleton(7);
 
     it('succeeds', () => {
       expectCheck('7', type);
@@ -208,11 +208,11 @@ describe('synth', () => {
 
   describe('literals', () => {
     it('boolean', () => {
-      expectSynth('true', Type.singleton(Type.boolean, true));
+      expectSynth('true', Type.singleton(true));
     });
 
     it('string', () => {
-      expectSynth('"foo"', Type.singleton(Type.string, "foo"));
+      expectSynth('"foo"', Type.singleton("foo"));
     });
 
     it('null', () => {
@@ -224,8 +224,8 @@ describe('synth', () => {
     it('uniform', () => {
       // Typescript synths Array<number> here
       const type = Type.array(Type.union(
-        Type.singleton(Type.number, 7),
-        Type.singleton(Type.number, 9)
+        Type.singleton(7),
+        Type.singleton(9)
       ));
       expectSynth('[ 7, 9 ]', type);
     });
@@ -233,8 +233,8 @@ describe('synth', () => {
     it('non-uniform', () => {
       // Typescript synths Array<number | boolean> here
       const type = Type.array(Type.union(
-        Type.singleton(Type.number, 7),
-        Type.singleton(Type.boolean, true)
+        Type.singleton(7),
+        Type.singleton(true)
       ));
       expectSynth('[ 7, true ]', type);
     });
@@ -243,8 +243,8 @@ describe('synth', () => {
   describe('objects', () => {
     it('succeeds', () => {
       const type = Type.object({
-        foo: Type.singleton(Type.number, 7),
-        bar: Type.singleton(Type.boolean, true)
+        foo: Type.singleton(7),
+        bar: Type.singleton(true)
       });
       expectSynth('({ foo: 7, bar: true })', type);
     });
@@ -276,12 +276,12 @@ describe('synth', () => {
       array: { type: Type.array(Type.number), atom: false },
       tuple: { type: Type.tuple(Type.boolean, Type.number), atom: false },
       numberUnion: { type: Type.union(
-        Type.singleton(Type.number, 0),
-        Type.singleton(Type.number, 1),
+        Type.singleton(0),
+        Type.singleton(1),
       ), atom: false },
       stringUnion: { type: Type.union(
-        Type.singleton(Type.string, 'foo'),
-        Type.singleton(Type.string, 'bar'),
+        Type.singleton('foo'),
+        Type.singleton('bar'),
       ), atom: false }
     });
 
@@ -330,7 +330,7 @@ describe('synth', () => {
     it('ok', () => {
       expectSynth(
         '() => 7',
-        Type.function([], Type.singleton(Type.number, 7))
+        Type.function([], Type.singleton(7))
       );
     });
 
@@ -338,7 +338,7 @@ describe('synth', () => {
       expectSynth(
         '(x: number, y: 7) => x + y',
         Type.function(
-          [ Type.number, Type.singleton(Type.number, 7) ],
+          [ Type.number, Type.singleton(7) ],
           Type.number
         )
       );
