@@ -207,7 +207,7 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType): b
         }
         const type = fieldTypes.get(name);
         if (type) return check(prop.value, env, type);
-        else return throwExtraField(ast, name);
+        else return throwExtraField(prop.key, name);
       }).some(x => x);
 
     default:

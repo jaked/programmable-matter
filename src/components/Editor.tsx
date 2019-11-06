@@ -93,14 +93,11 @@ function computeJsSpans(
         return span(ast.start, ast.end, components.variable, status);
 
       case 'Property':
-        if (ast.key.type === 'Identifier') {
-          span(ast.key.start, ast.key.end, components.property, status);
-          if (!ast.shorthand) {
-            ESTree.visit(ast.value, fn);
-          }
-          return false;
+        ESTree.visit(ast.key, fn);
+        if (!ast.shorthand) {
+          ESTree.visit(ast.value, fn);
         }
-        return;
+        return false;
 
       case 'JSXAttribute':
         span(ast.name.start, ast.name.end, components.property, status);
