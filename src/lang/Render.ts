@@ -254,15 +254,28 @@ function componentType(props: { [f: string]: Type.Type }): Type.Type {
 
 const styleType = Type.undefinedOr(Type.object({
   backgroundColor: Type.undefinedOrString,
+  float: Type.undefinedOr(Type.union(
+    Type.singleton(Type.string, 'left'),
+    Type.singleton(Type.string, 'right'),
+    Type.singleton(Type.string, 'inherit'),
+    Type.singleton(Type.string, 'none'),
+  )),
   fontSize: Type.undefinedOrString,
   height: Type.undefinedOrString,
+  marginTop: Type.undefinedOrString,
   padding: Type.undefinedOrString,
 }));
 
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
 export const initTypeEnv: Typecheck.Env = Immutable.Map({
+  // TODO(jaked)
+  // fill out all of HTML, figure out a scheme for common attributes
+
+  'body': { type: componentType({}), atom: false },
+
   'div': { type: componentType({
+    className: Type.undefinedOrString,
     style: styleType
   }), atom: false },
 
@@ -274,6 +287,17 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
     ry: Type.numberOrString,
   }), atom: false },
 
+  'head': { type: componentType({}), atom: false },
+
+  'html': { type: componentType({}), atom: false },
+
+  'img': { type: componentType({
+    src: Type.string,
+    width: Type.undefinedOrNumber,
+    height: Type.undefinedOrNumber,
+    style: styleType,
+  }), atom: false },
+
   'input': { type: componentType({
     type: Type.singleton(Type.string, 'range'),
     id: Type.undefinedOrString,
@@ -282,10 +306,16 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
     value: Type.unknown,
   }), atom: false},
 
+  'style': { type: componentType({
+    dangerouslySetInnerHTML: Type.undefinedOr(Type.object({ __html: Type.string })),
+  }), atom: false},
+
   'svg': { type: componentType({
     width: Type.numberOrString,
     height: Type.numberOrString,
   }), atom: false },
+
+  'title': { type: componentType({}), atom: false },
 
   'Link': { type: componentType({ to: Type.string }), atom: false },
 
@@ -325,10 +355,16 @@ export function initValueEnv(
   setSelected: (note: string) => void,
 ): Evaluator.Env {
   return Immutable.Map({
+    body: 'body',
     div: 'div',
     ellipse: 'ellipse',
+    head: 'head',
+    html: 'html',
+    img: 'img',
     input: 'input',
+    style: 'style',
     svg: 'svg',
+    title: 'title',
 
     Link: Link(setSelected),
     Inspector: Inspector,
