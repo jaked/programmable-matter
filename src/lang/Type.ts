@@ -242,6 +242,19 @@ export const undefinedOrNumber = undefinedOr(numberType);
 
 export const numberOrString = union(numberType, stringType);
 
+export function enumerate(...values: any[]): Type {
+  return union(
+    ...values.map(v => {
+      if (typeof v === 'object' && v !== null) {
+        // TODO(jaked) could support compound values here
+        throw new Error('expected null object')
+      } else {
+        return singleton(v);
+      }
+    })
+  );
+}
+
 export const reactElementType = abstract('React.Element');
 // TODO(jaked)
 // fragments are also permitted here (see ReactNode in React typing)

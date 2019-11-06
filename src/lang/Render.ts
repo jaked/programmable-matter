@@ -254,12 +254,7 @@ function componentType(props: { [f: string]: Type.Type }): Type.Type {
 
 const styleType = Type.undefinedOr(Type.object({
   backgroundColor: Type.undefinedOrString,
-  float: Type.undefinedOr(Type.union(
-    Type.singleton('left'),
-    Type.singleton('right'),
-    Type.singleton('inherit'),
-    Type.singleton('none'),
-  )),
+  float: Type.undefinedOr(Type.enumerate('left', 'right', 'inherit', 'none')),
   fontSize: Type.undefinedOrString,
   height: Type.undefinedOrString,
   marginTop: Type.undefinedOrString,
@@ -280,7 +275,7 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
   }), atom: false },
 
   'ellipse': { type: componentType({
-    fill: Type.union(Type.string, Type.undefined),
+    fill: Type.undefinedOrString,
     cx: Type.numberOrString,
     cy: Type.numberOrString,
     rx: Type.numberOrString,
