@@ -54,14 +54,10 @@ export default class Server {
       res.statusCode = 404;
       res.end(`no note ${tag}`);
     } else {
-      // it seems to be necessary to focus on part of the type
-      // for refinement based on the `type` field to work
-      const typedParsedNote: data.TypedParsedNote = note;
-
-      switch (typedParsedNote.type) {
+      switch (note.type) {
         case 'jpeg':
           res.setHeader("Content-Type", "image/jpeg");
-          res.end(typedParsedNote.parsed.get().ast.buffer);
+          res.end(note.buffer);
           break;
 
         default:

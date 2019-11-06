@@ -633,15 +633,11 @@ function compileNote(
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): Try<data.Compiled> {
   return Try.apply(() => {
-    // it seems to be necessary to focus on part of the type
-    // for refinement based on the `type` field to work
-    const typedParsedNote: data.TypedParsedNote = parsedNote;
-
-    switch (typedParsedNote.type) {
+    switch (parsedNote.type) {
       case 'mdx':
         return compileMdx(
           trace,
-          typedParsedNote.parsed.get().ast,
+          parsedNote.parsed.get().ast,
           String.capitalize(parsedNote.tag),
           parsedNote.meta,
           typeEnv,
@@ -652,15 +648,15 @@ function compileNote(
         );
 
       case 'json': {
-        return compileJson(typedParsedNote.parsed.get().ast);
+        return compileJson(parsedNote.parsed.get().ast);
       }
 
       case 'txt':
-        return compileTxt(typedParsedNote.parsed.get().ast);
+        return compileTxt(parsedNote.parsed.get().ast);
 
       case 'ts':
         return compileTs(
-          typedParsedNote.parsed.get().ast,
+          parsedNote.parsed.get().ast,
           String.capitalize(parsedNote.tag),
           typeEnv,
           valueEnv,
@@ -672,7 +668,7 @@ function compileNote(
       case 'jpeg':
         return compileJpeg(
           parsedNote.tag,
-          typedParsedNote.parsed.get().ast
+          parsedNote.parsed.get().ast
         );
 
       default:

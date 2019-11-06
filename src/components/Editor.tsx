@@ -196,26 +196,21 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote) {
   const spans: Array<Span> = [];
   // TODO(jaked)
   // parsing should always succeed with some AST
-
-  // it seems to be necessary to focus on part of the type
-  // for refinement based on the `type` field to work
-  const typedParsedNote: data.TypedParsedNote = parsedNote;
-
-  switch (typedParsedNote.type) {
+  switch (parsedNote.type) {
     case 'mdx':
-      typedParsedNote.parsed.forEach(parsed => {
+      parsedNote.parsed.forEach(parsed => {
         computeSpans(parsed.ast, spans);
       });
       break;
 
     case 'json':
-      typedParsedNote.parsed.forEach(parsed => {
+      parsedNote.parsed.forEach(parsed => {
         computeJsSpans(parsed.ast, spans);
       });
       break;
 
     case 'ts':
-      typedParsedNote.parsed.forEach(parsed => {
+      parsedNote.parsed.forEach(parsed => {
         computeJsSpans(parsed.ast, spans);
       });
       break;

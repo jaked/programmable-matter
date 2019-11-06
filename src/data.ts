@@ -31,41 +31,46 @@ export type File = {
   buffer: Buffer;
 }
 
-export type TypedNote = {
-  type: 'jpeg';
-} | {
-  type: 'mdx' | 'json' | 'txt' | 'ts';
-  content: string;
-}
-
 export type Note = File & {
   tag: string;
   meta: Meta;
-} & TypedNote;
+} & ({
+  type: 'mdx' | 'json' | 'txt' | 'ts';
+  content: string;
+} | {
+  type: 'jpeg';
+});
 
 // TODO(jaked) what do webpack et al. expose on image imports?
 export type Jpeg = {
   buffer: Buffer;
 }
 
-export type TypedParsedNote =  {
+// we are obliged to extend File instead of Note because (as far as I can tell)
+// Typescript will otherwise refine only the Note fields when we switch on type
+export type ParsedNote = File & {
+  tag: string;
+  meta: Meta;
+} & ({
   type: 'mdx';
+  content: string;
   parsed: Try<Parsed<MDXHAST.Root>>;
 } | {
   type: 'json';
+  content: string;
   parsed: Try<Parsed<ESTree.Expression>>;
 } | {
   type: 'txt';
+  content: string;
   parsed: Try<Parsed<string>>;
 } | {
   type: 'ts';
+  content: string;
   parsed: Try<Parsed<ESTree.Program>>;
 } | {
   type: 'jpeg';
   parsed: Try<Parsed<Jpeg>>;
-}
-
-export type ParsedNote = Note & TypedParsedNote
+});
 
 export type CompiledNote = ParsedNote & {
   compiled: Try<Compiled>;
