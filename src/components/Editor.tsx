@@ -198,20 +198,20 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote) {
   // parsing should always succeed with some AST
   switch (parsedNote.type) {
     case 'mdx':
-      parsedNote.parsed.forEach(parsed => {
-        computeSpans(parsed.ast, spans);
+      parsedNote.ast.forEach(ast => {
+        computeSpans(ast, spans);
       });
       break;
 
     case 'json':
-      parsedNote.parsed.forEach(parsed => {
-        computeJsSpans(parsed.ast, spans);
+      parsedNote.ast.forEach(ast => {
+        computeJsSpans(ast, spans);
       });
       break;
 
     case 'ts':
-      parsedNote.parsed.forEach(parsed => {
-        computeJsSpans(parsed.ast, spans);
+      parsedNote.ast.forEach(ast => {
+        computeJsSpans(ast, spans);
       });
       break;
     }

@@ -164,7 +164,11 @@ function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
   }
 }
 
-function parseMdx(trace: Trace, content: string, layout: string | undefined): data.Parsed<MDXHAST.Root> {
+function parseMdx(
+  trace: Trace,
+  content: string,
+  layout: string | undefined,
+): { ast: MDXHAST.Root, imports: Set<string> } {
   const ast = Parser.parse(trace, content);
   const imports = new Set<string>();
   if (layout) imports.add(layout);
@@ -172,10 +176,10 @@ function parseMdx(trace: Trace, content: string, layout: string | undefined): da
   return { ast, imports };
 }
 
-function parseJson(content: string): data.Parsed<ESTree.Expression> {
-  const ast = Parser.parseExpression(content);
-  const imports = new Set<string>();
-  return { ast, imports };
+function parseJson(
+  content: string
+): ESTree.Expression {
+  return Parser.parseExpression(content);
 }
 
 function findImportsTs(ast: ESTree.Node, imports: Set<string>) {
@@ -188,43 +192,54 @@ function findImportsTs(ast: ESTree.Node, imports: Set<string>) {
   ESTree.visit(ast, fn);
 }
 
-function parseTs(trace: Trace, content: string): data.Parsed<ESTree.Program> {
+function parseTs(
+  trace: Trace,
+  content: string
+): { ast: ESTree.Program, imports: Set<string> } {
   const ast = Parser.parseProgram(content);
   const imports = new Set<string>();
   findImportsTs(ast, imports);
   return { ast, imports };
 }
 
+const emptyImports = new Set<string>();
+
 function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   switch (note.type) {
     case 'mdx': {
-      const parsed = Try.apply(() => parseMdx(trace, note.content, note.meta.layout));
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, parsed });
+      try {
+        const { ast, imports } = parseMdx(trace, note.content, note.meta.layout);
+        return Object.assign({}, note, { type, ast: Try.ok(ast), imports });
+      } catch (e) {
+        return Object.assign({}, note, { type, ast: Try.err(e), imports: emptyImports });
+      }
     }
 
     case 'json': {
-      const parsed = Try.apply(() => parseJson(note.content));
+      const ast = Try.apply(() => parseJson(note.content));
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, parsed });
+      return Object.assign({}, note, { type, ast, imports: emptyImports });
     }
 
     case 'txt': {
-      const parsed = Try.ok({ ast: note.content, imports: new Set<string>() });
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, parsed });
+      return Object.assign({}, note, { type, imports: emptyImports });
     }
 
     case 'ts': {
-      const parsed = Try.apply(() => parseTs(trace, note.content));
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, parsed });
+      try {
+        const { ast, imports } = parseTs(trace, note.content);
+        return Object.assign({}, note, { type, ast: Try.ok(ast), imports });
+      } catch (e) {
+        return Object.assign({}, note, { type, ast: Try.err(e), imports: emptyImports });
+      }
     }
 
     case 'jpeg': {
-      const parsed = Try.ok({ ast: { buffer: note.buffer }, imports: new Set<string>() });
-      // re-setting type isn't needed here, why?
-      return Object.assign({}, note, { parsed });
+      const type = note.type; // tell TS something it already knows
+      return Object.assign({}, note, { type, imports: emptyImports });
     }
 
     default:
@@ -257,18 +272,13 @@ function sortNotes(notes: data.ParsedNotes): Array<string> {
     remaining.forEach(tag => {
       const note = notes.get(tag);
       if (!note) throw new Error('expected note');
-      if (note.parsed.type === 'ok') {
-        const imports = [...note.parsed.ok.imports.values()];
-        if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
-        if (imports.every(tag => sortedTags.includes(tag))) {
-          if (debug) console.log('adding ' + tag + ' to order');
-          sortedTags.push(tag);
-          remaining.delete(tag);
-          again = true;
-        }
-      } else {
-        if (debug) console.log('no imports parsed for ' + tag);
-        if (debug) console.log(note.parsed.err);
+      const imports = [...note.imports.values()];
+      if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
+      if (imports.every(tag => sortedTags.includes(tag))) {
+        if (debug) console.log('adding ' + tag + ' to order');
+        sortedTags.push(tag);
+        remaining.delete(tag);
+        again = true;
       }
     });
   }
@@ -297,18 +307,13 @@ function dirtyTransitively(
     }
     const note = parsedNotes.get(tag);
     if (!note) throw new Error('expected note');
-    if (note.parsed.type === 'ok') {
-      const imports = [...note.parsed.ok.imports.values()];
-      if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
-      // a note importing a dirty note must be re-typechecked
-      if (!dirty.has(tag) && imports.some(tag => dirty.has(tag))) {
-        const dirtyTag = imports.find(tag => dirty.has(tag));
-        if (debug) console.log(tag + ' dirty because ' + dirtyTag);
-        dirty.add(tag);
-      }
-    } else {
-      if (debug) console.log('no imports parsed for ' + tag);
-      if (debug) console.log(note.parsed.err);
+    const imports = [...note.imports.values()];
+    if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
+    // a note importing a dirty note must be re-typechecked
+    if (!dirty.has(tag) && imports.some(tag => dirty.has(tag))) {
+      const dirtyTag = imports.find(tag => dirty.has(tag));
+      if (debug) console.log(tag + ' dirty because ' + dirtyTag);
+      dirty.add(tag);
     }
   });
   return compiledNotes.filterNot(note => dirty.has(note.tag))
@@ -603,16 +608,12 @@ function compileTs(
   return { exportType, exportValue, rendered };
 }
 
-const jpegType = Type.object({
-
-});
-
 function compileJpeg(
-  tag: string,
-  jpeg: data.Jpeg
+  tag: string
 ): data.Compiled {
-  const exportType = Type.module({ default: { type: jpegType, atom: false } });
-  const exportValue = { default: jpeg }
+  // TODO(jaked) parse JPEG file and return metadata
+  const exportType = Type.module({ });
+  const exportValue = { }
   const rendered = () =>
     // it doesn't seem to be straightforward to create an img node
     // directly from JPEG data, so we serve it via the dev server
@@ -637,7 +638,7 @@ function compileNote(
       case 'mdx':
         return compileMdx(
           trace,
-          parsedNote.parsed.get().ast,
+          parsedNote.ast.get(),
           String.capitalize(parsedNote.tag),
           parsedNote.meta,
           typeEnv,
@@ -648,15 +649,15 @@ function compileNote(
         );
 
       case 'json': {
-        return compileJson(parsedNote.parsed.get().ast);
+        return compileJson(parsedNote.ast.get());
       }
 
       case 'txt':
-        return compileTxt(parsedNote.parsed.get().ast);
+        return compileTxt(parsedNote.content);
 
       case 'ts':
         return compileTs(
-          parsedNote.parsed.get().ast,
+          parsedNote.ast.get(),
           String.capitalize(parsedNote.tag),
           typeEnv,
           valueEnv,
@@ -667,8 +668,7 @@ function compileNote(
 
       case 'jpeg':
         return compileJpeg(
-          parsedNote.tag,
-          parsedNote.parsed.get().ast
+          parsedNote.tag
         );
 
       default:
