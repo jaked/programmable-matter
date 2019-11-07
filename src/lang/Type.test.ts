@@ -175,4 +175,16 @@ describe('isSubtype', () => {
       expect(Type.isSubtype(actual, styleType)).toBe(true);
     });
   });
+
+  describe('Intersection', () => {
+    it('A | (A & (A | B)) === A', () => {
+      const a = Type.singleton('A');
+      const b = Type.singleton('B');
+
+      expect(Type.equiv(
+        a,
+        Type.union(a, Type.intersection(a, Type.union(a, b)))
+      )).toBe(true);
+    });
+  });
 });

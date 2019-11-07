@@ -110,11 +110,11 @@ describe('check', () => {
     const type =
       Type.function(
         [ Type.number ],
-        Type.string
+        Type.number
       );
 
     it('ok', () => {
-      expectCheck('x => x + "foo"', type);
+      expectCheck('x => x + 7', type);
     });
 
     it('wrong arg count', () => {
@@ -122,7 +122,7 @@ describe('check', () => {
     });
 
     it('wrong body type', () => {
-      expectCheckThrows('x => x + x', type);
+      expectCheckThrows(`x => 'foo'`, type);
     });
   });
 
@@ -214,6 +214,20 @@ describe('synth', () => {
     expect(Typecheck.synth(expr, env)).toEqual({ type, atom });
   }
 
+  function expectSynthEquiv(
+    exprOrString: ESTree.Expression | string,
+    type: Type.Type,
+    env: Typecheck.Env = Immutable.Map(),
+    atom: boolean = false
+  ) {
+    const expr =
+      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
+      : exprOrString;
+    const typeAtom = Typecheck.synth(expr, env);
+    expect(Type.equiv(typeAtom.type, type)).toBe(true);
+    expect(typeAtom.atom === atom).toBe(true);
+  }
+
   describe('identifiers', () => {
     it('succeeds', () => {
       const env: Typecheck.Env = Immutable.Map({ foo: { type: Type.boolean, atom: true } });
@@ -281,11 +295,6 @@ describe('synth', () => {
 
     it('strings', () => {
       expectSynth('"foo" + "bar"', Type.string);
-    });
-
-    it('strings + numbers', () => {
-      expectSynth('"foo" + 7', Type.string);
-      expectSynth('7 + "foo"', Type.string);
     });
   });
 
@@ -445,6 +454,14 @@ describe('synth', () => {
     // TODO(jaked) handle truthy types
     it('throws when test is not boolean', () => {
       expectSynthThrows('{} ? 1 : 2');
+    });
+
+    it('refines type for equality tests', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
+      // TODO(jaked)
+      // we should return a canonical intersection and use expectSynth here
+      expectSynthEquiv(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
   });
 });

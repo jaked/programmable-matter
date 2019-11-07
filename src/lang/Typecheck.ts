@@ -290,19 +290,28 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom
   let { type: right, atom: rightAtom } = synth(ast.right, env);
   const atom = leftAtom || rightAtom;
 
-  if (left.kind === 'Singleton') left = left.base;
-  if (right.kind === 'Singleton') right = right.base;
-
   // TODO(jaked) handle other operators
-  let type: Type.Type;
+  switch (ast.operator) {
+    case '===':
+    case '!==':
+      return { type: Type.boolean, atom };
 
-  if (left.kind === 'number' && right.kind === 'number')      type = Type.number;
-  else if (left.kind === 'string' && right.kind === 'string') type = Type.string;
-  else if (left.kind === 'string' && right.kind === 'number') type = Type.string;
-  else if (left.kind === 'number' && right.kind === 'string') type = Type.string;
-  else throw new Error('unimplemented: synthBinaryExpression');
+    case '+': {
+      if (left.kind === 'Singleton') left = left.base;
+      if (right.kind === 'Singleton') right = right.base;
 
-  return { type, atom };
+      let type: Type.Type;
+      if (left.kind === 'number' && right.kind === 'number')
+        type = Type.number;
+      else if (left.kind === 'string' && right.kind === 'string')
+        type = Type.string;
+      else return throwWithLocation(ast, 'incompatible operands to +');
+      return { type, atom };
+    }
+
+    default:
+      return throwWithLocation(ast, 'unimplemented');
+  }
 }
 
 function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom {
@@ -505,13 +514,104 @@ function synthArrowFunctionExpression(
   return { type: funcType, atom: false };
 }
 
+function deduceEquality(
+  env: Immutable.Map<string, Type.Type>,
+  identifier: ESTree.Identifier,
+  otherType: Type.Type
+): Immutable.Map<string, Type.Type> {
+  if (!identifier.etype) throw new Error('expected etype');
+  const identType = env.get(identifier.name, identifier.etype.get().type);
+  const type = Type.intersection(identType, otherType);
+  return env.set(identifier.name, type);
+}
+
+function deduceDisequality(
+  env: Immutable.Map<string, Type.Type>,
+  identifier: ESTree.Identifier,
+  otherType: Type.Type
+): Immutable.Map<string, Type.Type> {
+  // TODO(jaked) hmmm....
+  return env;
+}
+
+// for identifiers appearing in `ast` return a type reflecting what
+// we can deduce about the identifier when the expression is true / false.
+// `ast` has already been typechecked so we can use `etype` fields in it.
+function deduceEnvironment(
+  env: Immutable.Map<string, Type.Type>,
+  ast: ESTree.Expression,
+  assumeTrue: boolean
+): Immutable.Map<string, Type.Type> {
+  switch (ast.type) {
+    case 'Literal':
+      return env;
+
+    case 'BinaryExpression': {
+      if (ast.operator === '===' && assumeTrue ||
+          ast.operator === '!==' && !assumeTrue) {
+        if (ast.left.type === 'Identifier') {
+          if (!ast.right.etype) throw new Error('expected etype')
+          env = deduceEquality(env, ast.left, ast.right.etype.get().type)
+        }
+        if (ast.right.type === 'Identifier') {
+          if (!ast.left.etype) throw new Error('expected etype')
+          env = deduceEquality(env, ast.right, ast.left.etype.get().type)
+        }
+        return env;
+      } else if (ast.operator === '!==' && assumeTrue ||
+                 ast.operator === '===' && !assumeTrue) {
+        if (ast.left.type === 'Identifier') {
+          if (!ast.right.etype) throw new Error('expected etype')
+          env = deduceDisequality(env, ast.left, ast.right.etype.get().type)
+        }
+        if (ast.right.type === 'Identifier') {
+          if (!ast.left.etype) throw new Error('expected etype')
+          env = deduceDisequality(env, ast.right, ast.left.etype.get().type)
+        }
+        return env;
+      } else {
+        return throwWithLocation(ast, 'unimplemented');
+      }
+    }
+
+    default:
+      return throwWithLocation(ast, 'unimplemented');
+  }
+}
+
+function refineEnvironment(env: Env, ast: ESTree.Expression): [Env, Env] {
+  const ifTrue = deduceEnvironment(Immutable.Map(), ast, true);
+  const ifFalse = deduceEnvironment(Immutable.Map(), ast, false);
+
+  const ifTrueEnv = env.map(({ type, atom }, ident) => {
+    const refinedType = ifTrue.get(ident);
+    if (refinedType) {
+      return { type: Type.intersection(type, refinedType), atom };
+    } else {
+      return { type, atom }
+    }
+  });
+  const ifFalseEnv = env.map(({ type, atom }, ident) => {
+    const refinedType = ifFalse.get(ident);
+    if (refinedType) {
+      return { type: Type.intersection(type, refinedType), atom };
+    } else {
+      return { type, atom }
+    }
+  });
+  return [ifTrueEnv, ifFalseEnv];
+}
+
 function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env
 ): TypeAtom {
   const testAtom = check(ast.test, env, Type.boolean);
-  const consequent = synth(ast.consequent, env);
-  const alternate = synth(ast.alternate, env);
+
+  const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
+
+  const consequent = synth(ast.consequent, envConsequent);
+  const alternate = synth(ast.alternate, envAlternate);
   const type = Type.union(consequent.type, alternate.type);
   const atom = testAtom || consequent.atom || alternate.atom;
   return { type, atom };

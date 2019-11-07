@@ -205,6 +205,8 @@ export function isSubtype(a: Type, b: Type): boolean {
   else if (b.kind === 'unknown') return true;
   else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));
   else if (b.kind === 'Union') return b.types.some(t => isSubtype(a, t));
+  else if (a.kind === 'Intersection') return a.types.some(t => isSubtype(t, b));
+  else if (b.kind === 'Intersection') return b.types.every(t => isSubtype(a, t));
   else if (a.kind === 'Singleton' && b.kind === 'Singleton')
     return isSubtype(a.base, b.base) && deepEqual(a.value, b.value);
   else if (a.kind === 'Singleton')
