@@ -136,6 +136,13 @@ export interface ArrowFunctionExpression extends NodeImpl {
   body: Expression;
 }
 
+export interface ConditionalExpression extends NodeImpl {
+  type: 'ConditionalExpression';
+  test: Expression;
+  consequent: Expression;
+  alternate: Expression;
+}
+
 export type Expression =
   Literal |
   Identifier |
@@ -153,7 +160,8 @@ export type Expression =
   ObjectExpression |
   Property |
   ArrayExpression |
-  ArrowFunctionExpression;
+  ArrowFunctionExpression |
+  ConditionalExpression;
 
 export interface TSBooleanKeyword extends NodeImpl {
   type: 'TSBooleanKeyword';
@@ -387,6 +395,11 @@ export function visit(
     case 'ArrowFunctionExpression':
       visit(ast.params, fn);
       return visit(ast.body, fn);
+
+    case 'ConditionalExpression':
+      visit(ast.test, fn);
+      visit(ast.consequent, fn);
+      return visit(ast.alternate, fn);
 
     case 'ObjectPattern':
       return visit(ast.properties, fn);

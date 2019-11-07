@@ -185,6 +185,13 @@ export function evaluateExpression(
         return evaluateExpression(ast.body, env);
       };
 
+    case 'ConditionalExpression':
+      if (evaluateExpression(ast.test, env)) {
+        return evaluateExpression(ast.consequent, env);
+      } else {
+        return evaluateExpression(ast.alternate, env)
+      }
+
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
   }

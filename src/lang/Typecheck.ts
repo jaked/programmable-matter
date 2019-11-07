@@ -66,6 +66,13 @@ function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type): boolea
     case 'JSXExpressionContainer':
       return check(ast.expression, env, type);
 
+    case 'ConditionalExpression': {
+      const test = check(ast.test, env, Type.boolean);
+      const consequent = check(ast.consequent, env, type);
+      const alternate = check(ast.alternate, env, type);
+      return test || consequent || alternate;
+    }
+
     default:
       const { type: actual, atom } = synth(ast, env);
       if (!Type.isSubtype(actual, type))
@@ -498,6 +505,18 @@ function synthArrowFunctionExpression(
   return { type: funcType, atom: false };
 }
 
+function synthConditionalExpression(
+  ast: ESTree.ConditionalExpression,
+  env: Env
+): TypeAtom {
+  const testAtom = check(ast.test, env, Type.boolean);
+  const consequent = synth(ast.consequent, env);
+  const alternate = synth(ast.alternate, env);
+  const type = Type.union(consequent.type, alternate.type);
+  const atom = testAtom || consequent.atom || alternate.atom;
+  return { type, atom };
+}
+
 function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): TypeAtom {
   const typeAtom = env.get(ast.name);
   if (typeAtom) return typeAtom;
@@ -588,6 +607,8 @@ function synthHelper(ast: ESTree.Expression, env: Env): { type: Type.Type, atom:
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
     case 'CallExpression':    return synthCallExpression(ast, env);
+    case 'ConditionalExpression':
+                              return synthConditionalExpression(ast, env);
     case 'JSXIdentifier':     return synthJSXIdentifier(ast, env);
     case 'JSXElement':        return synthJSXElement(ast, env);
     case 'JSXFragment':       return synthJSXFragment(ast, env);

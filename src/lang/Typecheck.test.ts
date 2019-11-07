@@ -170,6 +170,25 @@ describe('check', () => {
       expectCheckThrows('[ 7, 9 ]', type);
     });
   });
+
+  describe('conditional expressions', () => {
+    it('ok', () => {
+      expectCheck('true ? 1 : 2', Type.number);
+    });
+
+    // TODO(jaked) handle truthy types
+    it('throws when test is not boolean', () => {
+      expectCheckThrows('{} ? 1 : 2', Type.number);
+    });
+
+    it('throws when consequent does not match', () => {
+      expectCheckThrows('true ? {} : 2', Type.number);
+    });
+
+    it('throws when alternate does not match', () => {
+      expectCheckThrows('true ? 1 : {}', Type.number);
+    });
+  });
 });
 
 describe('synth', () => {
@@ -415,6 +434,17 @@ describe('synth', () => {
 
     it('throws when wrong children type', () => {
       expectSynthThrows('<WrongChildrenType />', env);
+    });
+  });
+
+  describe('conditional expressions', () => {
+    it('ok', () => {
+      expectSynth('true ? 1 : 2', Type.enumerate(1, 2));
+    });
+
+    // TODO(jaked) handle truthy types
+    it('throws when test is not boolean', () => {
+      expectSynthThrows('{} ? 1 : 2');
     });
   });
 });
