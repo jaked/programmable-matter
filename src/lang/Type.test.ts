@@ -1,15 +1,15 @@
 import * as Type from './Type';
 
-describe('leastUpperBound', () => {
+describe('union', () => {
   it('returns bottom for empty args', () => {
-    expect(Type.leastUpperBound()).toEqual(Type.never);
+    expect(Type.union()).toEqual(Type.never);
   });
 
   it('flattens nested unions', () => {
     const actual =
-      Type.leastUpperBound(
+      Type.union(
         Type.string,
-        Type.leastUpperBound(
+        Type.union(
           Type.number,
           Type.boolean)
         );
@@ -20,7 +20,7 @@ describe('leastUpperBound', () => {
 
   it('collapses identical elements', () => {
     const actual =
-      Type.leastUpperBound(
+      Type.union(
         Type.array(Type.string),
         Type.boolean,
         Type.array(Type.string)
@@ -32,7 +32,7 @@ describe('leastUpperBound', () => {
 
   it('elides Union node for single elements', () => {
     const actual =
-      Type.leastUpperBound(
+      Type.union(
         Type.object({ foo: Type.string, bar: Type.boolean }),
         Type.object({ foo: Type.string, bar: Type.boolean })
       );
@@ -43,7 +43,7 @@ describe('leastUpperBound', () => {
 
   it('collapses equivalent elements', () => {
     const actual =
-      Type.leastUpperBound(
+      Type.union(
         Type.object({ foo: Type.string, bar: Type.boolean }),
         Type.object({ bar: Type.boolean, foo: Type.string })
       );

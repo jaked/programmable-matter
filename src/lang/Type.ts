@@ -177,24 +177,6 @@ export function optional(type: Type): Type {
   return union(type, undefinedType);
 }
 
-export function leastUpperBound(...types: Array<Type>): Type {
-  switch (types.length) {
-    case 0: return never;
-    case 1: return types[0];
-
-    case 2:
-      return union(...types);
-
-    default:
-      const lub =
-        leastUpperBound(
-          leastUpperBound(types[0], types[1]),
-          ...types.slice(undefined, -2)
-        );
-      return lub;
-  }
-}
-
 export function equiv(a: Type, b: Type): boolean {
   return isSubtype(a, b) && isSubtype(b, a);
 }

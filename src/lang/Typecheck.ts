@@ -261,7 +261,7 @@ function synthArrayExpression(ast: ESTree.ArrayExpression, env: Env): TypeAtom {
   const typesAtoms = ast.elements.map(e => synth(e, env));
   const types = typesAtoms.map(({ type }) => type);
   const atom = typesAtoms.some(({ atom }) => atom);
-  const elem = Type.leastUpperBound(...types);
+  const elem = Type.union(...types);
   return { type: Type.array(elem), atom };
 }
 
@@ -678,7 +678,7 @@ function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): TypeAtom {
   const typesAtoms = ast.children.map(e => synth(e, env));
   const types = typesAtoms.map(({ type }) => type);
   const atom = typesAtoms.some(({ atom }) => atom);
-  const elem = Type.leastUpperBound(...types);
+  const elem = Type.union(...types);
   return { type: Type.array(elem), atom };
   // TODO(jaked) we know children should satisfy `reactNodeType`
   // we could check that explicitly (as above in synthJSXElement)
