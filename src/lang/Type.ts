@@ -223,6 +223,7 @@ export function intersection(...types: Array<Type>): Type {
 
   function flattenIntersection(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
     types.forEach(t => {
+      if (t.kind === 'unknown') return;
       if (t.kind === 'Intersection') return flattenIntersection(t.types, accum);
       else accum.push(t);
     });

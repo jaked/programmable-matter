@@ -18,6 +18,14 @@ describe('union', () => {
       expect(actual).toEqual(expected);
   });
 
+  it('collapses nevers', () => {
+    const actual =
+      Type.union(Type.string, Type.never, Type.boolean);
+    const expected =
+      Type.union(Type.string, Type.boolean);
+    expect(actual).toEqual(expected);
+  });
+
   it('collapses identical elements', () => {
     const actual =
       Type.union(
@@ -67,6 +75,14 @@ describe('intersection', () => {
       Type.intersection(foo, Type.intersection(bar, baz));
     const expected =
       Type.intersection(foo, bar, baz);
+    expect(actual).toEqual(expected);
+  });
+
+  it('collapses unknowns', () => {
+    const actual =
+      Type.intersection(foo, Type.unknown, bar);
+    const expected =
+      Type.intersection(foo, bar);
     expect(actual).toEqual(expected);
   });
 
