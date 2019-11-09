@@ -49,8 +49,75 @@ describe('union', () => {
       );
     const expected =
       Type.object({ foo: Type.string, bar: Type.boolean});
-    // TODO(jaked) Type.equiv matcher
     expect(actual).toEqual(expected);
+  });
+});
+
+describe('intersection', () => {
+  const foo = Type.object({ foo: Type.number });
+  const bar = Type.object({ bar: Type.number });
+  const baz = Type.object({ baz: Type.number });
+
+  it('returns top for empty args', () => {
+    expect(Type.intersection()).toEqual(Type.unknown);
+  });
+
+  it('flattens nested intersections', () => {
+    const actual =
+      Type.intersection(foo, Type.intersection(bar, baz));
+    const expected =
+      Type.intersection(foo, bar, baz);
+    expect(actual).toEqual(expected);
+  });
+
+  it('collapses identical elements', () => {
+    const actual =
+      Type.intersection(foo, bar, foo);
+    const expected =
+      Type.intersection(foo, bar);
+    expect(actual).toEqual(expected);
+  });
+
+  it('elides Intersection node for single elements', () => {
+    const actual =
+      Type.intersection(foo, foo);
+    const expected = foo;
+    expect(actual).toEqual(expected);
+  });
+
+  it('collapses equivalent elements', () => {
+    const actual =
+      Type.intersection(
+        Type.object({ foo: Type.string, bar: Type.boolean }),
+        Type.object({ bar: Type.boolean, foo: Type.string })
+      );
+    const expected =
+      Type.object({ foo: Type.string, bar: Type.boolean});
+    expect(actual).toEqual(expected);
+  });
+
+  it('distributes intersection over union', () => {
+    const [a, b, c] =
+      ['a', 'b', 'c'].map(x => Type.object({ [x]: Type.boolean }));
+    const actual =
+      Type.intersection(a, Type.union(b, c));
+    const expected =
+      Type.union(Type.intersection(a, b), Type.intersection(a, c));
+    expect(actual).toEqual(expected);
+  });
+
+  it('returns bottom for uninhabited intersections', () => {
+    const a = Type.singleton('A');
+    const b = Type.singleton('B');
+    expect(Type.intersection(a, b)).toEqual(Type.never);
+  });
+
+  it('A | (A & (A | B)) === A', () => {
+    const a = Type.singleton('A');
+    const b = Type.singleton('B');
+    const t = Type.union(a, Type.intersection(a, Type.union(a, b)));
+
+    expect(t).toEqual(a);
   });
 });
 
@@ -173,18 +240,6 @@ describe('isSubtype', () => {
         height: Type.singleton('350px')
       })
       expect(Type.isSubtype(actual, styleType)).toBe(true);
-    });
-  });
-
-  describe('Intersection', () => {
-    it('A | (A & (A | B)) === A', () => {
-      const a = Type.singleton('A');
-      const b = Type.singleton('B');
-
-      expect(Type.equiv(
-        a,
-        Type.union(a, Type.intersection(a, Type.union(a, b)))
-      )).toBe(true);
     });
   });
 });

@@ -159,7 +159,7 @@ describe('check', () => {
   describe('intersections', () => {
     const type = Type.intersection(
       Type.array(Type.number),
-      Type.tuple(Type.number)
+      Type.array(Type.singleton(7))
     );
 
     it('succeeds', () => {
@@ -167,7 +167,7 @@ describe('check', () => {
     });
 
     it('throws', () => {
-      expectCheckThrows('[ 7, 9 ]', type);
+      expectCheckThrows('[ 9 ]', type);
     });
   });
 
@@ -212,20 +212,6 @@ describe('synth', () => {
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
     expect(Typecheck.synth(expr, env)).toEqual({ type, atom });
-  }
-
-  function expectSynthEquiv(
-    exprOrString: ESTree.Expression | string,
-    type: Type.Type,
-    env: Typecheck.Env = Immutable.Map(),
-    atom: boolean = false
-  ) {
-    const expr =
-      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
-      : exprOrString;
-    const typeAtom = Typecheck.synth(expr, env);
-    expect(Type.equiv(typeAtom.type, type)).toBe(true);
-    expect(typeAtom.atom === atom).toBe(true);
   }
 
   describe('identifiers', () => {
@@ -459,9 +445,7 @@ describe('synth', () => {
     it('refines type for equality tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
-      // TODO(jaked)
-      // we should return a canonical intersection and use expectSynth here
-      expectSynthEquiv(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
+      expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
   });
 });

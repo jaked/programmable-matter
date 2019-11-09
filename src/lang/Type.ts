@@ -129,26 +129,26 @@ export function singleton(value: any): Type {
   }
 }
 
-// TODO(jaked) find a library for these
-function uniq(xs: Array<Type>): Array<Type> {
-  const accum: Array<Type> = [];
-  xs.forEach(x => {
-    if (accum.every(y => !equiv(x, y)))
-      accum.push(x)
-  });
-  return accum;
-}
-
 export function union(...types: Array<Type>): Type {
-  function flatten(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
+  function collapseEquiv(xs: Array<Type>): Array<Type> {
+    const accum: Array<Type> = [];
+    xs.forEach(x => {
+      if (accum.some(y => equiv(x, y))) return;
+      else accum.push(x)
+    });
+    return accum;
+  }
+
+  function flattenUnion(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
     types.forEach(t => {
-      if (t.kind === 'Union') return flatten(t.types, accum);
+      if (t.kind === 'never') return;
+      if (t.kind === 'Union') return flattenUnion(t.types, accum);
       else accum.push(t);
     });
     return accum;
   }
 
-  const arms = uniq(flatten(types));
+  const arms = collapseEquiv(flattenUnion(types));
   switch (arms.length) {
     case 0: return never;
     case 1: return arms[0];
@@ -157,15 +157,83 @@ export function union(...types: Array<Type>): Type {
 }
 
 export function intersection(...types: Array<Type>): Type {
-  function flatten(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
+  function collapseSubtype(xs: Array<Type>): Array<Type> {
+    let accum: Array<Type> = [];
+    xs.forEach(x => {
+      if (accum.some(y => isSubtype(y, x))) return;
+      else {
+        accum = accum.filter(y => !isSubtype(x, y));
+        accum.push(x);
+      }
+    });
+    return accum;
+  }
+
+  function uninhabitedIntersection(x: Type, y: Type): boolean {
+    if (x.kind === 'Union' || x.kind === 'Intersection' ||
+        y.kind === 'Union' || y.kind === 'Intersection')
+      throw new Error('expected non-Union/Intersection');
+
+    if (x.kind !== y.kind) return true;
+
+    if (x.kind === 'never') return true;
+
+    if (x.kind === 'Singleton' && y.kind === 'Singleton' && x.value != y.value)
+      return true;
+
+    // could check for uninhabitedness inside tuples / arrays / objects
+    // but this is best effort (Typescript does not do these checks)
+
+    return false;
+  }
+
+  function collapseUninhabited(xs: Array<Type>): Array<Type> {
+    if (xs.length < 2) return xs;
+    if (xs.some(x => xs.some(y => uninhabitedIntersection(x, y))))
+      return [ never ];
+    else return xs;
+  }
+
+  function distributeUnion(xs: Array<Type>): Array<Type> {
+    if (!xs.some(x => x.kind === 'Union')) return xs;
+
+    function dist(prefix: Array<Type>, suffix: Array<Type>, accum: Array<Type>) {
+      if (suffix.length === 0) {
+        accum.push(intersection(...prefix));
+      } else switch (suffix[0].kind) {
+        case 'Intersection':
+          throw new Error('expected non-Intersection');
+
+        case 'Union': {
+          const suffix2 = suffix.slice(1);
+          suffix[0].types.forEach(y => dist([...prefix, y], suffix2, accum))
+          return;
+        }
+
+        default:
+          dist([...prefix, suffix[0]], suffix.slice(1), accum);
+      }
+    }
+
+    const accum: Array<Type> = [];
+    dist([], xs, accum);
+    if (accum.length < 2) throw new Error('expected >= 2');
+    return [ union(...accum) ];
+  }
+
+  function flattenIntersection(types: Array<Type>, accum: Array<Type> = []): Array<Type> {
     types.forEach(t => {
-      if (t.kind === 'Intersection') return flatten(t.types, accum);
+      if (t.kind === 'Intersection') return flattenIntersection(t.types, accum);
       else accum.push(t);
     });
     return accum;
   }
 
-  const arms = uniq(flatten(types));
+  const arms =
+    collapseSubtype(
+      collapseUninhabited(
+        distributeUnion(
+          flattenIntersection(types))));
   switch (arms.length) {
     case 0: return unknown;
     case 1: return arms[0];
