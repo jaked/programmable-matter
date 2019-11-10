@@ -204,11 +204,6 @@ describe('check', () => {
       expectCheck(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
-    // TODO(jaked) handle truthy types
-    it('throws when test is not boolean', () => {
-      expectCheckThrows('{} ? 1 : 2', Type.number);
-    });
-
     it('refines type for equality tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
@@ -302,11 +297,11 @@ describe('synth', () => {
 
   describe('binary expressions', () => {
     it('numbers', () => {
-      expectSynth('1 + 2', Type.number);
+      expectSynth('1 + 2', Type.singleton(3));
     });
 
     it('strings', () => {
-      expectSynth('"foo" + "bar"', Type.string);
+      expectSynth('"foo" + "bar"', Type.singleton('foobar'));
     });
   });
 
@@ -473,11 +468,6 @@ describe('synth', () => {
       const env: Typecheck.Env =
         Immutable.Map({ x: { type: Type.singleton('foo'), atom: false } });
       expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
-    });
-
-    // TODO(jaked) handle truthy types
-    it('throws when test is not boolean', () => {
-      expectSynthThrows('{} ? 1 : 2');
     });
 
     it('refines type for equality tests', () => {

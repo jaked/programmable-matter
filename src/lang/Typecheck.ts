@@ -61,87 +61,27 @@ function throwWrongArgsLength(ast: ESTree.Node, expected: number, actual: number
   return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
 }
 
-// TODO(jaked) put this somewhere common
-function bug(msg: string): never { throw new Error(msg); }
-
-// evalutes `ast` to a value based on the static environment if possible
-// returns [ value ] if possible or undefined if not.
-function evaluateStatic(ast: ESTree.Expression, env: Env): any[] | undefined {
-  const undef = { }
-  function evalS(ast: ESTree.Expression) {
-    switch (ast.type) {
-      case 'Literal':
-        return ast.value;
-
-      case 'Identifier':
-        const { type } = env.get(ast.name) || bug('expected bound identifier');
-        if (type.kind === 'Singleton') return type.value;
-        else throw undef;
-
-      case 'BinaryExpression':
-        // TODO(jaked) short-circuit booleans
-        const lv = evalS(ast.left);
-        const rv = evalS(ast.right);
-        switch (ast.operator) {
-          case '+': return lv + rv;
-          case '-': return lv - rv;
-          case '*': return lv * rv;
-          case '/': return lv / rv;
-          case '**': return lv ** rv;
-          case '%': return lv % rv;
-          case '==': return lv == rv;
-          case '!=': return lv != rv;
-          case '===': return lv === rv;
-          case '!==': return lv !== rv;
-          case '<': return lv < rv;
-          case '<=': return lv <= rv;
-          case '>': return lv > rv;
-          case '>=': return lv >= rv;
-          case '||': return lv || rv;
-          case '&&': return lv && rv;
-          case '|': return lv | rv;
-          case '&': return lv & rv;
-          case '^': return lv ^ rv;
-          case '<<': return lv << rv;
-          case '>>': return lv >> rv;
-          case '>>>': return lv >>> rv;
-          default:
-            throw new Error(`unexpected binary operator ${ast.operator}`)
-        }
-
-        default:
-          throw undef;
-    }
-  }
-  try {
-    const value = evalS(ast);
-    return [ value ];
-  } catch (e) {
-    if (e === undef) return undefined;
-    else throw e;
-  }
-}
-
 function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type): boolean {
   switch (ast.type) {
     case 'JSXExpressionContainer':
       return check(ast.expression, env, type);
 
     case 'ConditionalExpression': {
-      const testAtom = check(ast.test, env, Type.boolean);
+      const { type: testType, atom: testAtom } = synth(ast.test, env);
       const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
-      const testValue = evaluateStatic(ast.test, env);
 
-      if (testValue === undefined) {
+      if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+        if (testType.value) {
+          const consequentAtom = check(ast.consequent, envConsequent, type);
+          return testAtom || consequentAtom;
+        } else {
+          const alternateAtom = check(ast.alternate, envAlternate, type);
+          return testAtom || alternateAtom;
+        }
+      } else {
         const consequentAtom = check(ast.consequent, envConsequent, type);
         const alternateAtom = check(ast.alternate, envAlternate, type);
         return testAtom || consequentAtom || alternateAtom;
-      } else if (testValue[0]) {
-        const consequentAtom = check(ast.consequent, envConsequent, type);
-        return testAtom || consequentAtom;
-      } else {
-        const alternateAtom = check(ast.alternate, envAlternate, type);
-        return testAtom || alternateAtom;
       }
     }
 
@@ -362,27 +302,51 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom
   let { type: right, atom: rightAtom } = synth(ast.right, env);
   const atom = leftAtom || rightAtom;
 
-  // TODO(jaked) handle other operators
-  switch (ast.operator) {
-    case '===':
-    case '!==':
-      return { type: Type.boolean, atom };
+  if (left.kind === 'Singleton' && right.kind === 'Singleton') {
+    const leftValue = left.value;
+    const rightValue = right.value;
+    left = left.base;
+    right = right.base;
 
-    case '+': {
-      if (left.kind === 'Singleton') left = left.base;
-      if (right.kind === 'Singleton') right = right.base;
+    // TODO(jaked) handle other operators
+    switch (ast.operator) {
+      case '===':
+        return { type: Type.singleton(leftValue === rightValue), atom };
+      case '!==':
+        return { type: Type.singleton(leftValue !== rightValue), atom };
 
-      let type: Type.Type;
-      if (left.kind === 'number' && right.kind === 'number')
-        type = Type.number;
-      else if (left.kind === 'string' && right.kind === 'string')
-        type = Type.string;
-      else return throwWithLocation(ast, 'incompatible operands to +');
-      return { type, atom };
+      case '+': {
+        if (left.kind === 'number' && right.kind === 'number')
+          return { type: Type.singleton(leftValue + rightValue), atom };
+        else if (left.kind === 'string' && right.kind === 'string')
+          return { type: Type.singleton(leftValue + rightValue), atom };
+        else return throwWithLocation(ast, 'incompatible operands to +');
+      }
+
+      default:
+        return throwWithLocation(ast, 'unimplemented');
     }
+  } else {
+    if (left.kind === 'Singleton') left = left.base;
+    if (right.kind === 'Singleton') right = right.base;
 
-    default:
-      return throwWithLocation(ast, 'unimplemented');
+    // TODO(jaked) handle other operators
+    switch (ast.operator) {
+      case '===':
+      case '!==':
+        return { type: Type.boolean, atom };
+
+      case '+': {
+        if (left.kind === 'number' && right.kind === 'number')
+          return { type: Type.number, atom };
+        else if (left.kind === 'string' && right.kind === 'string')
+          return { type: Type.string, atom };
+        else return throwWithLocation(ast, 'incompatible operands to +');
+      }
+
+      default:
+        return throwWithLocation(ast, 'unimplemented');
+    }
   }
 }
 
@@ -675,22 +639,23 @@ function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env
 ): TypeAtom {
-  const testAtom = check(ast.test, env, Type.boolean);
+  const { type: testType, atom: testAtom } = synth(ast.test, env);
   const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
-  const testValue = evaluateStatic(ast.test, env);
 
-  if (testValue === undefined) {
+  if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+    if (testType.value) {
+      const { type, atom } = synth(ast.consequent, envConsequent);
+      return { type, atom: testAtom || atom };
+    } else {
+      const { type, atom } = synth(ast.alternate, envAlternate);
+      return { type, atom: testAtom || atom };
+    }
+  } else {
     const consequent = synth(ast.consequent, envConsequent);
     const alternate = synth(ast.alternate, envAlternate);
     const type = Type.union(consequent.type, alternate.type);
     const atom = testAtom || consequent.atom || alternate.atom;
     return { type, atom };
-  } else if (testValue[0]) {
-    const { type, atom } = synth(ast.consequent, envConsequent);
-    return { type, atom: testAtom || atom };
-  } else {
-    const { type, atom } = synth(ast.alternate, envAlternate);
-    return { type, atom: testAtom || atom };
   }
 }
 
