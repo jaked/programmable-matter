@@ -382,11 +382,28 @@ describe('synth', () => {
 
   describe('function calls', () => {
     const env: Typecheck.Env = Immutable.Map({
-      f: { type: Type.function([ Type.number ], Type.string), atom: false }
+      f: { type: Type.function([ Type.number ], Type.string), atom: false },
+      intf: {
+        type: Type.intersection(
+          Type.function([ Type.number ], Type.number),
+          Type.function([ Type.string ], Type.string),
+        ),
+        atom: false
+      },
+      intx: {
+        type: Type.intersection(Type.number, Type.string),
+        atom: false
+      },
     });
 
     it('ok', () => {
       expectSynth('f(7)', Type.string, env);
+    });
+
+    it('ok intersection', () => {
+      expectSynth(`intf(7)`, Type.number, env);
+      expectSynth(`intf('nine')`, Type.string, env);
+      expectSynth(`intf(intx)`, Type.never, env)
     });
 
     it('throws when callee is not a function', () => {

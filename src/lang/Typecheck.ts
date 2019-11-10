@@ -450,24 +450,44 @@ function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom
 
 function synthCallExpression(
   ast: ESTree.CallExpression,
-  env:Env
+  env:Env,
+  calleeTypeAtom?: TypeAtom | undefined
 ): TypeAtom {
-  const { type: calleeType, atom: calleeAtom } = synth(ast.callee, env);
-  if (calleeType.kind !== 'Function')
-    return throwExpectedType(ast.callee, 'function', calleeType)
-  if (calleeType.args.length !== ast.arguments.length)
-    // TODO(jaked) support short arg lists if arg type contains undefined
-    // TODO(jaked) check how this works in Typescript
-    throwExpectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
+  const { type: calleeType, atom: calleeAtom } =
+    calleeTypeAtom || synth(ast.callee, env);
 
-  let atom = calleeAtom;
-  calleeType.args.every((type, i) => {
-    const { type: argType, atom: argAtom } = synth(ast.arguments[i], env);
-    if (!Type.isSubtype(argType, type))
-      throwExpectedType(ast.arguments[i], type, argType);
-    atom = atom || argAtom;
-  });
-  return { type: calleeType.ret, atom };
+  if (calleeType.kind === 'Intersection') {
+    const callTypes =
+      calleeType.types
+        .filter(type => type.kind === 'Function')
+        .map(type => Try.apply(() => synthCallExpression(ast, env, { type, atom: calleeAtom })));
+    if (callTypes.some(tryType => tryType.type === 'ok')) {
+      const retTypeAtoms =
+        callTypes.filter(tryType => tryType.type === 'ok')
+          .map(tryType => tryType.get());
+      const retType = Type.intersection(...retTypeAtoms.map(typeAtom => typeAtom.type));
+      const retAtom = retTypeAtoms.map(typeAtom => typeAtom.atom).some(x => x);
+      return { type: retType, atom: calleeAtom || retAtom };
+    } else {
+      // TODO(jaked) better error message
+      return throwWithLocation(ast, 'no matching function type');
+    }
+  } else if (calleeType.kind === 'Function') {
+    if (calleeType.args.length !== ast.arguments.length)
+      // TODO(jaked) support short arg lists if arg type contains undefined
+      // TODO(jaked) check how this works in Typescript
+      throwExpectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
+
+    const argsAtom = calleeType.args.map((type, i) => {
+      const { type: argType, atom: argAtom } = synth(ast.arguments[i], env);
+      if (!Type.isSubtype(argType, type))
+        throwExpectedType(ast.arguments[i], type, argType);
+      return argAtom;
+    }).some(x => x);
+    return { type: calleeType.ret, atom: calleeAtom || argsAtom };
+  } else {
+    return throwExpectedType(ast.callee, 'function', calleeType)
+  }
 }
 
 function patTypeEnvIdentifier(ast: ESTree.Identifier, type: Type.Type, env: Env): Env {
