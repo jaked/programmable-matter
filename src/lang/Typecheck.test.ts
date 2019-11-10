@@ -169,11 +169,39 @@ describe('check', () => {
     it('throws', () => {
       expectCheckThrows('[ 9 ]', type);
     });
+
+    it('succeeds for a uniform function', () => {
+      const type = Type.intersection(
+        Type.function([ Type.number ], Type.number),
+        Type.function([ Type.string ], Type.string),
+      );
+      expectCheck('x => x', type);
+    });
+
+    it('succeeds for a non-uniform function', () => {
+      const type = Type.intersection(
+        Type.function([ Type.singleton('number') ], Type.number),
+        Type.function([ Type.singleton('string') ], Type.string),
+      );
+      expectCheck(`x => x === 'number' ? 7 : 'nine'`, type);
+    });
   });
 
   describe('conditional expressions', () => {
     it('ok', () => {
-      expectCheck('true ? 1 : 2', Type.number);
+      const env: Typecheck.Env =
+        Immutable.Map({ b: { type: Type.boolean, atom: false } });
+      expectCheck('b ? 1 : 2', Type.enumerate(1, 2), env);
+    });
+
+    it('ok with statically evaluable test', () => {
+      expectCheck('true ? 1 : 2', Type.singleton(1));
+    });
+
+    it('ok with statically evaluable test 2', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ x: { type: Type.singleton('foo'), atom: false } });
+      expectCheck(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
     // TODO(jaked) handle truthy types
@@ -181,12 +209,10 @@ describe('check', () => {
       expectCheckThrows('{} ? 1 : 2', Type.number);
     });
 
-    it('throws when consequent does not match', () => {
-      expectCheckThrows('true ? {} : 2', Type.number);
-    });
-
-    it('throws when alternate does not match', () => {
-      expectCheckThrows('true ? 1 : {}', Type.number);
+    it('refines type for equality tests', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
+      expectCheck(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
   });
 });
@@ -434,7 +460,19 @@ describe('synth', () => {
 
   describe('conditional expressions', () => {
     it('ok', () => {
-      expectSynth('true ? 1 : 2', Type.enumerate(1, 2));
+      const env: Typecheck.Env =
+        Immutable.Map({ b: { type: Type.boolean, atom: false } });
+      expectSynth('b ? 1 : 2', Type.enumerate(1, 2), env);
+    });
+
+    it('ok with statically evaluable test', () => {
+      expectSynth('true ? 1 : 2', Type.singleton(1));
+    });
+
+    it('ok with statically evaluable test 2', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ x: { type: Type.singleton('foo'), atom: false } });
+      expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
     // TODO(jaked) handle truthy types

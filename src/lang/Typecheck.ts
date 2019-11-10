@@ -61,16 +61,88 @@ function throwWrongArgsLength(ast: ESTree.Node, expected: number, actual: number
   return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
 }
 
+// TODO(jaked) put this somewhere common
+function bug(msg: string): never { throw new Error(msg); }
+
+// evalutes `ast` to a value based on the static environment if possible
+// returns [ value ] if possible or undefined if not.
+function evaluateStatic(ast: ESTree.Expression, env: Env): any[] | undefined {
+  const undef = { }
+  function evalS(ast: ESTree.Expression) {
+    switch (ast.type) {
+      case 'Literal':
+        return ast.value;
+
+      case 'Identifier':
+        const { type } = env.get(ast.name) || bug('expected bound identifier');
+        if (type.kind === 'Singleton') return type.value;
+        else throw undef;
+
+      case 'BinaryExpression':
+        // TODO(jaked) short-circuit booleans
+        const lv = evalS(ast.left);
+        const rv = evalS(ast.right);
+        switch (ast.operator) {
+          case '+': return lv + rv;
+          case '-': return lv - rv;
+          case '*': return lv * rv;
+          case '/': return lv / rv;
+          case '**': return lv ** rv;
+          case '%': return lv % rv;
+          case '==': return lv == rv;
+          case '!=': return lv != rv;
+          case '===': return lv === rv;
+          case '!==': return lv !== rv;
+          case '<': return lv < rv;
+          case '<=': return lv <= rv;
+          case '>': return lv > rv;
+          case '>=': return lv >= rv;
+          case '||': return lv || rv;
+          case '&&': return lv && rv;
+          case '|': return lv | rv;
+          case '&': return lv & rv;
+          case '^': return lv ^ rv;
+          case '<<': return lv << rv;
+          case '>>': return lv >> rv;
+          case '>>>': return lv >>> rv;
+          default:
+            throw new Error(`unexpected binary operator ${ast.operator}`)
+        }
+
+        default:
+          throw undef;
+    }
+  }
+  try {
+    const value = evalS(ast);
+    return [ value ];
+  } catch (e) {
+    if (e === undef) return undefined;
+    else throw e;
+  }
+}
+
 function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type): boolean {
   switch (ast.type) {
     case 'JSXExpressionContainer':
       return check(ast.expression, env, type);
 
     case 'ConditionalExpression': {
-      const test = check(ast.test, env, Type.boolean);
-      const consequent = check(ast.consequent, env, type);
-      const alternate = check(ast.alternate, env, type);
-      return test || consequent || alternate;
+      const testAtom = check(ast.test, env, Type.boolean);
+      const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
+      const testValue = evaluateStatic(ast.test, env);
+
+      if (testValue === undefined) {
+        const consequentAtom = check(ast.consequent, envConsequent, type);
+        const alternateAtom = check(ast.alternate, envAlternate, type);
+        return testAtom || consequentAtom || alternateAtom;
+      } else if (testValue[0]) {
+        const consequentAtom = check(ast.consequent, envConsequent, type);
+        return testAtom || consequentAtom;
+      } else {
+        const alternateAtom = check(ast.alternate, envAlternate, type);
+        return testAtom || alternateAtom;
+      }
     }
 
     default:
@@ -543,9 +615,6 @@ function deduceEnvironment(
   assumeTrue: boolean
 ): Immutable.Map<string, Type.Type> {
   switch (ast.type) {
-    case 'Literal':
-      return env;
-
     case 'BinaryExpression': {
       if (ast.operator === '===' && assumeTrue ||
           ast.operator === '!==' && !assumeTrue) {
@@ -575,7 +644,7 @@ function deduceEnvironment(
     }
 
     default:
-      return throwWithLocation(ast, 'unimplemented');
+      return env;
   }
 }
 
@@ -607,14 +676,22 @@ function synthConditionalExpression(
   env: Env
 ): TypeAtom {
   const testAtom = check(ast.test, env, Type.boolean);
-
   const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
+  const testValue = evaluateStatic(ast.test, env);
 
-  const consequent = synth(ast.consequent, envConsequent);
-  const alternate = synth(ast.alternate, envAlternate);
-  const type = Type.union(consequent.type, alternate.type);
-  const atom = testAtom || consequent.atom || alternate.atom;
-  return { type, atom };
+  if (testValue === undefined) {
+    const consequent = synth(ast.consequent, envConsequent);
+    const alternate = synth(ast.alternate, envAlternate);
+    const type = Type.union(consequent.type, alternate.type);
+    const atom = testAtom || consequent.atom || alternate.atom;
+    return { type, atom };
+  } else if (testValue[0]) {
+    const { type, atom } = synth(ast.consequent, envConsequent);
+    return { type, atom: testAtom || atom };
+  } else {
+    const { type, atom } = synth(ast.alternate, envAlternate);
+    return { type, atom: testAtom || atom };
+  }
 }
 
 function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): TypeAtom {
