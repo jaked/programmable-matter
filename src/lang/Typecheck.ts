@@ -586,8 +586,14 @@ function deduceDisequality(
   identifier: ESTree.Identifier,
   otherType: Type.Type
 ): Immutable.Map<string, Type.Type> {
-  // TODO(jaked) hmmm....
-  return env;
+  if (otherType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+    if (!identifier.etype) throw new Error('expected etype');
+    const identType = env.get(identifier.name, identifier.etype.get().type);
+    const type = Type.intersection(identType, Type.not(otherType));
+    return env.set(identifier.name, type);
+  } else {
+    return env;
+  }
 }
 
 // for identifiers appearing in `ast` return a type reflecting what

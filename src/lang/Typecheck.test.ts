@@ -492,5 +492,11 @@ describe('synth', () => {
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
       expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
+
+    it('refines type for false branch of equality tests', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
+      expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
+    });
   });
 });

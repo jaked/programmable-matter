@@ -40,6 +40,9 @@ export type IntersectionType = { kind: 'Intersection', types: Array<Type> };
 // invariant: `value` is a valid (JS-level) element of base type
 export type SingletonType = { kind: 'Singleton', base: Type, value: any };
 
+// invariant: `type` is not a `Not`
+export type NotType = { kind: 'Not', type: Type }
+
 export type Type =
   NeverType |
   UnknownType |
@@ -58,7 +61,8 @@ export type Type =
   FunctionType |
   UnionType |
   IntersectionType |
-  SingletonType;
+  SingletonType |
+  NotType;
 
 export const never: NeverType = { kind: 'never' };
 export const unknown: UnknownType = { kind: 'unknown' };
@@ -129,6 +133,11 @@ export function singleton(value: any): Type {
   }
 }
 
+export function not(type: Type): Type {
+  if (type.kind === 'Not') return type.type;
+  else return { kind: 'Not', type };
+}
+
 function collapseEquiv(xs: Array<Type>): Array<Type> {
   const accum: Array<Type> = [];
   xs.forEach(x => {
@@ -170,6 +179,9 @@ function collapseSubtype(xs: Array<Type>): Array<Type> {
 }
 
 function uninhabitedIntersection(x: Type, y: Type): boolean {
+  if (x.kind === 'Not' && y.kind !== 'Not' && equiv(x.type, y)) return true;
+  if (y.kind === 'Not' && x.kind !== 'Not' && equiv(y.type, x)) return true;
+
   if (x.kind !== y.kind) return true;
   if (x.kind === 'never') return true;
   if (x.kind === 'Singleton' && y.kind === 'Singleton' && x.value != y.value)
