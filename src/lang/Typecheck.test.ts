@@ -295,6 +295,16 @@ describe('synth', () => {
     });
   });
 
+  describe('unary expressions', () => {
+    it('!', () => {
+      expectSynth('!7', Type.singleton(false));
+    });
+
+    it('typeof', () => {
+      expectSynth('typeof 7', Type.singleton('number'));
+    });
+  });
+
   describe('binary expressions', () => {
     it('numbers', () => {
       expectSynth('1 + 2', Type.singleton(3));

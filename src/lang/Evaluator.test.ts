@@ -24,4 +24,14 @@ describe('evaluateExpression', () => {
       expectEval(`false ? 1 : 2`, 2);
     });
   });
+
+  describe('unary expressions', () => {
+    it('!', () => {
+      expectEval('!false', true);
+    });
+
+    it('typeof', () => {
+      expectEval('typeof 7', 'number');
+    });
+  });
 });

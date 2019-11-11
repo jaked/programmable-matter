@@ -86,6 +86,13 @@ export interface Identifier extends NodeImpl {
   name: string;
 }
 
+export interface UnaryExpression extends NodeImpl {
+  type: 'UnaryExpression';
+  operator: '!' | 'typeof';
+  prefix: boolean;
+  argument: Expression;
+}
+
 export interface BinaryExpression extends NodeImpl {
   type: 'BinaryExpression';
   left: Expression;
@@ -154,6 +161,7 @@ export type Expression =
   JSXOpeningElement |
   JSXClosingElement |
   JSXAttribute |
+  UnaryExpression |
   BinaryExpression |
   MemberExpression |
   CallExpression |
@@ -369,6 +377,9 @@ export function visit(
 
     case 'Identifier':
       return;
+
+    case 'UnaryExpression':
+      return visit(ast.argument, fn);
 
     case 'BinaryExpression':
       visit(ast.left, fn);

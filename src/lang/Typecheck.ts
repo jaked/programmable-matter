@@ -297,6 +297,30 @@ function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): TypeAtom
   return { type, atom };
 }
 
+function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): TypeAtom {
+  let { type, atom } = synth(ast.argument, env);
+
+  if (type.kind === 'Singleton') {  // TODO(jaked) handle compound singletons
+    switch (ast.operator) {
+      case '!':
+        return { type: Type.singleton(!type.value), atom  }
+      case 'typeof':
+        return { type: Type.singleton(typeof type.value), atom }
+      default:
+        throw new Error(`unhandled ast ${ast.operator}`);
+    }
+  } else {
+    switch (ast.operator) {
+      case '!':
+        return { type: Type.boolean, atom };
+      case 'typeof':
+        return { type: Type.string, atom };
+      default:
+        throw new Error(`unhandled ast ${ast.operator}`);
+      }
+  }
+}
+
 function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom {
   let { type: left, atom: leftAtom } = synth(ast.left, env);
   let { type: right, atom: rightAtom } = synth(ast.right, env);
@@ -772,6 +796,7 @@ function synthHelper(ast: ESTree.Expression, env: Env): { type: Type.Type, atom:
     case 'ObjectExpression':  return synthObjectExpression(ast, env);
     case 'ArrowFunctionExpression':
                               return synthArrowFunctionExpression(ast, env);
+    case 'UnaryExpression':   return synthUnaryExpression(ast, env);
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
     case 'CallExpression':    return synthCallExpression(ast, env);

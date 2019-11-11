@@ -99,6 +99,15 @@ export function evaluateExpression(
     case 'JSXFragment':
       return ast.children.map(child => evaluateExpression(child, env));
 
+    case 'UnaryExpression': {
+      const v = evaluateExpression(ast.argument, env);
+      switch (ast.operator) {
+        case '!': return !v;
+        case 'typeof': return typeof v;
+        default: throw new Error(`unhandled ast ${ast.operator}`);
+      }
+    }
+
     case 'BinaryExpression': {
       // TODO(jaked) short-circuit booleans
       const lv = evaluateExpression(ast.left, env);
