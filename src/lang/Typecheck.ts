@@ -68,17 +68,20 @@ function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type): boolea
 
     case 'ConditionalExpression': {
       const { type: testType, atom: testAtom } = synth(ast.test, env);
-      const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
 
       if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
         if (testType.value) {
+          const envConsequent = refineEnvironment(env, ast.test, true);
           const consequentAtom = check(ast.consequent, envConsequent, type);
           return testAtom || consequentAtom;
         } else {
+          const envAlternate = refineEnvironment(env, ast.test, false);
           const alternateAtom = check(ast.alternate, envAlternate, type);
           return testAtom || alternateAtom;
         }
       } else {
+        const envConsequent = refineEnvironment(env, ast.test, true);
+        const envAlternate = refineEnvironment(env, ast.test, false);
         const consequentAtom = check(ast.consequent, envConsequent, type);
         const alternateAtom = check(ast.alternate, envAlternate, type);
         return testAtom || consequentAtom || alternateAtom;
@@ -594,64 +597,46 @@ function synthArrowFunctionExpression(
   return { type: funcType, atom: false };
 }
 
-function deduceEquality(
-  env: Immutable.Map<string, Type.Type>,
-  identifier: ESTree.Identifier,
-  otherType: Type.Type
-): Immutable.Map<string, Type.Type> {
-  if (!identifier.etype) throw new Error('expected etype');
-  const identType = env.get(identifier.name, identifier.etype.get().type);
-  const type = Type.intersection(identType, otherType);
-  return env.set(identifier.name, type);
-}
+// TODO(jaked) put somewhere common
+function bug(msg: string): never { throw new Error(msg); }
 
-function deduceDisequality(
-  env: Immutable.Map<string, Type.Type>,
-  identifier: ESTree.Identifier,
+function refineExpression(
+  env: Env,
+  ast: ESTree.Expression,
   otherType: Type.Type
-): Immutable.Map<string, Type.Type> {
-  if (otherType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
-    if (!identifier.etype) throw new Error('expected etype');
-    const identType = env.get(identifier.name, identifier.etype.get().type);
-    const type = Type.intersection(identType, Type.not(otherType));
-    return env.set(identifier.name, type);
-  } else {
-    return env;
+): Env {
+  switch (ast.type) {
+    case 'Identifier': {
+      const { type: identType, atom } = env.get(ast.name) || bug('expected bound identifier');
+      const type = Type.intersection(identType, otherType);
+      return env.set(ast.name, { type, atom });
+    }
+
+    default: return env;
   }
 }
 
 // for identifiers appearing in `ast` return a type reflecting what
-// we can deduce about the identifier when the expression is true / false.
+// we can deduce about the identifier when the expression is assumed
+// to be true or false.
 // `ast` has already been typechecked so we can use `etype` fields in it.
-function deduceEnvironment(
-  env: Immutable.Map<string, Type.Type>,
+function refineEnvironment(
+  env: Env,
   ast: ESTree.Expression,
-  assumeTrue: boolean
-): Immutable.Map<string, Type.Type> {
+  assume: boolean
+): Env {
   switch (ast.type) {
     case 'BinaryExpression': {
-      if (ast.operator === '===' && assumeTrue ||
-          ast.operator === '!==' && !assumeTrue) {
-        if (ast.left.type === 'Identifier') {
-          if (!ast.right.etype) throw new Error('expected etype')
-          env = deduceEquality(env, ast.left, ast.right.etype.get().type)
-        }
-        if (ast.right.type === 'Identifier') {
-          if (!ast.left.etype) throw new Error('expected etype')
-          env = deduceEquality(env, ast.right, ast.left.etype.get().type)
-        }
-        return env;
-      } else if (ast.operator === '!==' && assumeTrue ||
-                 ast.operator === '===' && !assumeTrue) {
-        if (ast.left.type === 'Identifier') {
-          if (!ast.right.etype) throw new Error('expected etype')
-          env = deduceDisequality(env, ast.left, ast.right.etype.get().type)
-        }
-        if (ast.right.type === 'Identifier') {
-          if (!ast.left.etype) throw new Error('expected etype')
-          env = deduceDisequality(env, ast.right, ast.left.etype.get().type)
-        }
-        return env;
+      if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
+        if (!ast.right.etype) return bug('expected etype');
+        if (!ast.left.etype) return bug('expected etype');
+        env = refineExpression(env, ast.left, ast.right.etype.get().type);
+        return refineExpression(env, ast.right, ast.left.etype.get().type);
+      } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
+        if (!ast.right.etype) return bug('expected etype');
+        if (!ast.left.etype) return bug('expected etype');
+        env = refineExpression(env, ast.left, Type.not(ast.right.etype.get().type));
+        return refineExpression(env, ast.right, Type.not(ast.left.etype.get().type));
       } else {
         return throwWithLocation(ast, 'unimplemented');
       }
@@ -662,45 +647,25 @@ function deduceEnvironment(
   }
 }
 
-function refineEnvironment(env: Env, ast: ESTree.Expression): [Env, Env] {
-  const ifTrue = deduceEnvironment(Immutable.Map(), ast, true);
-  const ifFalse = deduceEnvironment(Immutable.Map(), ast, false);
-
-  const ifTrueEnv = env.map(({ type, atom }, ident) => {
-    const refinedType = ifTrue.get(ident);
-    if (refinedType) {
-      return { type: Type.intersection(type, refinedType), atom };
-    } else {
-      return { type, atom }
-    }
-  });
-  const ifFalseEnv = env.map(({ type, atom }, ident) => {
-    const refinedType = ifFalse.get(ident);
-    if (refinedType) {
-      return { type: Type.intersection(type, refinedType), atom };
-    } else {
-      return { type, atom }
-    }
-  });
-  return [ifTrueEnv, ifFalseEnv];
-}
-
 function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env
 ): TypeAtom {
   const { type: testType, atom: testAtom } = synth(ast.test, env);
-  const [envConsequent, envAlternate] = refineEnvironment(env, ast.test);
 
   if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
     if (testType.value) {
+      const envConsequent = refineEnvironment(env, ast.test, true);
       const { type, atom } = synth(ast.consequent, envConsequent);
       return { type, atom: testAtom || atom };
     } else {
+      const envAlternate = refineEnvironment(env, ast.test, false);
       const { type, atom } = synth(ast.alternate, envAlternate);
       return { type, atom: testAtom || atom };
     }
   } else {
+    const envConsequent = refineEnvironment(env, ast.test, true);
+    const envAlternate = refineEnvironment(env, ast.test, false);
     const consequent = synth(ast.consequent, envConsequent);
     const alternate = synth(ast.alternate, envAlternate);
     const type = Type.union(consequent.type, alternate.type);
