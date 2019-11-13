@@ -520,5 +520,23 @@ describe('synth', () => {
         } });
       expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
     });
+
+    it('refines type for truthiness tests', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ s: {
+          type: Type.union(Type.number, Type.undefined),
+          atom: false
+        } });
+      expectSynth(`s ? s : 7`, Type.number, env);
+    });
+
+    it('refines type for falsiness tests', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ s: {
+          type: Type.union(Type.number, Type.singleton(true)),
+          atom: false
+        } });
+      expectSynth(`!s ? s : 7`, Type.number, env);
+    });
   });
 });

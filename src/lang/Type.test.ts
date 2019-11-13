@@ -5,6 +5,17 @@ describe('union', () => {
     expect(Type.union()).toEqual(Type.never);
   });
 
+  it('elides Union node for single elements', () => {
+    const actual =
+      Type.union(
+        Type.object({ foo: Type.string, bar: Type.boolean }),
+        Type.object({ foo: Type.string, bar: Type.boolean })
+      );
+    const expected =
+      Type.object({ foo: Type.string, bar: Type.boolean});
+    expect(actual).toEqual(expected);
+  });
+
   it('flattens nested unions', () => {
     const actual =
       Type.union(
@@ -38,17 +49,6 @@ describe('union', () => {
     expect(actual).toEqual(expected);
   });
 
-  it('elides Union node for single elements', () => {
-    const actual =
-      Type.union(
-        Type.object({ foo: Type.string, bar: Type.boolean }),
-        Type.object({ foo: Type.string, bar: Type.boolean })
-      );
-    const expected =
-      Type.object({ foo: Type.string, bar: Type.boolean});
-    expect(actual).toEqual(expected);
-  });
-
   it('collapses equivalent elements', () => {
     const actual =
       Type.union(
@@ -57,6 +57,26 @@ describe('union', () => {
       );
     const expected =
       Type.object({ foo: Type.string, bar: Type.boolean});
+    expect(actual).toEqual(expected);
+  });
+
+  it('does not collapses object subtypes', () => {
+    const actual =
+      Type.union(
+        Type.object({ foo: Type.string, bar: Type.boolean }),
+        Type.object({ foo: Type.string, bar: Type.boolean, baz: Type.number })
+      );
+    expect(actual.kind === 'Union' && actual.types.length === 2).toBe(true);
+  });
+
+  it('does collapses primitive subtypes', () => {
+    const actual =
+      Type.union(
+        Type.number,
+        Type.singleton(7),
+      );
+    const expected =
+      Type.number;
     expect(actual).toEqual(expected);
   });
 });
@@ -68,6 +88,13 @@ describe('intersection', () => {
 
   it('returns top for empty args', () => {
     expect(Type.intersection()).toEqual(Type.unknown);
+  });
+
+  it('elides Intersection node for single elements', () => {
+    const actual =
+      Type.intersection(foo, foo);
+    const expected = foo;
+    expect(actual).toEqual(expected);
   });
 
   it('flattens nested intersections', () => {
@@ -94,13 +121,6 @@ describe('intersection', () => {
     expect(actual).toEqual(expected);
   });
 
-  it('elides Intersection node for single elements', () => {
-    const actual =
-      Type.intersection(foo, foo);
-    const expected = foo;
-    expect(actual).toEqual(expected);
-  });
-
   it('collapses equivalent elements', () => {
     const actual =
       Type.intersection(
@@ -110,6 +130,23 @@ describe('intersection', () => {
     const expected =
       Type.object({ foo: Type.string, bar: Type.boolean});
     expect(actual).toEqual(expected);
+  });
+
+  it('collapses subtypes', () => {
+    const actual =
+      Type.intersection(
+        Type.object({ foo: Type.string, bar: Type.boolean }),
+        Type.object({ foo: Type.string, bar: Type.boolean, baz: Type.number })
+      );
+    const expected =
+      Type.object({ foo: Type.string, bar: Type.boolean, baz: Type.number });
+    expect(actual).toEqual(expected);
+  });
+
+  it('collapses redundant Nots', () => {
+    const notA = Type.not(Type.singleton('a'));
+    const bOrC = Type.union(Type.singleton('b'), Type.singleton('c'));
+    expect(Type.intersection(notA, bOrC)).toEqual(bOrC);
   });
 
   it('distributes intersection over union', () => {
@@ -132,12 +169,6 @@ describe('intersection', () => {
     const a = Type.object({ type: Type.singleton('A') });
     const b = Type.object({ type: Type.singleton('B') });
     expect(Type.intersection(a, b)).toEqual(Type.never);
-  });
-
-  it('collapses redundant Nots', () => {
-    const notA = Type.not(Type.singleton('a'));
-    const bOrC = Type.union(Type.singleton('b'), Type.singleton('c'));
-    expect(Type.intersection(notA, bOrC)).toEqual(bOrC);
   });
 
   it('A | (A & (A | B)) === A', () => {

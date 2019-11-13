@@ -613,6 +613,18 @@ function synthArrowFunctionExpression(
 // TODO(jaked) put somewhere common
 function bug(msg: string): never { throw new Error(msg); }
 
+const truthyType =
+  Type.intersection(
+    Type.not(Type.singleton(false)),
+    Type.not(Type.null),
+    Type.not(Type.undefined),
+    Type.not(Type.singleton(0)),
+    Type.not(Type.singleton('')),
+  );
+
+const falsyType =
+  Type.not(Type.singleton(true));
+
 function refineExpression(
   env: Env,
   ast: ESTree.Expression,
@@ -648,7 +660,19 @@ function refineEnvironment(
   assume: boolean
 ): Env {
   switch (ast.type) {
-    case 'BinaryExpression': {
+    case 'UnaryExpression':
+      if (ast.operator === '!') {
+        return refineEnvironment(env, ast.argument, !assume);
+      } else {
+        // TODO(jaked) handle typeof
+        if (assume) {
+          return refineExpression(env, ast, truthyType);
+        } else {
+          return refineExpression(env, ast, falsyType);
+        }
+      }
+
+    case 'BinaryExpression':
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         if (!ast.right.etype) return bug('expected etype');
         if (!ast.left.etype) return bug('expected etype');
@@ -662,10 +686,13 @@ function refineEnvironment(
       } else {
         return throwWithLocation(ast, 'unimplemented');
       }
-    }
 
     default:
-      return env;
+      if (assume) {
+        return refineExpression(env, ast, truthyType);
+      } else {
+        return refineExpression(env, ast, falsyType);
+      }
   }
 }
 
