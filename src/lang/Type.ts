@@ -198,12 +198,17 @@ export function union(...types: Array<Type>): Type {
   return { kind: 'Union', types }
 }
 
+function isNoisyIntersection(a: Type, b: Type) {
+  // avoid e.g. `string & not('a')` which arise from narrowing
+  return (b.kind === 'Not' && b.type.kind === 'Singleton' && b.type.base.kind === a.kind);
+}
+
 function collapseIntersectionSubtype(xs: Array<Type>): Array<Type> {
   let accum: Array<Type> = [];
   xs.forEach(x => {
-    if (accum.some(y => isSubtype(y, x))) { /* skip it */ }
+    if (accum.some(y => isSubtype(y, x) || isNoisyIntersection(y, x))) { /* skip it */ }
     else {
-      accum = accum.filter(y => !isSubtype(x, y));
+      accum = accum.filter(y => !isSubtype(x, y) && !isNoisyIntersection(x, y));
       accum.push(x);
     }
   });
@@ -214,10 +219,13 @@ function uninhabitedIntersection(x: Type, y: Type): boolean {
   if (x.kind === 'Not' && y.kind !== 'Not') return equiv(x.type, y);
   if (y.kind === 'Not' && x.kind !== 'Not') return equiv(y.type, x);
 
+  if (x.kind === 'Singleton' && x.base.kind === y.kind) return false;
+  if (y.kind === 'Singleton' && y.base.kind === x.kind) return false;
+  if (x.kind === 'Singleton' && y.kind === 'Singleton')
+    return x.value != y.value;
+
   if (x.kind !== y.kind) return true;
   if (x.kind === 'never') return true;
-  if (x.kind === 'Singleton' && y.kind === 'Singleton' && x.value != y.value)
-    return true;
 
   if (x.kind === 'Object' && y.kind === 'Object') {
     return x.fields.some(xFieldType => {
@@ -292,6 +300,10 @@ export function isSubtype(a: Type, b: Type): boolean {
   else if (b.kind === 'Union') return b.types.some(t => isSubtype(a, t));
   else if (a.kind === 'Intersection') return a.types.some(t => isSubtype(t, b));
   else if (b.kind === 'Intersection') return b.types.every(t => isSubtype(a, t));
+  else if (a.kind !== 'Not' && b.kind === 'Not') {
+    // TODO(jaked) incomplete
+    return uninhabitedIntersection(a, b.type);
+  }
   else if (a.kind === 'Singleton' && b.kind === 'Singleton')
     return isSubtype(a.base, b.base) && a.value === b.value;
   else if (a.kind === 'Singleton')
@@ -316,10 +328,6 @@ export function isSubtype(a: Type, b: Type): boolean {
     return a.args.length === b.args.length &&
       a.args.every((a, i) => isSubtype(b.args[i], a)) &&
       isSubtype(a.ret, b.ret);
-  }
-  else if (a.kind !== 'Not' && b.kind === 'Not') {
-    // TODO(jaked) incomplete
-    return uninhabitedIntersection(a, b.type);
   }
   else return false;
 }

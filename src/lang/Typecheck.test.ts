@@ -305,13 +305,89 @@ describe('synth', () => {
     });
   });
 
-  describe('binary expressions', () => {
-    it('numbers', () => {
-      expectSynth('1 + 2', Type.singleton(3));
+  describe('logical expressions', () => {
+    describe('statically evaluated', () => {
+      it('&& truthy', () => {
+        expectSynth('"foo" && 7', Type.singleton(7));
+      });
+
+      it('&& falsy', () => {
+        expectSynth('0 && "foo"', Type.singleton(0));
+      });
+
+      it('|| truthy', () => {
+        expectSynth('"foo" || 7', Type.singleton("foo"));
+      });
+
+      it('|| falsy', () => {
+        expectSynth('"" || 0', Type.singleton(0));
+      });
     });
 
-    it('strings', () => {
-      expectSynth('"foo" + "bar"', Type.singleton('foobar'));
+    describe('not statically evaluated', () => {
+      const env: Typecheck.Env = Immutable.Map({
+        number: { type: Type.number, atom: false },
+        string: { type: Type.string, atom: false },
+      });
+
+      it('&&', () => {
+        expectSynth(
+          'number && string',
+          Type.union(Type.singleton(0), Type.string),
+          env
+        );
+      });
+
+      it('||', () => {
+        expectSynth(
+          'number || string',
+          Type.union(Type.number, Type.string),
+          env
+        );
+      });
+    });
+  });
+
+  describe('binary expressions', () => {
+    describe('statically evaluated', () => {
+      it('+ numbers', () => {
+        expectSynth('1 + 2', Type.singleton(3));
+      });
+
+      it('+ strings', () => {
+        expectSynth('"foo" + "bar"', Type.singleton('foobar'));
+      });
+
+      it('===', () => {
+        expectSynth('"foo" === "bar"', Type.singleton(false));
+      });
+
+      it('!==', () => {
+        expectSynth('"foo" !== "bar"', Type.singleton(true));
+      });
+    });
+
+    describe('not statically evaluated', () => {
+      const env: Typecheck.Env = Immutable.Map({
+        number: { type: Type.number, atom: false },
+        string: { type: Type.string, atom: false },
+      });
+
+      it('+ numbers', () => {
+        expectSynth('number + number', Type.number, env);
+      });
+
+      it('+ strings', () => {
+        expectSynth('string + string', Type.string, env);
+      });
+
+      it('===', () => {
+        expectSynth('string === string', Type.boolean, env);
+      });
+
+      it('!==', () => {
+        expectSynth('string !== string', Type.boolean, env);
+      });
     });
   });
 

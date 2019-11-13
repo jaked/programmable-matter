@@ -324,11 +324,62 @@ function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): TypeAtom {
   }
 }
 
+function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): TypeAtom {
+  let { type: left, atom: leftAtom } = synth(ast.left, env);
+  let { type: right, atom: rightAtom } = synth(ast.right, env);
+  const atom = leftAtom || rightAtom;
+
+  // TODO(jaked)
+  // handle cases where only one side is singleton
+  // but we can still evaluate it statically
+  // e.g. boolean || false
+
+  // TODO(jaked) handle compound singletons
+  if (left.kind === 'Singleton' && right.kind === 'Singleton') {
+    const leftValue = left.value;
+    const rightValue = right.value;
+
+    // TODO(jaked) handle other operators
+    switch (ast.operator) {
+      case '&&':
+        return { type: Type.singleton(leftValue && rightValue), atom };
+      case '||':
+        return { type: Type.singleton(leftValue || rightValue), atom };
+      default:
+        return bug(`unexpected operator ${ast.operator}`);
+    }
+  } else {
+    // TODO(jaked) handle other operators
+    switch (ast.operator) {
+      case '&&': {
+        const type = Type.union(
+          Type.intersection(left, falsyType),
+          right
+        );
+        return { type, atom };
+      }
+
+      case '||': {
+        const type = Type.union(
+          left, // TODO(jaked) Type.intersection(left, notFalsyType),
+          right
+        );
+
+        return { type, atom };
+      }
+
+        default:
+        return bug(`unexpected operator ${ast.operator}`);
+    }
+  }
+}
+
 function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom {
   let { type: left, atom: leftAtom } = synth(ast.left, env);
   let { type: right, atom: rightAtom } = synth(ast.right, env);
   const atom = leftAtom || rightAtom;
 
+  // TODO(jaked) handle compound singletons
   if (left.kind === 'Singleton' && right.kind === 'Singleton') {
     const leftValue = left.value;
     const rightValue = right.value;
@@ -613,7 +664,16 @@ function synthArrowFunctionExpression(
 // TODO(jaked) put somewhere common
 function bug(msg: string): never { throw new Error(msg); }
 
-const truthyType =
+const falsyType =
+  Type.union(
+    Type.singleton(false),
+    Type.null,
+    Type.undefined,
+    Type.singleton(0),
+    Type.singleton(''),
+  );
+
+const notFalsyType =
   Type.intersection(
     Type.not(Type.singleton(false)),
     Type.not(Type.null),
@@ -622,7 +682,10 @@ const truthyType =
     Type.not(Type.singleton('')),
   );
 
-const falsyType =
+const truthyType =
+  Type.singleton(true);
+
+const notTruthyType =
   Type.not(Type.singleton(true));
 
 function narrowExpression(
@@ -665,9 +728,9 @@ function narrowEnvironment(
       } else {
         // TODO(jaked) handle typeof
         if (assume) {
-          return narrowExpression(env, ast, truthyType);
+          return narrowExpression(env, ast, notFalsyType);
         } else {
-          return narrowExpression(env, ast, falsyType);
+          return narrowExpression(env, ast, notTruthyType);
         }
       }
 
@@ -688,9 +751,9 @@ function narrowEnvironment(
 
     default:
       if (assume) {
-        return narrowExpression(env, ast, truthyType);
+        return narrowExpression(env, ast, notFalsyType);
       } else {
-        return narrowExpression(env, ast, falsyType);
+        return narrowExpression(env, ast, notTruthyType);
       }
   }
 }
@@ -810,6 +873,7 @@ function synthHelper(ast: ESTree.Expression, env: Env): { type: Type.Type, atom:
     case 'ArrowFunctionExpression':
                               return synthArrowFunctionExpression(ast, env);
     case 'UnaryExpression':   return synthUnaryExpression(ast, env);
+    case 'LogicalExpression': return synthLogicalExpression(ast, env);
     case 'BinaryExpression':  return synthBinaryExpression(ast, env);
     case 'MemberExpression':  return synthMemberExpression(ast, env);
     case 'CallExpression':    return synthCallExpression(ast, env);

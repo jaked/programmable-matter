@@ -99,8 +99,15 @@ export interface BinaryExpression extends NodeImpl {
   operator:
     '+' | '-' | '*' | '/' | '**' | '%' |
     '==' | '!=' | '===' | '!==' |
-    '<' | '<=' | '>' | '>=' | '||' | '&&' |
+    '<' | '<=' | '>' | '>=' |
     '|' | '&' | '^' | '<<' | '>>' | '>>>';
+  right: Expression;
+}
+
+export interface LogicalExpression extends NodeImpl {
+  type: 'LogicalExpression';
+  left: Expression;
+  operator: '||' | '&&';
   right: Expression;
 }
 
@@ -162,6 +169,7 @@ export type Expression =
   JSXClosingElement |
   JSXAttribute |
   UnaryExpression |
+  LogicalExpression |
   BinaryExpression |
   MemberExpression |
   CallExpression |

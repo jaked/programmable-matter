@@ -149,6 +149,15 @@ describe('intersection', () => {
     expect(Type.intersection(notA, bOrC)).toEqual(bOrC);
   });
 
+  it('discards noisy Nots', () => {
+    const actual = Type.intersection(
+      Type.not(Type.singleton('a')),
+      Type.string
+    );
+    const expected = Type.string;
+    expect(actual).toEqual(expected);
+  });
+
   it('distributes intersection over union', () => {
     const [a, b, c] =
       ['a', 'b', 'c'].map(x => Type.object({ [x]: Type.boolean }));
@@ -260,6 +269,14 @@ describe('isSubtype', () => {
     it('reflexive', () => {
       const t = Type.singleton(7);
       expect(Type.isSubtype(t, t)).toBe(true);
+    });
+
+    it('different values', () => {
+      expect(Type.isSubtype(Type.singleton(7), Type.singleton(9))).toBe(false);
+    });
+
+    it('singleton a subtype of base type', () => {
+      expect(Type.isSubtype(Type.singleton(7), Type.number)).toBe(true);
     });
   });
 

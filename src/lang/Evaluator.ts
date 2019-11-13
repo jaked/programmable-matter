@@ -108,8 +108,19 @@ export function evaluateExpression(
       }
     }
 
-    case 'BinaryExpression': {
+    case 'LogicalExpression': {
       // TODO(jaked) short-circuit booleans
+      const lv = evaluateExpression(ast.left, env);
+      const rv = evaluateExpression(ast.right, env);
+      switch (ast.operator) {
+        case '||': return lv || rv;
+        case '&&': return lv && rv;
+        default:
+          throw new Error(`unexpected binary operator ${ast.operator}`)
+      }
+    }
+
+    case 'BinaryExpression': {
       const lv = evaluateExpression(ast.left, env);
       const rv = evaluateExpression(ast.right, env);
       switch (ast.operator) {
@@ -127,8 +138,6 @@ export function evaluateExpression(
         case '<=': return lv <= rv;
         case '>': return lv > rv;
         case '>=': return lv >= rv;
-        case '||': return lv || rv;
-        case '&&': return lv && rv;
         case '|': return lv | rv;
         case '&': return lv & rv;
         case '^': return lv ^ rv;
