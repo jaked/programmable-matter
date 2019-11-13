@@ -204,7 +204,7 @@ describe('check', () => {
       expectCheck(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
-    it('refines type for equality tests', () => {
+    it('narrows type for equality tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
       expectCheck(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
@@ -497,19 +497,19 @@ describe('synth', () => {
       expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
-    it('refines type for equality tests', () => {
+    it('narrows type for equality tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
       expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
 
-    it('refines type for false branch of equality tests', () => {
+    it('narrows type for false branch of equality tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
       expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
     });
 
-    it('refines type via member expressions', () => {
+    it('narrows type via member expressions', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: {
           type: Type.union(
@@ -521,7 +521,7 @@ describe('synth', () => {
       expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
     });
 
-    it('refines type for truthiness tests', () => {
+    it('narrows type for truthiness tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: {
           type: Type.union(Type.number, Type.undefined),
@@ -530,7 +530,7 @@ describe('synth', () => {
       expectSynth(`s ? s : 7`, Type.number, env);
     });
 
-    it('refines type for falsiness tests', () => {
+    it('narrows type for falsiness tests', () => {
       const env: Typecheck.Env =
         Immutable.Map({ s: {
           type: Type.union(Type.number, Type.singleton(true)),

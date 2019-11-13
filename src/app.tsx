@@ -210,9 +210,7 @@ function setContent(content: string | null) {
   const selected = selectedCell.get();
   if (!selected) return;
 
-  // if we let the type of note be CompiledNote then the test against 'jpeg'
-  // doesn't refine the type to deduce the `content` field
-  const note: data.Note | undefined = compiledNotesSignal.get().get(selected);
+  const note = compiledNotesSignal.get().get(selected);
   if (!note) return;
   if (note.type === 'jpeg') return;
   if (note.content === content) return;

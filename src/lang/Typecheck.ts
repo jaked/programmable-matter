@@ -71,17 +71,17 @@ function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type): boolea
 
       if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
         if (testType.value) {
-          const envConsequent = refineEnvironment(env, ast.test, true);
+          const envConsequent = narrowEnvironment(env, ast.test, true);
           const consequentAtom = check(ast.consequent, envConsequent, type);
           return testAtom || consequentAtom;
         } else {
-          const envAlternate = refineEnvironment(env, ast.test, false);
+          const envAlternate = narrowEnvironment(env, ast.test, false);
           const alternateAtom = check(ast.alternate, envAlternate, type);
           return testAtom || alternateAtom;
         }
       } else {
-        const envConsequent = refineEnvironment(env, ast.test, true);
-        const envAlternate = refineEnvironment(env, ast.test, false);
+        const envConsequent = narrowEnvironment(env, ast.test, true);
+        const envAlternate = narrowEnvironment(env, ast.test, false);
         const consequentAtom = check(ast.consequent, envConsequent, type);
         const alternateAtom = check(ast.alternate, envAlternate, type);
         return testAtom || consequentAtom || alternateAtom;
@@ -625,7 +625,7 @@ const truthyType =
 const falsyType =
   Type.not(Type.singleton(true));
 
-function refineExpression(
+function narrowExpression(
   env: Env,
   ast: ESTree.Expression,
   otherType: Type.Type
@@ -640,7 +640,7 @@ function refineExpression(
     case 'MemberExpression': {
       if (ast.computed) return env; // TODO(jaked) handle computed cases
       if (ast.property.type !== 'Identifier') return bug('expected Identifier');
-      return refineExpression(
+      return narrowExpression(
         env,
         ast.object,
         Type.object({ [ast.property.name]: otherType }));
@@ -650,11 +650,10 @@ function refineExpression(
   }
 }
 
-// for identifiers appearing in `ast` return a type reflecting what
-// we can deduce about the identifier when the expression is assumed
-// to be true or false.
+// narrow the type of identifiers appearing in `ast` to reflect what
+// we can deduce when the expression is assumed to be true or false.
 // `ast` has already been typechecked so we can use `etype` fields in it.
-function refineEnvironment(
+function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
   assume: boolean
@@ -662,13 +661,13 @@ function refineEnvironment(
   switch (ast.type) {
     case 'UnaryExpression':
       if (ast.operator === '!') {
-        return refineEnvironment(env, ast.argument, !assume);
+        return narrowEnvironment(env, ast.argument, !assume);
       } else {
         // TODO(jaked) handle typeof
         if (assume) {
-          return refineExpression(env, ast, truthyType);
+          return narrowExpression(env, ast, truthyType);
         } else {
-          return refineExpression(env, ast, falsyType);
+          return narrowExpression(env, ast, falsyType);
         }
       }
 
@@ -676,22 +675,22 @@ function refineEnvironment(
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         if (!ast.right.etype) return bug('expected etype');
         if (!ast.left.etype) return bug('expected etype');
-        env = refineExpression(env, ast.left, ast.right.etype.get().type);
-        return refineExpression(env, ast.right, ast.left.etype.get().type);
+        env = narrowExpression(env, ast.left, ast.right.etype.get().type);
+        return narrowExpression(env, ast.right, ast.left.etype.get().type);
       } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
         if (!ast.right.etype) return bug('expected etype');
         if (!ast.left.etype) return bug('expected etype');
-        env = refineExpression(env, ast.left, Type.not(ast.right.etype.get().type));
-        return refineExpression(env, ast.right, Type.not(ast.left.etype.get().type));
+        env = narrowExpression(env, ast.left, Type.not(ast.right.etype.get().type));
+        return narrowExpression(env, ast.right, Type.not(ast.left.etype.get().type));
       } else {
         return throwWithLocation(ast, 'unimplemented');
       }
 
     default:
       if (assume) {
-        return refineExpression(env, ast, truthyType);
+        return narrowExpression(env, ast, truthyType);
       } else {
-        return refineExpression(env, ast, falsyType);
+        return narrowExpression(env, ast, falsyType);
       }
   }
 }
@@ -704,17 +703,17 @@ function synthConditionalExpression(
 
   if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
     if (testType.value) {
-      const envConsequent = refineEnvironment(env, ast.test, true);
+      const envConsequent = narrowEnvironment(env, ast.test, true);
       const { type, atom } = synth(ast.consequent, envConsequent);
       return { type, atom: testAtom || atom };
     } else {
-      const envAlternate = refineEnvironment(env, ast.test, false);
+      const envAlternate = narrowEnvironment(env, ast.test, false);
       const { type, atom } = synth(ast.alternate, envAlternate);
       return { type, atom: testAtom || atom };
     }
   } else {
-    const envConsequent = refineEnvironment(env, ast.test, true);
-    const envAlternate = refineEnvironment(env, ast.test, false);
+    const envConsequent = narrowEnvironment(env, ast.test, true);
+    const envAlternate = narrowEnvironment(env, ast.test, false);
     const consequent = synth(ast.consequent, envConsequent);
     const alternate = synth(ast.alternate, envAlternate);
     const type = Type.union(consequent.type, alternate.type);
