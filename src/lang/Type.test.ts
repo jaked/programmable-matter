@@ -134,6 +134,12 @@ describe('intersection', () => {
     expect(Type.intersection(a, b)).toEqual(Type.never);
   });
 
+  it('collapses redundant Nots', () => {
+    const notA = Type.not(Type.singleton('a'));
+    const bOrC = Type.union(Type.singleton('b'), Type.singleton('c'));
+    expect(Type.intersection(notA, bOrC)).toEqual(bOrC);
+  });
+
   it('A | (A & (A | B)) === A', () => {
     const a = Type.singleton('A');
     const b = Type.singleton('B');

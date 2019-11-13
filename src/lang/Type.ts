@@ -166,24 +166,6 @@ export function union(...types: Array<Type>): Type {
   return { kind: 'Union', types }
 }
 
-function hasNot(type: Type): boolean {
-  switch (type.kind) {
-    case 'Not': return true;
-
-    case 'Tuple': return type.elems.some(hasNot);
-    case 'Array': return hasNot(type.elem);
-    case 'Set': return hasNot(type.elem);
-    case 'Map': return hasNot(type.key) || hasNot(type.value);
-    case 'Object': return type.fields.some(({ type }) => hasNot(type));
-    case 'Function': return type.args.some(hasNot) || hasNot(type.ret);
-    case 'Union': return type.types.some(hasNot);
-    case 'Intersection': return type.types.some(hasNot);
-    case 'Singleton': return hasNot(type.base);
-
-    default: return false;
-  }
-}
-
 function collapseSubtype(xs: Array<Type>): Array<Type> {
   let accum: Array<Type> = [];
   xs.forEach(x => {
@@ -255,12 +237,6 @@ export function intersection(...types: Array<Type>): Type {
     return distributeUnion(types);
   if (types.some(t => types.some(u => uninhabitedIntersection(t, u))))
     return never;
-
-  // TODO(jaked)
-  // it would be cleaner to handle this in subtyping somehow
-  // e.g. not('foo') <: ('foo' | 'bar')
-  types = types.filter(type => !hasNot(type));
-
   types = collapseSubtype(types);
 
   if (types.length === 0) return unknown;
@@ -308,6 +284,10 @@ export function isSubtype(a: Type, b: Type): boolean {
     return a.args.length === b.args.length &&
       a.args.every((a, i) => isSubtype(b.args[i], a)) &&
       isSubtype(a.ret, b.ret);
+  }
+  else if (a.kind !== 'Not' && b.kind === 'Not') {
+    // TODO(jaked) incomplete
+    return uninhabitedIntersection(a, b.type);
   }
   else return false;
 }
