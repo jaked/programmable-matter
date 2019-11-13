@@ -166,6 +166,24 @@ export function union(...types: Array<Type>): Type {
   return { kind: 'Union', types }
 }
 
+function hasNot(type: Type): boolean {
+  switch (type.kind) {
+    case 'Not': return true;
+
+    case 'Tuple': return type.elems.some(hasNot);
+    case 'Array': return hasNot(type.elem);
+    case 'Set': return hasNot(type.elem);
+    case 'Map': return hasNot(type.key) || hasNot(type.value);
+    case 'Object': return type.fields.some(({ type }) => hasNot(type));
+    case 'Function': return type.args.some(hasNot) || hasNot(type.ret);
+    case 'Union': return type.types.some(hasNot);
+    case 'Intersection': return type.types.some(hasNot);
+    case 'Singleton': return hasNot(type.base);
+
+    default: return false;
+  }
+}
+
 function collapseSubtype(xs: Array<Type>): Array<Type> {
   let accum: Array<Type> = [];
   xs.forEach(x => {
@@ -179,16 +197,25 @@ function collapseSubtype(xs: Array<Type>): Array<Type> {
 }
 
 function uninhabitedIntersection(x: Type, y: Type): boolean {
-  if (x.kind === 'Not' && y.kind !== 'Not' && equiv(x.type, y)) return true;
-  if (y.kind === 'Not' && x.kind !== 'Not' && equiv(y.type, x)) return true;
+  if (x.kind === 'Not' && y.kind !== 'Not') return equiv(x.type, y);
+  if (y.kind === 'Not' && x.kind !== 'Not') return equiv(y.type, x);
 
   if (x.kind !== y.kind) return true;
   if (x.kind === 'never') return true;
   if (x.kind === 'Singleton' && y.kind === 'Singleton' && x.value != y.value)
     return true;
 
-  // could check for uninhabitedness inside tuples / arrays / objects
-  // but this is best effort (Typescript does not do these checks)
+  if (x.kind === 'Object' && y.kind === 'Object') {
+    return x.fields.some(xFieldType => {
+      const yFieldType = y.fields.find(yFieldType => yFieldType.field === xFieldType.field);
+      if (yFieldType) {
+        return uninhabitedIntersection(xFieldType.type, yFieldType.type);
+      } else {
+        return false;
+      }
+    });
+  }
+
   return false;
 }
 
@@ -228,6 +255,12 @@ export function intersection(...types: Array<Type>): Type {
     return distributeUnion(types);
   if (types.some(t => types.some(u => uninhabitedIntersection(t, u))))
     return never;
+
+  // TODO(jaked)
+  // it would be cleaner to handle this in subtyping somehow
+  // e.g. not('foo') <: ('foo' | 'bar')
+  types = types.filter(type => !hasNot(type));
+
   types = collapseSubtype(types);
 
   if (types.length === 0) return unknown;

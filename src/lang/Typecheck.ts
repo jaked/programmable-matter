@@ -377,18 +377,31 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom
   }
 }
 
-function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom {
-  const { type: object, atom: objAtom } = synth(ast.object, env);
-  if (ast.computed) {
-    switch (object.kind) {
+function synthMemberExpression(
+  ast: ESTree.MemberExpression,
+  env: Env,
+  objectTypeAtom?: TypeAtom | undefined
+): TypeAtom {
+  const { type: objectType, atom: objectAtom } =
+    objectTypeAtom || synth(ast.object, env);
+
+  if (objectType.kind === 'Union') {
+    const typeAtoms =
+      objectType.types.map(type => synthMemberExpression(ast, env, { type, atom: objectAtom }));
+    const type = Type.union(...typeAtoms.map(typeAtom => typeAtom.type));
+    const atom = typeAtoms.map(typeAtom => typeAtom.atom).some(x => x);
+    return { type, atom: objectAtom || atom }
+
+  } else if (ast.computed) {
+    switch (objectType.kind) {
       case 'Array':
         const propAtom = check(ast.property, env, Type.number);
-        return { type: object.elem, atom: objAtom || propAtom };
+        return { type: objectType.elem, atom: objectAtom || propAtom };
 
       case 'Tuple': {
         // check against union of valid indexes
         let validIndexes =
-          object.elems.map((_, i) => Type.singleton(i));
+          objectType.elems.map((_, i) => Type.singleton(i));
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
@@ -405,14 +418,14 @@ function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom
 
         // and return union of element types of present indexes
         const presentTypes =
-          presentIndexes.map(i => object.elems[i]);
-        return { type: Type.union(...presentTypes), atom: objAtom || propAtom };
+          presentIndexes.map(i => objectType.elems[i]);
+        return { type: Type.union(...presentTypes), atom: objectAtom || propAtom };
       }
 
       case 'Object': {
         // check against union of valid indexes
         let validIndexes =
-          object.fields.map(({ field }) => Type.singleton(field));
+          objectType.fields.map(({ field }) => Type.singleton(field));
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
@@ -430,11 +443,11 @@ function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom
         // and return union of element types of present indexes
         const presentTypes =
           presentIndexes.map(i => {
-            const fieldType = object.fields.find(({ field }) => field === i);
+            const fieldType = objectType.fields.find(({ field }) => field === i);
             if (fieldType) return fieldType.type;
             else throw new Error('expected valid index');
           });
-        return { type: Type.union(...presentTypes), atom: objAtom || propAtom };
+        return { type: Type.union(...presentTypes), atom: objectAtom || propAtom };
       }
 
       // case 'Module':
@@ -442,32 +455,32 @@ function synthMemberExpression(ast: ESTree.MemberExpression, env: Env): TypeAtom
       // (for that matter, maybe we should not have computed members on tuples / objects)
 
       default:
-        throw new Error('unimplemented synthMemberExpression ' + object.kind);
+        throw new Error('unimplemented synthMemberExpression ' + objectType.kind);
     }
   } else {
     if (ast.property.type === 'Identifier') {
       const name = ast.property.name;
-      switch (object.kind) {
+      switch (objectType.kind) {
         case 'Array':
           switch (name) {
-            case 'length': return { type: Type.number, atom: objAtom };
+            case 'length': return { type: Type.number, atom: objectAtom };
             default: return throwUnknownField(ast, name);
           }
 
         case 'Object': {
-          const field = object.fields.find(ft => ft.field === name);
-          if (field) return { type: field.type, atom: objAtom };
+          const field = objectType.fields.find(ft => ft.field === name);
+          if (field) return { type: field.type, atom: objectAtom };
           else return throwUnknownField(ast, name);
         }
 
         case 'Module': {
-          const field = object.fields.find(ft => ft.field === name);
-          if (field) return { type: field.type, atom: objAtom || field.atom };
+          const field = objectType.fields.find(ft => ft.field === name);
+          if (field) return { type: field.type, atom: objectAtom || field.atom };
           else return throwUnknownField(ast, name);
         }
 
         default:
-          throw new Error('unimplemented synthMemberExpression ' + object.kind);
+          throw new Error('unimplemented synthMemberExpression ' + objectType.kind);
       }
     } else {
       throw new Error('expected identifier on non-computed property');
@@ -610,6 +623,15 @@ function refineExpression(
       const { type: identType, atom } = env.get(ast.name) || bug('expected bound identifier');
       const type = Type.intersection(identType, otherType);
       return env.set(ast.name, { type, atom });
+    }
+
+    case 'MemberExpression': {
+      if (ast.computed) return env; // TODO(jaked) handle computed cases
+      if (ast.property.type !== 'Identifier') return bug('expected Identifier');
+      return refineExpression(
+        env,
+        ast.object,
+        Type.object({ [ast.property.name]: otherType }));
     }
 
     default: return env;

@@ -508,5 +508,17 @@ describe('synth', () => {
         Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
       expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
     });
+
+    it('refines type via member expressions', () => {
+      const env: Typecheck.Env =
+        Immutable.Map({ s: {
+          type: Type.union(
+              Type.object({ type: Type.singleton('foo'), foo: Type.number }),
+              Type.object({ type: Type.singleton('bar'), bar: Type.number }),
+            ),
+          atom: false
+        } });
+      expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
+    });
   });
 });
