@@ -19,13 +19,12 @@ describe('check', () => {
   function expectCheck(
     exprOrString: ESTree.Expression | string,
     type: Type.Type,
-    env: Typecheck.Env = Immutable.Map(),
-    atom: boolean = false
+    env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.check(expr, env, type)).toEqual(atom);
+    expect(Typecheck.check(expr, env, type)).toBe(undefined);
   }
 
   describe('primitives', () => {
@@ -40,8 +39,8 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: { type: Type.boolean, atom: true } });
-      expectCheck('foo', Type.boolean, env, true);
+      const env: Typecheck.Env = Immutable.Map({ foo: Type.boolean });
+      expectCheck('foo', Type.boolean, env);
     });
   });
 
@@ -59,8 +58,8 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env =  Immutable.Map({ foo: { type, atom: true } });
-      expectCheck('foo', type, env, true)
+      const env: Typecheck.Env =  Immutable.Map({ foo: type });
+      expectCheck('foo', type, env)
     });
 
     it ('throws on long tuples', () => {
@@ -82,8 +81,8 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env =  Immutable.Map({ foo: { type, atom: true } });
-      expectCheck('foo', type, env, true);
+      const env: Typecheck.Env =  Immutable.Map({ foo: type });
+      expectCheck('foo', type, env);
     });
   });
 
@@ -100,9 +99,9 @@ describe('check', () => {
 
     it('permits excess properties in non-literal', () => {
       const env: Typecheck.Env = Immutable.Map({
-        foo: { type: Type.object({ baz: Type.number }), atom: true },
+        foo: Type.object({ baz: Type.number }),
       });
-      expectCheck('foo', type, env, true);
+      expectCheck('foo', type, env);
     });
   });
 
@@ -190,7 +189,7 @@ describe('check', () => {
   describe('conditional expressions', () => {
     it('ok', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ b: { type: Type.boolean, atom: false } });
+        Immutable.Map({ b: Type.boolean });
       expectCheck('b ? 1 : 2', Type.enumerate(1, 2), env);
     });
 
@@ -200,13 +199,13 @@ describe('check', () => {
 
     it('ok with statically evaluable test 2', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ x: { type: Type.singleton('foo'), atom: false } });
+        Immutable.Map({ x: Type.singleton('foo') });
       expectCheck(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
     it('narrows type for equality tests', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
+        Immutable.Map({ s: Type.enumerate('foo', 'bar') });
       expectCheck(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
   });
@@ -226,19 +225,18 @@ describe('synth', () => {
   function expectSynth(
     exprOrString: ESTree.Expression | string,
     type: Type.Type,
-    env: Typecheck.Env = Immutable.Map(),
-    atom: boolean = false
+    env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.synth(expr, env)).toEqual({ type, atom });
+    expect(Typecheck.synth(expr, env)).toEqual(type);
   }
 
   describe('identifiers', () => {
     it('succeeds', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: { type: Type.boolean, atom: true } });
-      expectSynth('foo', Type.boolean, env, true);
+      const env: Typecheck.Env = Immutable.Map({ foo: Type.boolean });
+      expectSynth('foo', Type.boolean, env);
     });
 
     it('throws', () => {
@@ -326,8 +324,8 @@ describe('synth', () => {
 
     describe('not statically evaluated', () => {
       const env: Typecheck.Env = Immutable.Map({
-        number: { type: Type.number, atom: false },
-        string: { type: Type.string, atom: false },
+        number: Type.number,
+        string: Type.string,
       });
 
       it('&&', () => {
@@ -369,8 +367,8 @@ describe('synth', () => {
 
     describe('not statically evaluated', () => {
       const env: Typecheck.Env = Immutable.Map({
-        number: { type: Type.number, atom: false },
-        string: { type: Type.string, atom: false },
+        number: Type.number,
+        string: Type.string,
       });
 
       it('+ numbers', () => {
@@ -393,17 +391,17 @@ describe('synth', () => {
 
   describe('member expressions', () => {
     const env: Typecheck.Env = Immutable.Map({
-      object: { type: Type.object({ foo: Type.boolean, bar: Type.number }), atom: false },
-      array: { type: Type.array(Type.number), atom: false },
-      tuple: { type: Type.tuple(Type.boolean, Type.number), atom: false },
-      numberUnion: { type: Type.union(
+      object: Type.object({ foo: Type.boolean, bar: Type.number }),
+      array: Type.array(Type.number),
+      tuple: Type.tuple(Type.boolean, Type.number),
+      numberUnion: Type.union(
         Type.singleton(0),
         Type.singleton(1),
-      ), atom: false },
-      stringUnion: { type: Type.union(
+      ),
+      stringUnion: Type.union(
         Type.singleton('foo'),
         Type.singleton('bar'),
-      ), atom: false }
+      ),
     });
 
     it('property names', () => {
@@ -468,18 +466,12 @@ describe('synth', () => {
 
   describe('function calls', () => {
     const env: Typecheck.Env = Immutable.Map({
-      f: { type: Type.function([ Type.number ], Type.string), atom: false },
-      intf: {
-        type: Type.intersection(
-          Type.function([ Type.number ], Type.number),
-          Type.function([ Type.string ], Type.string),
-        ),
-        atom: false
-      },
-      intx: {
-        type: Type.intersection(Type.number, Type.string),
-        atom: false
-      },
+      f: Type.function([ Type.number ], Type.string),
+      intf: Type.intersection(
+        Type.function([ Type.number ], Type.number),
+        Type.function([ Type.string ], Type.string),
+      ),
+      intx: Type.intersection(Type.number, Type.string),
     });
 
     it('ok', () => {
@@ -507,23 +499,18 @@ describe('synth', () => {
     it('throws when arg is wrong type', () => {
       expectSynthThrows('f("seven")');
     });
-
-    // TODO(jaked) verify that atomness synths correctly
   });
 
   describe('JSX elements', () => {
     const env: Typecheck.Env = Immutable.Map({
-      Component: {
-        type: Type.function(
-          [ Type.object({ foo: Type.number, bar: Type.undefinedOrNumber }) ],
-          Type.string
-        ),
-        atom: false
-      },
-      NotFunction: { type: Type.string, atom: false },
-      TooManyParams: { type: Type.function([ Type.string, Type.number ], Type.boolean), atom: false },
-      ParamNotObject: { type: Type.function([ Type.string ], Type.boolean), atom: false },
-      WrongChildrenType: { type: Type.function([ Type.object({ children: Type.number }) ], Type.boolean), atom: false },
+      Component: Type.function(
+        [ Type.object({ foo: Type.number, bar: Type.undefinedOrNumber }) ],
+        Type.string
+      ),
+      NotFunction: Type.string,
+      TooManyParams: Type.function([ Type.string, Type.number ], Type.boolean),
+      ParamNotObject: Type.function([ Type.string ], Type.boolean),
+      WrongChildrenType: Type.function([ Type.object({ children: Type.number }) ], Type.boolean),
     });
 
     it('ok', () => {
@@ -559,7 +546,7 @@ describe('synth', () => {
   describe('conditional expressions', () => {
     it('ok', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ b: { type: Type.boolean, atom: false } });
+        Immutable.Map({ b: Type.boolean });
       expectSynth('b ? 1 : 2', Type.enumerate(1, 2), env);
     });
 
@@ -569,49 +556,40 @@ describe('synth', () => {
 
     it('ok with statically evaluable test 2', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ x: { type: Type.singleton('foo'), atom: false } });
+        Immutable.Map({ x: Type.singleton('foo') });
       expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
     it('narrows type for equality tests', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
+        Immutable.Map({ s: Type.enumerate('foo', 'bar') });
       expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
 
     it('narrows type for false branch of equality tests', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ s: { type: Type.enumerate('foo', 'bar'), atom: false } });
+        Immutable.Map({ s: Type.enumerate('foo', 'bar') });
       expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
     });
 
     it('narrows type via member expressions', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ s: {
-          type: Type.union(
-              Type.object({ type: Type.singleton('foo'), foo: Type.number }),
-              Type.object({ type: Type.singleton('bar'), bar: Type.number }),
-            ),
-          atom: false
-        } });
+        Immutable.Map({ s: Type.union(
+          Type.object({ type: Type.singleton('foo'), foo: Type.number }),
+          Type.object({ type: Type.singleton('bar'), bar: Type.number }),
+        ) });
       expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
     });
 
     it('narrows type for truthiness tests', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ s: {
-          type: Type.union(Type.number, Type.undefined),
-          atom: false
-        } });
+        Immutable.Map({ s: Type.union(Type.number, Type.undefined) });
       expectSynth(`s ? s : 7`, Type.number, env);
     });
 
     it('narrows type for falsiness tests', () => {
       const env: Typecheck.Env =
-        Immutable.Map({ s: {
-          type: Type.union(Type.number, Type.singleton(true)),
-          atom: false
-        } });
+        Immutable.Map({ s: Type.union(Type.number, Type.singleton(true)) });
       expectSynth(`!s ? s : 7`, Type.number, env);
     });
   });

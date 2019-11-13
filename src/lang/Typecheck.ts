@@ -7,15 +7,7 @@ import * as ESTree from './ESTree';
 import * as Type from './Type';
 import Try from '../util/Try';
 
-export type TypeAtom = { type: Type.Type, atom: boolean };
-
-// TODO(jaked)
-// function and pattern environments don't need to track atomness
-// - we join on all the args at a function call
-// - patterns match over direct values
-// but module environments need to track atomness
-// should we split out the module environment to avoid a nuisance flag?
-export type Env = Immutable.Map<string, TypeAtom>;
+export type Env = Immutable.Map<string, Type.Type>;
 
 function prettyPrint(type: Type.Type): string {
   // TODO(jaked) print prettily
@@ -61,50 +53,46 @@ function throwWrongArgsLength(ast: ESTree.Node, expected: number, actual: number
   return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
 }
 
-function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type): boolean {
+function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type) {
   switch (ast.type) {
     case 'JSXExpressionContainer':
       return check(ast.expression, env, type);
 
     case 'ConditionalExpression': {
-      const { type: testType, atom: testAtom } = synth(ast.test, env);
+      const testType = synth(ast.test, env);
 
       if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
         if (testType.value) {
           const envConsequent = narrowEnvironment(env, ast.test, true);
-          const consequentAtom = check(ast.consequent, envConsequent, type);
-          return testAtom || consequentAtom;
+          return check(ast.consequent, envConsequent, type);
         } else {
           const envAlternate = narrowEnvironment(env, ast.test, false);
-          const alternateAtom = check(ast.alternate, envAlternate, type);
-          return testAtom || alternateAtom;
+          return check(ast.alternate, envAlternate, type);
         }
       } else {
         const envConsequent = narrowEnvironment(env, ast.test, true);
         const envAlternate = narrowEnvironment(env, ast.test, false);
-        const consequentAtom = check(ast.consequent, envConsequent, type);
-        const alternateAtom = check(ast.alternate, envAlternate, type);
-        return testAtom || consequentAtom || alternateAtom;
+        check(ast.consequent, envConsequent, type);
+        return check(ast.alternate, envAlternate, type);
       }
     }
 
     default:
-      const { type: actual, atom } = synth(ast, env);
+      const actual = synth(ast, env);
       if (!Type.isSubtype(actual, type))
         throwExpectedType(ast, type, actual);
-      return atom;
   }
 }
 
-function checkTuple(ast: ESTree.Expression, env: Env, type: Type.TupleType): boolean {
+function checkTuple(ast: ESTree.Expression, env: Env, type: Type.TupleType) {
   switch (ast.type) {
     case 'ArrayExpression':
       if (ast.elements.length !== type.elems.length) {
         return throwExpectedType(ast, type);
       } else {
-        return ast.elements.map((elem, i) =>
+        return ast.elements.forEach((elem, i) =>
           check(elem, env, type.elems[i])
-        ).some(x => x);
+        );
       }
 
     default:
@@ -112,25 +100,25 @@ function checkTuple(ast: ESTree.Expression, env: Env, type: Type.TupleType): boo
   }
 }
 
-function checkArray(ast: ESTree.Expression, env: Env, type: Type.ArrayType): boolean {
+function checkArray(ast: ESTree.Expression, env: Env, type: Type.ArrayType) {
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
     case 'JSXFragment':
-      return ast.children.map(child =>
+      return ast.children.forEach(child =>
         check(child, env, type)
-      ).some(x => x);
+      );
 
     case 'ArrayExpression':
-      return ast.elements.map(elem =>
+      return ast.elements.forEach(elem =>
         check(elem, env, type.elem)
-      ).some(x => x);
+      );
 
     default:
       return checkSubtype(ast, env, type);
   }
 }
 
-function checkSet(ast: ESTree.Expression, env: Env, type: Type.SetType): boolean {
+function checkSet(ast: ESTree.Expression, env: Env, type: Type.SetType) {
   switch (ast.type) {
     // TODO(jaked) Set literals?
 
@@ -139,7 +127,7 @@ function checkSet(ast: ESTree.Expression, env: Env, type: Type.SetType): boolean
   }
 }
 
-function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType): boolean {
+function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType) {
   switch (ast.type) {
     // TODO(jaked) Map literals?
 
@@ -148,7 +136,7 @@ function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType): boolean
   }
 }
 
-function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType): boolean {
+function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType) {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
       if (type.args.length != ast.params.length)
@@ -156,7 +144,7 @@ function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType
       ast.params.forEach((pat, i) => {
         switch (pat.type) {
           case 'Identifier':
-            env = env.set(pat.name, { type: type.args[i], atom: false });
+            env = env.set(pat.name, type.args[i]);
             break;
 
           default: throw new Error('unexpected AST type ' + (pat as ESTree.Pattern).type);
@@ -169,7 +157,7 @@ function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType
   }
 }
 
-function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType): boolean {
+function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType) {
   // to get a more localized error message we'd like to decompose the type and expression
   // as far as possible, but for unions we don't know which arm to break down.
   // if the outermost AST node corresponds to exactly one arm we'll try that one.
@@ -185,7 +173,7 @@ function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType): boo
     return checkSubtype(ast, env, type);
 }
 
-function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.IntersectionType): boolean {
+function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.IntersectionType) {
   // TODO(jaked)
   // we check that the expression is an atom for each arm of the intersection
   // but it should not matter what type we check with
@@ -193,14 +181,14 @@ function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.Intersec
   // need to be careful once we have function types carrying an atom effect
   // e.g. a type (T =(true)> U & T =(false)> U) is well-formed
   // but we don't want to union / intersect atom effects
-  return type.types.map(type => check(ast, env, type)).some(x => x);
+  return type.types.map(type => check(ast, env, type));
 }
 
-function checkSingleton(ast: ESTree.Expression, env: Env, type: Type.SingletonType): boolean {
+function checkSingleton(ast: ESTree.Expression, env: Env, type: Type.SingletonType) {
   return checkSubtype(ast, env, type);
 }
 
-function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType): boolean {
+function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType) {
   switch (ast.type) {
     case 'ObjectExpression':
       const propNames = new Set(ast.properties.map(prop => {
@@ -234,7 +222,7 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType): b
   }
 }
 
-function checkHelper(ast: ESTree.Expression, env: Env, type: Type.Type): boolean {
+function checkHelper(ast: ESTree.Expression, env: Env, type: Type.Type) {
   switch (type.kind) {
     case 'Tuple':         return checkTuple(ast, env, type);
     case 'Array':         return checkArray(ast, env, type);
@@ -250,39 +238,35 @@ function checkHelper(ast: ESTree.Expression, env: Env, type: Type.Type): boolean
   }
 }
 
-export function check(ast: ESTree.Expression, env: Env, type: Type.Type): boolean {
+export function check(ast: ESTree.Expression, env: Env, type: Type.Type) {
   try {
-    const atom = checkHelper(ast, env, type);
-    ast.etype = Try.ok({ type, atom });
-    return atom;
+    checkHelper(ast, env, type);
+    ast.etype = Try.ok(type);
   } catch (e) {
     ast.etype = Try.err(e);
     throw e;
   }
 }
 
-function synthIdentifier(ast: ESTree.Identifier, env: Env): TypeAtom {
-  const typeAtom = env.get(ast.name);
-  if (typeAtom) return typeAtom;
+function synthIdentifier(ast: ESTree.Identifier, env: Env): Type.Type {
+  const type = env.get(ast.name);
+  if (type) return type;
   else throw new Error('unbound identifier ' + ast.name);
 }
 
-function synthLiteral(ast: ESTree.Literal, env: Env): TypeAtom {
-  const type = Type.singleton(ast.value);
-  return { type, atom: false };
+function synthLiteral(ast: ESTree.Literal, env: Env): Type.Type {
+  return Type.singleton(ast.value);
 }
 
-function synthArrayExpression(ast: ESTree.ArrayExpression, env: Env): TypeAtom {
-  const typesAtoms = ast.elements.map(e => synth(e, env));
-  const types = typesAtoms.map(({ type }) => type);
-  const atom = typesAtoms.some(({ atom }) => atom);
+function synthArrayExpression(ast: ESTree.ArrayExpression, env: Env): Type.Type {
+  const types = ast.elements.map(e => synth(e, env));
   const elem = Type.union(...types);
-  return { type: Type.array(elem), atom };
+  return Type.array(elem);
 }
 
-function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): TypeAtom {
+function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): Type.Type {
   const seen = new Set();
-  const fields: Array<[string, TypeAtom]> =
+  const fields: Array<[string, Type.Type]> =
     ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
@@ -294,40 +278,37 @@ function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): TypeAtom
       else seen.add(name);
       return [ name, synth(prop.value, env) ];
     });
-  const fieldTypes = fields.map(([name, { type }]) => ({ [name]: type }));
-  const atom = fields.some(([_, { atom }]) => atom);
-  const type = Type.object(Object.assign({}, ...fieldTypes));
-  return { type, atom };
+  const fieldTypes = fields.map(([name, type]) => ({ [name]: type }));
+  return Type.object(Object.assign({}, ...fieldTypes));
 }
 
-function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): TypeAtom {
-  let { type, atom } = synth(ast.argument, env);
+function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type.Type {
+  const type = synth(ast.argument, env);
 
   if (type.kind === 'Singleton') {  // TODO(jaked) handle compound singletons
     switch (ast.operator) {
       case '!':
-        return { type: Type.singleton(!type.value), atom  }
+        return Type.singleton(!type.value);
       case 'typeof':
-        return { type: Type.singleton(typeof type.value), atom }
+        return Type.singleton(typeof type.value);
       default:
-        throw new Error(`unhandled ast ${ast.operator}`);
+        return bug(`unhandled ast ${ast.operator}`);
     }
   } else {
     switch (ast.operator) {
       case '!':
-        return { type: Type.boolean, atom };
+        return Type.boolean;
       case 'typeof':
-        return { type: Type.string, atom };
+        return Type.string; // TOOD(jaked) should be enumeration
       default:
-        throw new Error(`unhandled ast ${ast.operator}`);
+        return bug(`unhandled ast ${ast.operator}`);
       }
   }
 }
 
-function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): TypeAtom {
-  let { type: left, atom: leftAtom } = synth(ast.left, env);
-  let { type: right, atom: rightAtom } = synth(ast.right, env);
-  const atom = leftAtom || rightAtom;
+function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type.Type {
+  const left = synth(ast.left, env);
+  const right = synth(ast.right, env);
 
   // TODO(jaked)
   // handle cases where only one side is singleton
@@ -336,68 +317,45 @@ function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): TypeAt
 
   // TODO(jaked) handle compound singletons
   if (left.kind === 'Singleton' && right.kind === 'Singleton') {
-    const leftValue = left.value;
-    const rightValue = right.value;
-
-    // TODO(jaked) handle other operators
     switch (ast.operator) {
       case '&&':
-        return { type: Type.singleton(leftValue && rightValue), atom };
+        return Type.singleton(left.value && right.value);
       case '||':
-        return { type: Type.singleton(leftValue || rightValue), atom };
+        return Type.singleton(left.value || right.value);
       default:
         return bug(`unexpected operator ${ast.operator}`);
     }
   } else {
-    // TODO(jaked) handle other operators
     switch (ast.operator) {
-      case '&&': {
-        const type = Type.union(
-          Type.intersection(left, falsyType),
-          right
-        );
-        return { type, atom };
-      }
-
-      case '||': {
-        const type = Type.union(
-          left, // TODO(jaked) Type.intersection(left, notFalsyType),
-          right
-        );
-
-        return { type, atom };
-      }
-
-        default:
+      case '&&':
+        return Type.union(Type.intersection(left, falsyType), right);
+      case '||':
+        // TODO(jaked) Type.intersection(left, notFalsyType) ?
+        return Type.union(left, right);
+      default:
         return bug(`unexpected operator ${ast.operator}`);
     }
   }
 }
 
-function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom {
-  let { type: left, atom: leftAtom } = synth(ast.left, env);
-  let { type: right, atom: rightAtom } = synth(ast.right, env);
-  const atom = leftAtom || rightAtom;
+function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type.Type {
+  let left = synth(ast.left, env);
+  let right = synth(ast.right, env);
 
   // TODO(jaked) handle compound singletons
   if (left.kind === 'Singleton' && right.kind === 'Singleton') {
-    const leftValue = left.value;
-    const rightValue = right.value;
-    left = left.base;
-    right = right.base;
-
     // TODO(jaked) handle other operators
     switch (ast.operator) {
       case '===':
-        return { type: Type.singleton(leftValue === rightValue), atom };
+        return Type.singleton(left.value === right.value);
       case '!==':
-        return { type: Type.singleton(leftValue !== rightValue), atom };
+        return Type.singleton(left.value !== right.value);
 
       case '+': {
-        if (left.kind === 'number' && right.kind === 'number')
-          return { type: Type.singleton(leftValue + rightValue), atom };
-        else if (left.kind === 'string' && right.kind === 'string')
-          return { type: Type.singleton(leftValue + rightValue), atom };
+        if (left.base.kind === 'number' && right.base.kind === 'number')
+          return Type.singleton(left.value + right.value);
+        else if (left.base.kind === 'string' && right.base.kind === 'string')
+          return Type.singleton(left.value + right.value);
         else return throwWithLocation(ast, 'incompatible operands to +');
       }
 
@@ -412,13 +370,13 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom
     switch (ast.operator) {
       case '===':
       case '!==':
-        return { type: Type.boolean, atom };
+        return Type.boolean;
 
       case '+': {
         if (left.kind === 'number' && right.kind === 'number')
-          return { type: Type.number, atom };
+          return Type.number;
         else if (left.kind === 'string' && right.kind === 'string')
-          return { type: Type.string, atom };
+          return Type.string;
         else return throwWithLocation(ast, 'incompatible operands to +');
       }
 
@@ -431,56 +389,55 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): TypeAtom
 function synthMemberExpression(
   ast: ESTree.MemberExpression,
   env: Env,
-  objectTypeAtom?: TypeAtom | undefined
-): TypeAtom {
-  const { type: objectType, atom: objectAtom } =
-    objectTypeAtom || synth(ast.object, env);
+  objectType?: Type.Type | undefined
+): Type.Type {
+  objectType = objectType || synth(ast.object, env);
 
   if (objectType.kind === 'Union') {
-    const typeAtoms =
-      objectType.types.map(type => synthMemberExpression(ast, env, { type, atom: objectAtom }));
-    const type = Type.union(...typeAtoms.map(typeAtom => typeAtom.type));
-    const atom = typeAtoms.map(typeAtom => typeAtom.atom).some(x => x);
-    return { type, atom: objectAtom || atom }
+    const types =
+      objectType.types.map(type => synthMemberExpression(ast, env, type));
+    return Type.union(...types);
 
   } else if (ast.computed) {
     switch (objectType.kind) {
       case 'Array':
-        const propAtom = check(ast.property, env, Type.number);
-        return { type: objectType.elem, atom: objectAtom || propAtom };
+        check(ast.property, env, Type.number);
+        return objectType.elem;
 
       case 'Tuple': {
         // check against union of valid indexes
-        let validIndexes =
-          objectType.elems.map((_, i) => Type.singleton(i));
+        const elems = objectType.elems;
+        const validIndexes =
+          elems.map((_, i) => Type.singleton(i));
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
-        const { type: propertyType, atom: propAtom } = synth(ast.property, env);
+        const propertyType = synth(ast.property, env);
         const presentIndexes: Array<number> = [];
         if (propertyType.kind === 'Singleton') {
           presentIndexes.push(propertyType.value);
         } else if (propertyType.kind === 'Union') {
           propertyType.types.forEach(type => {
             if (type.kind === 'Singleton') presentIndexes.push(type.value);
-            else throw new Error('expected Singleton');
+            else bug('expected Singleton');
           });
-        } else throw new Error('expected Singleton or Union')
+        } else bug('expected Singleton or Union')
 
         // and return union of element types of present indexes
         const presentTypes =
-          presentIndexes.map(i => objectType.elems[i]);
-        return { type: Type.union(...presentTypes), atom: objectAtom || propAtom };
+          presentIndexes.map(i => elems[i]);
+        return Type.union(...presentTypes);
       }
 
       case 'Object': {
         // check against union of valid indexes
-        let validIndexes =
-          objectType.fields.map(({ field }) => Type.singleton(field));
+        const fields = objectType.fields;
+        const validIndexes =
+          fields.map(({ field }) => Type.singleton(field));
         check(ast.property, env, Type.union(...validIndexes));
 
         // synth to find out which valid indexes are actually present
-        const { type: propertyType, atom: propAtom } = synth(ast.property, env);
+        const propertyType = synth(ast.property, env);
         const presentIndexes: Array<string> = [];
         if (propertyType.kind === 'Singleton') {
           presentIndexes.push(propertyType.value);
@@ -494,11 +451,11 @@ function synthMemberExpression(
         // and return union of element types of present indexes
         const presentTypes =
           presentIndexes.map(i => {
-            const fieldType = objectType.fields.find(({ field }) => field === i);
+            const fieldType = fields.find(({ field }) => field === i);
             if (fieldType) return fieldType.type;
             else throw new Error('expected valid index');
           });
-        return { type: Type.union(...presentTypes), atom: objectAtom || propAtom };
+        return Type.union(...presentTypes);
       }
 
       // case 'Module':
@@ -506,7 +463,7 @@ function synthMemberExpression(
       // (for that matter, maybe we should not have computed members on tuples / objects)
 
       default:
-        throw new Error('unimplemented synthMemberExpression ' + objectType.kind);
+        return bug('unimplemented synthMemberExpression ' + objectType.kind);
     }
   } else {
     if (ast.property.type === 'Identifier') {
@@ -514,19 +471,19 @@ function synthMemberExpression(
       switch (objectType.kind) {
         case 'Array':
           switch (name) {
-            case 'length': return { type: Type.number, atom: objectAtom };
+            case 'length': return Type.number;
             default: return throwUnknownField(ast, name);
           }
 
         case 'Object': {
           const field = objectType.fields.find(ft => ft.field === name);
-          if (field) return { type: field.type, atom: objectAtom };
+          if (field) return field.type;
           else return throwUnknownField(ast, name);
         }
 
         case 'Module': {
           const field = objectType.fields.find(ft => ft.field === name);
-          if (field) return { type: field.type, atom: objectAtom || field.atom };
+          if (field) return field.type;
           else return throwUnknownField(ast, name);
         }
 
@@ -542,23 +499,20 @@ function synthMemberExpression(
 function synthCallExpression(
   ast: ESTree.CallExpression,
   env:Env,
-  calleeTypeAtom?: TypeAtom | undefined
-): TypeAtom {
-  const { type: calleeType, atom: calleeAtom } =
-    calleeTypeAtom || synth(ast.callee, env);
+  calleeType?: Type.Type | undefined
+): Type.Type {
+  calleeType = calleeType || synth(ast.callee, env);
 
   if (calleeType.kind === 'Intersection') {
     const callTypes =
       calleeType.types
         .filter(type => type.kind === 'Function')
-        .map(type => Try.apply(() => synthCallExpression(ast, env, { type, atom: calleeAtom })));
+        .map(type => Try.apply(() => synthCallExpression(ast, env, type)));
     if (callTypes.some(tryType => tryType.type === 'ok')) {
-      const retTypeAtoms =
+      const retTypes =
         callTypes.filter(tryType => tryType.type === 'ok')
           .map(tryType => tryType.get());
-      const retType = Type.intersection(...retTypeAtoms.map(typeAtom => typeAtom.type));
-      const retAtom = retTypeAtoms.map(typeAtom => typeAtom.atom).some(x => x);
-      return { type: retType, atom: calleeAtom || retAtom };
+      return Type.intersection(...retTypes);
     } else {
       // TODO(jaked) better error message
       return throwWithLocation(ast, 'no matching function type');
@@ -568,14 +522,8 @@ function synthCallExpression(
       // TODO(jaked) support short arg lists if arg type contains undefined
       // TODO(jaked) check how this works in Typescript
       throwExpectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
-
-    const argsAtom = calleeType.args.map((type, i) => {
-      const { type: argType, atom: argAtom } = synth(ast.arguments[i], env);
-      if (!Type.isSubtype(argType, type))
-        throwExpectedType(ast.arguments[i], type, argType);
-      return argAtom;
-    }).some(x => x);
-    return { type: calleeType.ret, atom: calleeAtom || argsAtom };
+    calleeType.args.forEach((type, i) => check(ast.arguments[i], env, type));
+    return calleeType.ret;
   } else {
     return throwExpectedType(ast.callee, 'function', calleeType)
   }
@@ -586,7 +534,7 @@ function patTypeEnvIdentifier(ast: ESTree.Identifier, type: Type.Type, env: Env)
     return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(type)}`);
   if (env.has(ast.name))
     return throwWithLocation(ast, `identifier ${ast.name} already bound in pattern`);
-  return env.set(ast.name, { type, atom: false });
+  return env.set(ast.name, type);
 }
 
 function patTypeEnvObjectPattern(ast: ESTree.ObjectPattern, t: Type.ObjectType, env: Env): Env {
@@ -645,7 +593,7 @@ function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type.Type {
 function synthArrowFunctionExpression(
   ast: ESTree.ArrowFunctionExpression,
   env: Env
-): TypeAtom {
+): Type.Type {
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
     if (!param.typeAnnotation)
@@ -655,10 +603,8 @@ function synthArrowFunctionExpression(
     return t;
   });
   env = env.concat(patEnv);
-  // TODO(jaked) carry body atomness as effect on Type.function
-  const { type, atom } = synth(ast.body, env);
-  const funcType = Type.function(paramTypes, type);
-  return { type: funcType, atom: false };
+  const type = synth(ast.body, env);
+  return Type.function(paramTypes, type);
 }
 
 // TODO(jaked) put somewhere common
@@ -695,9 +641,9 @@ function narrowExpression(
 ): Env {
   switch (ast.type) {
     case 'Identifier': {
-      const { type: identType, atom } = env.get(ast.name) || bug('expected bound identifier');
+      const identType = env.get(ast.name) || bug('expected bound identifier');
       const type = Type.intersection(identType, otherType);
-      return env.set(ast.name, { type, atom });
+      return env.set(ast.name, type);
     }
 
     case 'MemberExpression': {
@@ -738,13 +684,13 @@ function narrowEnvironment(
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         if (!ast.right.etype) return bug('expected etype');
         if (!ast.left.etype) return bug('expected etype');
-        env = narrowExpression(env, ast.left, ast.right.etype.get().type);
-        return narrowExpression(env, ast.right, ast.left.etype.get().type);
+        env = narrowExpression(env, ast.left, ast.right.etype.get());
+        return narrowExpression(env, ast.right, ast.left.etype.get());
       } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
         if (!ast.right.etype) return bug('expected etype');
         if (!ast.left.etype) return bug('expected etype');
-        env = narrowExpression(env, ast.left, Type.not(ast.right.etype.get().type));
-        return narrowExpression(env, ast.right, Type.not(ast.left.etype.get().type));
+        env = narrowExpression(env, ast.left, Type.not(ast.right.etype.get()));
+        return narrowExpression(env, ast.right, Type.not(ast.left.etype.get()));
       } else {
         return throwWithLocation(ast, 'unimplemented');
       }
@@ -761,38 +707,34 @@ function narrowEnvironment(
 function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env
-): TypeAtom {
-  const { type: testType, atom: testAtom } = synth(ast.test, env);
+): Type.Type {
+  const testType = synth(ast.test, env);
 
   if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
     if (testType.value) {
       const envConsequent = narrowEnvironment(env, ast.test, true);
-      const { type, atom } = synth(ast.consequent, envConsequent);
-      return { type, atom: testAtom || atom };
+      return synth(ast.consequent, envConsequent);
     } else {
       const envAlternate = narrowEnvironment(env, ast.test, false);
-      const { type, atom } = synth(ast.alternate, envAlternate);
-      return { type, atom: testAtom || atom };
+      return synth(ast.alternate, envAlternate);
     }
   } else {
     const envConsequent = narrowEnvironment(env, ast.test, true);
     const envAlternate = narrowEnvironment(env, ast.test, false);
     const consequent = synth(ast.consequent, envConsequent);
     const alternate = synth(ast.alternate, envAlternate);
-    const type = Type.union(consequent.type, alternate.type);
-    const atom = testAtom || consequent.atom || alternate.atom;
-    return { type, atom };
+    return Type.union(consequent, alternate);
   }
 }
 
-function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): TypeAtom {
-  const typeAtom = env.get(ast.name);
-  if (typeAtom) return typeAtom;
+function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): Type.Type {
+  const type = env.get(ast.name);
+  if (type) return type;
   else throw new Error('unbound identifier ' + ast.name);
 }
 
-function synthJSXElement(ast: ESTree.JSXElement, env: Env): TypeAtom {
-  const { type } = synth(ast.openingElement.name, env);
+function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type.Type {
+  const type = synth(ast.openingElement.name, env);
 
   let propsType: Type.ObjectType;
   let retType: Type.Type;
@@ -827,27 +769,24 @@ function synthJSXElement(ast: ESTree.JSXElement, env: Env): TypeAtom {
   });
 
   const propTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
-  const attrsAtom = ast.openingElement.attributes.map(attr => {
+  ast.openingElement.attributes.forEach(attr => {
     const type = propTypes.get(attr.name.name);
     if (type) return check(attr.value, env, type);
     else return throwExtraField(attr, attr.name.name);
-  }).some(x => x);
+  });
 
-  let childrenAtom =
-    ast.children.map(child =>
-      // TODO(jaked) see comment about recursive types on Type.reactNodeType
-      check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)))
-    ).some(x => x);
+  ast.children.map(child =>
+    // TODO(jaked) see comment about recursive types on Type.reactNodeType
+    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)))
+  );
 
-  return { type: retType, atom: attrsAtom || childrenAtom };
+  return retType;
 }
 
-function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): TypeAtom {
-  const typesAtoms = ast.children.map(e => synth(e, env));
-  const types = typesAtoms.map(({ type }) => type);
-  const atom = typesAtoms.some(({ atom }) => atom);
+function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): Type.Type {
+  const types = ast.children.map(e => synth(e, env));
   const elem = Type.union(...types);
-  return { type: Type.array(elem), atom };
+  return Type.array(elem);
   // TODO(jaked) we know children should satisfy `reactNodeType`
   // we could check that explicitly (as above in synthJSXElement)
   // see also comments on checkArray and checkUnion
@@ -856,45 +795,43 @@ function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): TypeAtom {
 function synthJSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
   env: Env
-): TypeAtom {
+): Type.Type {
   return synth(ast.expression, env);
 }
 
-function synthJSXText(ast: ESTree.JSXText, env: Env): TypeAtom {
-  return { type: Type.string, atom: false };
+function synthJSXText(ast: ESTree.JSXText, env: Env): Type.Type {
+  return Type.string;
 }
 
-function synthHelper(ast: ESTree.Expression, env: Env): { type: Type.Type, atom: boolean } {
+function synthHelper(ast: ESTree.Expression, env: Env): Type.Type {
   switch (ast.type) {
-    case 'Identifier':        return synthIdentifier(ast, env);
-    case 'Literal':           return synthLiteral(ast, env);
-    case 'ArrayExpression':   return synthArrayExpression(ast, env);
-    case 'ObjectExpression':  return synthObjectExpression(ast, env);
-    case 'ArrowFunctionExpression':
-                              return synthArrowFunctionExpression(ast, env);
-    case 'UnaryExpression':   return synthUnaryExpression(ast, env);
-    case 'LogicalExpression': return synthLogicalExpression(ast, env);
-    case 'BinaryExpression':  return synthBinaryExpression(ast, env);
-    case 'MemberExpression':  return synthMemberExpression(ast, env);
-    case 'CallExpression':    return synthCallExpression(ast, env);
-    case 'ConditionalExpression':
-                              return synthConditionalExpression(ast, env);
-    case 'JSXIdentifier':     return synthJSXIdentifier(ast, env);
-    case 'JSXElement':        return synthJSXElement(ast, env);
-    case 'JSXFragment':       return synthJSXFragment(ast, env);
-    case 'JSXExpressionContainer':
-                              return synthJSXExpressionContainer(ast, env);
-    case 'JSXText':           return synthJSXText(ast, env);
+    case 'Identifier':              return synthIdentifier(ast, env);
+    case 'Literal':                 return synthLiteral(ast, env);
+    case 'ArrayExpression':         return synthArrayExpression(ast, env);
+    case 'ObjectExpression':        return synthObjectExpression(ast, env);
+    case 'ArrowFunctionExpression': return synthArrowFunctionExpression(ast, env);
+    case 'UnaryExpression':         return synthUnaryExpression(ast, env);
+    case 'LogicalExpression':       return synthLogicalExpression(ast, env);
+    case 'BinaryExpression':        return synthBinaryExpression(ast, env);
+    case 'MemberExpression':        return synthMemberExpression(ast, env);
+    case 'CallExpression':          return synthCallExpression(ast, env);
+    case 'ConditionalExpression':   return synthConditionalExpression(ast, env);
+    case 'JSXIdentifier':           return synthJSXIdentifier(ast, env);
+    case 'JSXElement':              return synthJSXElement(ast, env);
+    case 'JSXFragment':             return synthJSXFragment(ast, env);
+    case 'JSXExpressionContainer':  return synthJSXExpressionContainer(ast, env);
+    case 'JSXText':                 return synthJSXText(ast, env);
 
-    default: throw new Error('unimplemented: synth ' + JSON.stringify(ast));
+    default:
+      return bug(`unimplemented AST ${ast.type}`);
   }
 }
 
-export function synth(ast: ESTree.Expression, env: Env): TypeAtom {
+export function synth(ast: ESTree.Expression, env: Env): Type.Type {
   try {
-    const typeAtom = synthHelper(ast, env);
-    ast.etype = Try.ok(typeAtom);
-    return typeAtom;
+    const type = synthHelper(ast, env);
+    ast.etype = Try.ok(type);
+    return type;
   } catch (e) {
     ast.etype = Try.err(e);
     throw e;
@@ -912,19 +849,19 @@ function extendEnvWithImport(
   decl.specifiers.forEach(spec => {
     switch (spec.type) {
       case 'ImportNamespaceSpecifier':
-        env = env.set(spec.local.name, { type: module, atom: false });
+        env = env.set(spec.local.name, module);
         break;
       case 'ImportDefaultSpecifier':
         const defaultField = module.fields.find(ft => ft.field === 'default');
         if (!defaultField)
           throw new Error(`no default export on '${decl.source.value}' at ${location(decl)}`);
-        env = env.set(spec.local.name, { type: defaultField.type, atom: defaultField.atom });
+        env = env.set(spec.local.name, defaultField.type);
         break;
       case 'ImportSpecifier':
         const importedField = module.fields.find(ft => ft.field === spec.imported.name)
         if (!importedField)
           throw new Error(`no exported member '${spec.imported.name}' on '${decl.source.value}' at ${location(decl)}`);
-        env = env.set(spec.local.name, { type: importedField.type, atom: importedField.atom });
+        env = env.set(spec.local.name, importedField.type);
         break;
     }
   });
@@ -933,28 +870,26 @@ function extendEnvWithImport(
 
 function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
-  exportTypes: { [s: string]: TypeAtom },
+  exportTypes: { [s: string]: Type.Type },
   env: Env
 ): Env {
   const declAtom = decl.declaration.kind === 'let';
   decl.declaration.declarations.forEach(declarator => {
-    const { type } = synth(declarator.init, env);
+    const type = synth(declarator.init, env);
     // a let binding is always an atom (its initializer is a non-atom)
     // a const binding is an atom if its initializer is an atom
     // TODO(jaked)
     // let bindings of type T should also have type T => void
     // so they can be set in event handlers
-    // TODO(jaked) temporarily ignore atomness of initializer
-    const typeAtom: TypeAtom = { type, atom: /* atom || */ declAtom };
-    exportTypes[declarator.id.name] = typeAtom;
-    env = env.set(declarator.id.name, typeAtom);
+    exportTypes[declarator.id.name] = type;
+    env = env.set(declarator.id.name, type);
   });
   return env;
 }
 
 function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
-  exportTypes: { [s: string]: TypeAtom },
+  exportTypes: { [s: string]: Type.Type },
   env: Env
 ): Env {
   exportTypes['default'] = synth(decl.declaration, env);
@@ -966,7 +901,7 @@ export function synthMdx(
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
-  exportTypes: { [s: string]: TypeAtom }
+  exportTypes: { [s: string]: Type.Type }
 ): Env {
   switch (ast.type) {
     case 'root':
@@ -1014,7 +949,7 @@ export function synthProgram(
   ast: ESTree.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
-  exportTypes: { [s: string]: TypeAtom }
+  exportTypes: { [s: string]: Type.Type }
 ): Env {
   switch (ast.type) {
     case 'Program':

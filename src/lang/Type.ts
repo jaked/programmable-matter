@@ -28,7 +28,7 @@ export type ObjectType = {
 // invariant: no duplicate fields
 export type ModuleType = {
   kind: 'Module',
-  fields: Array<{ field: string, type: Type, atom: boolean }>
+  fields: Array<{ field: string, type: Type }>
 };
 
 // invariant: no nested unions, > 1 element
@@ -111,9 +111,9 @@ export function object(obj: { [f: string]: Type }): ObjectType {
   return { kind: 'Object', fields };
 }
 
-export function module(obj: { [f: string]: { type: Type, atom: boolean } }): ModuleType {
+export function module(obj: { [f: string]: Type }): ModuleType {
   const fields =
-    Object.entries(obj).map(([ field, { type, atom }]) => ({ field, type, atom }));
+    Object.entries(obj).map(([ field, type ]) => ({ field, type }));
   return { kind: 'Module', fields };
 }
 

@@ -267,70 +267,70 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
   // TODO(jaked)
   // fill out all of HTML, figure out a scheme for common attributes
 
-  'body': { type: componentType({}), atom: false },
+  'body': componentType({}),
 
-  'div': { type: componentType({
+  'div': componentType({
     className: Type.undefinedOrString,
     style: styleType
-  }), atom: false },
+  }),
 
-  'ellipse': { type: componentType({
+  'ellipse': componentType({
     fill: Type.undefinedOrString,
     cx: Type.numberOrString,
     cy: Type.numberOrString,
     rx: Type.numberOrString,
     ry: Type.numberOrString,
-  }), atom: false },
+  }),
 
-  'head': { type: componentType({}), atom: false },
+  'head': componentType({}),
 
-  'html': { type: componentType({}), atom: false },
+  'html': componentType({}),
 
-  'img': { type: componentType({
+  'img': componentType({
     src: Type.string,
     width: Type.undefinedOrNumber,
     height: Type.undefinedOrNumber,
     style: styleType,
-  }), atom: false },
+  }),
 
-  'input': { type: componentType({
+  'input': componentType({
     type: Type.singleton('range'),
     id: Type.undefinedOrString,
     min: Type.numberOrString,
     max: Type.numberOrString,
     value: Type.unknown,
-  }), atom: false},
+  }),
 
-  'style': { type: componentType({
+  'style': componentType({
     dangerouslySetInnerHTML: Type.undefinedOr(Type.object({ __html: Type.string })),
-  }), atom: false},
+  }),
 
-  'svg': { type: componentType({
+  'svg': componentType({
     width: Type.numberOrString,
     height: Type.numberOrString,
-  }), atom: false },
+  }),
 
-  'title': { type: componentType({}), atom: false },
+  'title': componentType({}),
 
-  'Link': { type: componentType({ to: Type.string }), atom: false },
+  'Link': componentType({ to: Type.string }),
 
-  'Tweet': { type: componentType({ tweetId: Type.string }), atom: false },
-  'YouTube': { type: componentType({ videoId: Type.string }), atom: false },
-  'Gist': { type: componentType({ id: Type.string }), atom: false },
+  'Tweet': componentType({ tweetId: Type.string }),
+  'YouTube': componentType({ videoId: Type.string }),
+  'Gist': componentType({ id: Type.string }),
 
   // TODO(jaked) tighten this up. need a type parameter for data
-  'VictoryBar': { type: componentType({
+  'VictoryBar': componentType({
     data: Type.unknown,
     x: Type.string,
     y: Type.string,
-  }), atom: false },
-  'VictoryChart': { type: componentType({
+  }),
+  'VictoryChart': componentType({
     domainPadding: Type.undefinedOrNumber,
-  }), atom: false },
+  }),
 
-  'Inspector': { type: componentType({ data: Type.unknown }), atom: false },
+  'Inspector': componentType({ data: Type.unknown }),
 
-  'Table': { type: componentType({
+  'Table': componentType({
     data: Type.array(Type.object({})),
     // TODO(jaked)
     // column accessor types depend on data type (for Victory too)
@@ -340,10 +340,10 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
       accessor: Type.string,
     })),
     pageSize: Type.number,
-  }), atom: false },
+  }),
 
   'parseInt':
-    { type: Type.functionType([ Type.string ], Type.number), atom: false },
+    Type.functionType([ Type.string ], Type.number),
 });
 
 export function initValueEnv(

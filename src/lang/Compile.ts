@@ -500,7 +500,7 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
 function compileTxt(
   content: string
 ): data.Compiled {
-  const exportType = Type.module({ default: { type: Type.string, atom: false } });
+  const exportType = Type.module({ default: Type.string });
   const exportValue = { default: content }
   const rendered = () =>
     React.createElement('pre', null, content);
@@ -529,7 +529,7 @@ function compileMdx(
   moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): data.Compiled {
-  const exportTypes: { [s: string]: Typecheck.TypeAtom } = {};
+  const exportTypes: { [s: string]: Type.Type } = {};
   const exportValue: { [s: string]: any } = {};
 
   ast = trace.time('sortMdx', () => sortMdx(ast));
@@ -593,7 +593,7 @@ function compileTs(
   moduleValueEnv: Evaluator.Env,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
 ): data.Compiled {
-  const exportTypes: { [s: string]: Typecheck.TypeAtom } = {};
+  const exportTypes: { [s: string]: Type.Type } = {};
   const exportValue: { [s: string]: any } = {};
 
   ast = sortProgram(ast);

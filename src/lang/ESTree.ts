@@ -11,7 +11,7 @@ interface NodeImpl {
   end: number;
 
   // set in typechecking
-  etype?: Try<{ type: Type.Type, atom: boolean }>;
+  etype?: Try<Type.Type>;
 }
 
 export interface Program extends NodeImpl {
