@@ -9,11 +9,6 @@ import Try from '../util/Try';
 
 export type Env = Immutable.Map<string, Type.Type>;
 
-function prettyPrint(type: Type.Type): string {
-  // TODO(jaked) print prettily
-  return JSON.stringify(type);
-}
-
 function location(ast: ESTree.Node): string {
   // TODO(jaked) print location
   return Recast.print(ast).code;
@@ -28,9 +23,9 @@ function throwWithLocation(ast: ESTree.Node, msg): never {
 
 function throwExpectedType(ast: ESTree.Node, expected: string | Type.Type, actual?: string | Type.Type): never {
   if (typeof expected !== 'string')
-    expected = prettyPrint(expected);
+    expected = Type.toString(expected);
   if (actual && typeof actual !== 'string')
-    actual = prettyPrint(actual);
+    actual = Type.toString(actual);
 
   let msg = 'expected ' + expected;
   if (actual) msg += ', got ' + actual;
@@ -531,7 +526,7 @@ function synthCallExpression(
 
 function patTypeEnvIdentifier(ast: ESTree.Identifier, type: Type.Type, env: Env): Env {
   if (ast.type !== 'Identifier')
-    return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(type)}`);
+    return throwWithLocation(ast, `incompatible pattern for type ${Type.toString(type)}`);
   if (env.has(ast.name))
     return throwWithLocation(ast, `identifier ${ast.name} already bound in pattern`);
   return env.set(ast.name, type);
@@ -554,7 +549,7 @@ function patTypeEnv(ast: ESTree.Pattern, t: Type.Type, env: Env): Env {
   else if (ast.type === 'Identifier')
     return patTypeEnvIdentifier(ast, t, env);
   else
-    return throwWithLocation(ast, `incompatible pattern for type ${prettyPrint(t)}`);
+    return throwWithLocation(ast, `incompatible pattern for type ${Type.toString(t)}`);
 }
 
 function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type.Type {
