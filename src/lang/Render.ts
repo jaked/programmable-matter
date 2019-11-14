@@ -23,7 +23,7 @@ import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
 import * as Evaluator from './evaluator';
 import Type from './Type';
-import * as Typecheck from './Typecheck';
+import Typecheck from './Typecheck';
 
 export type Env = Evaluator.Env;
 

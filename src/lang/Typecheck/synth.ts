@@ -1,252 +1,18 @@
-import Recast from 'recast/main';
-
 import * as Immutable from 'immutable';
-import * as MDXHAST from './mdxhast';
-import * as ESTree from './ESTree';
-
-import Type from './Type';
-import Try from '../util/Try';
-
-export type Env = Immutable.Map<string, Type>;
-
-function location(ast: ESTree.Node): string {
-  // TODO(jaked) print location
-  return Recast.print(ast).code;
-}
-
-function throwWithLocation(ast: ESTree.Node, msg): never {
-  msg += ' at ' + location(ast);
-  const err = new Error(msg);
-  ast.etype = Try.err(err);
-  throw err;
-}
-
-function throwExpectedType(ast: ESTree.Node, expected: string | Type, actual?: string | Type): never {
-  if (typeof expected !== 'string')
-    expected = Type.toString(expected);
-  if (actual && typeof actual !== 'string')
-    actual = Type.toString(actual);
-
-  let msg = 'expected ' + expected;
-  if (actual) msg += ', got ' + actual;
-  return throwWithLocation(ast, msg);
-}
-
-function throwUnknownField(ast: ESTree.Node, field: string): never {
-  return throwWithLocation(ast, `unknown field '${field}'`);
-}
-
-function throwMissingField(ast: ESTree.Node, field: string): never {
-  return throwWithLocation(ast, `missing field '${field}'`);
-}
-
-function throwExtraField(ast: ESTree.Node, field: string): never {
-  return throwWithLocation(ast, `extra field ${field}`);
-}
-
-function throwWrongArgsLength(ast: ESTree.Node, expected: number, actual: number) {
-  return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
-}
-
-function checkSubtype(ast: ESTree.Expression, env: Env, type: Type) {
-  switch (ast.type) {
-    case 'JSXExpressionContainer':
-      return check(ast.expression, env, type);
-
-    case 'ConditionalExpression': {
-      const testType = synth(ast.test, env);
-
-      if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
-        if (testType.value) {
-          const envConsequent = narrowEnvironment(env, ast.test, true);
-          return check(ast.consequent, envConsequent, type);
-        } else {
-          const envAlternate = narrowEnvironment(env, ast.test, false);
-          return check(ast.alternate, envAlternate, type);
-        }
-      } else {
-        const envConsequent = narrowEnvironment(env, ast.test, true);
-        const envAlternate = narrowEnvironment(env, ast.test, false);
-        check(ast.consequent, envConsequent, type);
-        return check(ast.alternate, envAlternate, type);
-      }
-    }
-
-    default:
-      const actual = synth(ast, env);
-      if (!Type.isSubtype(actual, type))
-        throwExpectedType(ast, type, actual);
-  }
-}
-
-function checkTuple(ast: ESTree.Expression, env: Env, type: Type.TupleType) {
-  switch (ast.type) {
-    case 'ArrayExpression':
-      if (ast.elements.length !== type.elems.length) {
-        return throwExpectedType(ast, type);
-      } else {
-        return ast.elements.forEach((elem, i) =>
-          check(elem, env, type.elems[i])
-        );
-      }
-
-    default:
-      return checkSubtype(ast, env, type);
-  }
-}
-
-function checkArray(ast: ESTree.Expression, env: Env, type: Type.ArrayType) {
-  switch (ast.type) {
-    // never called since we check against `reactNodeType`, see comment on checkUnion
-    case 'JSXFragment':
-      return ast.children.forEach(child =>
-        check(child, env, type)
-      );
-
-    case 'ArrayExpression':
-      return ast.elements.forEach(elem =>
-        check(elem, env, type.elem)
-      );
-
-    default:
-      return checkSubtype(ast, env, type);
-  }
-}
-
-function checkSet(ast: ESTree.Expression, env: Env, type: Type.SetType) {
-  switch (ast.type) {
-    // TODO(jaked) Set literals?
-
-    default:
-      return checkSubtype(ast, env, type);
-  }
-}
-
-function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType) {
-  switch (ast.type) {
-    // TODO(jaked) Map literals?
-
-    default:
-      return checkSubtype(ast, env, type);
-  }
-}
-
-function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType) {
-  switch (ast.type) {
-    case 'ArrowFunctionExpression':
-      if (type.args.length != ast.params.length)
-        throwWrongArgsLength(ast, type.args.length, ast.params.length);
-      ast.params.forEach((pat, i) => {
-        switch (pat.type) {
-          case 'Identifier':
-            env = env.set(pat.name, type.args[i]);
-            break;
-
-          default: throw new Error('unexpected AST type ' + (pat as ESTree.Pattern).type);
-        }
-      });
-      return check(ast.body, env, type.ret);
-
-    default:
-      return checkSubtype(ast, env, type);
-  }
-}
-
-function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType) {
-  // to get a more localized error message we'd like to decompose the type and expression
-  // as far as possible, but for unions we don't know which arm to break down.
-  // if the outermost AST node corresponds to exactly one arm we'll try that one.
-  // we could get fancier here, and try to figure out which arm best matches the AST,
-  // but we don't know which arm was intended, so the error could be confusing.
-  const matchingArms = type.types.filter(t =>
-    (t.kind === 'Object' && ast.type === 'ObjectExpression') ||
-    (t.kind === 'Array' && ast.type === 'ArrayExpression')
-  );
-  if (matchingArms.length === 1)
-    return check(ast, env, matchingArms[0]);
-  else
-    return checkSubtype(ast, env, type);
-}
-
-function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.IntersectionType) {
-  // TODO(jaked)
-  // we check that the expression is an atom for each arm of the intersection
-  // but it should not matter what type we check with
-  // (really we are just piggybacking on the tree traversal here)
-  // need to be careful once we have function types carrying an atom effect
-  // e.g. a type (T =(true)> U & T =(false)> U) is well-formed
-  // but we don't want to union / intersect atom effects
-  return type.types.map(type => check(ast, env, type));
-}
-
-function checkSingleton(ast: ESTree.Expression, env: Env, type: Type.SingletonType) {
-  return checkSubtype(ast, env, type);
-}
-
-function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType) {
-  switch (ast.type) {
-    case 'ObjectExpression':
-      const propNames = new Set(ast.properties.map(prop => {
-        let name: string;
-        switch (prop.key.type) {
-          case 'Identifier': name = prop.key.name; break;
-          case 'Literal': name = prop.key.value; break;
-          default: throw new Error('expected Identifier or Literal prop key name');
-        }
-        return name;
-      }));
-      type.fields.forEach(({ field, type }) => {
-        if (!propNames.has(field) && !Type.isSubtype(Type.undefined, type))
-          return throwMissingField(ast, field);
-      });
-      const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));
-      return ast.properties.map(prop => {
-        let name: string;
-        switch (prop.key.type) {
-          case 'Identifier': name = prop.key.name; break;
-          case 'Literal': name = prop.key.value; break;
-          default: throw new Error('expected Identifier or Literal prop key name');
-        }
-        const type = fieldTypes.get(name);
-        if (type) return check(prop.value, env, type);
-        else return throwExtraField(prop.key, name);
-      }).some(x => x);
-
-    default:
-      return checkSubtype(ast, env, type);
-  }
-}
-
-function checkHelper(ast: ESTree.Expression, env: Env, type: Type) {
-  switch (type.kind) {
-    case 'Tuple':         return checkTuple(ast, env, type);
-    case 'Array':         return checkArray(ast, env, type);
-    case 'Set':           return checkSet(ast, env, type);
-    case 'Map':           return checkMap(ast, env, type);
-    case 'Object':        return checkObject(ast, env, type);
-    case 'Function':      return checkFunction(ast, env, type);
-    case 'Union':         return checkUnion(ast, env, type);
-    case 'Intersection':  return checkIntersection(ast, env, type);
-    case 'Singleton':     return checkSingleton(ast, env, type);
-
-    default:              return checkSubtype(ast, env, type);
-  }
-}
-
-export function check(ast: ESTree.Expression, env: Env, type: Type) {
-  try {
-    checkHelper(ast, env, type);
-    ast.etype = Try.ok(type);
-  } catch (e) {
-    ast.etype = Try.err(e);
-    throw e;
-  }
-}
+import { bug } from '../../util/bug';
+import Try from '../../util/Try';
+import Type from '../Type';
+import * as MDXHAST from '../mdxhast';
+import * as ESTree from '../ESTree';
+import { Env } from './types';
+import * as Throw from './throw';
+import { check } from './check';
+import { narrowEnvironment } from './narrow';
 
 function synthIdentifier(ast: ESTree.Identifier, env: Env): Type {
   const type = env.get(ast.name);
   if (type) return type;
-  else throw new Error('unbound identifier ' + ast.name);
+  else return Throw.withLocation(ast, `unbound identifier ${ast.name}`);
 }
 
 function synthLiteral(ast: ESTree.Literal, env: Env): Type {
@@ -323,9 +89,9 @@ function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type {
   } else {
     switch (ast.operator) {
       case '&&':
-        return Type.union(Type.intersection(left, falsyType), right);
+        return Type.union(Type.intersection(left, Type.falsy), right);
       case '||':
-        // TODO(jaked) Type.intersection(left, notFalsyType) ?
+        // TODO(jaked) Type.intersection(left, Type.notFalsy) ?
         return Type.union(left, right);
       default:
         return bug(`unexpected operator ${ast.operator}`);
@@ -351,11 +117,11 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type {
           return Type.singleton(left.value + right.value);
         else if (left.base.kind === 'string' && right.base.kind === 'string')
           return Type.singleton(left.value + right.value);
-        else return throwWithLocation(ast, 'incompatible operands to +');
+        else return Throw.withLocation(ast, 'incompatible operands to +');
       }
 
       default:
-        return throwWithLocation(ast, 'unimplemented');
+        return Throw.withLocation(ast, 'unimplemented');
     }
   } else {
     if (left.kind === 'Singleton') left = left.base;
@@ -372,11 +138,11 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type {
           return Type.number;
         else if (left.kind === 'string' && right.kind === 'string')
           return Type.string;
-        else return throwWithLocation(ast, 'incompatible operands to +');
+        else return Throw.withLocation(ast, 'incompatible operands to +');
       }
 
       default:
-        return throwWithLocation(ast, 'unimplemented');
+        return Throw.withLocation(ast, 'unimplemented');
     }
   }
 }
@@ -467,26 +233,26 @@ function synthMemberExpression(
         case 'Array':
           switch (name) {
             case 'length': return Type.number;
-            default: return throwUnknownField(ast, name);
+            default: return Throw.unknownField(ast, name);
           }
 
         case 'Object': {
           const field = objectType.fields.find(ft => ft.field === name);
           if (field) return field.type;
-          else return throwUnknownField(ast, name);
+          else return Throw.unknownField(ast, name);
         }
 
         case 'Module': {
           const field = objectType.fields.find(ft => ft.field === name);
           if (field) return field.type;
-          else return throwUnknownField(ast, name);
+          else return Throw.unknownField(ast, name);
         }
 
         default:
-          throw new Error('unimplemented synthMemberExpression ' + objectType.kind);
+          return bug('unimplemented synthMemberExpression ' + objectType.kind);
       }
     } else {
-      throw new Error('expected identifier on non-computed property');
+      return bug('expected identifier on non-computed property');
     }
   }
 }
@@ -510,25 +276,25 @@ function synthCallExpression(
       return Type.intersection(...retTypes);
     } else {
       // TODO(jaked) better error message
-      return throwWithLocation(ast, 'no matching function type');
+      return Throw.withLocation(ast, 'no matching function type');
     }
   } else if (calleeType.kind === 'Function') {
     if (calleeType.args.length !== ast.arguments.length)
       // TODO(jaked) support short arg lists if arg type contains undefined
       // TODO(jaked) check how this works in Typescript
-      throwExpectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
+      Throw.expectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`);
     calleeType.args.forEach((type, i) => check(ast.arguments[i], env, type));
     return calleeType.ret;
   } else {
-    return throwExpectedType(ast.callee, 'function', calleeType)
+    return Throw.expectedType(ast.callee, 'function', calleeType)
   }
 }
 
 function patTypeEnvIdentifier(ast: ESTree.Identifier, type: Type, env: Env): Env {
   if (ast.type !== 'Identifier')
-    return throwWithLocation(ast, `incompatible pattern for type ${Type.toString(type)}`);
+    return Throw.withLocation(ast, `incompatible pattern for type ${Type.toString(type)}`);
   if (env.has(ast.name))
-    return throwWithLocation(ast, `identifier ${ast.name} already bound in pattern`);
+    return Throw.withLocation(ast, `identifier ${ast.name} already bound in pattern`);
   return env.set(ast.name, type);
 }
 
@@ -537,7 +303,7 @@ function patTypeEnvObjectPattern(ast: ESTree.ObjectPattern, t: Type.ObjectType, 
     const key = prop.key;
     const field = t.fields.find(field => field.field === key.name)
     if (!field)
-      return throwUnknownField(key, key.name);
+      return Throw.unknownField(key, key.name);
     env = patTypeEnv(prop.value, field.type, env);
   });
   return env;
@@ -549,7 +315,7 @@ function patTypeEnv(ast: ESTree.Pattern, t: Type, env: Env): Env {
   else if (ast.type === 'Identifier')
     return patTypeEnvIdentifier(ast, t, env);
   else
-    return throwWithLocation(ast, `incompatible pattern for type ${Type.toString(t)}`);
+    return Throw.withLocation(ast, `incompatible pattern for type ${Type.toString(t)}`);
 }
 
 function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type {
@@ -592,7 +358,7 @@ function synthArrowFunctionExpression(
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
     if (!param.typeAnnotation)
-      return throwWithLocation(param, `function parameter must have a type`);
+      return Throw.withLocation(param, `function parameter must have a type`);
     const t = typeOfTypeAnnotation(param.typeAnnotation.typeAnnotation);
     patEnv = patTypeEnv(param, t, patEnv);
     return t;
@@ -600,103 +366,6 @@ function synthArrowFunctionExpression(
   env = env.concat(patEnv);
   const type = synth(ast.body, env);
   return Type.functionType(paramTypes, type);
-}
-
-// TODO(jaked) put somewhere common
-function bug(msg: string): never { throw new Error(msg); }
-
-const falsyType =
-  Type.union(
-    Type.singleton(false),
-    Type.nullType,
-    Type.undefined,
-    Type.singleton(0),
-    Type.singleton(''),
-  );
-
-const notFalsyType =
-  Type.intersection(
-    Type.not(Type.singleton(false)),
-    Type.not(Type.nullType),
-    Type.not(Type.undefined),
-    Type.not(Type.singleton(0)),
-    Type.not(Type.singleton('')),
-  );
-
-const truthyType =
-  Type.singleton(true);
-
-const notTruthyType =
-  Type.not(Type.singleton(true));
-
-function narrowExpression(
-  env: Env,
-  ast: ESTree.Expression,
-  otherType: Type
-): Env {
-  switch (ast.type) {
-    case 'Identifier': {
-      const identType = env.get(ast.name) || bug('expected bound identifier');
-      const type = Type.intersection(identType, otherType);
-      return env.set(ast.name, type);
-    }
-
-    case 'MemberExpression': {
-      if (ast.computed) return env; // TODO(jaked) handle computed cases
-      if (ast.property.type !== 'Identifier') return bug('expected Identifier');
-      return narrowExpression(
-        env,
-        ast.object,
-        Type.object({ [ast.property.name]: otherType }));
-    }
-
-    default: return env;
-  }
-}
-
-// narrow the type of identifiers appearing in `ast` to reflect what
-// we can deduce when the expression is assumed to be true or false.
-// `ast` has already been typechecked so we can use `etype` fields in it.
-function narrowEnvironment(
-  env: Env,
-  ast: ESTree.Expression,
-  assume: boolean
-): Env {
-  switch (ast.type) {
-    case 'UnaryExpression':
-      if (ast.operator === '!') {
-        return narrowEnvironment(env, ast.argument, !assume);
-      } else {
-        // TODO(jaked) handle typeof
-        if (assume) {
-          return narrowExpression(env, ast, notFalsyType);
-        } else {
-          return narrowExpression(env, ast, notTruthyType);
-        }
-      }
-
-    case 'BinaryExpression':
-      if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
-        if (!ast.right.etype) return bug('expected etype');
-        if (!ast.left.etype) return bug('expected etype');
-        env = narrowExpression(env, ast.left, ast.right.etype.get());
-        return narrowExpression(env, ast.right, ast.left.etype.get());
-      } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
-        if (!ast.right.etype) return bug('expected etype');
-        if (!ast.left.etype) return bug('expected etype');
-        env = narrowExpression(env, ast.left, Type.not(ast.right.etype.get()));
-        return narrowExpression(env, ast.right, Type.not(ast.left.etype.get()));
-      } else {
-        return throwWithLocation(ast, 'unimplemented');
-      }
-
-    default:
-      if (assume) {
-        return narrowExpression(env, ast, notFalsyType);
-      } else {
-        return narrowExpression(env, ast, notTruthyType);
-      }
-  }
 }
 
 function synthConditionalExpression(
@@ -760,14 +429,14 @@ function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type {
     if (field !== 'children' &&
         !attrNames.has(field) &&
         !Type.isSubtype(Type.undefined, type))
-      throwMissingField(ast, field);
+      Throw.missingField(ast, field);
   });
 
   const propTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
   ast.openingElement.attributes.forEach(attr => {
     const type = propTypes.get(attr.name.name);
     if (type) return check(attr.value, env, type);
-    else return throwExtraField(attr, attr.name.name);
+    else return Throw.extraField(attr, attr.name.name);
   });
 
   ast.children.map(child =>
@@ -840,7 +509,7 @@ function extendEnvWithImport(
 ): Env {
   const module = moduleEnv.get(decl.source.value);
   if (!module)
-    throw new Error(`no module '${decl.source.value}' at ${location(decl)}`);
+    return Throw.withLocation(decl, `no module '${decl.source.value}'`);
   decl.specifiers.forEach(spec => {
     switch (spec.type) {
       case 'ImportNamespaceSpecifier':
@@ -849,13 +518,13 @@ function extendEnvWithImport(
       case 'ImportDefaultSpecifier':
         const defaultField = module.fields.find(ft => ft.field === 'default');
         if (!defaultField)
-          throw new Error(`no default export on '${decl.source.value}' at ${location(decl)}`);
+          return Throw.withLocation(decl, `no default export on '${decl.source.value}'`);
         env = env.set(spec.local.name, defaultField.type);
         break;
       case 'ImportSpecifier':
         const importedField = module.fields.find(ft => ft.field === spec.imported.name)
         if (!importedField)
-          throw new Error(`no exported member '${spec.imported.name}' on '${decl.source.value}' at ${location(decl)}`);
+          return Throw.withLocation(decl, `no exported member '${spec.imported.name}' on '${decl.source.value}'`);
         env = env.set(spec.local.name, importedField.type);
         break;
     }
@@ -868,7 +537,6 @@ function extendEnvWithNamedExport(
   exportTypes: { [s: string]: Type },
   env: Env
 ): Env {
-  const declAtom = decl.declaration.kind === 'let';
   decl.declaration.declarations.forEach(declarator => {
     const type = synth(declarator.init, env);
     // a let binding is always an atom (its initializer is a non-atom)

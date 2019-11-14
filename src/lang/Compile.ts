@@ -15,7 +15,7 @@ import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
 import * as Parser from './Parser';
 import Type from './Type';
-import * as Typecheck from './Typecheck';
+import Typecheck from './Typecheck';
 import * as Evaluator from './Evaluator';
 import * as Render from './Render';
 import * as String from '../util/String';

@@ -74,15 +74,14 @@ export function not(type: Types.Type): Types.Type {
 }
 
 // assumes that `types` satisfy the union invariants
-function union(...types: Array<Types.Type>): Types.UnionType {
+export function union(...types: Array<Types.Type>): Types.UnionType {
   return { kind: 'Union', types };
 }
 
-// these need to be defined directly instead of via `Union.union`
-// because they run at module loading time
-export const undefinedOrString = union(undefinedType, stringType);
-export const undefinedOrNumber = union(undefinedType, numberType);
-export const numberOrString = union(numberType, stringType);
+// assumes that `types` satisfy the intersection invariants
+export function intersection(...types: Array<Types.Type>): Types.IntersectionType {
+  return { kind: 'Intersection', types };
+}
 
 export function undefinedOr(t: Types.Type): Types.Type {
   return Union.union(undefinedType, t);
@@ -100,13 +99,3 @@ export function enumerate(...values: any[]): Types.Type {
     })
   );
 }
-
-export const reactElementType = abstract('React.Element');
-// TODO(jaked)
-// fragments are also permitted here (see ReactNode in React typing)
-// but we need recursive types to express it (ReactFragment = Array<ReactNode>)
-// in the meantime we'll permit top-level fragments only
-const reactNodeType_ =
-  union(reactElementType, booleanType, numberType, stringType, nullType, undefinedType);
-export const reactNodeType =
-  union(reactNodeType_, array(reactNodeType_));

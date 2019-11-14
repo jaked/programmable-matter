@@ -4,6 +4,7 @@ import * as Constructors from './constructors';
 import * as Union from './union';
 import * as Intersection from './intersection';
 import * as ToString from './toString';
+import * as Predef from './predef';
 
 module Type {
   // there is syntax to re-export a whole module
@@ -31,6 +32,9 @@ module Type {
   export type NotType = Types.NotType;
   export type Type = Types.Type;
 
+  export const isSubtype = IsSubtype.isSubtype;
+  export const equiv = IsSubtype.equiv;
+
   export const never = Constructors.never;
   export const unknown = Constructors.unknown;
   export const undefined = Constructors.undefined;
@@ -52,16 +56,19 @@ module Type {
   export const not = Constructors.not;
 
   export const undefinedOr = Constructors.undefinedOr;
-  export const undefinedOrString = Constructors.undefinedOrString;
-  export const undefinedOrNumber = Constructors.undefinedOrNumber;
-  export const numberOrString = Constructors.numberOrString;
   export const enumerate = Constructors.enumerate;
 
-  export const reactElementType = Constructors.reactElementType;
-  export const reactNodeType = Constructors.reactNodeType;
+  export const undefinedOrString = Predef.undefinedOrString;
+  export const undefinedOrNumber = Predef.undefinedOrNumber;
+  export const numberOrString = Predef.numberOrString;
 
-  export const isSubtype = IsSubtype.isSubtype;
-  export const equiv = IsSubtype.equiv;
+  export const truthy = Predef.truthy;
+  export const notTruthy = Predef.notTruthy;
+  export const falsy = Predef.falsy;
+  export const notFalsy = Predef.notFalsy;
+
+  export const reactElementType = Predef.reactElementType;
+  export const reactNodeType = Predef.reactNodeType;
 
   export const toString = ToString.toString;
 }
