@@ -4,10 +4,10 @@ import * as Immutable from 'immutable';
 import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
 
-import * as Type from './Type';
+import Type from './Type';
 import Try from '../util/Try';
 
-export type Env = Immutable.Map<string, Type.Type>;
+export type Env = Immutable.Map<string, Type>;
 
 function location(ast: ESTree.Node): string {
   // TODO(jaked) print location
@@ -21,7 +21,7 @@ function throwWithLocation(ast: ESTree.Node, msg): never {
   throw err;
 }
 
-function throwExpectedType(ast: ESTree.Node, expected: string | Type.Type, actual?: string | Type.Type): never {
+function throwExpectedType(ast: ESTree.Node, expected: string | Type, actual?: string | Type): never {
   if (typeof expected !== 'string')
     expected = Type.toString(expected);
   if (actual && typeof actual !== 'string')
@@ -48,7 +48,7 @@ function throwWrongArgsLength(ast: ESTree.Node, expected: number, actual: number
   return throwWithLocation(ast, `expected ${expected} args, function has ${actual} args`);
 }
 
-function checkSubtype(ast: ESTree.Expression, env: Env, type: Type.Type) {
+function checkSubtype(ast: ESTree.Expression, env: Env, type: Type) {
   switch (ast.type) {
     case 'JSXExpressionContainer':
       return check(ast.expression, env, type);
@@ -217,7 +217,7 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType) {
   }
 }
 
-function checkHelper(ast: ESTree.Expression, env: Env, type: Type.Type) {
+function checkHelper(ast: ESTree.Expression, env: Env, type: Type) {
   switch (type.kind) {
     case 'Tuple':         return checkTuple(ast, env, type);
     case 'Array':         return checkArray(ast, env, type);
@@ -233,7 +233,7 @@ function checkHelper(ast: ESTree.Expression, env: Env, type: Type.Type) {
   }
 }
 
-export function check(ast: ESTree.Expression, env: Env, type: Type.Type) {
+export function check(ast: ESTree.Expression, env: Env, type: Type) {
   try {
     checkHelper(ast, env, type);
     ast.etype = Try.ok(type);
@@ -243,25 +243,25 @@ export function check(ast: ESTree.Expression, env: Env, type: Type.Type) {
   }
 }
 
-function synthIdentifier(ast: ESTree.Identifier, env: Env): Type.Type {
+function synthIdentifier(ast: ESTree.Identifier, env: Env): Type {
   const type = env.get(ast.name);
   if (type) return type;
   else throw new Error('unbound identifier ' + ast.name);
 }
 
-function synthLiteral(ast: ESTree.Literal, env: Env): Type.Type {
+function synthLiteral(ast: ESTree.Literal, env: Env): Type {
   return Type.singleton(ast.value);
 }
 
-function synthArrayExpression(ast: ESTree.ArrayExpression, env: Env): Type.Type {
+function synthArrayExpression(ast: ESTree.ArrayExpression, env: Env): Type {
   const types = ast.elements.map(e => synth(e, env));
   const elem = Type.union(...types);
   return Type.array(elem);
 }
 
-function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): Type.Type {
+function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): Type {
   const seen = new Set();
-  const fields: Array<[string, Type.Type]> =
+  const fields: Array<[string, Type]> =
     ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
@@ -277,7 +277,7 @@ function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): Type.Typ
   return Type.object(Object.assign({}, ...fieldTypes));
 }
 
-function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type.Type {
+function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type {
   const type = synth(ast.argument, env);
 
   if (type.kind === 'Singleton') {  // TODO(jaked) handle compound singletons
@@ -301,7 +301,7 @@ function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type.Type 
   }
 }
 
-function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type.Type {
+function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type {
   const left = synth(ast.left, env);
   const right = synth(ast.right, env);
 
@@ -333,7 +333,7 @@ function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type.T
   }
 }
 
-function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type.Type {
+function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type {
   let left = synth(ast.left, env);
   let right = synth(ast.right, env);
 
@@ -384,8 +384,8 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type.Typ
 function synthMemberExpression(
   ast: ESTree.MemberExpression,
   env: Env,
-  objectType?: Type.Type | undefined
-): Type.Type {
+  objectType?: Type | undefined
+): Type {
   objectType = objectType || synth(ast.object, env);
 
   if (objectType.kind === 'Union') {
@@ -494,8 +494,8 @@ function synthMemberExpression(
 function synthCallExpression(
   ast: ESTree.CallExpression,
   env:Env,
-  calleeType?: Type.Type | undefined
-): Type.Type {
+  calleeType?: Type | undefined
+): Type {
   calleeType = calleeType || synth(ast.callee, env);
 
   if (calleeType.kind === 'Intersection') {
@@ -524,7 +524,7 @@ function synthCallExpression(
   }
 }
 
-function patTypeEnvIdentifier(ast: ESTree.Identifier, type: Type.Type, env: Env): Env {
+function patTypeEnvIdentifier(ast: ESTree.Identifier, type: Type, env: Env): Env {
   if (ast.type !== 'Identifier')
     return throwWithLocation(ast, `incompatible pattern for type ${Type.toString(type)}`);
   if (env.has(ast.name))
@@ -543,7 +543,7 @@ function patTypeEnvObjectPattern(ast: ESTree.ObjectPattern, t: Type.ObjectType, 
   return env;
 }
 
-function patTypeEnv(ast: ESTree.Pattern, t: Type.Type, env: Env): Env {
+function patTypeEnv(ast: ESTree.Pattern, t: Type, env: Env): Env {
   if (ast.type === 'ObjectPattern' && t.kind === 'Object')
     return patTypeEnvObjectPattern(ast, t, env);
   else if (ast.type === 'Identifier')
@@ -552,12 +552,12 @@ function patTypeEnv(ast: ESTree.Pattern, t: Type.Type, env: Env): Env {
     return throwWithLocation(ast, `incompatible pattern for type ${Type.toString(t)}`);
 }
 
-function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type.Type {
+function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type {
   switch (ann.type) {
     case 'TSBooleanKeyword': return Type.boolean;
     case 'TSNumberKeyword': return Type.number;
     case 'TSStringKeyword': return Type.string;
-    case 'TSNullKeyword': return Type.null;
+    case 'TSNullKeyword': return Type.nullType;
     case 'TSUndefinedKeyword': return Type.undefined;
     case 'TSArrayType':
       return Type.array(typeOfTypeAnnotation(ann.elementType));
@@ -588,7 +588,7 @@ function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type.Type {
 function synthArrowFunctionExpression(
   ast: ESTree.ArrowFunctionExpression,
   env: Env
-): Type.Type {
+): Type {
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
     if (!param.typeAnnotation)
@@ -599,7 +599,7 @@ function synthArrowFunctionExpression(
   });
   env = env.concat(patEnv);
   const type = synth(ast.body, env);
-  return Type.function(paramTypes, type);
+  return Type.functionType(paramTypes, type);
 }
 
 // TODO(jaked) put somewhere common
@@ -608,7 +608,7 @@ function bug(msg: string): never { throw new Error(msg); }
 const falsyType =
   Type.union(
     Type.singleton(false),
-    Type.null,
+    Type.nullType,
     Type.undefined,
     Type.singleton(0),
     Type.singleton(''),
@@ -617,7 +617,7 @@ const falsyType =
 const notFalsyType =
   Type.intersection(
     Type.not(Type.singleton(false)),
-    Type.not(Type.null),
+    Type.not(Type.nullType),
     Type.not(Type.undefined),
     Type.not(Type.singleton(0)),
     Type.not(Type.singleton('')),
@@ -632,7 +632,7 @@ const notTruthyType =
 function narrowExpression(
   env: Env,
   ast: ESTree.Expression,
-  otherType: Type.Type
+  otherType: Type
 ): Env {
   switch (ast.type) {
     case 'Identifier': {
@@ -702,7 +702,7 @@ function narrowEnvironment(
 function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env
-): Type.Type {
+): Type {
   const testType = synth(ast.test, env);
 
   if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
@@ -722,17 +722,17 @@ function synthConditionalExpression(
   }
 }
 
-function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): Type.Type {
+function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): Type {
   const type = env.get(ast.name);
   if (type) return type;
   else throw new Error('unbound identifier ' + ast.name);
 }
 
-function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type.Type {
+function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type {
   const type = synth(ast.openingElement.name, env);
 
   let propsType: Type.ObjectType;
-  let retType: Type.Type;
+  let retType: Type;
   if (type.kind === 'Function') {
     retType = type.ret;
     if (type.args.length === 0) {
@@ -778,7 +778,7 @@ function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type.Type {
   return retType;
 }
 
-function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): Type.Type {
+function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): Type {
   const types = ast.children.map(e => synth(e, env));
   const elem = Type.union(...types);
   return Type.array(elem);
@@ -790,15 +790,15 @@ function synthJSXFragment(ast: ESTree.JSXFragment, env: Env): Type.Type {
 function synthJSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
   env: Env
-): Type.Type {
+): Type {
   return synth(ast.expression, env);
 }
 
-function synthJSXText(ast: ESTree.JSXText, env: Env): Type.Type {
+function synthJSXText(ast: ESTree.JSXText, env: Env): Type {
   return Type.string;
 }
 
-function synthHelper(ast: ESTree.Expression, env: Env): Type.Type {
+function synthHelper(ast: ESTree.Expression, env: Env): Type {
   switch (ast.type) {
     case 'Identifier':              return synthIdentifier(ast, env);
     case 'Literal':                 return synthLiteral(ast, env);
@@ -822,7 +822,7 @@ function synthHelper(ast: ESTree.Expression, env: Env): Type.Type {
   }
 }
 
-export function synth(ast: ESTree.Expression, env: Env): Type.Type {
+export function synth(ast: ESTree.Expression, env: Env): Type {
   try {
     const type = synthHelper(ast, env);
     ast.etype = Try.ok(type);
@@ -865,7 +865,7 @@ function extendEnvWithImport(
 
 function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
-  exportTypes: { [s: string]: Type.Type },
+  exportTypes: { [s: string]: Type },
   env: Env
 ): Env {
   const declAtom = decl.declaration.kind === 'let';
@@ -884,7 +884,7 @@ function extendEnvWithNamedExport(
 
 function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
-  exportTypes: { [s: string]: Type.Type },
+  exportTypes: { [s: string]: Type },
   env: Env
 ): Env {
   exportTypes['default'] = synth(decl.declaration, env);
@@ -896,7 +896,7 @@ export function synthMdx(
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
-  exportTypes: { [s: string]: Type.Type }
+  exportTypes: { [s: string]: Type }
 ): Env {
   switch (ast.type) {
     case 'root':
@@ -944,7 +944,7 @@ export function synthProgram(
   ast: ESTree.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
-  exportTypes: { [s: string]: Type.Type }
+  exportTypes: { [s: string]: Type }
 ): Env {
   switch (ast.type) {
     case 'Program':

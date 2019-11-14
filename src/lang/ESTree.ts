@@ -2,7 +2,7 @@
 //  https://github.com/acornjs/acorn
 //  https://github.com/RReverser/acorn-jsx
 
-import * as Type from './Type';
+import Type from './Type';
 import Try from '../util/Try';
 
 interface NodeImpl {

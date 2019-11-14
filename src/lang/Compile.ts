@@ -14,7 +14,7 @@ import * as data from '../data';
 import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
 import * as Parser from './Parser';
-import * as Type from './Type';
+import Type from './Type';
 import * as Typecheck from './Typecheck';
 import * as Evaluator from './Evaluator';
 import * as Render from './Render';
@@ -513,8 +513,8 @@ function compileTxt(
 const metaType =
   Type.object({
     type: Type.singleton('mdx'),
-    title: Type.optional(Type.string),
-    tags: Type.optional(Type.array(Type.string)),
+    title: Type.undefinedOr(Type.string),
+    tags: Type.undefinedOr(Type.array(Type.string)),
     layout: Type.string
   })
 
@@ -539,7 +539,7 @@ function compileMdx(
   let layoutFunction = (n: React.ReactNode) => n;
   if (meta.layout) {
     const layoutType =
-    Type.function(
+    Type.functionType(
       [ Type.object({
         children: Type.array(Type.reactNodeType),
         meta: metaType

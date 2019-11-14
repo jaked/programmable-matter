@@ -22,7 +22,7 @@ import { Cell } from '../util/Cell';
 import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
 import * as Evaluator from './evaluator';
-import * as Type from './Type';
+import Type from './Type';
 import * as Typecheck from './Typecheck';
 
 export type Env = Evaluator.Env;
@@ -248,7 +248,7 @@ function Link(
 }
 
 // TODO(jaked) move to Typecheck?
-function componentType(props: { [f: string]: Type.Type }): Type.Type {
+function componentType(props: { [f: string]: Type }): Type {
   return Type.abstract('React.Component', Type.object(props));
 }
 
@@ -276,6 +276,7 @@ export const initTypeEnv: Typecheck.Env = Immutable.Map({
 
   'ellipse': componentType({
     fill: Type.undefinedOrString,
+    stroke: Type.undefinedOrString,
     cx: Type.numberOrString,
     cy: Type.numberOrString,
     rx: Type.numberOrString,

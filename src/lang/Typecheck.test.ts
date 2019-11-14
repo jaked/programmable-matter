@@ -1,13 +1,13 @@
 import * as Immutable from 'immutable';
 import * as ESTree from './ESTree';
 import * as Parser from './Parser';
-import * as Type from './Type';
+import Type from './Type';
 import * as Typecheck from './Typecheck';
 
 describe('check', () => {
   function expectCheckThrows(
     exprOrString: ESTree.Expression | string,
-    type: Type.Type,
+    type: Type,
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
@@ -18,7 +18,7 @@ describe('check', () => {
 
   function expectCheck(
     exprOrString: ESTree.Expression | string,
-    type: Type.Type,
+    type: Type,
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
@@ -45,7 +45,7 @@ describe('check', () => {
   });
 
   describe('tuples', () => {
-    const type = Type.tuple(Type.number, Type.boolean, Type.null);
+    const type = Type.tuple(Type.number, Type.boolean, Type.nullType);
 
     describe('literals', () => {
       it('succeeds', () => {
@@ -107,7 +107,7 @@ describe('check', () => {
 
   describe('function expressions', () => {
     const type =
-      Type.function(
+      Type.functionType(
         [ Type.number ],
         Type.number
       );
@@ -171,16 +171,16 @@ describe('check', () => {
 
     it('succeeds for a uniform function', () => {
       const type = Type.intersection(
-        Type.function([ Type.number ], Type.number),
-        Type.function([ Type.string ], Type.string),
+        Type.functionType([ Type.number ], Type.number),
+        Type.functionType([ Type.string ], Type.string),
       );
       expectCheck('x => x', type);
     });
 
     it('succeeds for a non-uniform function', () => {
       const type = Type.intersection(
-        Type.function([ Type.singleton('number') ], Type.number),
-        Type.function([ Type.singleton('string') ], Type.string),
+        Type.functionType([ Type.singleton('number') ], Type.number),
+        Type.functionType([ Type.singleton('string') ], Type.string),
       );
       expectCheck(`x => x === 'number' ? 7 : 'nine'`, type);
     });
@@ -224,7 +224,7 @@ describe('synth', () => {
 
   function expectSynth(
     exprOrString: ESTree.Expression | string,
-    type: Type.Type,
+    type: Type,
     env: Typecheck.Env = Immutable.Map()
   ) {
     const expr =
@@ -254,7 +254,7 @@ describe('synth', () => {
     });
 
     it('null', () => {
-      expectSynth('null', Type.null);
+      expectSynth('null', Type.nullType);
     });
   });
 
@@ -449,14 +449,14 @@ describe('synth', () => {
     it('ok', () => {
       expectSynth(
         '() => 7',
-        Type.function([], Type.singleton(7))
+        Type.functionType([], Type.singleton(7))
       );
     });
 
     it('ok with params', () => {
       expectSynth(
         '(x: number, y: 7) => x + y',
-        Type.function(
+        Type.functionType(
           [ Type.number, Type.singleton(7) ],
           Type.number
         )
@@ -466,10 +466,10 @@ describe('synth', () => {
 
   describe('function calls', () => {
     const env: Typecheck.Env = Immutable.Map({
-      f: Type.function([ Type.number ], Type.string),
+      f: Type.functionType([ Type.number ], Type.string),
       intf: Type.intersection(
-        Type.function([ Type.number ], Type.number),
-        Type.function([ Type.string ], Type.string),
+        Type.functionType([ Type.number ], Type.number),
+        Type.functionType([ Type.string ], Type.string),
       ),
       intx: Type.intersection(Type.number, Type.string),
     });
@@ -503,14 +503,14 @@ describe('synth', () => {
 
   describe('JSX elements', () => {
     const env: Typecheck.Env = Immutable.Map({
-      Component: Type.function(
+      Component: Type.functionType(
         [ Type.object({ foo: Type.number, bar: Type.undefinedOrNumber }) ],
         Type.string
       ),
       NotFunction: Type.string,
-      TooManyParams: Type.function([ Type.string, Type.number ], Type.boolean),
-      ParamNotObject: Type.function([ Type.string ], Type.boolean),
-      WrongChildrenType: Type.function([ Type.object({ children: Type.number }) ], Type.boolean),
+      TooManyParams: Type.functionType([ Type.string, Type.number ], Type.boolean),
+      ParamNotObject: Type.functionType([ Type.string ], Type.boolean),
+      WrongChildrenType: Type.functionType([ Type.object({ children: Type.number }) ], Type.boolean),
     });
 
     it('ok', () => {

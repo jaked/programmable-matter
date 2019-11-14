@@ -3,7 +3,7 @@ import React from 'react';
 import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
-import * as Type from './lang/Type';
+import Type from './lang/Type';
 
 export type Types = 'mdx' | 'json' | 'txt' | 'ts' | 'jpeg';
 
