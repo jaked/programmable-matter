@@ -97,20 +97,25 @@ describe('synth', () => {
 
   describe('logical expressions', () => {
     describe('statically evaluated', () => {
+      const env = Typecheck.env({
+        number: Type.number,
+        string: Type.string,
+      });
+
       it('&& truthy', () => {
-        expectSynth('"foo" && 7', Type.singleton(7));
+        expectSynth('"foo" && number', Type.number, env);
       });
 
       it('&& falsy', () => {
-        expectSynth('0 && "foo"', Type.singleton(0));
+        expectSynth('0 && string', Type.singleton(0), env);
       });
 
       it('|| truthy', () => {
-        expectSynth('"foo" || 7', Type.singleton("foo"));
+        expectSynth('"foo" || number', Type.singleton("foo"), env);
       });
 
       it('|| falsy', () => {
-        expectSynth('"" || 0', Type.singleton(0));
+        expectSynth('0 || string', Type.string, env);
       });
     });
 
@@ -132,6 +137,31 @@ describe('synth', () => {
         expectSynth(
           'number || string',
           Type.union(Type.number, Type.string),
+          env
+        );
+      });
+    });
+
+    describe('narrowing', () => {
+      it('&& narrows to non-falsy on rhs', () => {
+        const env = Typecheck.env({
+          s: Type.undefinedOr(Type.object({ length: Type.number }))
+        });
+        expectSynth(
+          's && s.length',
+          Type.union(Type.undefined, Type.number),
+          env
+        );
+      });
+
+      it('|| narrows to non-truthy on rhs', () => {
+        const env = Typecheck.env({
+          s: Type.union(Type.nullType, Type.object({ length: Type.number }))
+        });
+        expectSynth(
+          's === null || s.length',
+          // TODO(jaked) boolean & not(false) === true
+          Type.union(Type.boolean, Type.number),
           env
         );
       });

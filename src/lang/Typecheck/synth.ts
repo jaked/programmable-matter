@@ -68,34 +68,34 @@ function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type {
 }
 
 function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type {
-  const left = synth(ast.left, env);
-  const right = synth(ast.right, env);
-
-  // TODO(jaked)
-  // handle cases where only one side is singleton
-  // but we can still evaluate it statically
-  // e.g. boolean || false
-
-  // TODO(jaked) handle compound singletons
-  if (left.kind === 'Singleton' && right.kind === 'Singleton') {
-    switch (ast.operator) {
-      case '&&':
-        return Type.singleton(left.value && right.value);
-      case '||':
-        return Type.singleton(left.value || right.value);
-      default:
-        return bug(`unexpected operator ${ast.operator}`);
-    }
-  } else {
-    switch (ast.operator) {
-      case '&&':
+  switch (ast.operator) {
+    case '&&': {
+      const left = synth(ast.left, env);
+      if (left.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+        const right = synth(ast.right, env); // synth even when !left.value
+        return left.value ? right : left;
+      } else {
+        const rightEnv = narrowEnvironment(env, ast.left, true);
+        const right = synth(ast.right, rightEnv);
         return Type.union(Type.intersection(left, Type.falsy), right);
-      case '||':
-        // TODO(jaked) Type.intersection(left, Type.notFalsy) ?
-        return Type.union(left, right);
-      default:
-        return bug(`unexpected operator ${ast.operator}`);
+      }
     }
+
+    case '||': {
+      const left = synth(ast.left, env);
+      if (left.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+        const right = synth(ast.right, env); // synth even when left.value
+        return left.value ? left : right;
+      } else {
+        const rightEnv = narrowEnvironment(env, ast.left, false);
+        const right = synth(ast.right, rightEnv);
+        // TODO(jaked) Type.union(Type.intersection(left, Type.notFalsy), right) ?
+        return Type.union(left, right);
+      }
+    }
+
+    default:
+        return bug(`unexpected operator ${ast.operator}`);
   }
 }
 
@@ -249,7 +249,8 @@ function synthMemberExpression(
         }
 
         default:
-          return bug('unimplemented synthMemberExpression ' + objectType.kind);
+          // TODO(jaked) Typescript gives a separate error for null / undefined
+          return Throw.unknownField(ast, name);
       }
     } else {
       return bug('expected identifier on non-computed property');
