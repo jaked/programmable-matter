@@ -1,9 +1,10 @@
-import * as Types from './types';
+import * as Env from './env';
 import * as Synth from './synth';
 import * as Check from './check';
 
 module Typecheck {
-  export type Env = Types.Env;
+  export type Env = Env.Env;
+  export const env = Env.env;
   export const synth = Synth.synth;
   export const synthProgram = Synth.synthProgram;
   export const synthMdx = Synth.synthMdx;

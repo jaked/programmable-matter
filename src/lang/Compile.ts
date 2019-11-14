@@ -575,7 +575,7 @@ function compileMdx(
 function compileJson(
   ast: ESTree.Expression
 ): data.Compiled {
-  const type = Typecheck.synth(ast, Immutable.Map());
+  const type = Typecheck.synth(ast, Typecheck.env());
   const exportType = Type.module({ default: type });
   const value = Evaluator.evaluateExpression(ast, Immutable.Map());
   const exportValue = { default: value }

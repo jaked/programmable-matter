@@ -263,7 +263,7 @@ const styleType = Type.undefinedOr(Type.object({
 
 // TODO(jaked) full types for components
 // TODO(jaked) types for HTML elements
-export const initTypeEnv: Typecheck.Env = Immutable.Map({
+export const initTypeEnv = Typecheck.env({
   // TODO(jaked)
   // fill out all of HTML, figure out a scheme for common attributes
 

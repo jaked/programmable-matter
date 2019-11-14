@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import * as ESTree from '../ESTree';
 import * as Parser from '../Parser';
 import Type from '../Type';
@@ -7,7 +6,7 @@ import Typecheck from './index';
 describe('synth', () => {
   function expectSynthThrows(
     exprOrString: ESTree.Expression | string,
-    env: Typecheck.Env = Immutable.Map()
+    env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
@@ -18,7 +17,7 @@ describe('synth', () => {
   function expectSynth(
     exprOrString: ESTree.Expression | string,
     type: Type,
-    env: Typecheck.Env = Immutable.Map()
+    env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
@@ -28,7 +27,7 @@ describe('synth', () => {
 
   describe('identifiers', () => {
     it('succeeds', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: Type.boolean });
+      const env = Typecheck.env({ foo: Type.boolean });
       expectSynth('foo', Type.boolean, env);
     });
 
@@ -116,7 +115,7 @@ describe('synth', () => {
     });
 
     describe('not statically evaluated', () => {
-      const env: Typecheck.Env = Immutable.Map({
+      const env = Typecheck.env({
         number: Type.number,
         string: Type.string,
       });
@@ -159,7 +158,7 @@ describe('synth', () => {
     });
 
     describe('not statically evaluated', () => {
-      const env: Typecheck.Env = Immutable.Map({
+      const env = Typecheck.env({
         number: Type.number,
         string: Type.string,
       });
@@ -183,7 +182,7 @@ describe('synth', () => {
   });
 
   describe('member expressions', () => {
-    const env: Typecheck.Env = Immutable.Map({
+    const env = Typecheck.env({
       object: Type.object({ foo: Type.boolean, bar: Type.number }),
       array: Type.array(Type.number),
       tuple: Type.tuple(Type.boolean, Type.number),
@@ -258,7 +257,7 @@ describe('synth', () => {
   });
 
   describe('function calls', () => {
-    const env: Typecheck.Env = Immutable.Map({
+    const env = Typecheck.env({
       f: Type.functionType([ Type.number ], Type.string),
       intf: Type.intersection(
         Type.functionType([ Type.number ], Type.number),
@@ -295,7 +294,7 @@ describe('synth', () => {
   });
 
   describe('JSX elements', () => {
-    const env: Typecheck.Env = Immutable.Map({
+    const env = Typecheck.env({
       Component: Type.functionType(
         [ Type.object({ foo: Type.number, bar: Type.undefinedOrNumber }) ],
         Type.string
@@ -338,8 +337,7 @@ describe('synth', () => {
 
   describe('conditional expressions', () => {
     it('ok', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ b: Type.boolean });
+      const env = Typecheck.env({ b: Type.boolean });
       expectSynth('b ? 1 : 2', Type.enumerate(1, 2), env);
     });
 
@@ -348,41 +346,37 @@ describe('synth', () => {
     });
 
     it('ok with statically evaluable test 2', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ x: Type.singleton('foo') });
+      const env = Typecheck.env({ x: Type.singleton('foo') });
       expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
     it('narrows type for equality tests', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ s: Type.enumerate('foo', 'bar') });
+      const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
       expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
 
     it('narrows type for false branch of equality tests', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ s: Type.enumerate('foo', 'bar') });
+      const env =Typecheck.env({ s: Type.enumerate('foo', 'bar') });
       expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
     });
 
     it('narrows type via member expressions', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ s: Type.union(
+      const env = Typecheck.env({
+        s: Type.union(
           Type.object({ type: Type.singleton('foo'), foo: Type.number }),
           Type.object({ type: Type.singleton('bar'), bar: Type.number }),
-        ) });
+        )
+      });
       expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
     });
 
     it('narrows type for truthiness tests', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ s: Type.union(Type.number, Type.undefined) });
+      const env = Typecheck.env({ s: Type.union(Type.number, Type.undefined) });
       expectSynth(`s ? s : 7`, Type.number, env);
     });
 
     it('narrows type for falsiness tests', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ s: Type.union(Type.number, Type.singleton(true)) });
+      const env = Typecheck.env({ s: Type.union(Type.number, Type.singleton(true)) });
       expectSynth(`!s ? s : 7`, Type.number, env);
     });
   });

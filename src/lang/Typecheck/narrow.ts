@@ -1,7 +1,7 @@
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { Env } from './types';
+import { Env } from './env';
 import * as Throw from './throw';
 
 function narrowExpression(

@@ -2,7 +2,7 @@ import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { Env } from './types';
+import { Env } from './env';
 import * as Throw from './throw';
 import { synth } from './synth';
 import { narrowEnvironment } from './narrow';

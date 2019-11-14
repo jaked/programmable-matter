@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import * as ESTree from '../ESTree';
 import * as Parser from '../Parser';
 import Type from '../Type';
@@ -8,7 +7,7 @@ describe('check', () => {
   function expectCheckThrows(
     exprOrString: ESTree.Expression | string,
     type: Type,
-    env: Typecheck.Env = Immutable.Map()
+    env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
@@ -19,7 +18,7 @@ describe('check', () => {
   function expectCheck(
     exprOrString: ESTree.Expression | string,
     type: Type,
-    env: Typecheck.Env = Immutable.Map()
+    env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
@@ -39,7 +38,7 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env = Immutable.Map({ foo: Type.boolean });
+      const env = Typecheck.env({ foo: Type.boolean });
       expectCheck('foo', Type.boolean, env);
     });
   });
@@ -58,7 +57,7 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env =  Immutable.Map({ foo: type });
+      const env = Typecheck.env({ foo: type });
       expectCheck('foo', type, env)
     });
 
@@ -81,7 +80,7 @@ describe('check', () => {
     });
 
     it('identifiers', () => {
-      const env: Typecheck.Env =  Immutable.Map({ foo: type });
+      const env = Typecheck.env({ foo: type });
       expectCheck('foo', type, env);
     });
   });
@@ -98,7 +97,7 @@ describe('check', () => {
     });
 
     it('permits excess properties in non-literal', () => {
-      const env: Typecheck.Env = Immutable.Map({
+      const env = Typecheck.env({
         foo: Type.object({ baz: Type.number }),
       });
       expectCheck('foo', type, env);
@@ -188,8 +187,7 @@ describe('check', () => {
 
   describe('conditional expressions', () => {
     it('ok', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ b: Type.boolean });
+      const env = Typecheck.env({ b: Type.boolean });
       expectCheck('b ? 1 : 2', Type.enumerate(1, 2), env);
     });
 
@@ -198,14 +196,12 @@ describe('check', () => {
     });
 
     it('ok with statically evaluable test 2', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ x: Type.singleton('foo') });
+      const env = Typecheck.env({ x: Type.singleton('foo') });
       expectCheck(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
     it('narrows type for equality tests', () => {
-      const env: Typecheck.Env =
-        Immutable.Map({ s: Type.enumerate('foo', 'bar') });
+      const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
       expectCheck(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
     });
   });
