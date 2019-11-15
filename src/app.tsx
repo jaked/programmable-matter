@@ -277,7 +277,6 @@ function render() {
       onChange={setContent}
       saveSession={saveSession}
       newNote={newNote}
-      filesPath={filesPath}
       compiledNotes={compiledNotesSignal.get()}
     />,
     document.getElementById('main')

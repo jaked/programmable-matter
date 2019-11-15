@@ -46,7 +46,6 @@ interface Props {
   newNote: (tag: string) => void;
 
   // TODO(jaked) for site build, move elsewhere
-  filesPath: string;
   compiledNotes: data.CompiledNotes;
 }
 
@@ -93,23 +92,27 @@ export class Main extends React.Component<Props, {}> {
     await rimraf(tempdir, { glob: false })
     await mkdir(tempdir);
     await writeFile(path.resolve(tempdir, '.nojekyll'), '');
+    await writeFile(path.resolve(tempdir, 'CNAME'), "jaked.org");
     await Promise.all(compiledNotes.map(async note => {
-      const notePath = path.resolve(tempdir, path.relative(this.props.filesPath, note.path)) + '.html';
-      const node = note.compiled.get().rendered();  // TODO(jaked) fix Try.get()
-      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-      await mkdir(path.dirname(notePath), { recursive: true });
-      await writeFile(notePath, html);
+      // TODO(jaked) figure out file extensions
+      if (note.type === 'jpeg') {
+        const notePath = path.resolve(tempdir, note.path);
+        await mkdir(path.dirname(notePath), { recursive: true });
+        await writeFile(notePath, note.buffer);
+      } else {
+        const notePath = path.resolve(tempdir, note.path) + '.html';
+        const node = note.compiled.get().rendered();  // TODO(jaked) fix Try.get()
+        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+        await mkdir(path.dirname(notePath), { recursive: true });
+        await writeFile(notePath, html);
+      }
     }).values());
-    // TODO(jaked) this opens in Finder
-    // maybe should serve locally over HTTP?
-    shell.openExternal(`file://${tempdir}`);
-
-    if (false) {
+    if (true) {
       await publish(tempdir, {
         src: '**',
         dotfiles: true,
         branch: 'master',
-        repo: 'https://github.com/jaked/symmetrical-rotary-phone.git',
+        repo: 'https://github.com/jaked/jaked.github.io.git',
         message: 'published from Programmable Matter',
         name: 'Jake Donham',
         email: 'jake.donham@gmail.com',
