@@ -1,4 +1,11 @@
 import Type from './index';
+import { isPrimitiveSubtype } from './isSubtype';
+
+describe('isPrimitiveSubtype', () => {
+  it('singletons', () => {
+    expect(isPrimitiveSubtype(Type.singleton(7), Type.number)).toBe(true);
+  });
+});
 
 describe('isSubtype', () => {
   // TODO(jaked) figure out property testing

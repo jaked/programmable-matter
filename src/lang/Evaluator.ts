@@ -35,16 +35,17 @@ export function evaluateExpression(
     case 'Literal':
       return ast.value;
 
-    case 'Identifier': {
-      const value = env.get(ast.name);
-      if (typeof value === 'undefined')
-        throw new Error(`unbound identifier ${ast.name}`);
-      if (typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
-        return (<Cell<any>>value).get();
-      } else {
-        return value;
+    case 'Identifier':
+      if (env.has(ast.name)) {
+        const value = env.get(ast.name);
+        if (typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
+          return (<Cell<any>>value).get();
+        } else {
+          return value;
+        }
       }
-    }
+      else if (ast.name === 'undefined') return undefined;
+      else throw new Error(`unbound identifier ${ast.name}`);
 
     case 'JSXExpressionContainer':
       return evaluateExpression(ast.expression, env);

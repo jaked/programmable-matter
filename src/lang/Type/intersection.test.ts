@@ -1,4 +1,16 @@
 import Type from './index';
+import { emptyIntersection } from './intersection';
+
+describe('emptyIntersection', () => {
+  it('singletons', () => {
+    const a = Type.number;
+    const b = Type.singleton(7);
+    expect(emptyIntersection(a, a)).toBe(false);
+    expect(emptyIntersection(b, b)).toBe(false);
+    expect(emptyIntersection(a, b)).toBe(false);
+    expect(emptyIntersection(b, a)).toBe(false);
+  });
+});
 
 describe('intersection', () => {
   const foo = Type.object({ foo: Type.number });
@@ -10,8 +22,8 @@ describe('intersection', () => {
   });
 
   it('elides Intersection node for single elements', () => {
-    const actual = Type.intersection(foo, foo);
-    const expected = foo;
+    const actual = Type.intersection(Type.number, Type.number);
+    const expected = Type.number;
     expect(actual).toEqual(expected);
   });
 
@@ -31,49 +43,39 @@ describe('intersection', () => {
     expect(actual).toEqual(expected);
   });
 
-  it('collapses identical elements', () => {
-    const actual =
-      Type.intersection(foo, bar, foo);
-    const expected =
-      Type.intersection(foo, bar);
-    expect(actual).toEqual(expected);
-  });
-
   it('collapses equivalent elements', () => {
     const actual =
       Type.intersection(
-        Type.object({ foo: Type.string, bar: Type.boolean }),
-        Type.object({ bar: Type.boolean, foo: Type.string })
+        Type.number,
+        Type.object({ foo: Type.singleton(7), bar: Type.singleton(9) }),
+        Type.number,
+        Type.object({ foo: Type.singleton(7), bar: Type.singleton(9) }),
       );
     const expected =
-      Type.object({ foo: Type.string, bar: Type.boolean});
+      Type.intersection(
+        Type.number,
+        Type.object({ foo: Type.singleton(7), bar: Type.singleton(9) }),
+      );
     expect(actual).toEqual(expected);
   });
 
-  it('collapses subtypes', () => {
+  it('collapses primitive subtypes', () => {
+    const actual =
+      Type.intersection(
+        Type.number,
+        Type.singleton(7)
+      );
+    const expected = Type.singleton(7);
+    expect(actual).toEqual(expected);
+  });
+
+  it('does not collapse object subtypes', () => {
     const actual =
       Type.intersection(
         Type.object({ foo: Type.string, bar: Type.boolean }),
         Type.object({ foo: Type.string, bar: Type.boolean, baz: Type.number })
       );
-    const expected =
-      Type.object({ foo: Type.string, bar: Type.boolean, baz: Type.number });
-    expect(actual).toEqual(expected);
-  });
-
-  it('collapses redundant Nots', () => {
-    const notA = Type.not(Type.singleton('a'));
-    const bOrC = Type.union(Type.singleton('b'), Type.singleton('c'));
-    expect(Type.intersection(notA, bOrC)).toEqual(bOrC);
-  });
-
-  it('discards noisy Nots', () => {
-    const actual = Type.intersection(
-      Type.not(Type.singleton('a')),
-      Type.string
-    );
-    const expected = Type.string;
-    expect(actual).toEqual(expected);
+    expect(actual.kind).toBe('Intersection');
   });
 
   it('distributes intersection over union', () => {
@@ -86,16 +88,16 @@ describe('intersection', () => {
     expect(actual).toEqual(expected);
   });
 
-  it('returns bottom for uninhabited intersections', () => {
+  it('returns bottom for uninhabited primitive intersections', () => {
     const a = Type.singleton('A');
     const b = Type.singleton('B');
     expect(Type.intersection(a, b)).toEqual(Type.never);
   });
 
-  it('returns bottom for uninhabited object intersections', () => {
+  it('does not return bottom for uninhabited object intersections', () => {
     const a = Type.object({ type: Type.singleton('A') });
     const b = Type.object({ type: Type.singleton('B') });
-    expect(Type.intersection(a, b)).toEqual(Type.never);
+    expect(Type.intersection(a, b).kind).toBe('Intersection');
   });
 
   it('A | (A & (A | B)) === A', () => {

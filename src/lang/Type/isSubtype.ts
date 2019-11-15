@@ -1,6 +1,5 @@
 import deepEqual from 'deep-equal';
 import { Type } from './types';
-import { uninhabitedIntersection } from './intersection';
 import { undefined } from './constructors';
 
 export function isSubtype(a: Type, b: Type): boolean {
@@ -11,10 +10,6 @@ export function isSubtype(a: Type, b: Type): boolean {
   else if (b.kind === 'Union') return b.types.some(t => isSubtype(a, t));
   else if (a.kind === 'Intersection') return a.types.some(t => isSubtype(t, b));
   else if (b.kind === 'Intersection') return b.types.every(t => isSubtype(a, t));
-  else if (a.kind !== 'Not' && b.kind === 'Not') {
-    // TODO(jaked) incomplete
-    return uninhabitedIntersection(a, b.type);
-  }
   else if (a.kind === 'Singleton' && b.kind === 'Singleton')
     return isSubtype(a.base, b.base) && a.value === b.value;
   else if (a.kind === 'Singleton')
@@ -45,4 +40,19 @@ export function isSubtype(a: Type, b: Type): boolean {
 
 export function equiv(a: Type, b: Type): boolean {
   return isSubtype(a, b) && isSubtype(b, a);
+}
+
+function isPrimitive(type: Type) {
+  return type.kind === 'boolean' ||
+    type.kind == 'number' ||
+    type.kind === 'string';
+}
+
+export function isPrimitiveSubtype(a: Type, b: Type): boolean {
+  if (isPrimitive(a) && isPrimitive(b) && a.kind === b.kind) return true;
+  if (a.kind === 'never') return true;
+  if (b.kind === 'unknown') return true;
+  if (a.kind === 'Singleton' && b.kind === 'Singleton' && a.value === b.value) return true;
+  if (a.kind === 'Singleton' && a.base.kind === b.kind) return true;
+  else return false;
 }

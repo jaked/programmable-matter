@@ -40,10 +40,13 @@ export function functionType(
   return { kind: 'Function', args, ret };
 }
 
-export function object(obj: { [f: string]: Types.Type }): Types.ObjectType {
-  const fields =
-    Object.entries(obj).map(([ field, type]) => ({ field, type }));
-  return { kind: 'Object', fields };
+export function object(fields: { [f: string]: Types.Type } | Array<{ field: string, type: Types.Type }>): Types.ObjectType {
+  if (Array.isArray(fields)) {
+    return { kind: 'Object', fields };
+  } else {
+    fields = Object.entries(fields).map(([ field, type]) => ({ field, type }));
+    return { kind: 'Object', fields };
+  }
 }
 
 export function module(obj: { [f: string]: Types.Type }): Types.ModuleType {

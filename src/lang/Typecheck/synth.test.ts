@@ -165,6 +165,25 @@ describe('synth', () => {
           env
         );
       });
+
+      it('narrowed && narrows both sides when true', () => {
+        const env = Typecheck.env({
+          foo: Type.undefinedOr(
+            Type.object({
+              bar: Type.undefinedOr(
+                Type.object({
+                  baz: Type.number
+                })
+              )
+            })
+          )
+        });
+        expectSynth(
+          'foo && foo.bar && foo.bar.baz',
+          Type.union(Type.undefined, Type.number),
+          env
+        );
+      });
     });
   });
 
@@ -293,7 +312,6 @@ describe('synth', () => {
         Type.functionType([ Type.number ], Type.number),
         Type.functionType([ Type.string ], Type.string),
       ),
-      intx: Type.intersection(Type.number, Type.string),
     });
 
     it('ok', () => {
@@ -303,7 +321,6 @@ describe('synth', () => {
     it('ok intersection', () => {
       expectSynth(`intf(7)`, Type.number, env);
       expectSynth(`intf('nine')`, Type.string, env);
-      expectSynth(`intf(intx)`, Type.never, env)
     });
 
     it('throws when callee is not a function', () => {
@@ -386,7 +403,7 @@ describe('synth', () => {
     });
 
     it('narrows type for false branch of equality tests', () => {
-      const env =Typecheck.env({ s: Type.enumerate('foo', 'bar') });
+      const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
       expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
     });
 

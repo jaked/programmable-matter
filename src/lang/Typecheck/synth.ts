@@ -7,11 +7,12 @@ import * as ESTree from '../ESTree';
 import { Env } from './env';
 import * as Throw from './throw';
 import { check } from './check';
-import { narrowEnvironment } from './narrow';
+import { narrowType, narrowEnvironment } from './narrow';
 
 function synthIdentifier(ast: ESTree.Identifier, env: Env): Type {
   const type = env.get(ast.name);
   if (type) return type;
+  else if (ast.name === 'undefined') return Type.undefined;
   else return Throw.withLocation(ast, `unbound identifier ${ast.name}`);
 }
 
@@ -73,11 +74,11 @@ function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type {
       const left = synth(ast.left, env);
       if (left.kind === 'Singleton') { // TODO(jaked) handle compound singletons
         const right = synth(ast.right, env); // synth even when !left.value
-        return left.value ? right : left;
+        return !left.value ? left : right;
       } else {
         const rightEnv = narrowEnvironment(env, ast.left, true);
         const right = synth(ast.right, rightEnv);
-        return Type.union(Type.intersection(left, Type.falsy), right);
+        return Type.union(narrowType(left, Type.falsy), right);
       }
     }
 

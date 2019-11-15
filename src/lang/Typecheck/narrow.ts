@@ -1,8 +1,61 @@
+import deepEqual from 'deep-equal';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { Env } from './env';
 import * as Throw from './throw';
+
+// best-effort intersection of `a` and `b`
+// 'b' may contain Not-types
+// the return type will not contain Not-types
+export function narrowType(a: Type, b: Type): Type {
+  if (deepEqual(a, b)) return a;
+  if (a.kind === 'never' || b.kind === 'never') return Type.never;
+  if (b.kind === 'unknown') return a;
+  if (a.kind === 'Union')
+    return Type.union(...a.types.map(a => narrowType(a, b)));
+  if (b.kind === 'Union')
+    return Type.union(...b.types.map(b => narrowType(a, b)));
+  if (a.kind === 'Intersection')
+    return Type.intersection(...a.types.map(a => narrowType(a, b)));
+  if (b.kind === 'Intersection')
+    return Type.intersection(...b.types.map(b => narrowType(a, b)));
+
+  if (b.kind === 'Not') {
+    if (Type.equiv(a, b.type)) return Type.never;
+    else if (a.kind === 'boolean' && b.type.kind === 'Singleton' && b.type.base.kind == 'boolean') {
+      if (b.type.value === true) return Type.singleton(false);
+      else return Type.singleton(true);
+    }
+    else return a;
+  }
+
+  if (a.kind === 'Singleton' && b.kind === 'Singleton')
+    return (a.value === b.value) ? a : Type.never;
+  if (a.kind === 'Singleton')
+    return (a.base.kind === b.kind) ? a : Type.never;
+  if (b.kind === 'Singleton')
+    return (b.base.kind === a.kind) ? b : Type.never;
+
+  if (a.kind === 'Object' && b.kind === 'Object') {
+    const type = Type.object(a.fields.map(aFieldType => {
+      const field = aFieldType.field;
+      const bFieldType = b.fields.find(bFieldType => bFieldType.field === field);
+      if (bFieldType) {
+        return { field, type: narrowType(aFieldType.type, bFieldType.type) }
+      }
+      else return aFieldType;
+      // if there are  fields in `b` that are not in `a`, ignore them
+    }));
+    if (type.fields.some(({ type }) => type.kind === 'never')) {
+      return Type.never;
+    } else {
+      return type;
+    }
+  }
+
+  return Type.never;
+}
 
 function narrowExpression(
   env: Env,
@@ -11,9 +64,13 @@ function narrowExpression(
 ): Env {
   switch (ast.type) {
     case 'Identifier': {
-      const identType = env.get(ast.name) || bug('expected bound identifier');
-      const type = Type.intersection(identType, otherType);
-      return env.set(ast.name, type);
+      const identType = env.get(ast.name);
+      if (identType) {
+        const type = narrowType(identType, otherType);
+        return env.set(ast.name, type);
+      }
+      else if (ast.name === 'undefined') return env;
+      else return bug('expected bound identifier');
     }
 
     case 'MemberExpression': {
@@ -48,6 +105,22 @@ export function narrowEnvironment(
         } else {
           return narrowExpression(env, ast, Type.notTruthy);
         }
+      }
+
+    case 'LogicalExpression':
+      switch (ast.operator) {
+        case '&&':
+          if (assume) {
+            env = narrowEnvironment(env, ast.left, true);
+            return narrowEnvironment(env, ast.right, true);
+          } else return env;
+        case '||':
+          if (!assume) {
+            env = narrowEnvironment(env, ast.left, false);
+            return narrowEnvironment(env, ast.right, false);
+          } else return env;
+        default:
+          return bug(`unexpected AST ${ast.operator}`);
       }
 
     case 'BinaryExpression':

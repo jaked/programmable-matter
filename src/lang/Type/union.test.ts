@@ -7,12 +7,9 @@ describe('union', () => {
 
   it('elides union node for single elements', () => {
     const actual =
-      Type.union(
-        Type.object({ foo: Type.string, bar: Type.boolean }),
-        Type.object({ foo: Type.string, bar: Type.boolean })
-      );
+      Type.union(Type.boolean, Type.boolean);
     const expected =
-      Type.object({ foo: Type.string, bar: Type.boolean});
+      Type.boolean;
     expect(actual).toEqual(expected);
   });
 
@@ -37,30 +34,25 @@ describe('union', () => {
     expect(actual).toEqual(expected);
   });
 
-  it('collapses identical elements', () => {
-    const actual =
-      Type.union(
-        Type.array(Type.string),
-        Type.boolean,
-        Type.array(Type.string)
-      );
-    const expected =
-      Type.union(Type.array(Type.string), Type.boolean);
-    expect(actual).toEqual(expected);
-  });
-
   it('collapses equivalent elements', () => {
     const actual =
       Type.union(
-        Type.object({ foo: Type.string, bar: Type.boolean }),
-        Type.object({ bar: Type.boolean, foo: Type.string })
+        Type.number,
+        Type.object({ foo: Type.singleton(7), bar: Type.singleton(9) }),
+        Type.boolean,
+        Type.number,
+        Type.object({ foo: Type.singleton(7), bar: Type.singleton(9) }),
       );
     const expected =
-      Type.object({ foo: Type.string, bar: Type.boolean});
+      Type.union(
+        Type.number,
+        Type.object({ foo: Type.singleton(7), bar: Type.singleton(9) }),
+        Type.boolean
+      );
     expect(actual).toEqual(expected);
   });
 
-  it('does not collapses object subtypes', () => {
+  it('does not collapse object subtypes', () => {
     const actual =
       Type.union(
         Type.object({ foo: Type.string, bar: Type.boolean }),
@@ -69,7 +61,7 @@ describe('union', () => {
     expect(actual.kind === 'Union' && actual.types.length === 2).toBe(true);
   });
 
-  it('does collapses primitive subtypes', () => {
+  it('collapses primitive subtypes', () => {
     const actual =
       Type.union(
         Type.number,
