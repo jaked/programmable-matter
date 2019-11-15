@@ -44,6 +44,9 @@ function synthObjectExpression(ast: ESTree.ObjectExpression, env: Env): Type {
   return Type.object(Object.assign({}, ...fieldTypes));
 }
 
+const typeofType =
+  Type.enumerate('undefined', 'boolean', 'number', 'string', 'function', 'object')
+
 function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type {
   const type = synth(ast.argument, env);
 
@@ -61,7 +64,7 @@ function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type {
       case '!':
         return Type.boolean;
       case 'typeof':
-        return Type.string; // TOOD(jaked) should be enumeration
+        return typeofType;
       default:
         return bug(`unhandled ast ${ast.operator}`);
       }

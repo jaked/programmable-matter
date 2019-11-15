@@ -54,6 +54,8 @@ export function narrowType(a: Type, b: Type): Type {
     }
   }
 
+  // TODO(jaked) handle functions
+
   return Type.never;
 }
 
@@ -82,7 +84,54 @@ function narrowExpression(
         Type.object({ [ast.property.name]: otherType }));
     }
 
-    default: return env;
+    case 'UnaryExpression': {
+      switch (ast.operator) {
+        case 'typeof':
+          if (otherType.kind === 'Singleton') {
+            switch (otherType.value) {
+              case 'boolean':
+                return narrowExpression(env, ast.argument, Type.boolean);
+              case 'number':
+                return narrowExpression(env, ast.argument, Type.number);
+              case 'string':
+                return narrowExpression(env, ast.argument, Type.string);
+              case 'object':
+                return narrowExpression(env, ast.argument, Type.object({}));
+              default:
+                // TODO(jaked) handle function
+                // we don't have a complete type, but we can still narrow
+                return env;
+            }
+          } else if (otherType.kind === 'Not' && otherType.type.kind === 'Singleton') {
+            switch (otherType.type.value) {
+              case 'boolean':
+                return narrowExpression(env, ast.argument, Type.not(Type.boolean));
+              case 'number':
+                return narrowExpression(env, ast.argument, Type.not(Type.number));
+              case 'string':
+                return narrowExpression(env, ast.argument, Type.not(Type.string));
+              default:
+                // TODO(jaked) handle object / function
+                // we don't have a complete type, but we can still narrow
+                return env;
+            }
+          }
+          else return env;
+
+        case '!':
+          return env;
+        default:
+          return bug(`unexpected AST ${ast.operator}`);
+      }
+    }
+
+    // TODO(jaked)
+    // we could narrow via && / || / !
+    // e.g. `!foo === true` implies `foo` is falsy
+    // but Typescript does not afaict
+
+    default:
+      return env;
   }
 }
 
@@ -96,15 +145,14 @@ export function narrowEnvironment(
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':
-      if (ast.operator === '!') {
-        return narrowEnvironment(env, ast.argument, !assume);
-      } else {
-        // TODO(jaked) handle typeof
-        if (assume) {
-          return narrowExpression(env, ast, Type.notFalsy);
-        } else {
-          return narrowExpression(env, ast, Type.notTruthy);
-        }
+      switch (ast.operator) {
+        case '!':
+          return narrowEnvironment(env, ast.argument, !assume);
+        case 'typeof':
+          // typeof always returns a truthy value
+          return env;
+        default:
+          return bug(`unexpected AST ${ast.operator}`);
       }
 
     case 'LogicalExpression':

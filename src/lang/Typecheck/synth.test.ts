@@ -397,34 +397,70 @@ describe('synth', () => {
       expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
     });
 
-    it('narrows type for equality tests', () => {
-      const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
-      expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
-    });
+    describe('narrowing', () => {
+      describe('equality tests', () => {
+        it('true branch', () => {
+          const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
+          expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
+        });
 
-    it('narrows type for false branch of equality tests', () => {
-      const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
-      expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
-    });
-
-    it('narrows type via member expressions', () => {
-      const env = Typecheck.env({
-        s: Type.union(
-          Type.object({ type: Type.singleton('foo'), foo: Type.number }),
-          Type.object({ type: Type.singleton('bar'), bar: Type.number }),
-        )
+        it('false branch', () => {
+          const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
+          expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
+        });
       });
-      expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
-    });
 
-    it('narrows type for truthiness tests', () => {
-      const env = Typecheck.env({ s: Type.union(Type.number, Type.undefined) });
-      expectSynth(`s ? s : 7`, Type.number, env);
-    });
+      describe('member expressions', () => {
+        const env = Typecheck.env({
+          s: Type.union(
+            Type.object({ type: Type.singleton('foo'), foo: Type.number }),
+            Type.object({ type: Type.singleton('bar'), bar: Type.number }),
+          )
+        });
+        expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
+      });
 
-    it('narrows type for falsiness tests', () => {
-      const env = Typecheck.env({ s: Type.union(Type.number, Type.singleton(true)) });
-      expectSynth(`!s ? s : 7`, Type.number, env);
+      describe('typeof expressions', () => {
+        it('true branch', () => {
+          const env = Typecheck.env({ s: Type.union(Type.number, Type.string) });
+          expectSynth(`typeof(s) === 'string' ? s : 'foo'`, Type.string, env)
+        });
+
+        it('false branch', () => {
+          const env = Typecheck.env({ s: Type.union(Type.number, Type.string) });
+          expectSynth(`typeof(s) === 'string' ? 7 : s`, Type.number, env)
+        });
+
+        describe('objects', () => {
+          it('true branch', () => {
+            const env =
+              Typecheck.env({ s: Type.undefinedOr(Type.object({ foo: Type.string })) });
+            expectSynth(`typeof(s) === 'object' ? s.foo : 'foo'`, Type.string, env)
+          });
+        });
+      });
+
+      describe('truthiness tests', () => {
+        it('truthiness', () => {
+          const env = Typecheck.env({ s: Type.union(Type.number, Type.undefined) });
+          expectSynth(`s ? s : 7`, Type.number, env);
+        });
+
+        it('falsiness', () => {
+          const env = Typecheck.env({ s: Type.union(Type.number, Type.singleton(true)) });
+          expectSynth(`!s ? s : 7`, Type.number, env);
+        });
+      });
+
+      describe('nested conditionals', () => {
+        const env =
+          Typecheck.env({ s: Type.union(Type.number, Type.string, Type.boolean) });
+        expectSynth(
+          `typeof(s) === 'boolean' ? 'foo' : typeof(s) === 'number' ? 'bar' : s`,
+          Type.string,
+          env
+        );
+      });
     });
   });
 });
