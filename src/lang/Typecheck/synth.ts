@@ -237,19 +237,19 @@ function synthMemberExpression(
         case 'Array':
           switch (name) {
             case 'length': return Type.number;
-            default: return Throw.unknownField(ast, name);
+            default: return Throw.unknownField(ast.property, name);
           }
 
         case 'Object': {
           const field = objectType.fields.find(ft => ft.field === name);
           if (field) return field.type;
-          else return Throw.unknownField(ast, name);
+          else return Throw.unknownField(ast.property, name);
         }
 
         case 'Module': {
           const field = objectType.fields.find(ft => ft.field === name);
           if (field) return field.type;
-          else return Throw.unknownField(ast, name);
+          else return Throw.unknownField(ast.property, name);
         }
 
         default:
