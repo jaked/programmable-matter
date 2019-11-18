@@ -618,9 +618,16 @@ function compileJpeg(
     // it doesn't seem to be straightforward to create an img node
     // directly from JPEG data, so we serve it via the dev server
     // TODO(jaked) plumb port from top-level
-    React.createElement('img', {
-      src: `http://localhost:3000/${tag}`
-    });
+    React.createElement(
+      'img',
+      {
+        src: `http://localhost:3000/${tag}`,
+        style: {
+          maxWidth: '100%',
+          objectFit: 'contain' // ???
+        }
+      }
+    );
   return { exportType, exportValue, rendered };
 }
 
