@@ -45,6 +45,7 @@ function sanitizeMeta(obj: any): data.Meta {
 }
 
 function notesOfFiles(
+  trace: Trace,
   files: data.Files,
   oldNotes: data.Notes
 ): data.Notes {
@@ -59,8 +60,8 @@ function notesOfFiles(
   }
 
   function addFile(file: data.File) {
-    const ext = Path.extname(file.path);
-    const tag = Path.basename(file.path, ext);
+    const pathParts = Path.parse(file.path);
+    const tag = Path.join(pathParts.dir, pathParts.name);
 
     const string = file.buffer.toString('utf8');
     const graymatter = Graymatter.default(string);
@@ -72,17 +73,18 @@ function notesOfFiles(
       // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
       type = meta.type
     } else {
-      switch (ext) {
+      switch (pathParts.ext) {
         case '': type = 'mdx'; break;
         case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
         case '.mdx': type = 'mdx'; break;
         case '.json': type = 'json'; break;
         case '.txt': type = 'txt'; break;
         case '.ts': type = 'ts'; break;
+        case '.JPG': type = 'jpeg'; break;
         case '.jpg': type = 'jpeg'; break;
         case '.jpeg': type = 'jpeg'; break;
         default:
-          throw new Error(`unhandled extension '${ext}' for '${file.path}'`);
+          throw new Error(`unhandled extension '${pathParts.ext}' for '${file.path}'`);
       }
     }
 
@@ -92,32 +94,34 @@ function notesOfFiles(
   }
 
   files.forEach(file => {
-    try {
-      const ext = Path.extname(file.path);
-      const tag = Path.basename(file.path, ext);
+    trace.time(file.path, () => {
+      try {
+        const ext = Path.extname(file.path);
+        const tag = Path.basename(file.path, ext);
 
-      const oldNote = oldNotes.get(tag);
-      if (oldNote) {
-        if (oldNote.path === file.path) {
-          if (oldNote.version === file.version) {
-            addNote(oldNote)
+        const oldNote = oldNotes.get(tag);
+        if (oldNote) {
+          if (oldNote.path === file.path) {
+            if (oldNote.version === file.version) {
+              addNote(oldNote)
+            } else {
+              addFile(file);
+            }
           } else {
-            addFile(file);
+            // TODO(jaked)
+            // the version numbers for different files are not comparable
+            // a dependent object needs to track both its own version
+            // and the versions of its dependencies (like Signal)
+            throw new Error(`path for ${tag} changed from ${oldNote.path} to ${file.path}`);
           }
         } else {
-          // TODO(jaked)
-          // the version numbers for different files are not comparable
-          // a dependent object needs to track both its own version
-          // and the versions of its dependencies (like Signal)
-          throw new Error(`path for ${tag} changed from ${oldNote.path} to ${file.path}`);
+          addFile(file);
         }
-      } else {
-        addFile(file);
+      } catch (e) {
+        // TODO(jaked) surface these errors in UI somehow
+        console.log(e);
       }
-    } catch (e) {
-      // TODO(jaked) surface these errors in UI somehow
-      console.log(e);
-    }
+    })
   });
   return newNotes;
 }
@@ -732,7 +736,7 @@ export function compileFiles(
   // maybe we should propagate a change set
   // instead of the current state of the filesystem
 
-  const notes = trace.time('notesOfFiles', () => notesOfFiles(files, compiledNotes));
+  const notes = trace.time('notesOfFiles', () => notesOfFiles(trace, files, compiledNotes));
 
   // filter out changed notes
   compiledNotes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(compiledNotes, notes));
