@@ -63,18 +63,9 @@ function notesOfFiles(
     const pathParts = Path.parse(file.path);
     const tag = Path.join(pathParts.dir, pathParts.name);
 
-    const string = file.buffer.toString('utf8');
-    const graymatter = Graymatter.default(string);
-    const meta = sanitizeMeta(graymatter.data);
-    const content = graymatter.content;
-
-    let type;
-    if (meta.type) {
-      // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
-      type = meta.type
-    } else {
+    let type: undefined | data.Types = undefined;
+    if (pathParts.ext) {
       switch (pathParts.ext) {
-        case '': type = 'mdx'; break;
         case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
         case '.mdx': type = 'mdx'; break;
         case '.json': type = 'json'; break;
@@ -88,9 +79,26 @@ function notesOfFiles(
       }
     }
 
-    const note =
-      Object.assign({}, file, { tag, meta, type, content });
-    addNote(note);
+    if (type === 'jpeg') {
+      const meta: data.Meta = { type: 'jpeg' }
+      const content = '';
+      const note =
+        Object.assign({}, file, { tag, meta, type, content });
+      addNote(note);
+    } else {
+      const string = file.buffer.toString('utf8');
+      const graymatter = Graymatter.default(string);
+      const meta = sanitizeMeta(graymatter.data);
+      const content = graymatter.content;
+
+      // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
+      if (meta.type) type = meta.type;
+      if (!type) type = 'mdx';
+
+      const note =
+        Object.assign({}, file, { tag, meta, type, content });
+      addNote(note);
+    }
   }
 
   files.forEach(file => {
