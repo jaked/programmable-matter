@@ -1,4 +1,5 @@
 import * as Http from 'http';
+import * as Path from 'path';
 import * as Url from 'url';
 
 import BrowserSync from 'browser-sync';
@@ -37,7 +38,9 @@ export default class Server {
   handle(req: Http.IncomingMessage, res: Http.ServerResponse) {
     let url = Url.parse(req.url || '');
     let path = url.path || '';
-    const tag = decodeURIComponent(path.slice(1, path.length));
+    const decodedPath = decodeURIComponent(path.slice(1, path.length));
+    const pathParts = Path.parse(decodedPath);
+    const tag = Path.join(pathParts.dir, pathParts.name)
 
     // TODO(jaked)
     // what's the update model here?
