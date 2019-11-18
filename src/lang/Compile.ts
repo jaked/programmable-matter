@@ -104,8 +104,8 @@ function notesOfFiles(
   files.forEach(file => {
     trace.time(file.path, () => {
       try {
-        const ext = Path.extname(file.path);
-        const tag = Path.basename(file.path, ext);
+        const pathParts = Path.parse(file.path);
+        const tag = Path.join(pathParts.dir, pathParts.name);
 
         const oldNote = oldNotes.get(tag);
         if (oldNote) {
