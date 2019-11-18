@@ -221,6 +221,7 @@ function setContent(content: string | null) {
 const matchingNotesSignal =
   Signal.label('matchingNotes',
     Signal.joinMap(compiledNotesSignal, searchCell, (notes, search) => {
+      let matchingNotes = notes;
       if (search) {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
@@ -232,13 +233,11 @@ const matchingNotesSignal =
           if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
           return false;
         }
-        return notes
-          .filter(matches)
-          .valueSeq().toArray();
-      } else {
-        return notes
-          .valueSeq().toArray();
+        matchingNotes = notes.filter(matches);
       }
+      return matchingNotes.valueSeq().toArray().sort((a, b) =>
+        a.tag < b.tag ? -1 : 1
+      );
     })
   );
 
