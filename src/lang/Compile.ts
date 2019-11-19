@@ -103,6 +103,7 @@ export function notesOfFiles(
   }
 
   files.forEach(file => {
+    if (debug) console.log(`notesOfFile path='${file.path}'`);
     trace.time(file.path, () => {
       try {
         const pathParts = Path.parse(file.path);
@@ -112,8 +113,10 @@ export function notesOfFiles(
         if (oldNote) {
           if (oldNote.path === file.path) {
             if (oldNote.version === file.version) {
+              if (debug) console.log(`addNote tag='${tag}'`)
               addNote(oldNote)
             } else {
+              if (debug) console.log(`addFile tag='${tag}' (version has changed)`);
               addFile(file);
             }
           } else {
@@ -124,6 +127,7 @@ export function notesOfFiles(
             throw new Error(`path for ${tag} changed from ${oldNote.path} to ${file.path}`);
           }
         } else {
+          if (debug) console.log(`addFile tag='${tag}' (new file)`);
           addFile(file);
         }
       } catch (e) {

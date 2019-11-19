@@ -25,6 +25,8 @@ import Unhandled from 'electron-unhandled';
 
 Unhandled();
 
+const debug = false;
+
 // TODO(jaked)
 // global for the benefit of functions inside of Signal.map etc.
 // maybe build trace argument into Signal?
@@ -81,6 +83,8 @@ function setMainPaneView(view: 'code' | 'display' | 'split') {
 }
 
 function writeNote(path: string, tag: string, meta: data.Meta, content: string) {
+  if (debug) console.log(`writeNote path=${path} tag=${tag}`);
+
   // TODO(jaked) don't perturb frontmatter unnecessarily
   let string = Graymatter.stringify(content, meta, { language: 'json' });
   // stringify adds trailing newline
@@ -95,13 +99,15 @@ function writeNote(path: string, tag: string, meta: data.Meta, content: string) 
   const oldFile = filesCell.get().get(path);
   var file: data.File;
   if (oldFile) {
+    if (debug) console.log(`updating file path=${path}`);
     // TODO(jaked) check that buffer has changed
     const version = oldFile.version + 1;
     file = Object.assign({}, oldFile, { version, buffer })
   } else {
+    if (debug) console.log(`new file path=${path}`);
     file = { path, version: 0, buffer }
   }
-  filesCell.setOk(filesCell.get().set(tag, file));
+  filesCell.setOk(filesCell.get().set(path, file));
 
   render();
 }
