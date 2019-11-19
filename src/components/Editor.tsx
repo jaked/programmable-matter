@@ -50,7 +50,7 @@ type Span = {
   start: number,
   end: number,
   component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
-  status: string
+  status: string | undefined
 };
 
 function computeJsSpans(
@@ -61,14 +61,14 @@ function computeJsSpans(
     start: number,
     end: number,
     component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
-    status: string
+    status: string | undefined
   ) {
     spans.push({ start, end, component, status });
   }
 
   function fn(ast: ESTree.Node) {
     let components = okComponents;
-    let status = '';
+    let status: string | undefined = undefined;
     if (ast.etype) {
       if (ast.etype.type === 'err') {
         components = errComponents;
@@ -189,29 +189,31 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
     }
 }
 
-function computeHighlight(content: string, parsedNote: data.ParsedNote) {
+function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
   const spans: Array<Span> = [];
-  // TODO(jaked)
-  // parsing should always succeed with some AST
-  switch (parsedNote.type) {
-    case 'mdx':
-      parsedNote.ast.forEach(ast => {
-        computeSpans(ast, spans);
-      });
-      break;
+  if (parsedNote) {
+    // TODO(jaked)
+    // parsing should always succeed with some AST
+    switch (parsedNote.type) {
+      case 'mdx':
+        parsedNote.ast.forEach(ast => {
+          computeSpans(ast, spans);
+        });
+        break;
 
-    case 'json':
-      parsedNote.ast.forEach(ast => {
-        computeJsSpans(ast, spans);
-      });
-      break;
+      case 'json':
+        parsedNote.ast.forEach(ast => {
+          computeJsSpans(ast, spans);
+        });
+        break;
 
-    case 'ts':
-      parsedNote.ast.forEach(ast => {
-        computeJsSpans(ast, spans);
-      });
-      break;
+      case 'ts':
+        parsedNote.ast.forEach(ast => {
+          computeJsSpans(ast, spans);
+        });
+        break;
     }
+  }
 
   // TODO(jaked) this could use some tests
   const lineStartOffsets: Array<number> = [0];
@@ -332,25 +334,24 @@ export class Editor extends React.Component<Props, {}> {
 
   render() {
     const { selected, content, parsedNote } = this.props;
-    if (selected === null || content === null || parsedNote === null) {
-      return <span>no note</span>
-    } else {
-      const highlight = computeHighlight(content, parsedNote);
-      return (
-        <div style={{
-          fontFamily: 'Monaco, monospace',
-          fontSize: '14px',
-        }}>
-          <RSCEditor
-            ref={this.rscEditorRef}
-            name={selected}
-            value={content}
-            onValueChange={this.onValueChange}
-            highlight={_ => highlight}
-            setStatus={this.props.setStatus}
-          />
-        </div>
-      );
+    if (selected === null || content === null) {
+      return <span>no note</span>;
     }
+    let highlight = computeHighlight(content, parsedNote);
+    return (
+      <div style={{
+        fontFamily: 'Monaco, monospace',
+        fontSize: '14px',
+      }}>
+        <RSCEditor
+          ref={this.rscEditorRef}
+          name={selected}
+          value={content}
+          onValueChange={this.onValueChange}
+          highlight={_ => highlight}
+          setStatus={this.props.setStatus}
+        />
+      </div>
+    );
   }
 }

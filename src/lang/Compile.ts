@@ -44,7 +44,8 @@ function sanitizeMeta(obj: any): data.Meta {
   return { type, title, tags, layout };
 }
 
-function notesOfFiles(
+// TODO(jaked) called from app, where should this go?
+export function notesOfFiles(
   trace: Trace,
   files: data.Files,
   oldNotes: data.Notes
@@ -733,18 +734,16 @@ function compileDirtyNotes(
   return compiledNotes;
 }
 
-export function compileFiles(
+export function compileNotes(
   trace: Trace,
   compiledNotes: data.CompiledNotes,
-  files: data.Files,
+  notes: data.Notes,
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
   // TODO(jaked)
   // maybe we should propagate a change set
   // instead of the current state of the filesystem
-
-  const notes = trace.time('notesOfFiles', () => notesOfFiles(trace, files, compiledNotes));
 
   // filter out changed notes
   compiledNotes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(compiledNotes, notes));

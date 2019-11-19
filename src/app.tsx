@@ -171,14 +171,23 @@ function mkCell(module: string, name: string, init: any): Cell<any> {
   return new CellImpl(letCell);
 }
 
+let currentNotes: data.Notes = Immutable.Map();
+const notesSignal =
+  Signal.label('notes',
+    filesCell.map(files => {
+      currentNotes = Compile.notesOfFiles(__trace, files, currentNotes);
+      return currentNotes;
+    })
+  );
+
 // there might be a way to organize this with an Atom per note
 // but it's a lot simpler to handle them all at once
 let currentCompiledNotes: data.CompiledNotes = Immutable.Map();
 const compiledNotesSignal =
   Signal.label('compiledNotes',
-    filesCell.map(notes => {
+    notesSignal.map(notes => {
       currentCompiledNotes =
-        Compile.compileFiles(__trace, currentCompiledNotes, notes, mkCell, setSelected);
+        Compile.compileNotes(__trace, currentCompiledNotes, notes, mkCell, setSelected);
       return currentCompiledNotes;
     })
   );
@@ -196,7 +205,7 @@ let compiledNoteSignal =
 
 const contentSignal =
   Signal.label('content',
-    Signal.joinMap(compiledNotesSignal, selectedCell, (notes, selected) => {
+    Signal.joinMap(notesSignal, selectedCell, (notes, selected) => {
       if (selected) {
         const note: data.Note | undefined = notes.get(selected);
         if (note && note.type !== 'jpeg') return note.content;
@@ -210,7 +219,7 @@ function setContent(content: string | null) {
   const selected = selectedCell.get();
   if (!selected) return;
 
-  const note = compiledNotesSignal.get().get(selected);
+  const note = notesSignal.get().get(selected);
   if (!note) return;
   if (note.type === 'jpeg') return;
   if (note.content === content) return;
@@ -220,7 +229,7 @@ function setContent(content: string | null) {
 
 const matchingNotesSignal =
   Signal.label('matchingNotes',
-    Signal.joinMap(compiledNotesSignal, searchCell, (notes, search) => {
+    Signal.joinMap(notesSignal, searchCell, (notes, search) => {
       let matchingNotes = notes;
       if (search) {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
@@ -245,18 +254,8 @@ const server = new Server(compiledNotesSignal);
 
 let level = 0;
 
-function render() {
-  __trace = new Trace();
-  level++;
-  // TODO(jaked) write this as a join instead of .get()s
-  compiledNoteSignal.update(__trace, level);
-  contentSignal.update(__trace, level);
-  matchingNotesSignal.update(__trace, level);
-  sessionSignal.update(__trace, level);
-
-  server.update(__trace, level);
-
-  __trace.open('ReactDOM.render');
+function reactRender(trace: Trace) {
+  trace.open('ReactDOM.render');
   ReactDOM.render(
     <Main
       sideBarVisible={sideBarVisibleCell.get()}
@@ -269,6 +268,14 @@ function render() {
       selected={selectedCell.get()}
       search={searchCell.get()}
       content={contentSignal.get()}
+
+      // TODO(jaked)
+      // this is unnecessarily conservative since level can be
+      // incremented by actions that don't affect compilation.
+      // figure out a way to compute whether a signal is stale
+      // with respect to another signal.
+      highlightValid={compiledNoteSignal.level === level}
+
       compiledNote={compiledNoteSignal.get()}
       session={sessionSignal.get()}
       onSelect={setSelected}
@@ -280,8 +287,33 @@ function render() {
     />,
     document.getElementById('main')
   );
-  __trace.close();
+  trace.close();
+}
+
+let compileDirty: boolean = true;
+
+setInterval(() => {
+  if (compileDirty) {
+    __trace = new Trace();
+    compiledNoteSignal.update(__trace, level);
+    server.update(__trace, level);
+    reactRender(__trace);
+    console.log(__trace.finish());
+    compileDirty = false;
+  }
+}, 50);
+
+function render() {
+  __trace = new Trace();
+  level++;
+
+  // TODO(jaked) write this as a join instead of .get()s
+  contentSignal.update(__trace, level);
+  matchingNotesSignal.update(__trace, level);
+  sessionSignal.update(__trace, level);
+  reactRender(__trace);
   console.log(__trace.finish());
+  compileDirty = true;
 }
 
 render();

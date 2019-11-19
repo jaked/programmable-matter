@@ -37,6 +37,7 @@ interface Props {
   selected: string | null;
   search: string;
   content: string | null;
+  highlightValid: boolean;
   compiledNote: data.CompiledNote | null;
   session: RSCEditor.Session;
   onSelect: (tag: string | null) => void;
@@ -186,7 +187,7 @@ export class Main extends React.Component<Props, {}> {
           ref={this.editorRef}
           selected={this.props.selected}
           content={this.props.content}
-          parsedNote={this.props.compiledNote}
+          parsedNote={this.props.highlightValid ? this.props.compiledNote : null}
           session={this.props.session}
           onChange={this.props.onChange}
           saveSession={this.props.saveSession}
