@@ -17,6 +17,7 @@ import Gist from 'react-gist';
 
 import { InlineMath, BlockMath } from 'react-katex';
 
+import { bug } from '../util/bug';
 import { Cell } from '../util/Cell';
 
 import * as MDXHAST from './mdxhast';
@@ -24,6 +25,8 @@ import * as ESTree from './ESTree';
 import * as Evaluator from './evaluator';
 import Type from './Type';
 import Typecheck from './Typecheck';
+
+import HighlightedCode from './HighlightedCode';
 
 export type Env = Evaluator.Env;
 
@@ -130,22 +133,35 @@ export function renderMdx(
     }
 
     case 'element': {
-      const childNodes: Array<React.ReactNode> = [];
-      ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
-        env = env2;
-        childNodes.push(childNode);
-      });
-      let properties = ast.properties;
-      let elem: any = ast.tagName;
-      if (ast.tagName === 'a') {
-        // TODO(jaked) fix hack somehow
-        elem = env.get('Link')
-        const to = properties['href'];
-        properties = Object.assign({}, properties, { to });
+      if (ast.tagName === 'code') {
+        const childNodes =
+          ast.children.map(child => {
+            if (child.type === 'text')
+              return child.value;
+            else
+              bug('expected text node');
+          });
+        const node =
+          React.createElement(HighlightedCode as any, ast.properties, ...childNodes);
+        return [env, node];
+      } else {
+        const childNodes: Array<React.ReactNode> = [];
+        ast.children.forEach(child => {
+          const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
+          env = env2;
+          childNodes.push(childNode);
+        });
+        let properties = ast.properties;
+        let elem: any = ast.tagName;
+        if (ast.tagName === 'a') {
+          // TODO(jaked) fix hack somehow
+          elem = env.get('Link')
+          const to = properties['href'];
+          properties = Object.assign({}, properties, { to });
+        }
+        const node = React.createElement(elem, properties, ...childNodes);
+        return [env, node];
       }
-      const node = React.createElement(elem, properties, ...childNodes);
-      return [env, node];
     }
 
     case 'text': {

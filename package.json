@@ -47,6 +47,7 @@
     "immutable": "^4.0.0-rc.12",
     "lodash": "^4.17.15",
     "nsfw": "^1.2.5",
+    "prism-react-renderer": "^1.0.2",
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
     "react-gist": "^1.2.1",
