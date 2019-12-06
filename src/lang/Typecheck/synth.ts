@@ -396,6 +396,14 @@ function synthConditionalExpression(
   }
 }
 
+function synthTemplateLiteral(
+  ast: ESTree.TemplateLiteral,
+  env: Env
+): Type {
+  // TODO(jaked) handle interpolations
+  return Type.string;
+}
+
 function synthJSXIdentifier(ast: ESTree.JSXIdentifier, env: Env): Type {
   const type = env.get(ast.name);
   if (type) return type;
@@ -485,6 +493,7 @@ function synthHelper(ast: ESTree.Expression, env: Env): Type {
     case 'MemberExpression':        return synthMemberExpression(ast, env);
     case 'CallExpression':          return synthCallExpression(ast, env);
     case 'ConditionalExpression':   return synthConditionalExpression(ast, env);
+    case 'TemplateLiteral':         return synthTemplateLiteral(ast, env);
     case 'JSXIdentifier':           return synthJSXIdentifier(ast, env);
     case 'JSXElement':              return synthJSXElement(ast, env);
     case 'JSXFragment':             return synthJSXFragment(ast, env);

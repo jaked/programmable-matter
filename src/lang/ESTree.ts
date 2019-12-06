@@ -157,6 +157,18 @@ export interface ConditionalExpression extends NodeImpl {
   alternate: Expression;
 }
 
+export interface TemplateElement extends NodeImpl {
+  type: "TemplateElement";
+  value: { raw: string, cooked?: string };
+  tail: boolean;
+}
+
+export interface TemplateLiteral extends NodeImpl {
+  type: "TemplateLiteral";
+  quasis: Array<TemplateElement>;
+  expressions: Array<Expression>;
+}
+
 export type Expression =
   Literal |
   Identifier |
@@ -177,7 +189,9 @@ export type Expression =
   Property |
   ArrayExpression |
   ArrowFunctionExpression |
-  ConditionalExpression;
+  ConditionalExpression |
+  TemplateLiteral |
+  TemplateElement;
 
 export interface TSBooleanKeyword extends NodeImpl {
   type: 'TSBooleanKeyword';
@@ -420,10 +434,16 @@ export function visit(
       visit(ast.consequent, fn);
       return visit(ast.alternate, fn);
 
+    case 'TemplateElement':
+      return;
+
+    case 'TemplateLiteral':
+      return visit(ast.quasis, fn);
+
     case 'ObjectPattern':
       return visit(ast.properties, fn);
 
-      case 'ImportSpecifier':
+    case 'ImportSpecifier':
       visit(ast.imported, fn);
       return visit(ast.local, fn);
 

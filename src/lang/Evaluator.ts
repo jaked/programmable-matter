@@ -205,6 +205,10 @@ export function evaluateExpression(
         return evaluateExpression(ast.alternate, env)
       }
 
+    case 'TemplateLiteral':
+      // TODO(jaked) handle interpolations
+      return ast.quasis.map(elem => elem.value.raw).join('');
+
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
   }
