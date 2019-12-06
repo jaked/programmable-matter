@@ -1,5 +1,3 @@
-import * as Immutable from 'immutable';
-
 import { ipcRenderer as ipc, remote, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -13,7 +11,7 @@ const publish = util.promisify(ghPages.publish);
 
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { Flex, Box as BoxBase } from 'rebass';
+import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
 
@@ -52,6 +50,9 @@ interface Props {
 
 const Box = styled(BoxBase)({
   overflow: 'auto',
+}, borders);
+
+const Flex = styled(FlexBase)({
 }, borders);
 
 export class Main extends React.Component<Props, {}> {
