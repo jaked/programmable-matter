@@ -1,14 +1,25 @@
 import React from 'react';
-import Highlight, {defaultProps} from 'prism-react-renderer';
+import Highlight, { defaultProps, Language } from 'prism-react-renderer';
 import Theme from './HighlightedCodeTheme';
 
-export default ({children, className}) => {
-  const language = 'typescript';
-  // const language = className.replace(/language-/, '')
+type Props = {
+  language: Language;
+  style?: React.CSSProperties
+}
+
+function flatten(node: React.ReactNode): string {
+  if (Array.isArray(node)) return node.map(flatten).join('');
+  else if (node === null || node === undefined) return '';
+  else return String(node);
+}
+
+export const HighlightedCode: React.FunctionComponent<Props> =
+ ({ children, language, style: componentStyle }) => {
+  const code = flatten(children);
   return (
-    <Highlight {...defaultProps} code={children} language={language} theme={Theme}>
+    <Highlight {...defaultProps} code={code} language={language} theme={Theme}>
       {({className, style, tokens, getLineProps, getTokenProps}) => (
-        <pre className={className} style={{...style, padding: '20px'}}>
+        <pre className={className} style={{...style, ...componentStyle}}>
           {tokens.map((line, i) => (
             <div key={i} {...getLineProps({line, key: i})}>
               {line.map((token, key) => (
@@ -21,3 +32,5 @@ export default ({children, className}) => {
     </Highlight>
   )
 }
+
+export default HighlightedCode;

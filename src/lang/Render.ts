@@ -142,7 +142,7 @@ export function renderMdx(
               bug('expected text node');
           });
         const node =
-          React.createElement(HighlightedCode as any, ast.properties, ...childNodes);
+          React.createElement(HighlightedCode as any, { language: 'typescript' }, ...childNodes);
         return [env, node];
       } else {
         const childNodes: Array<React.ReactNode> = [];
@@ -268,11 +268,16 @@ function componentType(props: { [f: string]: Type }): Type {
   return Type.abstract('React.Component', Type.object(props));
 }
 
+// TODO(jaked) need a way to translate TypeScript types
 const styleType = Type.undefinedOr(Type.object({
   backgroundColor: Type.undefinedOrString,
   float: Type.undefinedOr(Type.enumerate('left', 'right', 'inherit', 'none')),
   fontSize: Type.undefinedOrString,
   height: Type.undefinedOrString,
+  margin: Type.undefinedOrString,
+  marginBottom: Type.undefinedOrString,
+  marginLeft: Type.undefinedOrString,
+  marginRight: Type.undefinedOrString,
   marginTop: Type.undefinedOrString,
   padding: Type.undefinedOrString,
 }));
@@ -359,6 +364,16 @@ export const initTypeEnv = Typecheck.env({
     pageSize: Type.number,
   }),
 
+  'HighlightedCode': componentType({
+    // TODO(jaked) need a way to translate TypeScript types
+    // theme: PrismTheme
+
+    // TODO(jaked) enumerate supported languages
+    language: Type.undefinedOr(Type.singleton('typescript')),
+
+    style: styleType,
+  }),
+
   'parseInt':
     Type.functionType([ Type.string ], Type.number),
 });
@@ -388,6 +403,7 @@ export function initValueEnv(
     BlockMath: BlockMath,
     Table: ReactTable,
     Gist: Gist,
+    HighlightedCode: HighlightedCode,
 
     parseInt: (s: string) => parseInt(s)
   });
