@@ -111,7 +111,7 @@ function attachParser(parser) {
         try {
           const ast = parseJsxExpression(value.slice(0, e.pos), 0);
           const subvalue = value.slice(0, ast.end);
-          return eat(subvalue)({type: 'html', value: subvalue});
+          return eat(subvalue)({type: 'jsx', value: subvalue});
         } catch (e) {
           return;
         }
