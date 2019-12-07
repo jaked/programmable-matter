@@ -4,7 +4,8 @@ import Theme from './HighlightedCodeTheme';
 
 type Props = {
   language: Language;
-  style?: React.CSSProperties
+  style?: React.CSSProperties;
+  inline?: boolean;
 }
 
 function flatten(node: React.ReactNode): string {
@@ -14,23 +15,41 @@ function flatten(node: React.ReactNode): string {
 }
 
 export const HighlightedCode: React.FunctionComponent<Props> =
- ({ children, language, style: componentStyle }) => {
-  const code = flatten(children);
-  return (
-    <Highlight {...defaultProps} code={code} language={language} theme={Theme}>
-      {({className, style, tokens, getLineProps, getTokenProps}) => (
-        <pre className={className} style={{...style, ...componentStyle}}>
-          {tokens.map((line, i) => (
-            <div key={i} {...getLineProps({line, key: i})}>
-              {line.map((token, key) => (
-                <span key={key} {...getTokenProps({token, key})} />
-              ))}
-            </div>
-          ))}
-        </pre>
-      )}
-    </Highlight>
-  )
+ ({ children, language, style: componentStyle, inline }) => {
+  const code = flatten(children).trimRight();
+  if (inline) {
+    return (
+      <Highlight {...defaultProps} code={code} language={language} theme={Theme}>
+        {({className, style, tokens, getLineProps, getTokenProps}) => (
+          <code className={className} style={{...style, ...componentStyle}}>
+            {tokens.map((line, i) => (
+              <span key={i} {...getLineProps({line, key: i})}>
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({token, key})} />
+                ))}
+              </span>
+            ))}
+          </code>
+        )}
+      </Highlight>
+    );
+  } else {
+    return (
+      <Highlight {...defaultProps} code={code} language={language} theme={Theme}>
+        {({className, style, tokens, getLineProps, getTokenProps}) => (
+          <pre className={className} style={{...style, ...componentStyle}}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({line, key: i})}>
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({token, key})} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
+    );
+  }
 }
 
 export default HighlightedCode;

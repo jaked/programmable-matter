@@ -121,6 +121,9 @@ export function renderMdx(
   mkCell: (module: string, name: string, init: any) => Cell<any>,
   exportValue: { [s: string]: any }
 ): [Env, React.ReactNode] {
+  // TODO(jaked)
+  // definitions can only appear at the top level (I think?)
+  // so we shouldn't need to pass `env` through all of this
   switch (ast.type) {
     case 'root': {
       const childNodes: Array<React.ReactNode> = [];
@@ -133,34 +136,60 @@ export function renderMdx(
     }
 
     case 'element': {
-      if (ast.tagName === 'code') {
-        const childNodes =
-          ast.children.map(child => {
-            if (child.type === 'text')
-              return child.value;
-            else
-              bug('expected text node');
-          });
-        const node =
-          React.createElement(HighlightedCode as any, { language: 'typescript' }, ...childNodes);
-        return [env, node];
-      } else {
-        const childNodes: Array<React.ReactNode> = [];
-        ast.children.forEach(child => {
-          const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
-          env = env2;
-          childNodes.push(childNode);
-        });
-        let properties = ast.properties;
-        let elem: any = ast.tagName;
-        if (ast.tagName === 'a') {
-          // TODO(jaked) fix hack somehow
-          elem = env.get('Link')
-          const to = properties['href'];
-          properties = Object.assign({}, properties, { to });
+      switch (ast.tagName) {
+        case 'code': {
+          const childNodes =
+            ast.children.map(child => {
+              if (child.type === 'text')
+                return child.value;
+              else
+                bug('expected text node');
+            });
+          const node =
+            React.createElement(env.get('code'), ast.properties, ...childNodes);
+          return [env, node];
         }
-        const node = React.createElement(elem, properties, ...childNodes);
-        return [env, node];
+
+        case 'inlineCode': {
+          const childNodes =
+            ast.children.map(child => {
+              if (child.type === 'text')
+                return child.value;
+              else
+                bug('expected text node');
+            });
+          const node =
+            React.createElement(env.get('inlineCode'), ast.properties, ...childNodes);
+          return [env, node];
+        }
+
+        case 'a': {
+          const childNodes: Array<React.ReactNode> = [];
+          ast.children.forEach(child => {
+            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
+            env = env2;
+            childNodes.push(childNode);
+          });
+          // TODO(jaked)
+          // passing via env is a hack to get Link bound to setSelected
+          // fix it somehow
+          const Link = env.get('Link')
+          const to = ast.properties['href'];
+          const properties = Object.assign({}, ast.properties, { to });
+          const node = React.createElement(Link, properties, ...childNodes);
+          return [env, node];
+        }
+
+        default: {
+          const childNodes: Array<React.ReactNode> = [];
+          ast.children.forEach(child => {
+            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
+            env = env2;
+            childNodes.push(childNode);
+          });
+          const node = React.createElement(ast.tagName, ast.properties, ...childNodes);
+          return [env, node];
+        }
       }
     }
 
@@ -290,6 +319,10 @@ export const initTypeEnv = Typecheck.env({
 
   'body': componentType({}),
 
+  'code': componentType({
+    // TODO(jaked) handle className prop
+  }),
+
   'div': componentType({
     className: Type.undefinedOrString,
     style: styleType
@@ -314,6 +347,8 @@ export const initTypeEnv = Typecheck.env({
     height: Type.undefinedOrNumber,
     style: styleType,
   }),
+
+  'inlineCode': componentType({}),
 
   'input': componentType({
     type: Type.singleton('range'),
@@ -372,6 +407,7 @@ export const initTypeEnv = Typecheck.env({
     language: Type.undefinedOr(Type.singleton('typescript')),
 
     style: styleType,
+    inline: Type.undefinedOr(Type.boolean),
   }),
 
   'parseInt':
@@ -383,11 +419,13 @@ export function initValueEnv(
 ): Evaluator.Env {
   return Immutable.Map({
     body: 'body',
+    code: 'pre',
     div: 'div',
     ellipse: 'ellipse',
     head: 'head',
     html: 'html',
     img: 'img',
+    inlineCode: 'code',
     input: 'input',
     style: 'style',
     svg: 'svg',
