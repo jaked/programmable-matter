@@ -9,7 +9,7 @@ import Signal from './util/Signal';
 import { Cell } from './util/Cell';
 import Trace from './util/Trace';
 import * as data from './data';
-import { Watcher } from './files/Watcher';
+import { Filesystem } from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
 
@@ -36,16 +36,13 @@ let __trace = new Trace();
 // TODO(jaked) make this configurable
 const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
 
-const filesCell = Signal.cellOk<data.Files>(Immutable.Map());
+let filesystem = new Filesystem(filesPath, render);
+filesystem.start(); // TODO(jaked) stop this on shutdown
+
 const sessionsCell = Signal.cellOk<Immutable.Map<string, RSCEditor.Session>>(Immutable.Map());
 const selectedCell = Signal.cellOk<string | null>(null);
 const searchCell = Signal.cellOk<string>('');
 let letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
-
-function setFiles(files: data.Files) {
-  filesCell.setOk(files);
-  render();
-}
 
 function setSelected(selected: string | null) {
   selectedCell.setOk(selected);
@@ -93,23 +90,7 @@ function writeNote(path: string, tag: string, meta: data.Meta, content: string) 
   }
 
   let buffer = Buffer.from(string, 'utf8');
-  // TODO(jaked) surface errors
-  fs.writeFileSync(Path.resolve(filesPath, path), buffer);
-
-  const oldFile = filesCell.get().get(path);
-  var file: data.File;
-  if (oldFile) {
-    if (debug) console.log(`updating file path=${path}`);
-    // TODO(jaked) check that buffer has changed
-    const version = oldFile.version + 1;
-    file = Object.assign({}, oldFile, { version, buffer })
-  } else {
-    if (debug) console.log(`new file path=${path}`);
-    file = { path, version: 0, buffer }
-  }
-  filesCell.setOk(filesCell.get().set(path, file));
-
-  render();
+  filesystem.update(path, buffer);
 }
 
 function newNote(tag: string) {
@@ -153,11 +134,6 @@ function saveSession(session: RSCEditor.Session) {
   }
 }
 
-let watcher = new Watcher(filesPath, f => {
-  setFiles(f(filesCell.get()));
-});
-watcher.start(); // TODO(jaked) stop this on shutdown
-
 class CellImpl<T> implements Cell<T> {
   cell: Signal.Cell<T>;
   constructor(cell: Signal.Cell<T>) {
@@ -180,7 +156,7 @@ function mkCell(module: string, name: string, init: any): Cell<any> {
 let currentNotes: data.Notes = Immutable.Map();
 const notesSignal =
   Signal.label('notes',
-    filesCell.map(files => {
+    filesystem.files.map(files => {
       currentNotes = Compile.notesOfFiles(__trace, files, currentNotes);
       return currentNotes;
     })
