@@ -164,11 +164,11 @@ describe('flatMap', () => {
   });
 });
 
-describe('joinMap', () => {
-  it('joins and maps', () => {
+describe('join', () => {
+  it('joins', () => {
     const c1 = Signal.ok(7);
     const c2 = Signal.ok(9);
-    const j = Signal.joinMap(c1, c2, (t1, t2) => [t1, t2]);
+    const j = Signal.join(c1, c2);
 
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
   });
@@ -177,10 +177,10 @@ describe('joinMap', () => {
     const c1 = Signal.ok(7);
     const c2 = Signal.ok(9);
 
-    const j = Signal.joinMap(Signal.err(err), c2, (t1, t2) => [t1, t2]);
+    const j = Signal.join(Signal.err(err), c2);
     expect(j.value.type === 'err' && j.value.err).toBe(err);
 
-    const j2 = Signal.joinMap(c1, Signal.err(err), (t1, t2) => [t1, t2]);
+    const j2 = Signal.join(c1, Signal.err(err));
     expect(j2.value.type === 'err' && j2.value.err).toBe(err);
   });
 
@@ -188,7 +188,7 @@ describe('joinMap', () => {
     let calls = 0;
     const c1 = Signal.cellOk(7);
     const c2 = Signal.cellOk(9);
-    const j = Signal.joinMap(c1, c2, (t1, t2) => { calls++; return [t1, t2] });
+    const j = Signal.join(c1, c2).map(([t1, t2]) => { calls++; return [t1, t2] });
 
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
@@ -207,20 +207,5 @@ describe('joinMap', () => {
     j.update(trace, 3);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([11, 9]);
     expect(calls).toBe(2);
-  });
-
-  it('does not bump version on equal value', () => {
-    const c1 = Signal.cellOk(7);
-    const c2 = Signal.cellOk(9);
-    const j = Signal.joinMap(c1, c2, (t1, t2) => t1 + t2);
-
-    expect(j.value.type === 'ok' && j.value.ok).toBe(16);
-    expect(j.version).toBe(0);
-
-    c1.setOk(9);
-    c2.setOk(7);
-    j.update(trace, 1);
-    expect(j.value.type === 'ok' && j.value.ok).toBe(16);
-    expect(j.version).toBe(0);
   });
 });

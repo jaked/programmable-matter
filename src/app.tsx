@@ -105,7 +105,7 @@ function newNote(tag: string) {
 
 const sessionSignal =
   Signal.label('session',
-    Signal.joinMap(sessionsCell, selectedCell, (sessions, selected) => {
+    Signal.join(sessionsCell, selectedCell).map(([sessions, selected]) => {
       if (selected) {
         const session = sessions.get(selected);
         if (session) {
@@ -167,7 +167,7 @@ const compiledNotesSignal =
 
 let compiledNoteSignal =
   Signal.label('compiledNote',
-    Signal.joinMap(compiledNotesSignal, selectedCell, (compiledNotes, selected) => {
+    Signal.join(compiledNotesSignal, selectedCell).map(([compiledNotes, selected]) => {
       if (selected) {
         const note = compiledNotes.get(selected);
         if (note) return note;
@@ -178,7 +178,7 @@ let compiledNoteSignal =
 
 const contentSignal =
   Signal.label('content',
-    Signal.joinMap(notesSignal, selectedCell, (notes, selected) => {
+    Signal.join(notesSignal, selectedCell).map(([notes, selected]) => {
       if (selected) {
         const note: data.Note | undefined = notes.get(selected);
         if (note && note.type !== 'jpeg') return note.content;
@@ -205,7 +205,7 @@ function setContentAndSession(content: string, session: Session) {
 
 const matchingNotesSignal =
   Signal.label('matchingNotes',
-    Signal.joinMap(notesSignal, searchCell, (notes, search) => {
+    Signal.join(notesSignal, searchCell).map(([notes, search]) => {
       let matchingNotes = notes;
       if (search) {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript

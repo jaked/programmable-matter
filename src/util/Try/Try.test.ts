@@ -74,39 +74,32 @@ describe('apply', () => {
   });
 });
 
-describe('joinMap', () => {
+describe('join', () => {
   it('ok', () => {
     const t1 = Try.ok(7);
     const t2 = Try.ok(9);
-    const t = Try.joinMap(t1, t2, (t1, t2) => [t1, t2]);
+    const t = Try.join(t1, t2);
     expect(t.type === 'ok' && t.ok).toEqual([7, 9]);
   });
 
   it('t1 err', () => {
     const t1 = Try.err(err);
     const t2 = Try.ok(9);
-    const t = Try.joinMap(t1, t2, (t1, t2) => [t1, t2]);
+    const t = Try.join(t1, t2);
     expect(t.type === 'err' && t.err).toBe(err);
   });
 
   it('t2 err', () => {
     const t1 = Try.ok(7);
     const t2 = Try.err(err);
-    const t = Try.joinMap(t1, t2, (t1, t2) => [t1, t2]);
+    const t = Try.join(t1, t2);
     expect(t.type === 'err' && t.err).toBe(err);
   });
 
   it('both err', () => {
     const t1 = Try.err(err);
     const t2 = Try.err(new Error('fail 2'));
-    const t = Try.joinMap(t1, t2, (t1, t2) => [t1, t2]);
-    expect(t.type === 'err' && t.err).toBe(err);
-  });
-
-  it('catches exceptions', () => {
-    const t1 = Try.ok(7);
-    const t2 = Try.ok(9);
-    const t = Try.joinMap(t1, t2, (t1, t2) => { throw err });
+    const t = Try.join(t1, t2);
     expect(t.type === 'err' && t.err).toBe(err);
   });
 });

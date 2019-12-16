@@ -203,28 +203,25 @@ class FlatMap<T, U> implements Signal<U> {
   }
 }
 
-class JoinMap<T, R> implements Signal<R> {
+class Join<T> implements Signal<T[]> {
   signals: Signal<T>[];
   versions: number[];
-  f: (...args: T[]) => R;
 
   constructor(
-    signals: Signal<T>[],
-    f: (...args: T[]) => R
+    signals: Signal<T>[]
   ) {
     this.version = 0;
     this.signals = signals;
     this.versions = signals.map(s => s.version);
-    this.f = f;
-    this.value = Try.joinMap(...signals.map(s => s.value), f);
+    this.value = Try.join(...signals.map(s => s.value));
     this.level = Math.min(...signals.map(s => s.level));
   }
 
   get() { return this.value.get(); }
-  map<V>(f: (t: R) => V) { return new Map(this, f); }
-  flatMap<V>(f: (t: R) => Signal<V>) { return new FlatMap(this, f); }
+  map<V>(f: (t: T[]) => V) { return new Map(this, f); }
+  flatMap<V>(f: (t: T[]) => Signal<V>) { return new FlatMap(this, f); }
 
-  value: Try<R>;
+  value: Try<T[]>;
   version: number;
   level: number;
   update(trace: Trace, level: number) {
@@ -237,7 +234,7 @@ class JoinMap<T, R> implements Signal<R> {
     if (equal(versions, this.versions))
       return;
     this.versions = versions;
-    const value = Try.joinMap<T, R>(...this.signals.map(s => s.value), this.f);
+    const value = Try.join(...this.signals.map(s => s.value));
     if (equal(value, this.value)) return;
     this.value = value;
     this.version++;
@@ -294,15 +291,17 @@ module Signal {
     return cell<T>(Try.err(err));
   }
 
-  export function joinMap<T1, T2, R>(
+  export function join<T1, T2>(
     s1: Signal<T1>,
-    s2: Signal<T2>,
-    f: (t1: T1, t2: T2) => R
-  ): Signal<R>
-  export function joinMap<T, R>(...args: any[]) {
-    const signals = args.slice(0, args.length - 1);
-    const f = args[args.length - 1];
-    return new JoinMap<T, R>(signals, f);
+    s2: Signal<T2>
+  ): Signal<[T1, T2]>
+  export function join<T>(
+    ...signals: Signal<T>[]
+  ): Signal<T[]>
+  export function join<T>(
+    ...signals: Signal<T>[]
+  ): Signal<T[]> {
+    return new Join(signals);
   }
 
   export function label<T>(label: string, s: Signal<T>): Signal<T> {
