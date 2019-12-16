@@ -203,26 +203,21 @@ class FlatMap<T, U> implements Signal<U> {
   }
 }
 
-class JoinMap<T1, T2, R> implements Signal<R> {
-  s1: Signal<T1>;
-  s1Version: number;
-  s2: Signal<T2>;
-  s2Version: Number;
-  f: (t1: T1, t2: T2) => R;
+class JoinMap<T, R> implements Signal<R> {
+  signals: Signal<T>[];
+  versions: number[];
+  f: (...args: T[]) => R;
 
   constructor(
-    s1: Signal<T1>,
-    s2: Signal<T2>,
-    f: (t1: T1, t2: T2) => R
+    signals: Signal<T>[],
+    f: (...args: T[]) => R
   ) {
     this.version = 0;
-    this.s1Version = s1.version;
-    this.s2Version = s2.version;
-    this.s1 = s1;
-    this.s2 = s2;
+    this.signals = signals;
+    this.versions = signals.map(s => s.version);
     this.f = f;
-    this.value = Try.joinMap2(s1.value, s2.value, f);
-    this.level = Math.min(s1.level, s2.level);
+    this.value = Try.joinMap(...signals.map(s => s.value), f);
+    this.level = Math.min(...signals.map(s => s.level));
   }
 
   get() { return this.value.get(); }
@@ -235,14 +230,14 @@ class JoinMap<T1, T2, R> implements Signal<R> {
   update(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s1.update(trace, level);
-    this.s2.update(trace, level);
-    if (this.s1Version === this.s1.version &&
-        this.s2Version === this.s2.version)
+    const versions = this.signals.map(s => {
+      s.update(trace, level);
+      return s.version;
+    });
+    if (equal(versions, this.versions))
       return;
-    this.s1Version = this.s1.version;
-    this.s2Version = this.s2.version;
-    const value = Try.joinMap2(this.s1.value, this.s2.value, this.f);
+    this.versions = versions;
+    const value = Try.joinMap<T, R>(...this.signals.map(s => s.value), this.f);
     if (equal(value, this.value)) return;
     this.value = value;
     this.version++;
@@ -303,8 +298,11 @@ module Signal {
     s1: Signal<T1>,
     s2: Signal<T2>,
     f: (t1: T1, t2: T2) => R
-  ): Signal<R> {
-    return new JoinMap(s1, s2, f);
+  ): Signal<R>
+  export function joinMap<T, R>(...args: any[]) {
+    const signals = args.slice(0, args.length - 1);
+    const f = args[args.length - 1];
+    return new JoinMap<T, R>(signals, f);
   }
 
   export function label<T>(label: string, s: Signal<T>): Signal<T> {

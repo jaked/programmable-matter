@@ -69,14 +69,21 @@ module Try {
     catch (e) { return err(e); }
   }
 
-  export function joinMap2<T1, T2, R>(
+  export function joinMap<T1, T2, R>(
     try1: Try<T1>,
     try2: Try<T2>,
     f: (t1: T1, t2: T2) => R
-  ): Try<R> {
-    if (try1.type === 'err') return <Try<R>><unknown>try1;
-    if (try2.type === 'err') return <Try<R>><unknown>try2;
-    return apply(() => f(try1.ok, try2.ok));
+  ): Try<R>
+  export function joinMap<T, R>(
+    ...args: any[]
+  ): Try<R>
+  export function joinMap<T, R>(...args: any[]): Try<R> {
+    const trys = args.slice(0, args.length - 1);
+    const f = args[args.length - 1];
+    for (let i = 0; i < trys.length; i++) {
+      if (trys[i].type === 'err') return <Try<R>><unknown>trys[i];
+    }
+    return apply(() => f(...trys.map(t => t.ok)));
   }
 }
 
