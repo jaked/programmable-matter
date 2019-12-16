@@ -15,8 +15,7 @@ interface Props {
   parsedNote: data.ParsedNote | null;
   session: Session;
 
-  onChange: (content: string) => void;
-  saveSession: (session: Session) => void;
+  onChange: (content: string, session: Session) => void;
   setStatus: (status: string | undefined) => void;
 }
 
@@ -303,33 +302,14 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
 export class Editor extends React.Component<Props, {}> {
   rscEditorRef = React.createRef<RSCEditor>();
 
-  constructor(props: Props) {
-    super(props);
-
-    this.onValueChange = this.onValueChange.bind(this);
-  }
-
   focus() {
     if (this.rscEditorRef.current) {
       this.rscEditorRef.current.focus();
     }
   }
 
-  // TODO(jaked)
-  // would be nice if session were a prop on RSCEditor
-  setSession() {
-    if (this.rscEditorRef.current) {
-      this.rscEditorRef.current.session = this.props.session;
-    }
-  }
-  componentDidMount() { this.setSession(); }
-  componentDidUpdate() { this.setSession(); }
-
-  onValueChange(x: string) {
-    this.props.onChange(x);
-    if (this.rscEditorRef.current) {
-      this.props.saveSession(this.rscEditorRef.current.session);
-    }
+  onChange = (value: string, session: Session) => {
+    this.props.onChange(value, session);
   }
 
   render() {
@@ -347,7 +327,8 @@ export class Editor extends React.Component<Props, {}> {
           ref={this.rscEditorRef}
           name={selected}
           value={content}
-          onValueChange={this.onValueChange}
+          session={this.props.session}
+          onChange={this.onChange}
           highlight={_ => highlight}
           setStatus={this.props.setStatus}
         />

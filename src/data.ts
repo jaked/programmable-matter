@@ -4,6 +4,7 @@ import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
+import { Session } from './components/react-simple-code-editor';
 
 export type Types = 'mdx' | 'json' | 'txt' | 'ts' | 'jpeg';
 

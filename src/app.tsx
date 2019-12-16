@@ -19,7 +19,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import { Main } from './components/Main';
-import * as RSCEditor from './components/react-simple-code-editor';
+import { Session } from './components/react-simple-code-editor';
 
 import Unhandled from 'electron-unhandled';
 
@@ -39,7 +39,7 @@ const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
 let filesystem = new Filesystem(filesPath, render);
 filesystem.start(); // TODO(jaked) stop this on shutdown
 
-const sessionsCell = Signal.cellOk<Immutable.Map<string, RSCEditor.Session>>(Immutable.Map());
+const sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
 const selectedCell = Signal.cellOk<string | null>(null);
 const searchCell = Signal.cellOk<string>('');
 let letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
@@ -125,15 +125,6 @@ const sessionSignal =
     })
   );
 
-function saveSession(session: RSCEditor.Session) {
-  const selected = selectedCell.get();
-  if (selected) {
-    const sessions = sessionsCell.get().set(selected, session);
-    sessionsCell.setOk(sessions);
-    render();
-  }
-}
-
 class CellImpl<T> implements Cell<T> {
   cell: Signal.Cell<T>;
   constructor(cell: Signal.Cell<T>) {
@@ -196,7 +187,7 @@ const contentSignal =
     })
   );
 
-function setContent(content: string | null) {
+function setContentAndSession(content: string, session: Session) {
   if (content === null) return;
   const selected = selectedCell.get();
   if (!selected) return;
@@ -205,6 +196,9 @@ function setContent(content: string | null) {
   if (!note) return;
   if (note.type === 'jpeg') return;
   if (note.content === content) return;
+
+  const sessions = sessionsCell.get().set(selected, session);
+  sessionsCell.setOk(sessions);
 
   writeNote(note.path, note.tag, note.meta, content);
 }
@@ -262,8 +256,7 @@ function reactRender(trace: Trace) {
       session={sessionSignal.get()}
       onSelect={setSelected}
       onSearch={setSearch}
-      onChange={setContent}
-      saveSession={saveSession}
+      onChange={setContentAndSession}
       newNote={newNote}
       compiledNotes={compiledNotesSignal.get()}
     />,

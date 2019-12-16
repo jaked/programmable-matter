@@ -58,19 +58,26 @@ export class Filesystem {
   public files: Signal<data.Files> = this.filesCell;
 
   public update = (path: string, buffer: Buffer) => {
-    const oldFile = this.filesCell.get().get(path);
-    let file: InternalFile;
-    const lastUpdateMs = Date.now(); // TODO(jaked) not sure how accurate this is
-    if (oldFile) {
-      if (debug) console.log(`updating file path=${path}`);
-      // TODO(jaked) check that buffer has changed
-      const version = oldFile.version + 1;
-      file = Object.assign({}, oldFile, { version, buffer, lastUpdateMs })
-    } else {
-      if (debug) console.log(`new file path=${path}`);
-      file = { path, version: 0, buffer, writing: false, lastUpdateMs, lastWriteMs: 0 }
-    }
-    this.filesCell.setOk(this.filesCell.get().set(path, file));
+    this.updateFiles(files => {
+      const oldFile = files.get(path);
+      let file: InternalFile;
+      const lastUpdateMs = Date.now(); // TODO(jaked) not sure how accurate this is
+      if (oldFile) {
+        if (buffer.equals(oldFile.buffer)) {
+          if (debug) console.log(`${path} has not changed`);
+          return files;
+        } else {
+          if (debug) console.log(`updating file path=${path}`);
+          // TODO(jaked) check that buffer has changed
+          const version = oldFile.version + 1;
+          file = Object.assign({}, oldFile, { version, buffer, lastUpdateMs })
+        }
+      } else {
+        if (debug) console.log(`new file path=${path}`);
+        file = { path, version: 0, buffer, writing: false, lastUpdateMs, lastWriteMs: 0 }
+      }
+      return files.set(path, file);
+    });
   }
 
   public start = async () => {
@@ -116,38 +123,35 @@ export class Filesystem {
   }
 
   private timerCallback = () => {
-    let files = this.filesCell.get();
-    files.forEach(file => {
-      if (this.shouldWrite(file)) {
-        file = Object.assign({}, file, { writing: true });
-        files = files.set(file.path, file);
+    this.updateFiles(files => {
+      files.forEach(file => {
+        if (this.shouldWrite(file)) {
+          file = Object.assign({}, file, { writing: true });
+          files = files.set(file.path, file);
 
-        const lastWriteMs = Date.now();
-        const filePath = file.path;
-        // TODO(jaked)
-        // if the write fails we have already updated lastWriteMs
-        if (debug) console.log(`before writeFile ${filePath}`);
-        Fs.writeFile(Path.resolve(this.filesPath, filePath), file.buffer)
-          .finally(
-            () => {
-              if (debug) console.log(`finally ${filePath}`);
-              let files = this.filesCell.get();
-              let file = files.get(filePath);
-              if (file) {
-                if (debug) console.log(`file.writing = ${file.writing} for ${file.path}`);
-                file = Object.assign({}, file, { lastWriteMs, writing: false })
-                files = files.set(filePath, file);
-                this.filesCell.setOk(files);
-              }
-            });
-        if (debug) console.log(`after writeFile ${filePath}`);
-      }
-    });
-    if (files !== this.filesCell.get()) {
-      if (debug) console.log(`updating filesCell`);
-      this.filesCell.setOk(files);
-      this.onChange();
-    }
+          const lastWriteMs = Date.now();
+          const filePath = file.path;
+          // TODO(jaked)
+          // if the write fails we have already updated lastWriteMs
+          if (debug) console.log(`before writeFile ${filePath}`);
+          Fs.writeFile(Path.resolve(this.filesPath, filePath), file.buffer)
+            .finally(
+              () => {
+                if (debug) console.log(`finally ${filePath}`);
+                let files = this.filesCell.get();
+                let file = files.get(filePath);
+                if (file) {
+                  if (debug) console.log(`file.writing = ${file.writing} for ${file.path}`);
+                  file = Object.assign({}, file, { lastWriteMs, writing: false })
+                  files = files.set(filePath, file);
+                  this.filesCell.setOk(files);
+                }
+              });
+          if (debug) console.log(`after writeFile ${filePath}`);
+        }
+      });
+      return files;
+    }, false);
   };
 
   private walkDir = async (directory: string, events: Array<NsfwEvent>) => {
@@ -171,12 +175,15 @@ export class Filesystem {
     throw error;
   }
 
-  updateFiles = (updater: (files: InternalFiles) => InternalFiles) => {
+  updateFiles = (
+    updater: (files: InternalFiles) => InternalFiles,
+    triggerChange: boolean = true
+  ) => {
     const files = updater(this.filesCell.get());
     if (files !== this.filesCell.get()) {
       if (debug) console.log(`updating filesCell`)
       this.filesCell.setOk(files);
-      this.onChange();
+      if (triggerChange) this.onChange();
     }
   }
 
@@ -192,7 +199,11 @@ export class Filesystem {
       // we just wrote the file, this is most likely a notification
       // of that write, so skip it.
       // TODO(jaked) should check this before reading file.
-      if (Date.now() < oldFile.lastWriteMs + 1000) {
+      if (oldFile.writing) {
+        if (debug) console.log(`${path} is being written`);
+        return files;
+      }
+      if (Date.now() < oldFile.lastWriteMs + 5000) {
         if (debug) console.log(`${path} was just written`);
         return files;
       }

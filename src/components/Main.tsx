@@ -20,7 +20,7 @@ import * as data from '../data';
 import { Catch } from './Catch';
 import { Display } from './Display';
 import { Editor } from './Editor';
-import * as RSCEditor from './react-simple-code-editor';
+import { Session} from './react-simple-code-editor';
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
 
@@ -37,11 +37,10 @@ interface Props {
   content: string | null;
   highlightValid: boolean;
   compiledNote: data.CompiledNote | null;
-  session: RSCEditor.Session;
+  session: Session;
   onSelect: (tag: string | null) => void;
   onSearch: (search: string) => void;
-  onChange: (content: string | null) => void;
-  saveSession: (session: RSCEditor.Session) => void;
+  onChange: (content: string, session: Session) => void;
   newNote: (tag: string) => void;
 
   // TODO(jaked) for site build, move elsewhere
@@ -191,7 +190,6 @@ export class Main extends React.Component<Props, {}> {
           parsedNote={this.props.highlightValid ? this.props.compiledNote : null}
           session={this.props.session}
           onChange={this.props.onChange}
-          saveSession={this.props.saveSession}
           setStatus={this.props.setStatus}
         />
       </Box>

@@ -3,7 +3,8 @@ import * as React from 'react';
 type Props = {
   // Props for the component
   value: string,
-  onValueChange: (value: string) => void,
+  session: Session,
+  onChange: (value: string, session: Session) => void,
   highlight: (value: string) => string | React.ReactNode,
   tabSize: number,
   insertSpaces: boolean,
@@ -112,48 +113,18 @@ export default class Editor extends React.Component<Props, State> {
   };
 
   componentDidMount() {
-    this._recordCurrentState();
-  }
-
-  getSnapshotBeforeUpdate() {
-    this._saveSelection();
+    this._restoreSelection();
   }
 
   componentDidUpdate() {
     this._restoreSelection();
-    if (this._history.offset < 0) {
-      // ensure current state is top of stack
-      this._recordCurrentState();
-    }
-  }
-
-  _recordCurrentState = () => {
-    const input = this._input;
-
-    if (!input) return;
-
-    // Save current state of the input
-    const { value, selectionStart, selectionEnd } = input;
-
-    this._recordChange({
-      value,
-      selectionStart,
-      selectionEnd,
-    });
-  };
-
-  _saveSelection = () => {
-    const input = this._input;
-    if (!input) return;
-    this._selectionStart = input.selectionStart;
-    this._selectionEnd = input.selectionEnd;
   }
 
   _restoreSelection = () => {
     const input = this._input;
     if (!input) return;
-    input.selectionStart = this._selectionStart;
-    input.selectionEnd = this._selectionEnd;
+    input.selectionStart = this.props.session.selectionStart;
+    input.selectionEnd = this.props.session.selectionEnd;
   }
 
   _getLines = (text: string, position: number) =>
@@ -221,7 +192,7 @@ export default class Editor extends React.Component<Props, State> {
     input.selectionStart = record.selectionStart;
     input.selectionEnd = record.selectionEnd;
 
-    this.props.onValueChange(record.value);
+    this.props.onChange(record.value, this.session);
   };
 
   _applyEdits = (record: Record) => {
@@ -502,7 +473,7 @@ export default class Editor extends React.Component<Props, State> {
       true
     );
 
-    this.props.onValueChange(value);
+    this.props.onChange(value, this.session);
   };
 
   _onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
@@ -523,18 +494,11 @@ export default class Editor extends React.Component<Props, State> {
     }
   }
 
-  _history: History = {
-    stack: [],
-    offset: -1,
-  };
-
-  // save/restore the current selection around renders
-  // we don't use the history stack for this because
-  // it gets initialized with the current state of the input
-  // which might already have a selection (when switching notes)
-  // TODO(jaked) could use a rethink
-  _selectionStart: number = 0;
-  _selectionEnd: number = 0;
+  _history: History;
+  constructor(props: Props) {
+    super(props);
+    this._history = this.props.session.history;
+  }
 
   _input: HTMLTextAreaElement | null = null;
   _pre: HTMLPreElement | null = null;
@@ -546,17 +510,14 @@ export default class Editor extends React.Component<Props, State> {
   }
 
   get session(): Session {
+    const input = this._input;
+    const selectionStart = input ? input.selectionStart : 0;
+    const selectionEnd = input ? input.selectionEnd : 0;
     return {
       history: this._history,
-      selectionStart: this._selectionStart,
-      selectionEnd: this._selectionEnd
+      selectionStart,
+      selectionEnd,
     };
-  }
-
-  set session(session: Session) {
-    this._history = session.history;
-    this._selectionStart = session.selectionStart;
-    this._selectionEnd = session.selectionEnd;
   }
 
   render() {
@@ -581,7 +542,7 @@ export default class Editor extends React.Component<Props, State> {
       onKeyUp,
       /* eslint-disable no-unused-vars */
       onKeyDown,
-      onValueChange,
+      onChange,
       tabSize,
       insertSpaces,
       ignoreTabKey,
