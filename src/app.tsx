@@ -6,7 +6,6 @@ import * as Graymatter from 'gray-matter';
 import * as Immutable from 'immutable';
 
 import Signal from './util/Signal';
-import { Cell } from './util/Cell';
 import Trace from './util/Trace';
 import * as data from './data';
 import { Filesystem } from './files/Filesystem';
@@ -125,23 +124,11 @@ const sessionSignal =
     })
   );
 
-class CellImpl<T> implements Cell<T> {
-  cell: Signal.Cell<T>;
-  constructor(cell: Signal.Cell<T>) {
-    this.cell = cell;
-  }
-  get() { return this.cell.get(); }
-  set(t: any) {
-    this.cell.setOk(t);
-    render();
-  }
-}
-
-function mkCell(module: string, name: string, init: any): Cell<any> {
+function mkCell(module: string, name: string, init: any): Signal.Cell<any> {
   let noteLetCells = letCells.get(module) || Immutable.Map();
-  let letCell = noteLetCells.get(name) || Signal.cellOk(init);
+  let letCell = noteLetCells.get(name) || Signal.cellOk(init, render);
   letCells = letCells.set(module, noteLetCells.set(name, letCell));
-  return new CellImpl(letCell);
+  return letCell;
 }
 
 let currentNotes: data.Notes = Immutable.Map();

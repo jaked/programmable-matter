@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as ESTree from './ESTree';
 
-import { Cell } from '../util/Cell';
+import Signal from '../util/Signal';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
@@ -38,8 +38,8 @@ export function evaluateExpression(
     case 'Identifier':
       if (env.has(ast.name)) {
         const value = env.get(ast.name);
-        if (typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
-          return (<Cell<any>>value).get();
+        if (value && typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
+          return (<Signal.Cell<any>>value).get();
         } else {
           return value;
         }
@@ -79,9 +79,9 @@ export function evaluateExpression(
       // TODO(jaked) for what elements does this make sense? only input?
       if (name === 'input' && attrs.id) {
         if (env.has(attrs.id)) {
-          const atom = env.get(attrs.id) as Cell<any>;
+          const atom = env.get(attrs.id) as Signal.Cell<any>;
           attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            atom.set(e.currentTarget.value);
+            atom.setOk(e.currentTarget.value);
           }
         } else {
           // TODO(jaked) check statically
@@ -158,8 +158,8 @@ export function evaluateExpression(
           throw new Error('expected identifier on non-computed property');
         value = object[ast.property.name];
       }
-      if (typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
-        return (<Cell<any>>value).get();
+      if (value && typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
+        return (<Signal.Cell<any>>value).get();
       } else {
         return value;
       }

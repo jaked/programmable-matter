@@ -18,7 +18,7 @@ import Gist from 'react-gist';
 import { InlineMath, BlockMath } from 'react-katex';
 
 import { bug } from '../util/bug';
-import { Cell } from '../util/Cell';
+import Signal from '../util/Signal';
 
 import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
@@ -67,7 +67,7 @@ function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
   module: string,
   env: Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   exportValue: { [s: string]: any }
 ): Env {
   const declaration = decl.declaration;
@@ -118,7 +118,7 @@ export function renderMdx(
   module: string,
   moduleEnv: Env,
   env: Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   exportValue: { [s: string]: any }
 ): [Env, React.ReactNode] {
   // TODO(jaked)
@@ -242,7 +242,7 @@ export function renderProgram(
   module: string,
   moduleEnv: Env,
   env: Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   exportValue: { [s: string]: any }
 ): Env {
   switch (ast.type) {

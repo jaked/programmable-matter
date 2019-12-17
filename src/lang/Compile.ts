@@ -7,7 +7,7 @@ import * as React from 'react';
 import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
 
-import { Cell } from '../util/Cell';
+import Signal from '../util/Signal';
 import Trace from '../util/Trace';
 import Try from '../util/Try';
 import * as data from '../data';
@@ -544,7 +544,7 @@ function compileMdx(
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: Evaluator.Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): data.Compiled {
   const exportTypes: { [s: string]: Type.Type } = {};
   const exportValue: { [s: string]: any } = {};
@@ -608,7 +608,7 @@ function compileTs(
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: Evaluator.Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): data.Compiled {
   const exportTypes: { [s: string]: Type.Type } = {};
   const exportValue: { [s: string]: any } = {};
@@ -655,7 +655,7 @@ function compileNote(
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: Evaluator.Env,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (parsedNote.type) {
@@ -706,7 +706,7 @@ function compileDirtyNotes(
   orderedTags: Array<string>,
   parsedNotes: data.ParsedNotes,
   compiledNotes: data.CompiledNotes,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
   let typeEnv = Render.initTypeEnv;
@@ -742,7 +742,7 @@ export function compileNotes(
   trace: Trace,
   compiledNotes: data.CompiledNotes,
   notes: data.Notes,
-  mkCell: (module: string, name: string, init: any) => Cell<any>,
+  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
   // TODO(jaked)

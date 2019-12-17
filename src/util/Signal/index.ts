@@ -98,8 +98,9 @@ interface CellIntf<T> extends Signal<T> {
 }
 
 class CellImpl<T> implements CellIntf<T> {
-  constructor(value: Try<T>) {
+  constructor(value: Try<T>, onChange?: () => void) {
     this.value = value;
+    this.onChange = onChange;
     this.version = 0;
   }
 
@@ -109,6 +110,7 @@ class CellImpl<T> implements CellIntf<T> {
 
   value: Try<T>;
   version: number;
+  onChange?: () => void;
   // don't need to track `level` because `update` is a no-op
   get level(): 0 { return 0; }
   update(trace: Trace, level: number) { }
@@ -117,6 +119,7 @@ class CellImpl<T> implements CellIntf<T> {
     if (equal(t, this.value)) return;
     this.value = t;
     this.version++;
+    if (this.onChange) this.onChange();
   }
   setOk(t: T) { this.set(Try.ok(t)); }
   setErr(err: Error) { this.set(Try.err(err)); }
@@ -279,16 +282,16 @@ module Signal {
 
   export type Cell<T> = CellIntf<T>;
 
-  export function cell<T>(t: Try<T>): Cell<T> {
-    return new CellImpl(t);
+  export function cell<T>(t: Try<T>, onChange?: () => void): Cell<T> {
+    return new CellImpl(t, onChange);
   }
 
-  export function cellOk<T>(t: T): Cell<T> {
-    return cell(Try.ok(t));
+  export function cellOk<T>(t: T, onChange?: () => void): Cell<T> {
+    return cell(Try.ok(t), onChange);
   }
 
-  export function cellErr<T>(err: Error): Cell<T> {
-    return cell<T>(Try.err(err));
+  export function cellErr<T>(err: Error, onChange: () => void): Cell<T> {
+    return cell<T>(Try.err(err), onChange);
   }
 
   export function join<T1, T2>(
