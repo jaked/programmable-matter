@@ -35,7 +35,7 @@ let __trace = new Trace();
 // TODO(jaked) make this configurable
 const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
 
-let filesystem = new Filesystem(filesPath, render);
+let filesystem = new Filesystem(filesPath, dirtyAndRender);
 filesystem.start(); // TODO(jaked) stop this on shutdown
 
 const sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
@@ -45,7 +45,7 @@ let letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
 
 function setSelected(selected: string | null) {
   selectedCell.setOk(selected);
-  render();
+  dirtyAndRender();
 }
 
 function setSearch(search: string) {
@@ -231,14 +231,7 @@ function reactRender(trace: Trace) {
       selected={selectedCell.get()}
       search={searchCell.get()}
       content={contentSignal.get()}
-
-      // TODO(jaked)
-      // this is unnecessarily conservative since level can be
-      // incremented by actions that don't affect compilation.
-      // figure out a way to compute whether a signal is stale
-      // with respect to another signal.
-      highlightValid={compiledNoteSignal.level === level}
-
+      highlightValid={!compileDirty}
       compiledNote={compiledNoteSignal.get()}
       session={sessionSignal.get()}
       onSelect={setSelected}
@@ -256,6 +249,8 @@ let compileDirty: boolean = true;
 
 setInterval(() => {
   if (compileDirty) {
+    compileDirty = false;
+
     __trace = new Trace();
     compiledNoteSignal.update(__trace, level);
 
@@ -266,7 +261,6 @@ setInterval(() => {
     server.update(__trace, level);
     reactRender(__trace);
     console.log(__trace.finish());
-    compileDirty = false;
   }
 }, 50);
 
@@ -285,9 +279,11 @@ function render() {
 
   reactRender(__trace);
   console.log(__trace.finish());
+}
 
-  // TODO(jaked) only on edit
+function dirtyAndRender() {
   compileDirty = true;
+  render();
 }
 
 render();
