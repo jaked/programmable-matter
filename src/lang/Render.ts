@@ -25,17 +25,34 @@ import * as ESTree from './ESTree';
 import * as Evaluator from './evaluator';
 import Type from './Type';
 import Typecheck from './Typecheck';
+import * as Compile from './Compile';
 
 import HighlightedCode from './HighlightedCode';
-
-export type Env = Evaluator.Env;
 
 const smartypants =
   Retext().use(RetextSmartypants, { dashes: 'oldschool' })
 
+export type Env = Immutable.Map<string, Signal<any>>;
+
+function evaluateExpressionSignal(
+  ast: ESTree.Expression,
+  env: Env
+): Signal<any> {
+  const idents = ESTree.freeIdentifiers(ast);
+  const signals = idents.map(id => {
+    const signal = env.get(id);
+    if (signal) return signal;
+    else throw new Error(`unbound identifier ${id}`);
+  });
+  return Signal.join(...signals).map(values => {
+    const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
+    return Evaluator.evaluateExpression(ast, env);
+  });
+}
+
 function extendEnvWithImport(
   decl: ESTree.ImportDeclaration,
-  moduleEnv: Env,
+  moduleEnv: Compile.ModuleValueEnv,
   env: Env,
 ): Env {
   const module = moduleEnv.get(decl.source.value);
@@ -43,9 +60,10 @@ function extendEnvWithImport(
     throw new Error(`expected module '${decl.source.value}'`);
   decl.specifiers.forEach(spec => {
     switch (spec.type) {
-      case 'ImportNamespaceSpecifier':
-        env = env.set(spec.local.name, module);
+      case 'ImportNamespaceSpecifier': {
+        env = env.set(spec.local.name, Signal.joinObject(module));
         break;
+      }
       case 'ImportDefaultSpecifier':
         const defaultField = module['default'];
         if (defaultField === undefined)
@@ -68,14 +86,14 @@ function extendEnvWithNamedExport(
   module: string,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
-  exportValue: { [s: string]: any }
+  exportValue: { [s: string]: Signal<any> }
 ): Env {
   const declaration = decl.declaration;
   switch (declaration.kind) {
     case 'const': {
       declaration.declarations.forEach(declarator => {
         let name = declarator.id.name;
-        let value = Evaluator.evaluateExpression(declarator.init, env);
+        let value = evaluateExpressionSignal(declarator.init, env);
         exportValue[name] = value;
         env = env.set(name, value);
       });
@@ -84,12 +102,11 @@ function extendEnvWithNamedExport(
 
     case 'let': {
       declaration.declarations.forEach(declarator => {
+        // TODO(jaked)
+        // need to ensure that initializer isn't changeable
+        // (and/or rethink how cells are created / initialized)
         const init =
-          Evaluator.evaluateExpression(declarator.init, env);
-        // TODO(jaked) check this statically
-        // if (evaluatedAst.type !== 'Literal') {
-        //   throw new Error('atom initializer must be static');
-        // }
+          Evaluator.evaluateExpression(declarator.init, Immutable.Map());
         const name = declarator.id.name;
         const cell = mkCell(module, name, init);
         exportValue[name] = cell;
@@ -106,33 +123,33 @@ function extendEnvWithNamedExport(
 function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
   env: Env,
-  exportValue: { [s: string]: any }
+  exportValue: { [s: string]: Signal<any> }
 ): Env {
-  exportValue['default'] =
-    Evaluator.evaluateExpression(decl.declaration, env);
+  const value = evaluateExpressionSignal(decl.declaration, env);
+  exportValue['default'] = value;
   return env;
 }
 
 export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
-  moduleEnv: Env,
+  moduleEnv: Compile.ModuleValueEnv,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
-  exportValue: { [s: string]: any }
-): [Env, React.ReactNode] {
+  exportValue: { [s: string]: Signal<any> }
+): [Env, Signal<React.ReactNode>] {
   // TODO(jaked)
   // definitions can only appear at the top level (I think?)
   // so we shouldn't need to pass `env` through all of this
   switch (ast.type) {
     case 'root': {
-      const childNodes: Array<React.ReactNode> = [];
+      const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
         const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
-      return [env, childNodes];
+      return [env, Signal.join(...childNodes)];
     }
 
     case 'element': {
@@ -145,8 +162,10 @@ export function renderMdx(
               else
                 bug('expected text node');
             });
-          const node =
-            React.createElement(env.get('code'), ast.properties, ...childNodes);
+          const code = env.get('code') || bug(`expected 'code'`);
+          const node = code.map(code =>
+            React.createElement(code, ast.properties, ...childNodes)
+          );
           return [env, node];
         }
 
@@ -158,13 +177,15 @@ export function renderMdx(
               else
                 bug('expected text node');
             });
-          const node =
-            React.createElement(env.get('inlineCode'), ast.properties, ...childNodes);
+          const inlineCode = env.get('inlineCode') || bug(`expected 'inlineCode'`);
+          const node = inlineCode.map(inlineCode =>
+            React.createElement(inlineCode, ast.properties, ...childNodes)
+          );
           return [env, node];
         }
 
         case 'a': {
-          const childNodes: Array<React.ReactNode> = [];
+          const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
             const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
             env = env2;
@@ -173,21 +194,25 @@ export function renderMdx(
           // TODO(jaked)
           // passing via env is a hack to get Link bound to setSelected
           // fix it somehow
-          const Link = env.get('Link')
+          const Link = env.get('Link') || bug(`expected 'Link'`);
           const to = ast.properties['href'];
           const properties = Object.assign({}, ast.properties, { to });
-          const node = React.createElement(Link, properties, ...childNodes);
+          const node = Signal.join(Link, Signal.join(...childNodes)).map(([ Link, childNodes ]) =>
+            React.createElement(Link, properties, ...childNodes)
+          );
           return [env, node];
         }
 
         default: {
-          const childNodes: Array<React.ReactNode> = [];
+          const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
             const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
-          const node = React.createElement(ast.tagName, ast.properties, ...childNodes);
+          const node = Signal.join(...childNodes).map(childNodes =>
+            React.createElement(ast.tagName, ast.properties, ...childNodes)
+          );
           return [env, node];
         }
       }
@@ -197,16 +222,52 @@ export function renderMdx(
       // TODO(jaked) this is pretty slow :(
       // TODO(jaked) and doesn't work when quotes are split across text nodes
       const value = smartypants.processSync(ast.value).toString();
-      return [env, value];
+      return [env, Signal.ok(value)];
     }
 
     case 'jsx':
       if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
       switch (ast.jsxElement.type) {
-        case 'ok':
-          return [env, Evaluator.evaluateExpression(ast.jsxElement.ok, env)];
+        case 'ok': {
+          const jsx = ast.jsxElement.ok;
+
+          // special-case `input` to handle cell binding
+          // TODO(jaked) cleaner way to handle this
+          if (jsx.type === 'JSXElement' &&
+              jsx.openingElement.name.name === 'input' &&
+              jsx.openingElement.attributes.some(({ name }) => name.name === 'id')) {
+            const idents = ESTree.freeIdentifiers(jsx);
+            const signals = idents.map(id => {
+              const signal = env.get(id);
+              if (signal) return signal;
+              else throw new Error(`unbound identifier ${id}`);
+            });
+            const signalEnv = env;
+            const signal = Signal.join(...signals).map(values => {
+              const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
+              const attrObjs = jsx.openingElement.attributes.map(({ name, value }) => {
+                return { [name.name]: Evaluator.evaluateExpression(value, env) };
+              });
+              const attrs = Object.assign({}, ...attrObjs);
+              if (env.has(attrs.id)) {
+                const cell = signalEnv.get(attrs.id) as Signal.Cell<any>;
+                attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                  cell.setOk(e.currentTarget.value);
+                }
+              } else {
+                // TODO(jaked) check statically
+                // also check that it is a Cell
+                throw new Error('unbound identifier ' + attrs.id);
+              }
+              return React.createElement('input', attrs);
+            });
+            return [env, signal];
+          } else {
+            return [env, evaluateExpressionSignal(jsx, env)];
+          }
+        }
         case 'err':
-          return [env, null];
+          return [env, Signal.ok(null)];
         default:
           // not sure why TS can't see that ok / err is exhaustive
           throw new Error('unreachable');
@@ -230,7 +291,7 @@ export function renderMdx(
             break;
         }
       }));
-      return [env, null];
+      return [env, Signal.ok(null)];
 
     default:
       throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
@@ -240,10 +301,10 @@ export function renderMdx(
 export function renderProgram(
   ast: ESTree.Node,
   module: string,
-  moduleEnv: Env,
+  moduleEnv: Compile.ModuleValueEnv,
   env: Env,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
-  exportValue: { [s: string]: any }
+  exportValue: { [s: string]: Signal<any> }
 ): Env {
   switch (ast.type) {
     case 'Program':
@@ -416,7 +477,7 @@ export const initTypeEnv = Typecheck.env({
 
 export function initValueEnv(
   setSelected: (note: string) => void,
-): Evaluator.Env {
+): Env {
   return Immutable.Map({
     body: 'body',
     code: 'pre',
@@ -444,5 +505,5 @@ export function initValueEnv(
     HighlightedCode: HighlightedCode,
 
     parseInt: (s: string) => parseInt(s)
-  });
+  }).map(Signal.ok);
 }

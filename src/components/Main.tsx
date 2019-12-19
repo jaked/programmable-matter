@@ -102,7 +102,7 @@ export class Main extends React.Component<Props, {}> {
         await writeFile(notePath, note.buffer);
       } else {
         const notePath = path.resolve(tempdir, note.path) + '.html';
-        const node = note.compiled.get().rendered();  // TODO(jaked) fix Try.get()
+        const node = note.compiled.get().rendered.get();  // TODO(jaked) fix Try.get()
         const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
         await mkdir(path.dirname(notePath), { recursive: true });
         await writeFile(notePath, html);

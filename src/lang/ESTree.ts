@@ -2,6 +2,7 @@
 //  https://github.com/acornjs/acorn
 //  https://github.com/RReverser/acorn-jsx
 
+import * as Immutable from 'immutable';
 import Type from './Type';
 import Try from '../util/Try';
 
@@ -473,4 +474,67 @@ export function visit(
     default:
       throw new Error('unexpected AST ' + (ast as Node).type);
   }
+}
+
+const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
+
+export function freeIdentifiers(expr: Expression): Array<string> {
+  const free: Array<string> = [];
+
+  function fn(
+    expr: Expression,
+    bound: Immutable.Set<string>,
+  ) {
+    visit(expr, node => {
+      switch (node.type) {
+        case 'Identifier': {
+          const id = node.name;
+          if (!bound.contains(id) && !free.includes(id))
+            free.push(id);
+          break;
+        }
+
+        case 'JSXIdentifier': {
+          const id = node.name;
+          // TODO(jaked) hack, not all HTML elements are bound in env?
+          if (STARTS_WITH_CAPITAL_LETTER.test(id) && !bound.contains(id) && !free.includes(id))
+            free.push(id);
+          break;
+        }
+
+        case 'ObjectExpression': {
+          node.properties.forEach(prop => {
+            // keys are not identifier references, skip them
+            fn(prop.value, bound);
+          });
+          return false;
+        }
+
+        case 'ArrowFunctionExpression':
+          node.params.forEach(pat => {
+            switch (pat.type) {
+              case 'Identifier':
+                bound = bound.add(pat.name);
+                break;
+
+              case 'ObjectPattern':
+                pat.properties.forEach(pat => {
+                  if (pat.key.type === 'Identifier') {
+                    bound = bound.add(pat.key.name);
+                  } else {
+                    throw new Error ('expected Identifier');
+                  }
+                });
+                break;
+
+              default: throw new Error('unexpected AST ' + (pat as Pattern).type)
+            }
+          });
+          fn(node.body, bound);
+          return false;
+      }
+    });
+  }
+  fn(expr, Immutable.Set());
+  return free;
 }

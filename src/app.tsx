@@ -258,6 +258,11 @@ setInterval(() => {
   if (compileDirty) {
     __trace = new Trace();
     compiledNoteSignal.update(__trace, level);
+
+    // TODO(jaked) fix hack
+    const compiledNote = compiledNoteSignal.get();
+    if (compiledNote) compiledNote.compiled.get().rendered.update(__trace, level);
+
     server.update(__trace, level);
     reactRender(__trace);
     console.log(__trace.finish());
@@ -273,8 +278,15 @@ function render() {
   contentSignal.update(__trace, level);
   matchingNotesSignal.update(__trace, level);
   sessionSignal.update(__trace, level);
+
+  // TODO(jaked) fix hack
+  const compiledNote = compiledNoteSignal.get();
+  if (compiledNote) compiledNote.compiled.get().rendered.update(__trace, level);
+
   reactRender(__trace);
   console.log(__trace.finish());
+
+  // TODO(jaked) only on edit
   compileDirty = true;
 }
 

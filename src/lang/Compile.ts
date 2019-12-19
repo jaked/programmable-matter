@@ -22,6 +22,8 @@ import * as String from '../util/String';
 
 const debug = false;
 
+export type ModuleValueEnv = Immutable.Map<string, { [s: string]: Signal<any> }>
+
 function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
@@ -336,51 +338,6 @@ function dirtyTransitively(
   return compiledNotes.filterNot(note => dirty.has(note.tag))
 }
 
-function freeIdentifiers(expr: ESTree.Expression): Array<string> {
-  const free: Array<string> = [];
-
-  function fn(
-    expr: ESTree.Expression,
-    bound: Immutable.Set<string>,
-  ) {
-    ESTree.visit(expr, node => {
-      switch (node.type) {
-        case 'Identifier':
-          const id = node.name;
-          if (!bound.contains(id) && !free.includes(id))
-            free.push(id);
-          break;
-
-        case 'ArrowFunctionExpression':
-          // TODO(jaked) properly handle argument patterns
-          node.params.forEach(pat => {
-            switch (pat.type) {
-              case 'Identifier':
-                bound = bound.add(pat.name);
-                break;
-
-              case 'ObjectPattern':
-                pat.properties.forEach(pat => {
-                  if (pat.key.type === 'Identifier') {
-                    bound = bound.add(pat.key.name);
-                  } else {
-                    throw new Error ('expected Identifier');
-                  }
-                });
-                break;
-
-              default: throw new Error('unexpected AST ' + (pat as ESTree.Pattern).type)
-            }
-          });
-          fn(node.body, bound);
-          return false;
-      }
-    });
-  }
-  fn(expr, Immutable.Set());
-  return free;
-}
-
 function sortProgram(ast: ESTree.Program): ESTree.Program {
   // TODO(jaked)
   // topologically sort bindings as we do for MDX
@@ -448,7 +405,7 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
   let decls: Array<[ ESTree.VariableDeclarator, Array<string> ]> = [];
   exportConsts.forEach(decl => {
     decl.declaration.declarations.forEach(decl => {
-      decls.push([ decl, freeIdentifiers(decl.init) ])
+      decls.push([ decl, ESTree.freeIdentifiers(decl.init) ])
     })
   })
 
@@ -518,9 +475,10 @@ function compileTxt(
   content: string
 ): data.Compiled {
   const exportType = Type.module({ default: Type.string });
-  const exportValue = { default: content }
-  const rendered = () =>
-    React.createElement('pre', null, content);
+  const exportValue = { default: Signal.ok(content) }
+  const rendered = Signal.ok(
+    React.createElement('pre', null, content)
+  );
   return { exportType, exportValue, rendered };
 }
 
@@ -543,49 +501,50 @@ function compileMdx(
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: Evaluator.Env,
+  moduleValueEnv: ModuleValueEnv,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): data.Compiled {
   const exportTypes: { [s: string]: Type.Type } = {};
-  const exportValue: { [s: string]: any } = {};
+  const exportValue: { [s: string]: Signal<any> } = {};
 
   ast = trace.time('sortMdx', () => sortMdx(ast));
   trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes));
   const exportType = Type.module(exportTypes);
 
-  let layoutFunction = (n: React.ReactNode) => n;
+  let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
   if (meta.layout) {
     const layoutType =
-    Type.functionType(
-      [ Type.object({
-        children: Type.array(Type.reactNodeType),
-        meta: metaType
-      }) ],
-      Type.reactNodeType);
+      Type.functionType(
+        [ Type.object({
+          children: Type.array(Type.reactNodeType),
+          meta: metaType
+        }) ],
+        Type.reactNodeType);
     const layoutModule = moduleTypeEnv.get(meta.layout);
     if (layoutModule) {
       // TODO(jaked) add a .get method on Type.ModuleType
       const defaultField = layoutModule.fields.find(field => field.field === 'default');
       if (defaultField) {
         if (Type.isSubtype(defaultField.type, layoutType)) {
-          const layoutTsFunction = moduleValueEnv.get(meta.layout)['default'];
-          layoutFunction = (n: React.ReactNode) => layoutTsFunction({ children: n, meta });
+          const layoutModule = moduleValueEnv.get(meta.layout);
+          if (layoutModule) {
+            layoutFunction = layoutModule['default'];
+          }
         }
       }
     }
   }
 
-  // TODO(jaked)
-  // first call to renderMdx computes exportType / exportValue
-  // second call picks up current values of signals
-  // instead we should render to a Signal<React.ReactNode>
-  // and update() it to pick up current values
-  trace.time('renderMdx', () => Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue));
-  const rendered = () => {
-    const [_, node] =
-      Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
-    return layoutFunction(node);
-  }
+  const rendered =
+    trace.time('renderMdx', () => {
+      const [_, node] =
+        Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
+      if (layoutFunction)
+        return Signal.join(layoutFunction, node).map(([layoutFunction, node]) =>
+          layoutFunction({ children: node, meta })
+        );
+      else return node;
+    });
   return { exportType, exportValue, rendered };
 }
 
@@ -595,9 +554,10 @@ function compileJson(
   const type = Typecheck.synth(ast, Typecheck.env());
   const exportType = Type.module({ default: type });
   const value = Evaluator.evaluateExpression(ast, Immutable.Map());
-  const exportValue = { default: value }
-  const rendered = () =>
-    React.createElement(Inspector, { data: value, expandLevel: 1 });
+  const exportValue = { default: Signal.ok(value) }
+  const rendered = Signal.ok(
+    React.createElement(Inspector, { data: value, expandLevel: 1 })
+  );
   return { exportType, exportValue, rendered };
 }
 
@@ -611,7 +571,7 @@ function compileTs(
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): data.Compiled {
   const exportTypes: { [s: string]: Type.Type } = {};
-  const exportValue: { [s: string]: any } = {};
+  const exportValue: { [s: string]: Signal<any> } = {};
 
   ast = sortProgram(ast);
   Typecheck.synthProgram(ast, moduleTypeEnv, typeEnv, exportTypes);
@@ -620,7 +580,7 @@ function compileTs(
   // we don't have an opportunity to pick up current signal values
   // as we do for MDX; should compile to a Signal and update()
   // TODO(jaked) how to render a TS note?
-  const rendered = () => 'unimplemented';
+  const rendered = Signal.ok('unimplemented');
   Render.renderProgram(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue)
   return { exportType, exportValue, rendered };
 }
@@ -631,7 +591,7 @@ function compileJpeg(
   // TODO(jaked) parse JPEG file and return metadata
   const exportType = Type.module({ });
   const exportValue = { }
-  const rendered = () =>
+  const rendered = Signal.ok(
     // it doesn't seem to be straightforward to create an img node
     // directly from JPEG data, so we serve it via the dev server
     // TODO(jaked) plumb port from top-level
@@ -644,7 +604,8 @@ function compileJpeg(
           objectFit: 'contain' // ???
         }
       }
-    );
+    )
+  );
   return { exportType, exportValue, rendered };
 }
 

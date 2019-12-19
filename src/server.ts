@@ -64,7 +64,7 @@ export default class Server {
           break;
 
         default:
-          const node = note.compiled.get().rendered(); // TODO(jaked) fix Try.get()
+          const node = note.compiled.get().rendered.get(); // TODO(jaked) fix Try.get()
 
           // TODO(jaked) compute at note compile time?
           const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);

@@ -2,8 +2,6 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as ESTree from './ESTree';
 
-import Signal from '../util/Signal';
-
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 export type Env = Immutable.Map<string, any>;
@@ -36,14 +34,7 @@ export function evaluateExpression(
       return ast.value;
 
     case 'Identifier':
-      if (env.has(ast.name)) {
-        const value = env.get(ast.name);
-        if (value && typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
-          return (<Signal.Cell<any>>value).get();
-        } else {
-          return value;
-        }
-      }
+      if (env.has(ast.name)) return env.get(ast.name);
       else if (ast.name === 'undefined') return undefined;
       else throw new Error(`unbound identifier ${ast.name}`);
 
@@ -74,20 +65,6 @@ export function evaluateExpression(
         attrs['to'] = attrs['href']
       } else {
         elem = name;
-      }
-
-      // TODO(jaked) for what elements does this make sense? only input?
-      if (name === 'input' && attrs.id) {
-        if (env.has(attrs.id)) {
-          const atom = env.get(attrs.id) as Signal.Cell<any>;
-          attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            atom.setOk(e.currentTarget.value);
-          }
-        } else {
-          // TODO(jaked) check statically
-          // also check that it is a non-readonly Atom
-          throw new Error('unbound identifier ' + attrs.id);
-        }
       }
 
       const children = ast.children.map(child => evaluateExpression(child, env));
@@ -148,20 +125,14 @@ export function evaluateExpression(
     }
 
     case 'MemberExpression': {
-      let value: any;
       const object = evaluateExpression(ast.object, env);
       if (ast.computed) {
         const property = evaluateExpression(ast.property, env);
-        value = object[property];
+        return object[property];
       } else {
         if (ast.property.type !== 'Identifier')
           throw new Error('expected identifier on non-computed property');
-        value = object[ast.property.name];
-      }
-      if (value && typeof value === 'object' && 'get' in value) { // TODO(jaked) check instanceof Cell
-        return (<Signal.Cell<any>>value).get();
-      } else {
-        return value;
+        return object[ast.property.name];
       }
     }
 

@@ -307,6 +307,20 @@ module Signal {
     return new Join(signals);
   }
 
+  export function joinObject<T>(
+    obj: { [s: string]: Signal<T> }
+  ): Signal<{ [s: string]: T }> {
+    const keys = Object.keys(obj);
+    const signals = Object.values(obj);
+    return join(...signals).map(values =>
+      keys.reduce<{ [s: string]: T }>(
+        (obj, key, i) =>
+          Object.assign({}, obj, { key: values[i] }),
+        { }
+      )
+    );
+  }
+
   export function label<T>(label: string, s: Signal<T>): Signal<T> {
     return new Label(label, s);
   }
