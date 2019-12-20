@@ -247,7 +247,11 @@ setInterval(() => {
 
     // TODO(jaked) fix hack
     const compiledNote = compiledNoteSignal.get();
-    if (compiledNote) compiledNote.compiled.get().rendered.reconcile(__trace, level);
+    if (compiledNote) {
+      compiledNote.compiled.forEach(compiled =>
+        compiled.rendered.reconcile(__trace, level)
+      );
+    }
 
     server.update(__trace, level);
     reactRender(__trace);
@@ -266,7 +270,11 @@ function render() {
 
   // TODO(jaked) fix hack
   const compiledNote = compiledNoteSignal.get();
-  if (compiledNote) compiledNote.compiled.get().rendered.reconcile(__trace, level);
+  if (compiledNote) {
+    compiledNote.compiled.forEach(compiled =>
+      compiled.rendered.reconcile(__trace, level)
+    );
+  }
 
   reactRender(__trace);
   console.log(__trace.finish());
