@@ -21,7 +21,7 @@ class Ok<T> {
   equals(other: any): boolean {
     return (
       this === other ||
-      other && other.ok && Immutable.is(this.ok, other.ok)
+      other instanceof Ok && Immutable.is(this.ok, other.ok)
     )
   }
 
@@ -44,7 +44,7 @@ class Err {
   equals(other: any): boolean {
     return (
       this === other ||
-      other && other.ok && Immutable.is(this.err, other.err)
+      other instanceof Err && Immutable.is(this.err, other.err)
     )
   }
 

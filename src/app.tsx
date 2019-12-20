@@ -53,29 +53,20 @@ function setSearch(search: string) {
   render();
 }
 
-const statusCell = Signal.cellOk<string | undefined>(undefined);
+const statusCell = Signal.cellOk<string | undefined>(undefined, render);
 function setStatus(status: string | undefined) {
-  // TODO(jaked)
-  // handle no-op changes systematically
-  // e.g. track during signal update whether any actual change has occurred
-  // and skip render if not
-  if (status !== statusCell.get()) {
-    statusCell.setOk(status);
-    render();
-  }
+  statusCell.setOk(status);
 }
 
-const sideBarVisibleCell = Signal.cellOk<boolean>(true);
+const sideBarVisibleCell = Signal.cellOk<boolean>(true, render);
 function toggleSideBarVisible() {
   // TODO(jaked) `update` method on cells
   sideBarVisibleCell.setOk(!sideBarVisibleCell.get());
-  render();
 };
 
-const mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
+const mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', render);;
 function setMainPaneView(view: 'code' | 'display' | 'split') {
   mainPaneViewCell.setOk(view);
-  render();
 }
 
 function writeNote(path: string, tag: string, meta: data.Meta, content: string) {
