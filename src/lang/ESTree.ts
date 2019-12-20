@@ -476,8 +476,6 @@ export function visit(
   }
 }
 
-const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
-
 export function freeIdentifiers(expr: Expression): Array<string> {
   const free: Array<string> = [];
 
@@ -496,8 +494,7 @@ export function freeIdentifiers(expr: Expression): Array<string> {
 
         case 'JSXIdentifier': {
           const id = node.name;
-          // TODO(jaked) hack, not all HTML elements are bound in env?
-          if (STARTS_WITH_CAPITAL_LETTER.test(id) && !bound.contains(id) && !free.includes(id))
+          if (!bound.contains(id) && !free.includes(id))
             free.push(id);
           break;
         }
@@ -506,6 +503,14 @@ export function freeIdentifiers(expr: Expression): Array<string> {
           node.properties.forEach(prop => {
             // keys are not identifier references, skip them
             fn(prop.value, bound);
+          });
+          return false;
+        }
+
+        case 'JSXOpeningElement': {
+          node.attributes.forEach(attr =>  {
+            // keys are not identifier references, skip them
+            fn(attr.value, bound);
           });
           return false;
         }
