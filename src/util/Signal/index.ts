@@ -4,33 +4,34 @@ import Trace from '../Trace';
 import Try from '../Try';
 
 /**
- * Simple implementation of reactive values. Update is by top-down
- * reevaluation.
+ * Simple implementation of reactive values. Reconciliation is by
+ * top-down reevaluation.
  *
- * A signal has a value, and a "version". Whenever an update changes a
- * signal's value, the version is also incremented. Signals track the
+ * A signal has a value, and a "version". When reconciliation changes a
+ * signal's value, the version is incremented. Signals track the
  * versions of their children, in order to determine if they need to be
  * recomputed.
  *
- * A signal is up-to-date with respect to a "level", a
- * monotonically-increasing counter. To update a signal, call `update`
- * with a level larger than any level in the DAG rooted at the signal. A
- * signal's level is no larger than the levels of its children.
+ * A signal is reconciled with respect to a "level", a
+ * monotonically-increasing counter. To reconcile a signal, call
+ * `reconcile` with a level larger than any level in the DAG rooted at
+ * the signal. A signal's level is no larger than the levels of its
+ * children.
  *
- * When `update` is called on a signal, if it is already at the given
- * level then no update is needed, so signals reached by more than one
- * path from the root are updated only once. Otherwise, the signal's
- * children are updated to the given level, and if any of their versions
+ * When `reconcile` is called on a signal, if it is already at the given
+ * level then nothing need be done, so signals reached by more than one
+ * path from the root are reconciled only once. Otherwise, the signal's
+ * children are reconciled to the given level, and if any of their versions
  * have changed, the signal is recomputed.
  *
- * Some nodes in the DAG may not be reached by an update. (E.g. in
- * `b.flatMap(b => b ? s1 : s2)`, if `b` has not changed then `s1` and
- * `s2` are not reached; if it has, only one of them is reached.). If
- * they are reached by a later update, they'll be brought up to date as
- * needed.
+ * Some nodes in the DAG may not be reached by a call to `reconcile`.
+ * (E.g. in `b.flatMap(b => b ? s1 : s2)`, if `b` has not changed then
+ * `s1` and `s2` are not reached; if it has, only one of them is reached.).
+ * If they are reached by a later call to `reconcile`, they'll be reconciled
+ * then.
  *
- * There can be multiple roots, or even multiple disjoint DAGs; only the
- * parts needed for a particular update are brought up to date.
+ * In the same way there can be multiple roots, or even multiple disjoint DAGs;
+ * only the parts reached by a call to `reconcile` are reconciled.
  */
 interface Signal<T> {
   /**
@@ -59,12 +60,12 @@ interface Signal<T> {
   level: number;
 
   /**
-   * update this signal to `level`, recomputing `value` as needed.
+   * reconcile this signal to `level`, recomputing `value` as needed.
    * if signal is already at (or above) `level` it need not be recomputed.
    *
-   * `update` must be called with monotonically increasing numbers.
+   * `reconcile` must be called with monotonically increasing numbers.
    */
-  update(trace: Trace, level: number): void;
+  reconcile(trace: Trace, level: number): void;
 }
 
 function equal(v1: any, v2: any): boolean {
@@ -88,7 +89,7 @@ class Const<T> implements Signal<T> {
   get version(): 0 { return 0; }
   // don't need to track `level` because `update` is a no-op
   get level(): 0 { return 0; }
-  update(trace: Trace, level: number) { }
+  reconcile(trace: Trace, level: number) { }
 }
 
 interface CellIntf<T> extends Signal<T> {
@@ -113,7 +114,7 @@ class CellImpl<T> implements CellIntf<T> {
   onChange?: () => void;
   // don't need to track `level` because `update` is a no-op
   get level(): 0 { return 0; }
-  update(trace: Trace, level: number) { }
+  reconcile(trace: Trace, level: number) { }
 
   set(t: Try<T>) {
     if (equal(t, this.value)) return;
@@ -146,10 +147,10 @@ class Map<T, U> implements Signal<U> {
   value: Try<U>;
   version: number;
   level: number;
-  update(trace: Trace, level: number) {
+  reconcile(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s.update(trace, level);
+    this.s.reconcile(trace, level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     const value = this.s.value.map(this.f);
@@ -186,16 +187,16 @@ class FlatMap<T, U> implements Signal<U> {
   value: Try<U>;
   version: number;
   level: number;
-  update(trace: Trace, level: number) {
+  reconcile(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s.update(trace, level);
+    this.s.reconcile(trace, level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     let value: Try<U>;
     if (this.s.value.type === 'ok') {
       const fs = this.f(this.s.value.ok);
-      fs.update(trace, level);
+      fs.reconcile(trace, level);
       value = fs.value;
     } else {
       value = <Try<U>><unknown>this.s.value;
@@ -227,11 +228,11 @@ class Join<T> implements Signal<T[]> {
   value: Try<T[]>;
   version: number;
   level: number;
-  update(trace: Trace, level: number) {
+  reconcile(trace: Trace, level: number) {
     if (this.level === level) return;
     this.level = level;
     const versions = this.signals.map(s => {
-      s.update(trace, level);
+      s.reconcile(trace, level);
       return s.version;
     });
     if (equal(versions, this.versions))
@@ -260,9 +261,9 @@ class Label<T> implements Signal<T> {
   get version() { return this.s.version; }
   // don't need to track `level` because `update` is a no-op
   get level() { return this.s.level; }
-  update(trace: Trace, level: number) {
+  reconcile(trace: Trace, level: number) {
     trace.open(this.label);
-    this.s.update(trace, level);
+    this.s.reconcile(trace, level);
     trace.close();
   }
 }

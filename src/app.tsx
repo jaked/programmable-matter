@@ -243,11 +243,11 @@ setInterval(() => {
     compileDirty = false;
 
     __trace = new Trace();
-    compiledNoteSignal.update(__trace, level);
+    compiledNoteSignal.reconcile(__trace, level);
 
     // TODO(jaked) fix hack
     const compiledNote = compiledNoteSignal.get();
-    if (compiledNote) compiledNote.compiled.get().rendered.update(__trace, level);
+    if (compiledNote) compiledNote.compiled.get().rendered.reconcile(__trace, level);
 
     server.update(__trace, level);
     reactRender(__trace);
@@ -260,13 +260,13 @@ function render() {
   level++;
 
   // TODO(jaked) write this as a join instead of .get()s
-  contentSignal.update(__trace, level);
-  matchingNotesSignal.update(__trace, level);
-  sessionSignal.update(__trace, level);
+  contentSignal.reconcile(__trace, level);
+  matchingNotesSignal.reconcile(__trace, level);
+  sessionSignal.reconcile(__trace, level);
 
   // TODO(jaked) fix hack
   const compiledNote = compiledNoteSignal.get();
-  if (compiledNote) compiledNote.compiled.get().rendered.update(__trace, level);
+  if (compiledNote) compiledNote.compiled.get().rendered.reconcile(__trace, level);
 
   reactRender(__trace);
   console.log(__trace.finish());

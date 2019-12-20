@@ -66,7 +66,7 @@ describe('cell', () => {
   it('setOk', () => {
     const s = Signal.cellOk(7);
     s.setOk(8);
-    s.update(trace, 1);
+    s.reconcile(trace, 1);
     expect(s.value.type === 'ok' && s.value.ok).toBe(8);
     expect(s.get()).toBe(8);
   });
@@ -74,7 +74,7 @@ describe('cell', () => {
   it('setErr', () => {
     const s = Signal.cellOk(7);
     s.setErr(err);
-    s.update(trace, 1);
+    s.reconcile(trace, 1);
     expect(s.value.type === 'err' && s.value.err).toBe(err);
     expect(() => s.get()).toThrow(err);
   });
@@ -83,7 +83,7 @@ describe('cell', () => {
     const s = Signal.cellOk(7);
     expect(s.version).toBe(0);
     s.setOk(7);
-    s.update(trace, 1);
+    s.reconcile(trace, 1);
     expect(s.version).toBe(0);
     expect(s.value.type === 'ok' && s.value.ok).toBe(7);
     expect(s.get()).toBe(7);
@@ -100,12 +100,12 @@ describe('map', () => {
     expect(calls).toBe(1);
 
     c.setOk(7);
-    m.update(trace, 1);
+    m.reconcile(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    m.update(trace, 2);
+    m.reconcile(trace, 2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
     expect(calls).toBe(2);
   });
@@ -120,7 +120,7 @@ describe('map', () => {
     expect(m.version).toBe(0);
 
     c.setOk(9);
-    m.update(trace, 1);
+    m.reconcile(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(0);
@@ -137,12 +137,12 @@ describe('flatMap', () => {
     expect(calls).toBe(1);
 
     c.setOk(7);
-    m.update(trace, 1);
+    m.reconcile(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    m.update(trace, 2);
+    m.reconcile(trace, 2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
     expect(calls).toBe(2);
   });
@@ -157,7 +157,7 @@ describe('flatMap', () => {
     expect(m.version).toBe(0);
 
     c.setOk(9);
-    m.update(trace, 1);
+    m.reconcile(trace, 1);
     expect(m.value.type === 'ok' && m.value.ok).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(0);
@@ -194,17 +194,17 @@ describe('join', () => {
     expect(calls).toBe(1);
 
     c1.setOk(7);
-    j.update(trace, 1);
+    j.reconcile(trace, 1);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c2.setOk(9);
-    j.update(trace, 2);
+    j.reconcile(trace, 2);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c1.setOk(11);
-    j.update(trace, 3);
+    j.reconcile(trace, 3);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([11, 9]);
     expect(calls).toBe(2);
   });
