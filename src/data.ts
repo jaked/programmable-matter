@@ -6,7 +6,7 @@ import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
 
-export type Types = 'mdx' | 'json' | 'txt' | 'ts' | 'jpeg';
+export type Types = 'mdx' | 'json' | 'txt' | 'jpeg';
 
 export interface Meta {
   type?: Types;
@@ -49,9 +49,6 @@ export type ParsedNote = Note & {
   ast: Try<ESTree.Expression>;
 } | {
   type: 'txt';
-} | {
-  type: 'ts';
-  ast: Try<ESTree.Program>;
 } | {
   type: 'jpeg';
 });

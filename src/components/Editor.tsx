@@ -205,12 +205,6 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
           computeJsSpans(ast, spans);
         });
         break;
-
-      case 'ts':
-        parsedNote.ast.forEach(ast => {
-          computeJsSpans(ast, spans);
-        });
-        break;
     }
   }
 

@@ -27,8 +27,8 @@ export type ModuleValueEnv = Immutable.Map<string, { [s: string]: Signal<any> }>
 function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
-  const type: 'mdx' | 'json' | 'txt' | 'ts' =
-    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt' || obj.type === 'ts') ?
+  const type: 'mdx' | 'json' | 'txt' =
+    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt') ?
     obj.type : undefined;
 
   const title: string =
@@ -73,7 +73,6 @@ export function notesOfFiles(
         case '.mdx': type = 'mdx'; break;
         case '.json': type = 'json'; break;
         case '.txt': type = 'txt'; break;
-        case '.ts': type = 'ts'; break;
         case '.JPG': type = 'jpeg'; break;
         case '.jpg': type = 'jpeg'; break;
         case '.jpeg': type = 'jpeg'; break;
@@ -201,26 +200,6 @@ function parseJson(
   return Parser.parseExpression(content);
 }
 
-function findImportsTs(ast: ESTree.Node, imports: Set<string>) {
-  function fn(node: ESTree.Node) {
-    switch (node.type) {
-      case 'ImportDeclaration':
-        imports.add(node.source.value);
-    }
-  }
-  ESTree.visit(ast, fn);
-}
-
-function parseTs(
-  trace: Trace,
-  content: string
-): { ast: ESTree.Program, imports: Set<string> } {
-  const ast = Parser.parseProgram(content);
-  const imports = new Set<string>();
-  findImportsTs(ast, imports);
-  return { ast, imports };
-}
-
 const emptyImports = new Set<string>();
 
 function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
@@ -244,16 +223,6 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
     case 'txt': {
       const type = note.type; // tell TS something it already knows
       return Object.assign({}, note, { type, imports: emptyImports });
-    }
-
-    case 'ts': {
-      const type = note.type; // tell TS something it already knows
-      try {
-        const { ast, imports } = parseTs(trace, note.content);
-        return Object.assign({}, note, { type, ast: Try.ok(ast), imports });
-      } catch (e) {
-        return Object.assign({}, note, { type, ast: Try.err(e), imports: emptyImports });
-      }
     }
 
     case 'jpeg': {
@@ -561,27 +530,6 @@ function compileJson(
   return { exportType, exportValue, rendered };
 }
 
-function compileTs(
-  ast: ESTree.Program,
-  capitalizedTag: string,
-  typeEnv: Typecheck.Env,
-  valueEnv: Evaluator.Env,
-  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: Evaluator.Env,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
-): data.Compiled {
-  const exportTypes: { [s: string]: Type.Type } = {};
-  const exportValue: { [s: string]: Signal<any> } = {};
-
-  ast = sortProgram(ast);
-  Typecheck.synthProgram(ast, moduleTypeEnv, typeEnv, exportTypes);
-  const exportType = Type.module(exportTypes);
-  // TODO(jaked) how to render a TS note?
-  const rendered = Signal.ok('unimplemented');
-  Render.renderProgram(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue)
-  return { exportType, exportValue, rendered };
-}
-
 function compileJpeg(
   tag: string
 ): data.Compiled {
@@ -636,17 +584,6 @@ function compileNote(
 
       case 'txt':
         return compileTxt(parsedNote.content);
-
-      case 'ts':
-        return compileTs(
-          parsedNote.ast.get(),
-          String.capitalize(parsedNote.tag),
-          typeEnv,
-          valueEnv,
-          moduleTypeEnv,
-          moduleValueEnv,
-          mkCell
-        );
 
       case 'jpeg':
         return compileJpeg(
