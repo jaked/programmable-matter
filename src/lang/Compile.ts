@@ -576,9 +576,6 @@ function compileTs(
   ast = sortProgram(ast);
   Typecheck.synthProgram(ast, moduleTypeEnv, typeEnv, exportTypes);
   const exportType = Type.module(exportTypes);
-  // TODO(jaked)
-  // we don't have an opportunity to pick up current signal values
-  // as we do for MDX; should compile to a Signal and update()
   // TODO(jaked) how to render a TS note?
   const rendered = Signal.ok('unimplemented');
   Render.renderProgram(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue)

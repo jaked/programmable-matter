@@ -68,7 +68,6 @@ export class Filesystem {
           return files;
         } else {
           if (debug) console.log(`updating file path=${path}`);
-          // TODO(jaked) check that buffer has changed
           const version = oldFile.version + 1;
           file = Object.assign({}, oldFile, { version, buffer, lastUpdateMs })
         }
@@ -131,8 +130,6 @@ export class Filesystem {
 
           const lastWriteMs = Date.now();
           const filePath = file.path;
-          // TODO(jaked)
-          // if the write fails we have already updated lastWriteMs
           if (debug) console.log(`before writeFile ${filePath}`);
           Fs.writeFile(Path.resolve(this.filesPath, filePath), file.buffer)
             .finally(

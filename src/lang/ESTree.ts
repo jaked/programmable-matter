@@ -74,11 +74,6 @@ export interface JSXExpressionContainer extends NodeImpl {
 
 export interface Literal extends NodeImpl {
   type: 'Literal';
-
-  // TODO(jaked) tighten this up
-  // Acorn returns only actual literals here,
-  // but we abuse this field to mean a constant sub-expression
-  // in Evaluator.evaluateExpression
   value: any;
 }
 
