@@ -48,6 +48,10 @@ function publishSite() {
   mainWindow && mainWindow.webContents.send('publish-site');
 }
 
+function syncGoogleTasks() {
+  mainWindow && mainWindow.webContents.send('sync-google-tasks');
+}
+
 function toggleSideBarVisible() {
   mainWindow && mainWindow.webContents.send('toggle-side-bar-visible');
 }
@@ -124,7 +128,11 @@ function initMenu() {
         {
           label: 'Publish Site',
           click: publishSite,
-        }
+        },
+        {
+          label: 'Sync Google Tasks',
+          click: syncGoogleTasks,
+        },
       ]
     },
     {

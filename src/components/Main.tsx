@@ -1,4 +1,4 @@
-import { ipcRenderer as ipc, remote, shell } from 'electron';
+import { ipcRenderer as ipc, remote } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
@@ -23,6 +23,8 @@ import { Editor } from './Editor';
 import { Session} from './react-simple-code-editor';
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
+
+import * as GTasks from '../integrations/gtasks';
 
 interface Props {
   sideBarVisible: boolean;
@@ -65,20 +67,24 @@ export class Main extends React.Component<Props, {}> {
 
   componentDidMount() {
     ipc.on('focus-search-box', this.focusSearchBox);
-    ipc.on('publish-site', this.publishSite);
     ipc.on('toggle-side-bar-visible', this.toggleSideBarVisible);
     ipc.on('set-main-pane-view-code', this.setMainPaneViewCode);
     ipc.on('set-main-pane-view-display', this.setMainPaneViewDisplay);
     ipc.on('set-main-pane-view-split', this.setMainPaneViewSplit);
+
+    ipc.on('publish-site', this.publishSite);
+    ipc.on('sync-google-tasks', this.syncGoogleTasks);
   }
 
   componentWillUnmount() {
     ipc.removeListener('focus-search-box', this.focusSearchBox);
-    ipc.removeListener('publish-site', this.publishSite);
     ipc.removeListener('toggle-side-bar-visible', this.toggleSideBarVisible);
     ipc.removeListener('set-main-pane-view-code', this.setMainPaneViewCode);
     ipc.removeListener('set-main-pane-view-display', this.setMainPaneViewDisplay);
     ipc.removeListener('set-main-pane-view-split', this.setMainPaneViewSplit);
+
+    ipc.removeListener('publish-site', this.publishSite);
+    ipc.removeListener('sync-google-tasks', this.syncGoogleTasks);
   }
 
   focusSearchBox = () => {
@@ -119,6 +125,13 @@ export class Main extends React.Component<Props, {}> {
         email: 'jake.donham@gmail.com',
       });
     }
+  }
+
+  syncGoogleTasks = () => {
+    // TODO(jaked) should do this via Filesystem object
+    // not via direct filesystem accesss
+    const filesPath = fs.realpathSync(path.resolve(process.cwd(), 'docs'));
+    GTasks.authAndSyncTaskLists(filesPath);
   }
 
   toggleSideBarVisible = () => {
