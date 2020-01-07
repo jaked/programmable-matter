@@ -26,16 +26,16 @@ Unhandled();
 
 const debug = false;
 
-class App {
+export class App {
   // TODO(jaked)
   // global for the benefit of functions inside of Signal.map etc.
   // maybe build trace argument into Signal?
   // or have a current active trace in Trace instead of threading it around
-  __trace = new Trace();
+  private __trace = new Trace();
 
-  compileDirty: boolean = true;
+  private compileDirty: boolean = true;
 
-  render = () => {
+  private render = () => {
     this.__trace = new Trace();
     this.level++;
 
@@ -56,14 +56,16 @@ class App {
     console.log(this.__trace.finish());
   }
 
-  dirtyAndRender = () => {
+  private dirtyAndRender = () => {
     this.compileDirty = true;
     this.render();
   }
 
+  public get highlightValid() { return !this.compileDirty }
+
     // TODO(jaked) make this configurable
-  filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  filesystem = new Filesystem(this.filesPath, this.dirtyAndRender);
+  private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
+  private filesystem = new Filesystem(this.filesPath, this.dirtyAndRender);
 
   constructor() {
     this.filesystem.start(); // TODO(jaked) stop this on shutdown
@@ -90,31 +92,36 @@ class App {
     }, 50);
   }
 
-  selectedCell = Signal.cellOk<string | null>(null);
-  setSelected = (selected: string | null) => {
+  private selectedCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
+  public get selected() { return this.selectedCell.get() }
+  public setSelected = (selected: string | null) => {
     this.selectedCell.setOk(selected);
     this.dirtyAndRender();
   }
 
-  searchCell = Signal.cellOk<string>('');
-  setSearch = (search: string) => {
+  public searchCell = Signal.cellOk<string>('', this.render);
+  public get search() { return this.searchCell.get() }
+  public setSearch = (search: string) => {
     this.searchCell.setOk(search);
     this.render();
   }
 
-  statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
-  setStatus = (status: string | undefined) => {
+  private statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
+  public get status() { return this.statusCell.get() }
+  public setStatus = (status: string | undefined) => {
     this.statusCell.setOk(status);
   }
 
-  sideBarVisibleCell = Signal.cellOk<boolean>(true, this.render);
-  toggleSideBarVisible = () => {
+  private sideBarVisibleCell = Signal.cellOk<boolean>(true, this.render);
+  public get sideBarVisible() { return this.sideBarVisibleCell.get() }
+  public toggleSideBarVisible = () => {
     // TODO(jaked) `update` method on cells
     this.sideBarVisibleCell.setOk(!this.sideBarVisibleCell.get());
   };
 
-  mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', this.render);;
-  setMainPaneView = (view: 'code' | 'display' | 'split') => {
+  private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', this.render);;
+  public get mainPaneView() { return this.mainPaneViewCell.get() }
+  public setMainPaneView = (view: 'code' | 'display' | 'split') => {
     this.mainPaneViewCell.setOk(view);
   }
 
@@ -132,7 +139,7 @@ class App {
     this.filesystem.update(path, buffer);
   }
 
-  newNote = (tag: string) => {
+  public newNote = (tag: string) => {
     // TODO(jaked) check that we aren't overwriting existing note
     this.writeNote(
       tag,
@@ -142,8 +149,8 @@ class App {
     )
   }
 
-  sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
-  sessionSignal =
+  private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
+  private sessionSignal =
     Signal.label('session',
       Signal.join(this.sessionsCell, this.selectedCell).map(([sessions, selected]) => {
         if (selected) {
@@ -164,17 +171,18 @@ class App {
         };
       })
     );
+  public get session() { return this.sessionSignal.get() }
 
-  letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
-  mkCell = (module: string, name: string, init: any): Signal.Cell<any> => {
+  private letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
+  private mkCell = (module: string, name: string, init: any): Signal.Cell<any> => {
     let noteLetCells = this.letCells.get(module) || Immutable.Map();
     let letCell = noteLetCells.get(name) || Signal.cellOk(init, this.render);
     this.letCells = this.letCells.set(module, noteLetCells.set(name, letCell));
     return letCell;
   }
 
-  currentNotes: data.Notes = Immutable.Map();
-  notesSignal =
+  private currentNotes: data.Notes = Immutable.Map();
+  private notesSignal =
     Signal.label('notes',
       this.filesystem.files.map(files => {
         this.currentNotes = Compile.notesOfFiles(this.__trace, files, this.currentNotes);
@@ -184,8 +192,8 @@ class App {
 
   // there might be a way to organize this with an Atom per note
   // but it's a lot simpler to handle them all at once
-  currentCompiledNotes: data.CompiledNotes = Immutable.Map();
-  compiledNotesSignal =
+  public currentCompiledNotes: data.CompiledNotes = Immutable.Map();
+  private compiledNotesSignal =
     Signal.label('compiledNotes',
       this.notesSignal.map(notes => {
         this.currentCompiledNotes =
@@ -199,8 +207,9 @@ class App {
         return this.currentCompiledNotes;
       })
     );
+  public get compiledNotes() { return this.compiledNotesSignal.get() }
 
-  compiledNoteSignal =
+  private compiledNoteSignal =
     Signal.label('compiledNote',
       Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
         if (selected) {
@@ -210,8 +219,9 @@ class App {
         return null;
       })
     );
+  public get compiledNote() { return this.compiledNoteSignal.get() }
 
-  contentSignal =
+  private contentSignal =
     Signal.label('content',
       Signal.join(this.notesSignal, this.selectedCell).map(([notes, selected]) => {
         if (selected) {
@@ -221,8 +231,9 @@ class App {
         return null;
       })
     );
+  public get content() { return this.contentSignal.get() }
 
-  setContentAndSession = (content: string, session: Session) => {
+  public setContentAndSession = (content: string, session: Session) => {
     if (content === null) return;
     const selected = this.selectedCell.get();
     if (!selected) return;
@@ -238,7 +249,7 @@ class App {
     this.writeNote(note.path, note.tag, note.meta, content);
   }
 
-  matchingNotesSignal =
+  private matchingNotesSignal =
     Signal.label('matchingNotes',
       Signal.join(this.notesSignal, this.searchCell).map(([notes, search]) => {
         let matchingNotes = notes;
@@ -260,33 +271,17 @@ class App {
         );
       })
     );
+  public get matchingNotes() { return this.matchingNotesSignal.get() }
 
-  server = new Server(this.compiledNotesSignal);
+  private server = new Server(this.compiledNotesSignal);
 
-  level = 0;
+  private level = 0;
 
-  reactRender = (trace: Trace) => {
+  private reactRender = (trace: Trace) => {
     trace.open('ReactDOM.render');
     ReactDOM.render(
       <Main
-        sideBarVisible={this.sideBarVisibleCell.get()}
-        toggleSideBarVisible={this.toggleSideBarVisible}
-        status={this.statusCell.get()}
-        setStatus={this.setStatus}
-        mainPaneView={this.mainPaneViewCell.get()}
-        setMainPaneView={this.setMainPaneView}
-        notes={this.matchingNotesSignal.get()}
-        selected={this.selectedCell.get()}
-        search={this.searchCell.get()}
-        content={this.contentSignal.get()}
-        highlightValid={!this.compileDirty}
-        compiledNote={this.compiledNoteSignal.get()}
-        session={this.sessionSignal.get()}
-        onSelect={this.setSelected}
-        onSearch={this.setSearch}
-        onChange={this.setContentAndSession}
-        newNote={this.newNote}
-        compiledNotes={this.compiledNotesSignal.get()}
+        app={this}
       />,
       document.getElementById('main')
     );

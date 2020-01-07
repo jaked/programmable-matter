@@ -15,38 +15,18 @@ import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
 
-import * as data from '../data';
+import { App } from '../app';
 
 import { Catch } from './Catch';
 import { Display } from './Display';
 import { Editor } from './Editor';
-import { Session} from './react-simple-code-editor';
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
 
 import * as GTasks from '../integrations/gtasks';
 
 interface Props {
-  sideBarVisible: boolean;
-  toggleSideBarVisible: () => void;
-  status: string | undefined;
-  setStatus: (status: string | undefined) => void;
-  mainPaneView: 'code' | 'display' | 'split';
-  setMainPaneView: (view: 'code' | 'display' | 'split') => void,
-  notes: Array<data.Note>;
-  selected: string | null;
-  search: string;
-  content: string | null;
-  highlightValid: boolean;
-  compiledNote: data.CompiledNote | null;
-  session: Session;
-  onSelect: (tag: string | null) => void;
-  onSearch: (search: string) => void;
-  onChange: (content: string, session: Session) => void;
-  newNote: (tag: string) => void;
-
-  // TODO(jaked) for site build, move elsewhere
-  compiledNotes: data.CompiledNotes;
+  app: App;
 }
 
 const Box = styled(BoxBase)({
@@ -67,7 +47,7 @@ export class Main extends React.Component<Props, {}> {
 
   componentDidMount() {
     ipc.on('focus-search-box', this.focusSearchBox);
-    ipc.on('toggle-side-bar-visible', this.toggleSideBarVisible);
+    ipc.on('toggle-side-bar-visible', this.props.app.toggleSideBarVisible);
     ipc.on('set-main-pane-view-code', this.setMainPaneViewCode);
     ipc.on('set-main-pane-view-display', this.setMainPaneViewDisplay);
     ipc.on('set-main-pane-view-split', this.setMainPaneViewSplit);
@@ -78,7 +58,7 @@ export class Main extends React.Component<Props, {}> {
 
   componentWillUnmount() {
     ipc.removeListener('focus-search-box', this.focusSearchBox);
-    ipc.removeListener('toggle-side-bar-visible', this.toggleSideBarVisible);
+    ipc.removeListener('toggle-side-bar-visible', this.props.app.toggleSideBarVisible);
     ipc.removeListener('set-main-pane-view-code', this.setMainPaneViewCode);
     ipc.removeListener('set-main-pane-view-display', this.setMainPaneViewDisplay);
     ipc.removeListener('set-main-pane-view-split', this.setMainPaneViewSplit);
@@ -91,8 +71,11 @@ export class Main extends React.Component<Props, {}> {
     this.searchBoxRef.current && this.searchBoxRef.current.focus();
   }
 
+  setMainPaneViewCode = () => this.props.app.setMainPaneView('code');
+  setMainPaneViewDisplay = () => this.props.app.setMainPaneView('display');
+  setMainPaneViewSplit = () => this.props.app.setMainPaneView('split');
+
   publishSite = async () => {
-    const { compiledNotes } = this.props;
     // TODO(jaked) generate random dir name?
     const tempdir = path.resolve(remote.app.getPath("temp"), 'programmable-matter');
     // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
@@ -100,7 +83,7 @@ export class Main extends React.Component<Props, {}> {
     await mkdir(tempdir);
     await writeFile(path.resolve(tempdir, '.nojekyll'), '');
     await writeFile(path.resolve(tempdir, 'CNAME'), "jaked.org");
-    await Promise.all(compiledNotes.map(async note => {
+    await Promise.all(this.props.app.compiledNotes.map(async note => {
       // TODO(jaked) figure out file extensions
       if (note.type === 'jpeg') {
         const notePath = path.resolve(tempdir, note.path);
@@ -134,31 +117,23 @@ export class Main extends React.Component<Props, {}> {
     GTasks.authAndSyncTaskLists(filesPath);
   }
 
-  toggleSideBarVisible = () => {
-    this.props.toggleSideBarVisible();
-  }
-
-  setMainPaneViewCode = () => this.props.setMainPaneView('code');
-  setMainPaneViewDisplay = () => this.props.setMainPaneView('display');
-  setMainPaneViewSplit = () => this.props.setMainPaneView('split');
-
   onKeyDown = (key: string): boolean => {
     switch (key) {
       case 'ArrowUp':
         this.notesRef.current && this.notesRef.current.focus();
-        this.props.onSelect(this.props.notes[this.props.notes.length - 1].tag);
+        this.props.app.setSelected(this.props.app.matchingNotes[this.props.app.matchingNotes.length - 1].tag);
         return true;
 
       case 'ArrowDown':
         this.notesRef.current && this.notesRef.current.focus();
-        this.props.onSelect(this.props.notes[0].tag);
+        this.props.app.setSelected(this.props.app.matchingNotes[0].tag);
         return true;
 
       case 'Enter':
-        if (this.props.notes.every(note => note.tag !== this.props.search)) {
-          this.props.newNote(this.props.search);
+        if (this.props.app.matchingNotes.every(note => note.tag !== this.props.app.search)) {
+          this.props.app.newNote(this.props.app.search);
         }
-        this.props.onSelect(this.props.search);
+        this.props.app.setSelected(this.props.app.search);
         if (this.editorRef.current) {
           this.editorRef.current.focus();
         }
@@ -172,16 +147,16 @@ export class Main extends React.Component<Props, {}> {
     <Flex width={width} flexDirection='column'>
       <SearchBox
         ref={this.searchBoxRef}
-        search={this.props.search}
-        onSearch={this.props.onSearch}
+        search={this.props.app.search}
+        onSearch={this.props.app.setSearch}
         onKeyDown={this.onKeyDown}
       />
       <Box>
         <Notes
           ref={this.notesRef}
-          notes={this.props.notes}
-          selected={this.props.selected}
-          onSelect={this.props.onSelect}
+          notes={this.props.app.matchingNotes}
+          selected={this.props.app.selected}
+          onSelect={this.props.app.setSelected}
         />
       </Box>
     </Flex>
@@ -198,31 +173,31 @@ export class Main extends React.Component<Props, {}> {
       <Box>
         <Editor
           ref={this.editorRef}
-          selected={this.props.selected}
-          content={this.props.content}
-          parsedNote={this.props.highlightValid ? this.props.compiledNote : null}
-          session={this.props.session}
-          onChange={this.props.onChange}
-          setStatus={this.props.setStatus}
+          selected={this.props.app.selected}
+          content={this.props.app.content}
+          parsedNote={this.props.app.highlightValid ? this.props.app.compiledNote : null}
+          session={this.props.app.session}
+          onChange={this.props.app.setContentAndSession}
+          setStatus={this.props.app.setStatus}
         />
       </Box>
-      <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.status}</div>
+      <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>
     </Flex>
 
   DisplayPane = ({ width }: { width: number }) =>
     <Box width={width} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
       <Catch>
-        <Display compiledNote={this.props.compiledNote} />
+        <Display compiledNote={this.props.app.compiledNote} />
       </Catch>
     </Box>
 
   render() {
     const [sideBarWidth, mainPaneWidth] =
-      this.props.sideBarVisible ? [ 1/6, 5/6 ] : [ 0, 1 ];
+      this.props.app.sideBarVisible ? [ 1/6, 5/6 ] : [ 0, 1 ];
     const [editorPaneWidth, displayPaneWidth] = (
-      this.props.mainPaneView === 'code' ? [1, 0] :
-      this.props.mainPaneView === 'display' ? [0, 1] :
-      /* this.props.mainPaneView === 'split' ? */ [1/2, 1/2]
+      this.props.app.mainPaneView === 'code' ? [1, 0] :
+      this.props.app.mainPaneView === 'display' ? [0, 1] :
+      /* this.props.app.mainPaneView === 'split' ? */ [1/2, 1/2]
     ).map(w => w * mainPaneWidth);
 
     return (
