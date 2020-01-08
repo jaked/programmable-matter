@@ -69,7 +69,7 @@ export class Filesystem {
         } else {
           if (debug) console.log(`updating file path=${path}`);
           const version = oldFile.version + 1;
-          file = Object.assign({}, oldFile, { version, buffer, lastUpdateMs })
+          file = { ...oldFile, version, buffer, lastUpdateMs };
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
@@ -125,7 +125,7 @@ export class Filesystem {
     this.updateFiles(files => {
       files.forEach(file => {
         if (this.shouldWrite(file)) {
-          file = Object.assign({}, file, { writing: true });
+          file = { ...file, writing: true };
           files = files.set(file.path, file);
 
           const lastWriteMs = Date.now();
@@ -139,7 +139,7 @@ export class Filesystem {
                 let file = files.get(filePath);
                 if (file) {
                   if (debug) console.log(`file.writing = ${file.writing} for ${file.path}`);
-                  file = Object.assign({}, file, { lastWriteMs, writing: false })
+                  file = { ...file, lastWriteMs, writing: false };
                   files = files.set(filePath, file);
                   this.filesCell.setOk(files);
                 }
@@ -210,12 +210,12 @@ export class Filesystem {
       }
 
       if (debug) console.log(`updating ${path}`);
-      const file = Object.assign({}, oldFile, {
+      const file = { ...oldFile,
         version: oldFile.version + 1,
         buffer,
         lastUpdateMs: now,
         lastWriteMs: now,
-      });
+      };
       return files.set(path, file);
     } else {
       if (debug) console.log(`adding ${path}`);

@@ -84,8 +84,7 @@ export function notesOfFiles(
     if (type === 'jpeg') {
       const meta: data.Meta = { type: 'jpeg' }
       const content = '';
-      const note =
-        Object.assign({}, file, { tag, meta, type, content });
+      const note = { ...file, tag, meta, type, content };
       addNote(note);
     } else {
       const string = file.buffer.toString('utf8');
@@ -97,8 +96,7 @@ export function notesOfFiles(
       if (meta.type) type = meta.type;
       if (!type) type = 'mdx';
 
-      const note =
-        Object.assign({}, file, { tag, meta, type, content });
+      const note = { ...file, tag, meta, type, content };
       addNote(note);
     }
   }
@@ -208,26 +206,26 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
       const type = note.type; // tell TS something it already knows
       try {
         const { ast, imports } = parseMdx(trace, note.content, note.meta.layout);
-        return Object.assign({}, note, { type, ast: Try.ok(ast), imports });
+        return { ...note, type, ast: Try.ok(ast), imports };
       } catch (e) {
-        return Object.assign({}, note, { type, ast: Try.err(e), imports: emptyImports });
+        return { ...note, type, ast: Try.err(e), imports: emptyImports };
       }
     }
 
     case 'json': {
       const ast = Try.apply(() => parseJson(note.content));
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, ast, imports: emptyImports });
+      return { ...note, type, ast, imports: emptyImports };
     }
 
     case 'txt': {
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, imports: emptyImports });
+      return { ...note, type, imports: emptyImports };
     }
 
     case 'jpeg': {
       const type = note.type; // tell TS something it already knows
-      return Object.assign({}, note, { type, imports: emptyImports });
+      return { ...note, type, imports: emptyImports };
     }
 
     default:
@@ -361,7 +359,7 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
               children.push(collectImportsExports(child));
           }
         });
-        return Object.assign({}, ast, { children });
+        return { ...ast, children };
       }
 
       default:
@@ -402,16 +400,16 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
   const sortedExportConsts = exportConsts.map((decl, i) => {
     if (i === 0) {
       const declaration =
-        Object.assign({}, decl.declaration, { declarations: sortedDecls });
-      return Object.assign({}, decl, { declaration });
+        { ...decl.declaration, declarations: sortedDecls };
+      return { ...decl, declaration };
     } else {
       const declaration =
-        Object.assign({}, decl.declaration, { declarations: [] });
-      return Object.assign({}, decl, { declaration });
+        { ...decl.declaration, declarations: [] };
+      return { ...decl, declaration };
     }
   });
 
-  const children = [
+  const children: MDXHAST.Node[] = [
     {
       type: 'import',
       value: '',
@@ -437,7 +435,7 @@ function sortMdx(ast: MDXHAST.Root): MDXHAST.Root {
     },
     ...ast2.children
   ];
-  return Object.assign({}, ast2, { children });
+  return { ...ast2, children };
 }
 
 function compileTxt(
@@ -626,7 +624,7 @@ function compileDirtyNotes(
         moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
         moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
       });
-      const compiledNote = Object.assign({}, parsedNote, { compiled });
+      const compiledNote = { ...parsedNote, compiled };
       compiledNotes = compiledNotes.set(tag, compiledNote);
     }
   });

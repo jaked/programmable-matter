@@ -145,7 +145,7 @@ export function evaluateExpression(
     case 'ObjectExpression': {
       const properties = ast.properties.map(prop => {
         const value = evaluateExpression(prop.value, env);
-        return Object.assign({}, prop, { value })
+        return { ...prop, value };
       });
       return Object.assign({}, ...properties.map(prop => {
         let name: string;

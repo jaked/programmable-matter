@@ -196,7 +196,7 @@ export function renderMdx(
           // fix it somehow
           const Link = env.get('Link') || bug(`expected 'Link'`);
           const to = ast.properties['href'];
-          const properties = Object.assign({}, ast.properties, { to });
+          const properties = { ...ast.properties, to };
           const node = Signal.join(Link, Signal.join(...childNodes)).map(([ Link, childNodes ]) =>
             React.createElement(Link, properties, ...childNodes)
           );

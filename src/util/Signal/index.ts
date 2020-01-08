@@ -316,7 +316,7 @@ module Signal {
     return join(...signals).map(values =>
       keys.reduce<{ [s: string]: T }>(
         (obj, key, i) =>
-          Object.assign({}, obj, { key: values[i] }),
+          Object.assign({}, obj, { [key]: values[i] }),
         { }
       )
     );
