@@ -4,15 +4,14 @@ import * as Timers from 'timers';
 import * as Immutable from 'immutable';
 import Nsfw from 'nsfw';
 import Signal from '../util/Signal';
+import { bug } from '../util/bug';
 import * as data from '../data';
 
-type InternalFile = data.File & {
+type FileMetadata = {
   writing: boolean; // true if we are in the middle of writing the file
   lastUpdateMs: number; // timestamp of last in-memory update
   lastWriteMs: number; // timestamp of last write to underlying filesystem
 };
-
-type InternalFiles = Immutable.Map<string, InternalFile>
 
 const debug = false;
 
@@ -39,7 +38,8 @@ function canonizePath(filesPath: string, directory: string, file: string) {
 export class Filesystem {
   private filesPath: string;
   private onChange: () => void;
-  private filesCell = Signal.cellOk<InternalFiles>(Immutable.Map());
+  private filesCell = Signal.cellOk<data.Files>(Immutable.Map());
+  private filesMetadata: Map<string, FileMetadata> = new Map();
   private timeout: NodeJS.Timeout;
   private watcher: any;
 
@@ -60,22 +60,26 @@ export class Filesystem {
   public update = (path: string, buffer: Buffer) => {
     this.updateFiles(files => {
       const oldFile = files.get(path);
-      let file: InternalFile;
       const lastUpdateMs = Date.now(); // TODO(jaked) not sure how accurate this is
       if (oldFile) {
+        const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
         if (buffer.equals(oldFile.buffer)) {
           if (debug) console.log(`${path} has not changed`);
           return files;
         } else {
           if (debug) console.log(`updating file path=${path}`);
+          fileMetadata.lastUpdateMs = lastUpdateMs;
           const version = oldFile.version + 1;
-          file = { ...oldFile, version, buffer, lastUpdateMs };
+          const file = { ...oldFile, version, buffer };
+          return files.set(path, file);
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
-        file = { path, version: 0, buffer, writing: false, lastUpdateMs, lastWriteMs: 0 }
+        const fileMetadata = { writing: false, lastUpdateMs, lastWriteMs: 0 };
+        this.filesMetadata.set(path, fileMetadata);
+        const file = { path, version: 0, buffer }
+        return files.set(path, file);
       }
-      return files.set(path, file);
     });
   }
 
@@ -90,65 +94,57 @@ export class Filesystem {
     this.watcher.stop()
   }
 
-  private shouldWrite = (file: InternalFile) => {
+  private shouldWrite = (path: string, fileMetadata: FileMetadata) => {
     // we're in the middle of a write
-    if (file.writing) {
-      if (debug) console.log(`shouldWrite(${file.path}): false because file.writing`);
+    if (fileMetadata.writing) {
+      if (debug) console.log(`shouldWrite(${path}): false because file.writing`);
       return false;
     }
 
     // the current in-memory file is already written
-    if (file.lastWriteMs >= file.lastUpdateMs) {
-      if (debug) console.log(`shouldWrite(${file.path}): false because already written`);
+    if (fileMetadata.lastWriteMs >= fileMetadata.lastUpdateMs) {
+      if (debug) console.log(`shouldWrite(${path}): false because already written`);
       return false;
     }
 
     const now = Date.now();
 
     // there's been no update in 500 ms
-    if (now > file.lastUpdateMs + 500) {
-      if (debug) console.log(`shouldWrite(${file.path}): true because no update in 500 ms`);
+    if (now > fileMetadata.lastUpdateMs + 500) {
+      if (debug) console.log(`shouldWrite(${path}): true because no update in 500 ms`);
       return true;
     }
 
     // the file hasn't been written in 5 s
-    if (Date.now() > file.lastWriteMs + 5000) {
-      if (debug) console.log(`shouldWrite(${file.path}): true because no write in 5 s`);
+    if (Date.now() > fileMetadata.lastWriteMs + 5000) {
+      if (debug) console.log(`shouldWrite(${path}): true because no write in 5 s`);
       return true;
     }
 
-    if (debug) console.log(`shouldWrite(${file.path}): false because otherwise`);
+    if (debug) console.log(`shouldWrite(${path}): false because otherwise`);
     return false;
   }
 
   private timerCallback = () => {
-    this.updateFiles(files => {
-      files.forEach(file => {
-        if (this.shouldWrite(file)) {
-          file = { ...file, writing: true };
-          files = files.set(file.path, file);
+    this.filesCell.get().forEach(file => {
+      const path = file.path;
+      const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
+      if (this.shouldWrite(path, fileMetadata)) {
+        fileMetadata.writing = true;
 
-          const lastWriteMs = Date.now();
-          const filePath = file.path;
-          if (debug) console.log(`before writeFile ${filePath}`);
-          Fs.writeFile(Path.resolve(this.filesPath, filePath), file.buffer)
-            .finally(
-              () => {
-                if (debug) console.log(`finally ${filePath}`);
-                let files = this.filesCell.get();
-                let file = files.get(filePath);
-                if (file) {
-                  if (debug) console.log(`file.writing = ${file.writing} for ${file.path}`);
-                  file = { ...file, lastWriteMs, writing: false };
-                  files = files.set(filePath, file);
-                  this.filesCell.setOk(files);
-                }
-              });
-          if (debug) console.log(`after writeFile ${filePath}`);
-        }
-      });
-      return files;
-    }, false);
+        const lastWriteMs = Date.now();
+        if (debug) console.log(`before writeFile ${path}`);
+        Fs.writeFile(Path.resolve(this.filesPath, path), file.buffer)
+          .finally(
+            () => {
+              if (debug) console.log(`finally ${path}`);
+              if (debug) console.log(`file.writing = ${fileMetadata.writing} for ${path}`);
+              fileMetadata.lastWriteMs = lastWriteMs;
+              fileMetadata.writing = false;
+            });
+        if (debug) console.log(`after writeFile ${path}`);
+      }
+    });
   };
 
   private walkDir = async (directory: string, events: Array<NsfwEvent>) => {
@@ -173,34 +169,34 @@ export class Filesystem {
   }
 
   updateFiles = (
-    updater: (files: InternalFiles) => InternalFiles,
-    triggerChange: boolean = true
+    updater: (files: data.Files) => data.Files
   ) => {
     const files = updater(this.filesCell.get());
     if (files !== this.filesCell.get()) {
       if (debug) console.log(`updating filesCell`)
       this.filesCell.setOk(files);
-      if (triggerChange) this.onChange();
+      this.onChange();
     }
   }
 
   updateFile = (
-    files: InternalFiles,
+    files: data.Files,
     path: string,
     buffer: Buffer
-  ): InternalFiles => {
+  ): data.Files => {
     const now = Date.now();
     const oldFile = files.get(path);
     if (oldFile) {
       if (debug) console.log(`${path} has oldFile`);
+      const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
       // we just wrote the file, this is most likely a notification
       // of that write, so skip it.
       // TODO(jaked) should check this before reading file.
-      if (oldFile.writing) {
+      if (fileMetadata.writing) {
         if (debug) console.log(`${path} is being written`);
         return files;
       }
-      if (Date.now() < oldFile.lastWriteMs + 5000) {
+      if (Date.now() < fileMetadata.lastWriteMs + 5000) {
         if (debug) console.log(`${path} was just written`);
         return files;
       }
@@ -210,22 +206,21 @@ export class Filesystem {
       }
 
       if (debug) console.log(`updating ${path}`);
+      fileMetadata.lastUpdateMs = now;
+      fileMetadata.lastWriteMs = now;
       const file = { ...oldFile,
         version: oldFile.version + 1,
-        buffer,
-        lastUpdateMs: now,
-        lastWriteMs: now,
+        buffer
       };
       return files.set(path, file);
     } else {
       if (debug) console.log(`adding ${path}`);
+      const fileMetadata = { lastUpdateMs: now, lastWriteMs: now, writing: false };
+      this.filesMetadata.set(path, fileMetadata);
       const file = {
         path,
         version: 0,
         buffer,
-        lastUpdateMs: now,
-        lastWriteMs: now,
-        writing: false,
       }
       return files.set(path, file);
     }
