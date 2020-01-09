@@ -164,6 +164,8 @@ class Map<T, U> implements Signal<U> {
 class FlatMap<T, U> implements Signal<U> {
   s: Signal<T>;
   sVersion: number;
+  fs: Signal<U> | undefined;
+  fsVersion: number | undefined;
   f: (t: T) => Signal<U>;
 
   constructor(s: Signal<T>, f: (t: T) => Signal<U>) {
@@ -172,10 +174,13 @@ class FlatMap<T, U> implements Signal<U> {
     this.s = s;
     this.f = f;
     if (s.value.type === 'ok') {
-      const fs = f(s.value.ok);
-      this.value = fs.value;
-      this.level = Math.min(s.level, fs.level);
+      this.fs = f(s.value.ok);
+      this.fsVersion = this.fs.version;
+      this.value = this.fs.value;
+      this.level = Math.min(s.level, this.fs.level);
     } else {
+      this.fs = undefined;
+      this.fsVersion = undefined;
       this.value = <Try<U>><unknown>s.value;
       this.level = s.level;
     }
@@ -192,15 +197,25 @@ class FlatMap<T, U> implements Signal<U> {
     if (this.level === level) return;
     this.level = level;
     this.s.reconcile(trace, level);
-    if (this.sVersion === this.s.version) return;
-    this.sVersion = this.s.version;
     let value: Try<U>;
-    if (this.s.value.type === 'ok') {
-      const fs = this.f(this.s.value.ok);
-      fs.reconcile(trace, level);
-      value = fs.value;
+    if (this.sVersion === this.s.version) {
+      if (!this.fs) return;
+      this.fs.reconcile(trace, level);
+      if (this.fs.version === this.fsVersion) return;
+      this.fsVersion = this.fs.version;
+      value = this.fs.value;
     } else {
-      value = <Try<U>><unknown>this.s.value;
+      this.sVersion = this.s.version;
+      if (this.s.value.type === 'ok') {
+        this.fs = this.f(this.s.value.ok);
+        this.fs.reconcile(trace, level);
+        this.fsVersion = this.fs.version;
+        value = this.fs.value;
+      } else {
+        this.fs = undefined;
+        this.fsVersion = undefined;
+        value = <Try<U>><unknown>this.s.value;
+      }
     }
     if (equal(value, this.value)) return;
     this.value = value;

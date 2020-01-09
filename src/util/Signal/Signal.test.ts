@@ -129,7 +129,7 @@ describe('map', () => {
 });
 
 describe('flatMap', () => {
-  it('propagates changes', () => {
+  it('propagates outer changes', () => {
     let calls = 0;
     const c = Signal.cellOk(7);
     const m = c.flatMap(x => { calls++; return Signal.ok(x + 1); })
@@ -145,6 +145,21 @@ describe('flatMap', () => {
     c.setOk(9);
     m.reconcile(trace, 2);
     expect(m.value.type === 'ok' && m.value.ok).toBe(10);
+    expect(calls).toBe(2);
+  });
+
+  it('propagates inner changes', () => {
+    let calls = 0;
+    const c1 = Signal.cellOk(7);
+    const c2 = Signal.cellOk(9);
+    const m = c1.flatMap(x => c2.map(y => { calls++; return x + y }))
+
+    expect(m.value.type === 'ok' && m.value.ok).toBe(16);
+    expect(calls).toBe(1);
+
+    c2.setOk(11);
+    m.reconcile(trace, 1);
+    expect(m.value.type === 'ok' && m.value.ok).toBe(18);
     expect(calls).toBe(2);
   });
 
