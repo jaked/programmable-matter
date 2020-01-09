@@ -2,6 +2,7 @@ import deepEqual from 'deep-equal';
 import * as Immutable from 'immutable';
 import Trace from '../Trace';
 import Try from '../Try';
+import { bug } from '../bug';
 
 /**
  * Simple implementation of reactive values. Reconciliation is by
@@ -245,6 +246,99 @@ class Join<T> implements Signal<T[]> {
   }
 }
 
+class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
+  s: Signal<Immutable.Map<K, Signal<V>>>;
+  sVersion: number;
+  vsSignals: Immutable.Map<K, Signal<V>>;
+  vsVersions: Immutable.Map<K, number>;
+
+  constructor(
+    s: Signal<Immutable.Map<K, Signal<V>>>
+  ) {
+    this.version = 0;
+    this.sVersion = s.version;
+    this.s = s;
+    if (s.value.type === 'ok') {
+      this.vsSignals = s.value.ok;
+      this.vsVersions = s.value.ok.map(v => v.version);
+      // TODO(jaked) add Try.joinImmutableMap
+      const vs = Try.join(...this.vsSignals.valueSeq().map(s => s.value));
+      this.value = vs.map(vs =>
+        this.vsSignals.keySeq().reduce<Immutable.Map<K, V>>(
+          (map, key, i) => map.set(key, vs[i]),
+          Immutable.Map()
+        )
+      );
+      const vsLevels = Math.min(...this.vsSignals.valueSeq().map(s => s.level));
+      this.level = Math.min(s.level, vsLevels);
+    } else {
+      this.vsSignals = Immutable.Map();
+      this.vsVersions = Immutable.Map();
+      this.value = <Try<Immutable.Map<K, V>>><unknown>s.value;
+      this.level = s.level;
+    }
+  }
+
+  get() { return this.value.get(); }
+  map<U>(f: (t: Immutable.Map<K, V>) => U) { return new Map(this, f); }
+  flatMap<U>(f: (t: Immutable.Map<K, V>) => Signal<U>) { return new FlatMap(this, f); }
+
+  value: Try<Immutable.Map<K, V>>;
+  version: number;
+  level: number;
+  reconcile(trace: Trace, level: number) {
+    if (this.level === level) return;
+    this.level === level;
+    this.s.reconcile(trace, level);
+    if (this.sVersion === this.s.version) {
+      this.vsSignals.forEach(v => v.reconcile(trace, level));
+      if (this.vsSignals.every((v, k) => {
+        const vVersion = this.vsVersions.get(k);
+        if (vVersion === undefined) bug(`expected vsVersion for ${k}`);
+        return v.version === vVersion;
+      })) return;
+
+      // TODO(jaked)
+      // incrementally update value / versions instead of rebuilding from scratch
+      // since it is likely that only some values are updated
+      this.vsVersions = this.vsSignals.map(v => v.version);
+      // TODO(jaked) add Try.joinImmutableMap
+      const vs = Try.join(...this.vsSignals.valueSeq().map(s => s.value));
+      this.value = vs.map(vs =>
+        this.vsSignals.keySeq().reduce<Immutable.Map<K, V>>(
+          (map, key, i) => map.set(key, vs[i]),
+          Immutable.Map()
+        )
+      );
+      this.version++;
+    } else {
+      this.sVersion = this.s.version
+      if (this.s.value.type === 'ok') {
+        this.vsSignals = this.s.value.ok;
+        this.vsSignals.forEach(v => v.reconcile(trace, level));
+
+      // TODO(jaked)
+      // incrementally update value / versions instead of rebuilding from scratch
+      // since it is likely that only some values are updated
+      this.vsVersions = this.vsSignals.map(v => v.version);
+        // TODO(jaked) add Try.joinImmutableMap
+        const vs = Try.join(...this.vsSignals.valueSeq().map(s => s.value));
+        this.value = vs.map(vs =>
+          this.vsSignals.keySeq().reduce<Immutable.Map<K, V>>(
+            (map, key, i) => map.set(key, vs[i]),
+            Immutable.Map()
+          )
+        );
+      } else {
+        this.vsSignals = Immutable.Map();
+        this.vsVersions = Immutable.Map();
+        this.value = <Try<Immutable.Map<K, V>>><unknown>this.s.value;
+      }
+      this.version++;
+    }
+  }
+}
+
 class Label<T> implements Signal<T> {
   constructor(label: string, s: Signal<T>) {
     this.label = label;
@@ -320,6 +414,12 @@ module Signal {
         { }
       )
     );
+  }
+
+  export function joinImmutableMap<K, V>(
+    map: Signal<Immutable.Map<K, Signal<V>>>
+  ): Signal<Immutable.Map<K, V>> {
+    return new JoinImmutableMap(map);
   }
 
   export function label<T>(label: string, s: Signal<T>): Signal<T> {

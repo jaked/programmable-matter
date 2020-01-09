@@ -1,3 +1,4 @@
+import * as Immutable from 'immutable';
 import Signal from './index';
 import Trace from '../Trace';
 
@@ -206,6 +207,59 @@ describe('join', () => {
     c1.setOk(11);
     j.reconcile(trace, 3);
     expect(j.value.type === 'ok' && j.value.ok).toEqual([11, 9]);
+    expect(calls).toBe(2);
+  });
+});
+
+describe('joinImmutableMap', () => {
+  it('joins', () => {
+    const c1 = Signal.ok(7);
+    const c2 = Signal.ok(9);
+    const map = Signal.ok(Immutable.Map({ c1, c2 }));
+    const j = Signal.joinImmutableMap(map);
+
+    expect(j.value.type === 'ok' && j.value.ok).toEqual(Immutable.Map({ c1: 7, c2: 9 }));
+  });
+
+  it('propagates errors', () => {
+    const c1 = Signal.ok(7);
+    const c2 = Signal.err(err);
+    const map = Signal.ok(Immutable.Map({ c1, c2 }));
+    const j = Signal.joinImmutableMap(map);
+
+    expect(j.value.type === 'err' && j.value.err).toBe(err);
+  });
+
+  it('propagates outer changes', () => {
+    let calls = 0;
+    const c1 = Signal.ok(7);
+    const c2 = Signal.ok(9);
+    const map = Signal.cellOk(Immutable.Map({ c1, c2 }));
+    const j = Signal.joinImmutableMap(map).map(map => { calls++; return map });
+
+    expect(j.value.type === 'ok' && j.value.ok).toEqual(Immutable.Map({ c1: 7, c2: 9 }));
+    expect(calls).toBe(1);
+
+    const c3 = Signal.ok(11);
+    map.setOk(Immutable.Map({ c1, c3 }));
+    j.reconcile(trace, 1);
+    expect(j.value.type === 'ok' && j.value.ok).toEqual(Immutable.Map({ c1: 7, c3: 11 }));
+    expect(calls).toBe(2);
+  });
+
+  it('propagates inner changes', () => {
+    let calls = 0;
+    const c1 = Signal.cellOk(7);
+    const c2 = Signal.cellOk(9);
+    const map = Signal.ok(Immutable.Map({ c1, c2 }));
+    const j = Signal.joinImmutableMap(map).map(map => { calls++; return map });
+
+    expect(j.value.type === 'ok' && j.value.ok).toEqual(Immutable.Map({ c1: 7, c2: 9 }));
+    expect(calls).toBe(1);
+
+    c1.setOk(11);
+    j.reconcile(trace, 1);
+    expect(j.value.type === 'ok' && j.value.ok).toEqual(Immutable.Map({ c1: 11, c2: 9 }));
     expect(calls).toBe(2);
   });
 });
