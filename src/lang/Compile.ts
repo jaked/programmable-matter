@@ -19,6 +19,8 @@ import Typecheck from './Typecheck';
 import * as Evaluator from './Evaluator';
 import * as Render from './Render';
 import * as String from '../util/String';
+import { diffMap } from '../util/immutable/Map';
+import { bug } from '../util/bug';
 
 const debug = false;
 
@@ -46,96 +48,87 @@ function sanitizeMeta(obj: any): data.Meta {
   return { type, title, tags, layout };
 }
 
+function tagOfPath(path: string) {
+  const pathParts = Path.parse(path);
+  return Path.join(pathParts.dir, pathParts.name);
+}
+
+function noteOfFile(file: data.File): data.Note {
+  const pathParts = Path.parse(file.path);
+  const tag = Path.join(pathParts.dir, pathParts.name);
+
+  let type: undefined | data.Types = undefined;
+  if (pathParts.ext) {
+    switch (pathParts.ext) {
+      case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
+      case '.mdx': type = 'mdx'; break;
+      case '.json': type = 'json'; break;
+      case '.txt': type = 'txt'; break;
+      case '.JPG': type = 'jpeg'; break;
+      case '.jpg': type = 'jpeg'; break;
+      case '.jpeg': type = 'jpeg'; break;
+      default:
+        // TODO(jaked) throwing here fails the whole UI
+        // need to encode the error in Note somehow
+        console.log(`unhandled extension '${pathParts.ext}' for '${file.path}'`);
+        type = 'mdx';
+    }
+  }
+
+  if (type === 'jpeg') {
+    const meta: data.Meta = { type: 'jpeg' }
+    const content = '';
+    return { ...file, tag, meta, type, content };
+  } else {
+    const string = file.buffer.toString('utf8');
+    const graymatter = Graymatter.default(string);
+    const meta = sanitizeMeta(graymatter.data);
+    const content = graymatter.content;
+
+    // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
+    if (meta.type) type = meta.type;
+    if (!type) type = 'mdx';
+
+    return { ...file, tag, meta, type, content };
+  }
+}
+
 // TODO(jaked) called from app, where should this go?
 export function notesOfFiles(
   trace: Trace,
-  files: Immutable.Map<string, data.File>,
-  oldNotes: data.Notes
-): data.Notes {
-  let newNotes: data.Notes = Immutable.Map();
-  function addNote(newNote: data.Note) {
-    const note = newNotes.get(newNote.tag);
-    if (note) {
-      throw new Error(`duplicate note tag ${newNote.tag} for ${newNote.path} (${note.path})`);
-    } else {
-      newNotes = newNotes.set(newNote.tag, newNote);
-    }
-  }
+  oldFiles: data.Files,
+  files: data.Files,
+  oldNotes: Immutable.Map<string, Signal<data.Note>>
+): Immutable.Map<string, Signal<data.Note>> {
+  let notes = oldNotes;
+  const { added, changed, deleted } = diffMap(oldFiles, files);
 
-  function addFile(file: data.File) {
-    const pathParts = Path.parse(file.path);
-    const tag = Path.join(pathParts.dir, pathParts.name);
-
-    let type: undefined | data.Types = undefined;
-    if (pathParts.ext) {
-      switch (pathParts.ext) {
-        case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
-        case '.mdx': type = 'mdx'; break;
-        case '.json': type = 'json'; break;
-        case '.txt': type = 'txt'; break;
-        case '.JPG': type = 'jpeg'; break;
-        case '.jpg': type = 'jpeg'; break;
-        case '.jpeg': type = 'jpeg'; break;
-        default:
-          throw new Error(`unhandled extension '${pathParts.ext}' for '${file.path}'`);
-      }
-    }
-
-    if (type === 'jpeg') {
-      const meta: data.Meta = { type: 'jpeg' }
-      const content = '';
-      const note = { ...file, tag, meta, type, content };
-      addNote(note);
-    } else {
-      const string = file.buffer.toString('utf8');
-      const graymatter = Graymatter.default(string);
-      const meta = sanitizeMeta(graymatter.data);
-      const content = graymatter.content;
-
-      // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
-      if (meta.type) type = meta.type;
-      if (!type) type = 'mdx';
-
-      const note = { ...file, tag, meta, type, content };
-      addNote(note);
-    }
-  }
-
-  files.forEach(file => {
-    if (debug) console.log(`notesOfFile path='${file.path}'`);
-    trace.time(file.path, () => {
-      try {
-        const pathParts = Path.parse(file.path);
-        const tag = Path.join(pathParts.dir, pathParts.name);
-
-        const oldNote = oldNotes.get(tag);
-        if (oldNote) {
-          if (oldNote.path === file.path) {
-            if (oldNote.version === file.version) {
-              if (debug) console.log(`addNote tag='${tag}'`)
-              addNote(oldNote)
-            } else {
-              if (debug) console.log(`addFile tag='${tag}' (version has changed)`);
-              addFile(file);
-            }
-          } else {
-            // TODO(jaked)
-            // the version numbers for different files are not comparable
-            // a dependent object needs to track both its own version
-            // and the versions of its dependencies (like Signal)
-            throw new Error(`path for ${tag} changed from ${oldNote.path} to ${file.path}`);
-          }
-        } else {
-          if (debug) console.log(`addFile tag='${tag}' (new file)`);
-          addFile(file);
-        }
-      } catch (e) {
-        // TODO(jaked) surface these errors in UI somehow
-        console.log(e);
-      }
-    })
+  deleted.forEach(path => {
+    if (debug) console.log(`${path} deleted`);
+    const tag = tagOfPath(path);
+    if (!oldNotes.has(tag)) bug(`expected note for ${tag}`);
+    else notes = notes.delete(tag);
   });
-  return newNotes;
+
+  changed.forEach((vs, path) => {
+    // TODO(jaked) can this ever happen for Filesystem?
+    if (debug) console.log(`${path} signal changed`);
+    const tag = tagOfPath(path);
+    const note = vs[1].map(noteOfFile);
+    if (!oldNotes.has(tag)) bug(`expected note for ${tag}`);
+    else notes = notes.set(tag, note);
+  });
+
+  added.forEach((v, path) => {
+    if (debug) console.log(`${path} added`);
+    const tag = tagOfPath(path);
+    const note = v.map(noteOfFile);
+    if (oldNotes.has(tag)) bug(`expected no note for ${tag}`);
+    else if (notes.has(tag)) console.log(`duplicate note for ${tag}`);
+    else notes = notes.set(tag, note);
+  });
+
+  return notes;
 }
 
 function dirtyChangedNotes(

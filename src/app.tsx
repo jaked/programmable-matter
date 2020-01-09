@@ -181,13 +181,15 @@ export class App {
     return letCell;
   }
 
-  private currentNotes: data.Notes = Immutable.Map();
+  private currentFiles: data.Files = Immutable.Map();
+  private currentNotes: Immutable.Map<string, Signal<data.Note>> = Immutable.Map();
   private notesSignal =
     Signal.label('notes',
-      Signal.joinImmutableMap(this.filesystem.files).map(files => {
-        this.currentNotes = Compile.notesOfFiles(this.__trace, files, this.currentNotes);
+      Signal.joinImmutableMap(this.filesystem.files.map(files => {
+        this.currentNotes = Compile.notesOfFiles(this.__trace, this.currentFiles, files, this.currentNotes);
+        this.currentFiles = files;
         return this.currentNotes;
-      })
+      }))
     );
 
   // there might be a way to organize this with an Atom per note
