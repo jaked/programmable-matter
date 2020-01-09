@@ -58,7 +58,7 @@ export type CompiledNote = ParsedNote & {
 }
 
 // indexed by path
-export type Files = Immutable.Map<string, File>;
+export type Files = Immutable.Map<string, Signal<File>>;
 
 // indexed by tag
 export type Notes = Immutable.Map<string, Note>;

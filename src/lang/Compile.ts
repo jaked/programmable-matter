@@ -49,7 +49,7 @@ function sanitizeMeta(obj: any): data.Meta {
 // TODO(jaked) called from app, where should this go?
 export function notesOfFiles(
   trace: Trace,
-  files: data.Files,
+  files: Immutable.Map<string, data.File>,
   oldNotes: data.Notes
 ): data.Notes {
   let newNotes: data.Notes = Immutable.Map();

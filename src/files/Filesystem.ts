@@ -38,7 +38,7 @@ function canonizePath(filesPath: string, directory: string, file: string) {
 export class Filesystem {
   private filesPath: string;
   private onChange: () => void;
-  private filesCell = Signal.cellOk<data.Files>(Immutable.Map());
+  private filesCell: Signal.Cell<Immutable.Map<string, Signal.Cell<data.File>>>;
   private filesMetadata: Map<string, FileMetadata> = new Map();
   private timeout: NodeJS.Timeout;
   private watcher: any;
@@ -46,6 +46,7 @@ export class Filesystem {
   public constructor(filesPath: string, onChange: () => void) {
     this.filesPath = filesPath;
     this.onChange = onChange;
+    this.filesCell = Signal.cellOk(Immutable.Map(), onChange);
     this.timeout = Timers.setInterval(this.timerCallback, 500);
     this.watcher = new Nsfw(
       500, // debounceMS
@@ -55,13 +56,14 @@ export class Filesystem {
     );
   }
 
-  public files: Signal<data.Files> = this.filesCell;
+  public get files(): Signal<data.Files> { return this.filesCell };
 
   public update = (path: string, buffer: Buffer) => {
     this.updateFiles(files => {
-      const oldFile = files.get(path);
+      const oldFileCell = files.get(path);
       const lastUpdateMs = Date.now(); // TODO(jaked) not sure how accurate this is
-      if (oldFile) {
+      if (oldFileCell) {
+        const oldFile = oldFileCell.get();
         const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
         if (buffer.equals(oldFile.buffer)) {
           if (debug) console.log(`${path} has not changed`);
@@ -71,14 +73,15 @@ export class Filesystem {
           fileMetadata.lastUpdateMs = lastUpdateMs;
           const version = oldFile.version + 1;
           const file = { ...oldFile, version, buffer };
-          return files.set(path, file);
+          oldFileCell.setOk(file);
+          return files;
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
         const fileMetadata = { writing: false, lastUpdateMs, lastWriteMs: 0 };
         this.filesMetadata.set(path, fileMetadata);
         const file = { path, version: 0, buffer }
-        return files.set(path, file);
+        return files.set(path, Signal.cellOk(file, this.onChange));
       }
     });
   }
@@ -126,19 +129,16 @@ export class Filesystem {
   }
 
   private timerCallback = () => {
-    this.filesCell.get().forEach(file => {
-      const path = file.path;
+    this.filesCell.get().forEach((fileCell, path) => {
       const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
       if (this.shouldWrite(path, fileMetadata)) {
         fileMetadata.writing = true;
 
         const lastWriteMs = Date.now();
         if (debug) console.log(`before writeFile ${path}`);
-        Fs.writeFile(Path.resolve(this.filesPath, path), file.buffer)
+        Fs.writeFile(Path.resolve(this.filesPath, path), fileCell.get().buffer)
           .finally(
             () => {
-              if (debug) console.log(`finally ${path}`);
-              if (debug) console.log(`file.writing = ${fileMetadata.writing} for ${path}`);
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
             });
@@ -169,25 +169,22 @@ export class Filesystem {
   }
 
   updateFiles = (
-    updater: (files: data.Files) => data.Files
+    updater: (files: Immutable.Map<string, Signal.Cell<data.File>>) => Immutable.Map<string, Signal.Cell<data.File>>
   ) => {
     const files = updater(this.filesCell.get());
-    if (files !== this.filesCell.get()) {
-      if (debug) console.log(`updating filesCell`)
-      this.filesCell.setOk(files);
-      this.onChange();
-    }
+    this.filesCell.setOk(files);
   }
 
   updateFile = (
-    files: data.Files,
+    files: Immutable.Map<string, Signal.Cell<data.File>>,
     path: string,
     buffer: Buffer
-  ): data.Files => {
+  ): Immutable.Map<string, Signal.Cell<data.File>> => {
     const now = Date.now();
-    const oldFile = files.get(path);
-    if (oldFile) {
+    const oldFileCell = files.get(path);
+    if (oldFileCell) {
       if (debug) console.log(`${path} has oldFile`);
+      const oldFile = oldFileCell.get();
       const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
       // we just wrote the file, this is most likely a notification
       // of that write, so skip it.
@@ -212,7 +209,8 @@ export class Filesystem {
         version: oldFile.version + 1,
         buffer
       };
-      return files.set(path, file);
+      oldFileCell.setOk(file);
+      return files;
     } else {
       if (debug) console.log(`adding ${path}`);
       const fileMetadata = { lastUpdateMs: now, lastWriteMs: now, writing: false };
@@ -222,7 +220,7 @@ export class Filesystem {
         version: 0,
         buffer,
       }
-      return files.set(path, file);
+      return files.set(path, Signal.cellOk(file, this.onChange));
     }
   }
 

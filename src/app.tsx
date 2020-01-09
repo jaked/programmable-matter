@@ -184,7 +184,7 @@ export class App {
   private currentNotes: data.Notes = Immutable.Map();
   private notesSignal =
     Signal.label('notes',
-      this.filesystem.files.map(files => {
+      Signal.joinImmutableMap(this.filesystem.files).map(files => {
         this.currentNotes = Compile.notesOfFiles(this.__trace, files, this.currentNotes);
         return this.currentNotes;
       })
