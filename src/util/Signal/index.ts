@@ -2,6 +2,7 @@ import deepEqual from 'deep-equal';
 import * as Immutable from 'immutable';
 import Trace from '../Trace';
 import Try from '../Try';
+import { diffMap } from '../immutable/Map';
 import { bug } from '../bug';
 
 /**
@@ -435,6 +436,22 @@ module Signal {
     map: Signal<Immutable.Map<K, Signal<V>>>
   ): Signal<Immutable.Map<K, V>> {
     return new JoinImmutableMap(map);
+  }
+
+  export function mapImmutableMap<K, V, U>(
+    input: Signal<Immutable.Map<K, V>>,
+    f: (v: V) => U
+  ): Signal<Immutable.Map<K, U>> {
+    let prevInput: Immutable.Map<K, V> = Immutable.Map();
+    let prevOutput: Immutable.Map<K, U> = Immutable.Map();
+    return input.map(input => {
+      return prevOutput.withMutations(output => {
+        const { added, changed, deleted } = diffMap(prevInput, input);
+        deleted.forEach(key => { output = output.delete(key) });
+        changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr)) });
+        added.forEach((v, key) => { output = output.set(key, f(v)) });
+      });
+    })
   }
 
   export function label<T>(label: string, s: Signal<T>): Signal<T> {

@@ -182,14 +182,24 @@ export class App {
   }
 
   private currentFiles: data.Files = Immutable.Map();
-  private currentNotes: Immutable.Map<string, Signal<data.Note>> = Immutable.Map();
+  private currentNotes: data.Notes = Immutable.Map();
   private notesSignal =
     Signal.label('notes',
-      Signal.joinImmutableMap(this.filesystem.files.map(files => {
+      this.filesystem.files.map(files => {
         this.currentNotes = Compile.notesOfFiles(this.__trace, this.currentFiles, files, this.currentNotes);
         this.currentFiles = files;
         return this.currentNotes;
-      }))
+      })
+    );
+
+  private parsedNotesSignal =
+    Signal.label('parsedNotes',
+      Signal.joinImmutableMap(
+        Signal.mapImmutableMap(
+          this.notesSignal,
+          note => note.map(note => Compile.parseNote(this.__trace, note))
+        )
+      )
     );
 
   // there might be a way to organize this with an Atom per note
@@ -197,12 +207,12 @@ export class App {
   public currentCompiledNotes: data.CompiledNotes = Immutable.Map();
   private compiledNotesSignal =
     Signal.label('compiledNotes',
-      this.notesSignal.map(notes => {
+      this.parsedNotesSignal.map(parsedNotes => {
         this.currentCompiledNotes =
           Compile.compileNotes(
             this.__trace,
             this.currentCompiledNotes,
-            notes,
+            parsedNotes,
             this.mkCell,
             this.setSelected
           );
@@ -225,23 +235,31 @@ export class App {
 
   private contentSignal =
     Signal.label('content',
-      Signal.join(this.notesSignal, this.selectedCell).map(([notes, selected]) => {
+      Signal.join(this.notesSignal, this.selectedCell).flatMap(([notes, selected]) => {
         if (selected) {
-          const note: data.Note | undefined = notes.get(selected);
-          if (note && note.type !== 'jpeg') return note.content;
+          const note = notes.get(selected);
+          if (note) {
+            return note.map(note => {
+              if (note.type !== 'jpeg') return note.content;
+              else return null;
+            });
+          }
         }
-        return null;
+        return Signal.ok(null);
       })
     );
   public get content() { return this.contentSignal.get() }
 
+  // TODO(jaked) maybe these functions can be generated via signals
+  // then passed into components so there isn't so much dereferecing here
   public setContentAndSession = (content: string, session: Session) => {
     if (content === null) return;
     const selected = this.selectedCell.get();
     if (!selected) return;
 
-    const note = this.notesSignal.get().get(selected);
-    if (!note) return;
+    const noteSignal = this.notesSignal.get().get(selected);
+    if (!noteSignal) return;
+    const note = noteSignal.get();
     if (note.type === 'jpeg') return;
     if (note.content === content) return;
 
@@ -253,7 +271,13 @@ export class App {
 
   private matchingNotesSignal =
     Signal.label('matchingNotes',
-      Signal.join(this.notesSignal, this.searchCell).map(([notes, search]) => {
+      Signal.join(
+        // TODO(jaked)
+        // map matching function over individual note signals
+        // so we only need to re-match notes that have changed
+        Signal.joinImmutableMap(this.notesSignal),
+        this.searchCell
+      ).map(([notes, search]) => {
         let matchingNotes = notes;
         if (search) {
           // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript

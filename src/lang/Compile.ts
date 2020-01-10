@@ -98,8 +98,8 @@ export function notesOfFiles(
   trace: Trace,
   oldFiles: data.Files,
   files: data.Files,
-  oldNotes: Immutable.Map<string, Signal<data.Note>>
-): Immutable.Map<string, Signal<data.Note>> {
+  oldNotes: data.Notes
+): data.Notes {
   let notes = oldNotes;
   const { added, changed, deleted } = diffMap(oldFiles, files);
 
@@ -110,11 +110,11 @@ export function notesOfFiles(
     else notes = notes.delete(tag);
   });
 
-  changed.forEach((vs, path) => {
+  changed.forEach(([prev, curr], path) => {
     // TODO(jaked) can this ever happen for Filesystem?
     if (debug) console.log(`${path} signal changed`);
     const tag = tagOfPath(path);
-    const note = vs[1].map(noteOfFile);
+    const note = curr.map(noteOfFile);
     if (!oldNotes.has(tag)) bug(`expected note for ${tag}`);
     else notes = notes.set(tag, note);
   });
@@ -193,7 +193,7 @@ function parseJson(
 
 const emptyImports = new Set<string>();
 
-function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
+export function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   switch (note.type) {
     case 'mdx': {
       const type = note.type; // tell TS something it already knows
@@ -224,22 +224,6 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
     default:
       throw new Error(`unhandled note type '${(<data.Note>note).type}' for '${(<data.Note>note).tag}'`);
   }
-}
-
-// also computes imports
-function parseDirtyNotes(
-  trace: Trace,
-  compiledNotes: data.CompiledNotes,
-  notes: data.Notes
-): data.ParsedNotes {
-  return notes.map((newNote, tag) => {
-    const oldNote = compiledNotes.get(tag);
-    if (oldNote) {
-      return oldNote;
-    } else {
-      return trace.time(tag, () => parseNote(trace, newNote));
-    }
-  });
 }
 
 function sortNotes(notes: data.ParsedNotes): Array<string> {
@@ -627,19 +611,13 @@ function compileDirtyNotes(
 export function compileNotes(
   trace: Trace,
   compiledNotes: data.CompiledNotes,
-  notes: data.Notes,
+  parsedNotes: data.ParsedNotes,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
   // TODO(jaked)
   // maybe we should propagate a change set
   // instead of the current state of the filesystem
-
-  // filter out changed notes
-  compiledNotes = trace.time('dirtyChangedNotes', () => dirtyChangedNotes(compiledNotes, notes));
-
-  // parse dirty notes + compute imports
-  const parsedNotes = trace.time('parseDirtyNotes', () => parseDirtyNotes(trace, compiledNotes, notes));
 
   // topologically sort notes according to imports
   const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
