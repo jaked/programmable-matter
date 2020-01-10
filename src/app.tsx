@@ -192,32 +192,12 @@ export class App {
       })
     );
 
-  private parsedNotesSignal =
-    Signal.label('parsedNotes',
-      Signal.joinImmutableMap(
-        Signal.mapImmutableMap(
-          this.notesSignal,
-          note => note.map(note => Compile.parseNote(this.__trace, note))
-        )
-      )
-    );
-
-  // there might be a way to organize this with an Atom per note
-  // but it's a lot simpler to handle them all at once
-  public currentCompiledNotes: data.CompiledNotes = Immutable.Map();
   private compiledNotesSignal =
-    Signal.label('compiledNotes',
-      this.parsedNotesSignal.map(parsedNotes => {
-        this.currentCompiledNotes =
-          Compile.compileNotes(
-            this.__trace,
-            this.currentCompiledNotes,
-            parsedNotes,
-            this.mkCell,
-            this.setSelected
-          );
-        return this.currentCompiledNotes;
-      })
+    Compile.compileNotes(
+      this.__trace,
+      this.notesSignal,
+      this.mkCell,
+      this.setSelected
     );
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 

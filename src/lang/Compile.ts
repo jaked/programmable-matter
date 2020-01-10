@@ -131,22 +131,6 @@ export function notesOfFiles(
   return notes;
 }
 
-function dirtyChangedNotes(
-  compiledNotes: data.CompiledNotes,
-  notes: data.Notes
-): data.CompiledNotes {
-  return compiledNotes.filter((oldNote, tag) => {
-    const newNote = notes.get(tag);
-    if (newNote && oldNote.version === newNote.version) {
-      // TODO(jaked) check that path has not changed
-      return true;
-    } else {
-      if (debug) console.log(tag + ' dirty because file changed')
-      return false;
-    }
-  });
-}
-
 function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
   switch (ast.type) {
     case 'root':
@@ -193,7 +177,7 @@ function parseJson(
 
 const emptyImports = new Set<string>();
 
-export function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
+function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   switch (note.type) {
     case 'mdx': {
       const type = note.type; // tell TS something it already knows
@@ -610,21 +594,28 @@ function compileDirtyNotes(
 
 export function compileNotes(
   trace: Trace,
-  compiledNotes: data.CompiledNotes,
-  parsedNotes: data.ParsedNotes,
+  notesSignal: Signal<data.Notes>,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
-): data.CompiledNotes {
-  // TODO(jaked)
-  // maybe we should propagate a change set
-  // instead of the current state of the filesystem
+): Signal<data.CompiledNotes> {
+  const parsedNotesSignal =
+    Signal.label('parseNotes',
+      Signal.mapImmutableMap(
+        notesSignal,
+        note => note.map(note => parseNote(trace, note))
+      )
+    );
 
-  // topologically sort notes according to imports
-  const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
+  let compiledNotes: data.CompiledNotes = Immutable.Map();
+  return Signal.joinImmutableMap(parsedNotesSignal).map(parsedNotes => {
+    // topologically sort notes according to imports
+    const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
 
-  // dirty notes that import a dirty note (post-sorting for transitivity)
-  compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
+    // dirty notes that import a dirty note (post-sorting for transitivity)
+    compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
 
-  // compile dirty notes (post-sorting for dependency ordering)
-  return trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
+    // compile dirty notes (post-sorting for dependency ordering)
+    compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
+    return compiledNotes;
+  });
 }
