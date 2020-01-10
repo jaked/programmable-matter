@@ -278,3 +278,28 @@ describe('joinImmutableMap', () => {
     expect(calls).toBe(2);
   });
 });
+
+describe('mapImmutableMap', () => {
+  let calls = 0;
+  function f(x: number) { calls++; return x + 1; }
+  const map = Signal.cellOk(Immutable.Map({ a: 7, b: 9 }));
+  const fmap = Signal.mapImmutableMap(map, f);
+
+  expect(fmap.value.type === 'ok' && fmap.value.ok).toEqual(Immutable.Map({ a: 8, b: 10 }));
+  expect(calls).toBe(2);
+
+  map.setOk(map.get().set('b', 10));
+  fmap.reconcile(trace, 1);
+  expect(fmap.value.type === 'ok' && fmap.value.ok).toEqual(Immutable.Map({ a: 8, b: 11 }));
+  expect(calls).toBe(3);
+
+  map.setOk(map.get().set('c', 13));
+  fmap.reconcile(trace, 2);
+  expect(fmap.value.type === 'ok' && fmap.value.ok).toEqual(Immutable.Map({ a: 8, b: 11, c: 14 }));
+  expect(calls).toBe(4);
+
+  map.setOk(map.get().delete('a'));
+  fmap.reconcile(trace, 3);
+  expect(fmap.value.type === 'ok' && fmap.value.ok).toEqual(Immutable.Map({ b: 11, c: 14 }));
+  expect(calls).toBe(4);
+});

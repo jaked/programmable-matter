@@ -445,12 +445,15 @@ module Signal {
     let prevInput: Immutable.Map<K, V> = Immutable.Map();
     let prevOutput: Immutable.Map<K, U> = Immutable.Map();
     return input.map(input => {
-      return prevOutput.withMutations(output => {
+      const output = prevOutput.withMutations(output => {
         const { added, changed, deleted } = diffMap(prevInput, input);
         deleted.forEach(key => { output = output.delete(key) });
         changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr)) });
         added.forEach((v, key) => { output = output.set(key, f(v)) });
       });
+      prevInput = input;
+      prevOutput = output;
+      return output;
     })
   }
 
