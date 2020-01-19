@@ -53,9 +53,49 @@ function tagOfPath(path: string) {
   return Path.join(pathParts.dir, pathParts.name);
 }
 
-function noteOfFile(file: data.File): data.Note {
-  const pathParts = Path.parse(file.path);
-  const tag = Path.join(pathParts.dir, pathParts.name);
+function groupFilesByTag(
+  files: data.Files,
+  oldFiles: data.Files,
+  oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, Signal<data.File>>>
+): Immutable.Map<string, Immutable.Map<string, Signal<data.File>>> {
+  let groupedFiles = oldGroupedFiles;
+  const { added, changed, deleted } = diffMap(oldFiles, files);
+
+  // TODO(jaked) generalize to an incremental groupBy on Signal
+
+  deleted.forEach(path => {
+    if (debug) console.log(`${path} deleted`);
+    const tag = tagOfPath(path);
+    let group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+    group = group.delete(path);
+    if (group.isEmpty())
+      groupedFiles = groupedFiles.delete(tag);
+    else
+      groupedFiles = groupedFiles.set(tag, group);
+  });
+
+  changed.forEach(([prev, curr], path) => {
+    // TODO(jaked) can this ever happen for Filesystem?
+    if (debug) console.log(`${path} signal changed`);
+    const tag = tagOfPath(path);
+    let group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+    group = group.set(path, curr);
+    groupedFiles = groupedFiles.set(tag, group);
+  });
+
+  added.forEach((v, path) => {
+    if (debug) console.log(`${path} added`);
+    const tag = tagOfPath(path);
+    let group = groupedFiles.get(tag) || Immutable.Map();
+    group = group.set(path, v);
+    groupedFiles = groupedFiles.set(tag, group);
+  });
+
+  return groupedFiles;
+}
+
+function typeOfPath(path: string): data.Types {
+  const pathParts = Path.parse(path);
 
   let type: undefined | data.Types = undefined;
   if (pathParts.ext) {
@@ -70,65 +110,77 @@ function noteOfFile(file: data.File): data.Note {
       default:
         // TODO(jaked) throwing here fails the whole UI
         // need to encode the error in Note somehow
-        console.log(`unhandled extension '${pathParts.ext}' for '${file.path}'`);
-        type = 'mdx';
+        // or avoid joining the map values
+        console.log(`unhandled extension '${pathParts.ext}' for '${path}'`);
     }
   }
+  if (!type) type = 'mdx';
+  return type;
+}
 
-  if (type === 'jpeg') {
-    const meta: data.Meta = { type: 'jpeg' }
-    const content = '';
-    return { ...file, tag, meta, type, content };
+function noteOfGroup(
+  group: Immutable.Map<string, Signal<data.File>>,
+  tag: string
+): Signal<data.Note> {
+  // TODO(jaked) make this less messy; maybe groups should not be Maps
+  const metaPath = tag + '.meta';
+  const metaFile = group.get(metaPath);
+  if (metaFile) {
+    group = group.delete(metaPath);
+    if (!(group.size === 1)) throw new Error(`expected 1 file for ${tag}, ${group}`);
+    const file = group.toArray()[0][1];
+    return Signal.join(metaFile, file).map(([metaFile, file]) => {
+      const metaString = metaFile.buffer.toString('utf8');
+      let meta = sanitizeMeta(JSON.parse(metaString));
+      let type = typeOfPath(file.path);
+      if (!meta.type) meta = { ... meta, type };
+      if (meta.type !== type) throw new Error(`expected metadata type to match file extension for ${tag}`);
+      if (type === 'jpeg') {
+        return { ...file, tag, meta, type, content: '' };
+      } else {
+        const content = file.buffer.toString('utf8');
+        return { ...file, tag, meta, type, content };
+      }
+    });
   } else {
-    const string = file.buffer.toString('utf8');
-    const graymatter = Graymatter.default(string);
-    const meta = sanitizeMeta(graymatter.data);
-    const content = graymatter.content;
-
-    // TODO(jaked) disallow conflicting extensions / meta types? rewrite to match?
-    if (meta.type) type = meta.type;
-    if (!type) type = 'mdx';
-
-    return { ...file, tag, meta, type, content };
+    if (!(group.size === 1)) throw new Error(`expected 1 file for ${tag}, ${group}`);
+    const file = group.toArray()[0][1];
+    return file.map(file => {
+      let type = typeOfPath(file.path);
+      if (type === 'jpeg') {
+        return { ...file, tag, meta: { type: 'jpeg'}, type, content: '' };
+      } else {
+        // TODO(jaked) remove frontmatter parsing once files are converted
+        const string = file.buffer.toString('utf8');
+        const graymatter = Graymatter.default(string);
+        let meta = sanitizeMeta(graymatter.data);
+        const content = graymatter.content;
+        let type = typeOfPath(file.path);
+        if (!meta.type) meta = { ... meta, type };
+        if (meta.type !== type) throw new Error(`expected metadata type to match file extension for ${tag}`);
+        return { ...file, tag, meta, type, content };
+      }
+    });
   }
 }
 
 // TODO(jaked) called from app, where should this go?
 export function notesOfFiles(
   trace: Trace,
-  oldFiles: data.Files,
-  files: data.Files,
-  oldNotes: data.Notes
-): data.Notes {
-  let notes = oldNotes;
-  const { added, changed, deleted } = diffMap(oldFiles, files);
-
-  deleted.forEach(path => {
-    if (debug) console.log(`${path} deleted`);
-    const tag = tagOfPath(path);
-    if (!oldNotes.has(tag)) bug(`expected note for ${tag}`);
-    else notes = notes.delete(tag);
-  });
-
-  changed.forEach(([prev, curr], path) => {
-    // TODO(jaked) can this ever happen for Filesystem?
-    if (debug) console.log(`${path} signal changed`);
-    const tag = tagOfPath(path);
-    const note = curr.map(noteOfFile);
-    if (!oldNotes.has(tag)) bug(`expected note for ${tag}`);
-    else notes = notes.set(tag, note);
-  });
-
-  added.forEach((v, path) => {
-    if (debug) console.log(`${path} added`);
-    const tag = tagOfPath(path);
-    const note = v.map(noteOfFile);
-    if (oldNotes.has(tag)) bug(`expected no note for ${tag}`);
-    else if (notes.has(tag)) console.log(`duplicate note for ${tag}`);
-    else notes = notes.set(tag, note);
-  });
-
-  return notes;
+  files: Signal<data.Files>,
+): Signal<data.Notes> {
+  const groupedFiles =
+    Signal.label('groupedFiles',
+      Signal.mapWithPrev(
+        files,
+        groupFilesByTag,
+        Immutable.Map(),
+        Immutable.Map()
+      )
+    );
+  return Signal.label('notes',
+    Signal.mapImmutableMap(groupedFiles, noteOfGroup)
+  );
 }
 
 function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
@@ -606,16 +658,30 @@ export function compileNotes(
       )
     );
 
-  let compiledNotes: data.CompiledNotes = Immutable.Map();
-  return Signal.joinImmutableMap(parsedNotesSignal).map(parsedNotes => {
-    // topologically sort notes according to imports
-    const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
+  // TODO(jaked)
+  // maybe could do this with more fine-grained Signals
+  // but it's easier to do all together
+  return Signal.label('compileNotes',
+    Signal.mapWithPrev(
+      Signal.joinImmutableMap(parsedNotesSignal),
+      (parsedNotes, prevParsedNotes, compiledNotes) => {
+        const { added, changed, deleted } = diffMap(prevParsedNotes, parsedNotes);
 
-    // dirty notes that import a dirty note (post-sorting for transitivity)
-    compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
+        changed.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
+        deleted.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
 
-    // compile dirty notes (post-sorting for dependency ordering)
-    compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
-    return compiledNotes;
-  });
+        // topologically sort notes according to imports
+        const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
+
+        // dirty notes that import a dirty note (post-sorting for transitivity)
+        compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
+
+        // compile dirty notes (post-sorting for dependency ordering)
+        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
+        return compiledNotes;
+      },
+      Immutable.Map(),
+      Immutable.Map()
+    )
+  );
 }

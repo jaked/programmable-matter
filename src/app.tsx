@@ -181,16 +181,8 @@ export class App {
     return letCell;
   }
 
-  private currentFiles: data.Files = Immutable.Map();
-  private currentNotes: data.Notes = Immutable.Map();
   private notesSignal =
-    Signal.label('notes',
-      this.filesystem.files.map(files => {
-        this.currentNotes = Compile.notesOfFiles(this.__trace, this.currentFiles, files, this.currentNotes);
-        this.currentFiles = files;
-        return this.currentNotes;
-      })
-    );
+    Compile.notesOfFiles(this.__trace, this.filesystem.files);
 
   private compiledNotesSignal =
     Compile.compileNotes(

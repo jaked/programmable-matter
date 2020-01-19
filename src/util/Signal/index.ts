@@ -405,6 +405,21 @@ module Signal {
     return cell<T>(Try.err(err), onChange);
   }
 
+  export function mapWithPrev<T, U>(
+    s: Signal<T>,
+    f: (t: T, prevT: T, prevU: U) => U,
+    initT: T,
+    initU: U
+  ): Signal<U> {
+    let currT = initT;
+    let currU = initU;
+    return s.map(t => {
+      currU = f(t, currT, currU);
+      currT = t;
+      return currU;
+    });
+  }
+
   export function join<T1, T2>(
     s1: Signal<T1>,
     s2: Signal<T2>
@@ -440,7 +455,7 @@ module Signal {
 
   export function mapImmutableMap<K, V, U>(
     input: Signal<Immutable.Map<K, V>>,
-    f: (v: V) => U
+    f: (v: V, k: K) => U
   ): Signal<Immutable.Map<K, U>> {
     let prevInput: Immutable.Map<K, V> = Immutable.Map();
     let prevOutput: Immutable.Map<K, U> = Immutable.Map();
@@ -448,8 +463,8 @@ module Signal {
       const output = prevOutput.withMutations(output => {
         const { added, changed, deleted } = diffMap(prevInput, input);
         deleted.forEach(key => { output = output.delete(key) });
-        changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr)) });
-        added.forEach((v, key) => { output = output.set(key, f(v)) });
+        changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr, key)) });
+        added.forEach((v, key) => { output = output.set(key, f(v, key)) });
       });
       prevInput = input;
       prevOutput = output;
