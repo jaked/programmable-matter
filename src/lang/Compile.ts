@@ -1,7 +1,6 @@
 import * as Path from 'path';
 
 import * as Immutable from 'immutable';
-import * as Graymatter from 'gray-matter';
 
 import * as React from 'react';
 import 'regenerator-runtime/runtime'; // required for react-inspector
@@ -150,14 +149,9 @@ function noteOfGroup(
       if (type === 'jpeg') {
         return { ...file, tag, meta: { type: 'jpeg'}, type, content: '' };
       } else {
-        // TODO(jaked) remove frontmatter parsing once files are converted
-        const string = file.buffer.toString('utf8');
-        const graymatter = Graymatter.default(string);
-        let meta = sanitizeMeta(graymatter.data);
-        const content = graymatter.content;
-        let type = typeOfPath(file.path);
-        if (!meta.type) meta = { ... meta, type };
-        if (meta.type !== type) throw new Error(`expected metadata type to match file extension for ${tag}`);
+        const content = file.buffer.toString('utf8');
+        const type = typeOfPath(file.path);
+        const meta = { type };
         return { ...file, tag, meta, type, content };
       }
     });

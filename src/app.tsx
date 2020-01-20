@@ -2,7 +2,6 @@ import * as fs from "fs";
 import * as Path from 'path';
 import * as process from 'process';
 
-import * as Graymatter from 'gray-matter';
 import * as Immutable from 'immutable';
 
 import Signal from './util/Signal';
@@ -127,15 +126,7 @@ export class App {
 
   writeNote = (path: string, tag: string, meta: data.Meta, content: string) => {
     if (debug) console.log(`writeNote path=${path} tag=${tag}`);
-
-    // TODO(jaked) don't perturb frontmatter unnecessarily
-    let string = Graymatter.stringify(content, meta, { language: 'json' });
-    // stringify adds trailing newline
-    if (content.slice(-1) !== '\n')  {
-      string = string.slice(0, -1);
-    }
-
-    let buffer = Buffer.from(string, 'utf8');
+    let buffer = Buffer.from(content, 'utf8');
     this.filesystem.update(path, buffer);
   }
 

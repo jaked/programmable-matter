@@ -44,7 +44,6 @@
     "electron-unhandled": "^2.2.0",
     "gh-pages": "^2.1.1",
     "googleapis": "^46.0.0",
-    "gray-matter": "^4.0.2",
     "immutable": "^4.0.0-rc.12",
     "lodash": "^4.17.15",
     "nsfw": "^1.2.5",
