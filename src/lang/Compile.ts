@@ -28,23 +28,23 @@ export type ModuleValueEnv = Immutable.Map<string, { [s: string]: Signal<any> }>
 function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
-  const type: 'mdx' | 'json' | 'txt' =
+  const type =
     (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt') ?
-    obj.type : undefined;
+    { type: obj.type } : {};
 
-  const title: string =
+  const title =
     typeof obj.title === 'string' ?
-    obj.title : undefined;
+    { title: obj.title } : {};
 
-  const tags: Array<string> =
+  const tags =
     (Array.isArray(obj.tags) && obj.tags.every(s => typeof s === 'string')) ?
-    obj.tags : undefined;
+    { tags: obj.tags } : {};
 
-  const layout: string =
+  const layout =
     typeof obj.layout === 'string' ?
-    obj.layout : undefined;
+    { layout: obj.layout } : {};
 
-  return { type, title, tags, layout };
+  return { ...type, ...title, ...tags, ...layout };
 }
 
 function tagOfPath(path: string) {
@@ -52,43 +52,124 @@ function tagOfPath(path: string) {
   return Path.join(pathParts.dir, pathParts.name);
 }
 
+function isDotMeta(path: string) {
+  const pathParts = Path.parse(path);
+  return pathParts.base === '.meta';
+}
+
+function isDotMetaForTag(path, tag) {
+  const pathParts = Path.parse(path);
+  const is = pathParts.base === '.meta' && !Path.relative(pathParts.dir, tag).startsWith('..');
+  if (debug) console.log(`isDotMetaForTag(${path}, ${tag}) = ${is}`)
+  return is;
+}
+
 function groupFilesByTag(
   files: data.Files,
   oldFiles: data.Files,
   oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, Signal<data.File>>>
 ): Immutable.Map<string, Immutable.Map<string, Signal<data.File>>> {
+
+  // TODO(jaked)
+  // seems like we could extract an abstraction here to Signal
+  // i.e. an incrementally-maintained view of a join, somehow
+
   let groupedFiles = oldGroupedFiles;
   const { added, changed, deleted } = diffMap(oldFiles, files);
 
-  // TODO(jaked) generalize to an incremental groupBy on Signal
-
+  // first, handle updates of non-.meta files, so groupedFiles has correct tags
   deleted.forEach(path => {
     if (debug) console.log(`${path} deleted`);
-    const tag = tagOfPath(path);
-    let group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-    group = group.delete(path);
-    if (group.isEmpty())
-      groupedFiles = groupedFiles.delete(tag);
-    else
-      groupedFiles = groupedFiles.set(tag, group);
+    if (!isDotMeta(path)) {
+      const tag = tagOfPath(path);
+      const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+      groupedFiles = groupedFiles.set(tag, group.delete(path));
+    }
   });
 
   changed.forEach(([prev, curr], path) => {
     // TODO(jaked) can this ever happen for Filesystem?
     if (debug) console.log(`${path} signal changed`);
-    const tag = tagOfPath(path);
-    let group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-    group = group.set(path, curr);
-    groupedFiles = groupedFiles.set(tag, group);
+    if (!isDotMeta(path)) {
+      const tag = tagOfPath(path);
+      const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+      groupedFiles = groupedFiles.set(tag, group.set(path, curr));
+    }
   });
 
   added.forEach((v, path) => {
     if (debug) console.log(`${path} added`);
-    const tag = tagOfPath(path);
-    let group = groupedFiles.get(tag) || Immutable.Map();
-    group = group.set(path, v);
-    groupedFiles = groupedFiles.set(tag, group);
+    if (!isDotMeta(path)) {
+      const tag = tagOfPath(path);
+      const group = groupedFiles.get(tag) || Immutable.Map();
+      groupedFiles = groupedFiles.set(tag, group.set(path, v));
+    }
   });
+
+  // next, update join for changed .meta files
+  groupedFiles = groupedFiles.map((group, tag) => {
+    deleted.forEach(path => {
+      if (isDotMetaForTag(path, tag)) {
+        group = group.delete(path);
+      }
+    });
+
+    changed.forEach(([prev, curr], path) => {
+      // TODO(jaked) can this ever happen for Filesystem?
+      if (isDotMetaForTag(path, tag)) {
+        group = group.set(path, curr);
+      }
+    });
+
+    added.forEach((v, path) => {
+      if (isDotMetaForTag(path, tag)) {
+        group = group.set(path, v);
+      }
+    });
+
+    return group;
+  });
+
+  // finally, update join for changed non-.meta files
+  files.forEach((file, path) => {
+    if (isDotMeta(path)) {
+      const metaPath = path;
+
+      deleted.forEach(path => {
+        if (!isDotMeta(path)) {
+          const tag = tagOfPath(path);
+          if (isDotMetaForTag(metaPath, tag)) {
+            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+            groupedFiles = groupedFiles.set(tag, group.delete(metaPath));
+          }
+        }
+      });
+
+      changed.forEach((_, path) => {
+        // TODO(jaked) can this ever happen for Filesystem?
+        if (!isDotMeta(path)) {
+          const tag = tagOfPath(path);
+          if (isDotMetaForTag(metaPath, tag)) {
+            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+            groupedFiles = groupedFiles.set(tag, group.set(metaPath, file));
+          }
+        }
+      });
+
+      added.forEach((_, path) => {
+        if (!isDotMeta(path)) {
+          const tag = tagOfPath(path);
+          if (isDotMetaForTag(metaPath, tag)) {
+            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+            groupedFiles = groupedFiles.set(tag, group.set(metaPath, file));
+          }
+        }
+      });
+    }
+  })
+
+  groupedFiles =
+    groupedFiles.filterNot(group => group.every((_, path) => isDotMeta(path) || Path.parse(path).ext === '.meta'));
 
   return groupedFiles;
 }
@@ -121,41 +202,42 @@ function noteOfGroup(
   group: Immutable.Map<string, Signal<data.File>>,
   tag: string
 ): Signal<data.Note> {
-  // TODO(jaked) make this less messy; maybe groups should not be Maps
-  const metaPath = tag + '.meta';
-  const metaFile = group.get(metaPath);
-  if (metaFile) {
-    group = group.delete(metaPath);
-    if (!(group.size === 1)) throw new Error(`expected 1 file for ${tag}, ${group}`);
-    const file = group.toArray()[0][1];
-    return Signal.join(metaFile, file).map(([metaFile, file]) => {
+  let metaFiles: Signal<data.File>[] = [];
+
+  const dirMetas =
+    group.filter((_, path) => isDotMeta(path)).sortBy((_, path) => path);
+  dirMetas.forEach(file => metaFiles.push(file));
+
+  const metaFile = group.get(tag + '.meta');
+  if (metaFile) metaFiles.push(metaFile);
+
+  let nonMetaFiles: Signal<data.File>[] = [];
+  const nonMetaFilesGroup =
+    group.filter((_, path) => !isDotMeta(path) && Path.parse(path).ext != '.meta')
+  nonMetaFilesGroup.forEach(file => nonMetaFiles.push(file));
+
+  return Signal.join(
+    Signal.join(...metaFiles),
+    Signal.join(...nonMetaFiles)
+  ).map(([metaFiles, files]) => {
+    let meta: data.Meta = {};
+    metaFiles.forEach(metaFile => {
       const metaString = metaFile.buffer.toString('utf8');
-      let meta = sanitizeMeta(JSON.parse(metaString));
-      let type = typeOfPath(file.path);
-      if (!meta.type) meta = { ... meta, type };
-      if (meta.type !== type) throw new Error(`expected metadata type to match file extension for ${tag}`);
-      if (type === 'jpeg') {
-        return { ...file, tag, meta, type, content: '' };
-      } else {
-        const content = file.buffer.toString('utf8');
-        return { ...file, tag, meta, type, content };
-      }
+      // TODO(jaked) catch JSON parse error
+      meta = { ...meta, ...sanitizeMeta(JSON.parse(metaString)) }
     });
-  } else {
-    if (!(group.size === 1)) throw new Error(`expected 1 file for ${tag}, ${group}`);
-    const file = group.toArray()[0][1];
-    return file.map(file => {
-      let type = typeOfPath(file.path);
-      if (type === 'jpeg') {
-        return { ...file, tag, meta: { type: 'jpeg'}, type, content: '' };
-      } else {
-        const content = file.buffer.toString('utf8');
-        const type = typeOfPath(file.path);
-        const meta = { type };
-        return { ...file, tag, meta, type, content };
-      }
-    });
-  }
+    if (!(files.length === 1)) throw new Error(`expected 1 file for ${tag}, ${files}`);
+    const file = files[0];
+    let type = typeOfPath(file.path);
+    if (!meta.type) meta = { ...meta, type };
+    if (meta.type !== type) throw new Error(`expected metadata type to match file extension for ${tag}`);
+    if (type === 'jpeg') {
+      return { ...file, tag, meta, type, content: '' };
+    } else {
+      const content = file.buffer.toString('utf8');
+      return { ...file, tag, meta, type, content };
+    }
+  });
 }
 
 // TODO(jaked) called from app, where should this go?
@@ -205,12 +287,17 @@ function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
 
 function parseMdx(
   trace: Trace,
+  tag: string,
   content: string,
   layout: string | undefined,
 ): { ast: MDXHAST.Root, imports: Set<string> } {
   const ast = Parser.parse(trace, content);
   const imports = new Set<string>();
-  if (layout) imports.add(layout);
+  // TODO(jaked) fix layout != tag hack
+  // layouts shouldn't themselves have layouts
+  // but we don't know here that we are defining a layout
+  // and a directory-level .meta file can give a layout a layout
+  if (layout && layout != tag) imports.add(layout);
   trace.time('findImportsMdx', () => findImportsMdx(ast, imports));
   return { ast, imports };
 }
@@ -228,7 +315,7 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
     case 'mdx': {
       const type = note.type; // tell TS something it already knows
       try {
-        const { ast, imports } = parseMdx(trace, note.content, note.meta.layout);
+        const { ast, imports } = parseMdx(trace, note.tag, note.content, note.meta.layout);
         return { ...note, type, ast: Try.ok(ast), imports };
       } catch (e) {
         return { ...note, type, ast: Try.err(e), imports: emptyImports };
