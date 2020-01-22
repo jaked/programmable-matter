@@ -40,7 +40,6 @@ export class App {
 
     // TODO(jaked) write this as a join instead of .get()s
     this.contentSignal.reconcile(this.__trace, this.level);
-    this.matchingNotesSignal.reconcile(this.__trace, this.level);
     this.sessionSignal.reconcile(this.__trace, this.level);
 
     // TODO(jaked) fix hack
@@ -74,6 +73,7 @@ export class App {
         this.compileDirty = false;
 
         this.__trace = new Trace();
+        this.matchingNotesSignal.reconcile(this.__trace, this.level);
         this.compiledNoteSignal.reconcile(this.__trace, this.level);
 
         // TODO(jaked) fix hack
@@ -97,7 +97,7 @@ export class App {
     this.selectedCell.setOk(selected);
   }
 
-  public searchCell = Signal.cellOk<string>('', this.render);
+  public searchCell = Signal.cellOk<string>('', this.dirtyAndRender);
   public get search() { return this.searchCell.get() }
   public setSearch = (search: string) => {
     this.searchCell.setOk(search);
