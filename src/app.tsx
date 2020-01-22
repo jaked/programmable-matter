@@ -95,14 +95,12 @@ export class App {
   public get selected() { return this.selectedCell.get() }
   public setSelected = (selected: string | null) => {
     this.selectedCell.setOk(selected);
-    this.dirtyAndRender();
   }
 
   public searchCell = Signal.cellOk<string>('', this.render);
   public get search() { return this.searchCell.get() }
   public setSearch = (search: string) => {
     this.searchCell.setOk(search);
-    this.render();
   }
 
   private statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
@@ -238,7 +236,7 @@ export class App {
         // TODO(jaked)
         // map matching function over individual note signals
         // so we only need to re-match notes that have changed
-        Signal.joinImmutableMap(this.notesSignal),
+        Signal.label("join notes", Signal.joinImmutableMap(this.notesSignal)),
         this.searchCell
       ).map(([notes, search]) => {
         let matchingNotes = notes;
