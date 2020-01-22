@@ -216,9 +216,9 @@ function noteOfGroup(
     group.filter((_, path) => !isDotMeta(path) && Path.parse(path).ext != '.meta')
   nonMetaFilesGroup.forEach(file => nonMetaFiles.push(file));
 
-  return Signal.join(
-    Signal.join(...metaFiles),
-    Signal.join(...nonMetaFiles)
+  return Signal.label(`noteOfGroup(${tag})`, Signal.join(
+    Signal.label('join metaFiles', Signal.join(...metaFiles)),
+    Signal.label('join nonMetaFiles', Signal.join(...nonMetaFiles))
   ).map(([metaFiles, files]) => {
     let meta: data.Meta = {};
     metaFiles.forEach(metaFile => {
@@ -237,7 +237,7 @@ function noteOfGroup(
       const content = file.buffer.toString('utf8');
       return { ...file, tag, meta, type, content };
     }
-  });
+  }));
 }
 
 // TODO(jaked) called from app, where should this go?

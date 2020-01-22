@@ -252,12 +252,13 @@ class Join<T> implements Signal<T[]> {
       s.reconcile(trace, level);
       return s.version;
     });
-    if (equal(versions, this.versions))
-      return;
+    // equal() here is very slow :(
+    let eqVersions = true;
+    for (let i=0; eqVersions && i < versions.length; i++)
+      if (versions[i] !== this.versions[i]) eqVersions = false;
+    if (eqVersions) return;
     this.versions = versions;
-    const value = Try.join(...this.signals.map(s => s.value));
-    if (equal(value, this.value)) return;
-    this.value = value;
+    this.value = Try.join(...this.signals.map(s => s.value));
     this.version++;
   }
 }
@@ -307,18 +308,12 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
     this.level === level;
     this.s.reconcile(trace, level);
     if (this.sVersion === this.s.version) {
-      trace.time('reconcile vsSignals', () =>
-        this.vsSignals.forEach((v, k) =>
-          trace.time(String(k), () => v.reconcile(trace, level)))
-      );
-      const vsSignalsChanged = trace.time('vsSignals changed', () =>
-        this.vsSignals.every((v, k) => {
-          const vVersion = this.vsVersions.get(k);
-          if (vVersion === undefined) bug(`expected vsVersion for ${k}`);
-          return v.version === vVersion;
-        })
-      );
-      if (vsSignalsChanged) return;
+      this.vsSignals.forEach((v, k) => v.reconcile(trace, level));
+      if (this.vsSignals.every((v, k) => {
+        const vVersion = this.vsVersions.get(k);
+        if (vVersion === undefined) bug(`expected vsVersion for ${k}`);
+        return v.version === vVersion;
+      })) return;
 
       // TODO(jaked)
       // incrementally update value / versions instead of rebuilding from scratch

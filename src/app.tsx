@@ -239,23 +239,25 @@ export class App {
         Signal.label("join notes", Signal.joinImmutableMap(this.notesSignal)),
         this.searchCell
       ).map(([notes, search]) => {
-        let matchingNotes = notes;
-        if (search) {
-          // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-          const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-          const regexp = RegExp(escaped, 'i');
+        return this.__trace.time('match notes', () => {
+          let matchingNotes = notes;
+          if (search) {
+            // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+            const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+            const regexp = RegExp(escaped, 'i');
 
-          function matches(note: data.Note): boolean {
-            if (note.type !== 'jpeg' && note.content.match(regexp)) return true;
-            if (note.tag.match(regexp)) return true;
-            if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
-            return false;
+            function matches(note: data.Note): boolean {
+              if (note.type !== 'jpeg' && note.content.match(regexp)) return true;
+              if (note.tag.match(regexp)) return true;
+              if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
+              return false;
+            }
+            matchingNotes = notes.filter(matches);
           }
-          matchingNotes = notes.filter(matches);
-        }
-        return matchingNotes.valueSeq().toArray().sort((a, b) =>
-          a.tag < b.tag ? -1 : 1
-        );
+          return matchingNotes.valueSeq().toArray().sort((a, b) =>
+            a.tag < b.tag ? -1 : 1
+          );
+        })
       })
     );
   public get matchingNotes() { return this.matchingNotesSignal.get() }

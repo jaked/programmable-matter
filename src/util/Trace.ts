@@ -20,7 +20,7 @@ export default class Trace {
     if (this.stack.length === 0)
       throw new Error('scope not open');
     const end = process.hrtime.bigint();
-    this.scope.__elapsed = (end - this.scope.__start) / BigInt(1000000);
+    this.scope.__elapsed = Number(end - this.scope.__start) / 1000000;
     delete this.scope.__start;
     this.scope = this.stack.pop();
   }
@@ -41,7 +41,7 @@ export default class Trace {
     if (this.stack.length !== 0)
       throw new Error('scope not closed');
     const end = process.hrtime.bigint();
-    this.scope.__elapsed = (end - this.scope.__start) / BigInt(1000000);
+    this.scope.__elapsed = Number(end - this.scope.__start) / 1000000;
     delete this.scope.__start;
     return this.scope;
   }
