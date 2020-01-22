@@ -2,6 +2,11 @@ export default class Trace {
   scope: any = { __start: process.hrtime.bigint() };
   stack: Array<any> = [];
 
+  reset() {
+    this.scope = { __start: process.hrtime.bigint() };
+    this.stack = [];
+  }
+
   open(label: string) {
     if (label === '__start' || label === '__end' || label === '__elapsed')
       throw new Error(`reserved label ${label}`);

@@ -35,7 +35,7 @@ export class App {
   private compileDirty: boolean = true;
 
   private render = () => {
-    this.__trace = new Trace();
+    this.__trace.reset();
     this.level++;
 
     // TODO(jaked) write this as a join instead of .get()s
