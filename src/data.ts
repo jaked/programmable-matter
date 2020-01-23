@@ -13,6 +13,7 @@ export interface Meta {
   title?: string;
   tags?: Array<string>;
   layout?: string;
+  dataType?: Type;
 }
 
 export type Parsed<Ast> = {

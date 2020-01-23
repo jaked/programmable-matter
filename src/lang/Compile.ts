@@ -44,7 +44,17 @@ function sanitizeMeta(obj: any): data.Meta {
     typeof obj.layout === 'string' ?
     { layout: obj.layout } : {};
 
-  return { ...type, ...title, ...tags, ...layout };
+  let dataType = {}
+  if (typeof obj.dataType === 'string') {
+    try {
+      dataType = { dataType: Parser.parseType(obj.dataType) }
+    } catch (e) {
+      // TODO(jaked) how to surface these?
+      console.log(e)
+    }
+  }
+
+  return { ...type, ...title, ...tags, ...layout, ...dataType };
 }
 
 function tagOfPath(path: string) {
@@ -610,9 +620,16 @@ function compileMdx(
 }
 
 function compileJson(
-  ast: ESTree.Expression
+  ast: ESTree.Expression,
+  meta: data.Meta
 ): data.Compiled {
-  const type = Typecheck.synth(ast, Typecheck.env());
+  let type: Type;
+  if (meta.dataType) {
+    Typecheck.check(ast, Typecheck.env(), meta.dataType);
+    type = meta.dataType;
+  } else {
+    type = Typecheck.synth(ast, Typecheck.env());
+  }
   const exportType = Type.module({ default: type });
   const value = Evaluator.evaluateExpression(ast, Immutable.Map());
   const exportValue = { default: Signal.ok(value) }
@@ -671,7 +688,10 @@ function compileNote(
         );
 
       case 'json': {
-        return compileJson(parsedNote.ast.get());
+        return compileJson(
+          parsedNote.ast.get(),
+          parsedNote.meta
+        );
       }
 
       case 'txt':
