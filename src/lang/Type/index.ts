@@ -5,6 +5,7 @@ import * as Union from './union';
 import * as Intersection from './intersection';
 import * as ToString from './toString';
 import * as Predef from './predef';
+import OfTSType from './ofTSType';
 
 module Type {
   // there is syntax to re-export a whole module
@@ -71,6 +72,7 @@ module Type {
   export const reactNodeType = Predef.reactNodeType;
 
   export const toString = ToString.toString;
+  export const ofTSType = OfTSType;
 }
 
 type Type = Type.Type;

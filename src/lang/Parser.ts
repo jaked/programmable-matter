@@ -9,10 +9,12 @@ import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 
 import * as Babel from '@babel/parser';
 
+import { bug } from '../util/bug';
 import Trace from '../util/Trace';
 import Try from '../util/Try';
 import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
+import Type from './Type';
 
 const mdxParser =
   unified()
@@ -122,4 +124,10 @@ export function parse(trace: Trace, input: string): MDXHAST.Root {
   const ast = trace.time('parseMdx', () => parseMdx(input));
   trace.time('parseJsxNodes', () => parseJsxNodes(ast));
   return ast;
+}
+
+export function parseType(input: string): Type {
+  const ast = parseExpression(`_ as ${input}`);
+  if (ast.type !== 'TSAsExpression') bug(`unexpected ${ast.type}`);
+  return Type.ofTSType(ast.typeAnnotation);
 }

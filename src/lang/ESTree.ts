@@ -165,6 +165,12 @@ export interface TemplateLiteral extends NodeImpl {
   expressions: Array<Expression>;
 }
 
+export interface TSAsExpression extends NodeImpl {
+  type: "TSAsExpression";
+  expression: Expression;
+  typeAnnotation: TypeAnnotation;
+}
+
 export type Expression =
   Literal |
   Identifier |
@@ -187,7 +193,16 @@ export type Expression =
   ArrowFunctionExpression |
   ConditionalExpression |
   TemplateLiteral |
-  TemplateElement;
+  TemplateElement |
+  TSAsExpression;
+
+export interface TSNeverKeyword extends NodeImpl {
+  type: 'TSNeverKeyword';
+}
+
+export interface TSUnknownKeyword extends NodeImpl {
+  type: 'TSUnknownKeyword';
+}
 
 export interface TSBooleanKeyword extends NodeImpl {
   type: 'TSBooleanKeyword';
@@ -256,14 +271,25 @@ export interface TSQualifiedName extends NodeImpl {
   right: QualifiedIdentifier;
 }
 
+export interface TSFunctionType extends NodeImpl {
+  type: 'TSFunctionType';
+  parameters: Array<Identifier & { typeAnnotation: TSTypeAnnotation }>;
+  typeAnnotation: TSTypeAnnotation;
+}
+
+export interface TSParenthesizedType extends NodeImpl {
+  type: 'TSParenthesizedType';
+  typeAnnotation: TypeAnnotation;
+}
+
 export type QualifiedIdentifier =
   Identifier | TSQualifiedName;
 
 export type TypeAnnotation =
   TSBooleanKeyword | TSNumberKeyword | TSStringKeyword | TSNullKeyword | TSUndefinedKeyword |
   TSArrayType | TSTupleType | TSTypeLiteral | TSLiteralType |
-  TSUnionType | TSIntersectionType |
-  TSTypeReference;
+  TSUnionType | TSIntersectionType | TSFunctionType |
+  TSTypeReference | TSNeverKeyword | TSUnknownKeyword | TSParenthesizedType;
 
 export interface TSTypeAnnotation extends NodeImpl {
   type: 'TSTypeAnnotation';
