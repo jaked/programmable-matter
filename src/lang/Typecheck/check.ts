@@ -169,7 +169,10 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType) {
         }
         const type = fieldTypes.get(name);
         if (type) return check(prop.value, env, type);
-        else return Throw.extraField(prop.key, name);
+        else {
+          // TODO(jaked) disabled for now
+          // return Throw.extraField(prop.key, name);
+        }
       }).some(x => x);
 
     default:

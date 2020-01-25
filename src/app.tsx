@@ -201,7 +201,7 @@ export class App {
           const note = notes.get(selected);
           if (note) {
             return note.map(note => {
-              if (note.type !== 'jpeg') return note.content;
+              if (note.type === 'mdx' || note.type === 'txt' || note.type === 'json') return note.content;
               else return null;
             });
           }
@@ -221,7 +221,7 @@ export class App {
     const noteSignal = this.notesSignal.get().get(selected);
     if (!noteSignal) return;
     const note = noteSignal.get();
-    if (note.type === 'jpeg') return;
+    if (note.type !== 'mdx' && note.type !== 'txt' && note.type !== 'json') return;
     if (note.content === content) return;
 
     const sessions = this.sessionsCell.get().set(selected, session);
@@ -247,7 +247,7 @@ export class App {
             const regexp = RegExp(escaped, 'i');
 
             function matches(note: data.Note): boolean {
-              if (note.type !== 'jpeg' && note.content.match(regexp)) return true;
+              if (note.content.match(regexp)) return true;
               if (note.tag.match(regexp)) return true;
               if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
               return false;

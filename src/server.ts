@@ -63,6 +63,10 @@ export default class Server {
           res.end(note.buffer);
           break;
 
+        case 'table':
+          // ???
+          break;
+
         default:
           const node = note.compiled.get().rendered.get(); // TODO(jaked) fix Try.get()
 

@@ -92,9 +92,12 @@ describe('check', () => {
       expectCheck('({ })', type);
     });
 
+    // TODO(jaked) disabled for now
+    /*
     it('throws on excess properties in literals', () => {
       expectCheckThrows('({ foo: 7 })', type);
     });
+    */
 
     it('permits excess properties in non-literal', () => {
       const env = Typecheck.env({

@@ -5,6 +5,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
+import ReactTable from 'react-table';
 
 import Signal from '../util/Signal';
 import Trace from '../util/Trace';
@@ -25,11 +26,19 @@ const debug = false;
 
 export type ModuleValueEnv = Immutable.Map<string, { [s: string]: Signal<any> }>
 
-function sanitizeMeta(obj: any): data.Meta {
+function parseMeta(string: string): data.Meta {
+  let obj;
+  try {
+    obj = JSON.parse(string);
+  } catch (e) {
+    console.log(e);
+    return {};
+  }
+
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
   const type =
-    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt') ?
+    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt' || obj.type === 'jpeg' || obj.type === 'table') ?
     { type: obj.type } : {};
 
   const title =
@@ -179,12 +188,12 @@ function groupFilesByTag(
   })
 
   groupedFiles =
-    groupedFiles.filterNot(group => group.every((_, path) => isDotMeta(path) || Path.parse(path).ext === '.meta'));
+    groupedFiles.filterNot(group => group.every((_, path) => isDotMeta(path)));
 
   return groupedFiles;
 }
 
-function typeOfPath(path: string): data.Types {
+function typeOfPath(path: string): data.Types | undefined {
   const pathParts = Path.parse(path);
 
   let type: undefined | data.Types = undefined;
@@ -204,7 +213,6 @@ function typeOfPath(path: string): data.Types {
         console.log(`unhandled extension '${pathParts.ext}' for '${path}'`);
     }
   }
-  if (!type) type = 'mdx';
   return type;
 }
 
@@ -226,26 +234,47 @@ function noteOfGroup(
     group.filter((_, path) => !isDotMeta(path) && Path.parse(path).ext != '.meta')
   nonMetaFilesGroup.forEach(file => nonMetaFiles.push(file));
 
-  return Signal.label(`noteOfGroup(${tag})`, Signal.join(
-    Signal.label('join metaFiles', Signal.join(...metaFiles)),
-    Signal.label('join nonMetaFiles', Signal.join(...nonMetaFiles))
-  ).map(([metaFiles, files]) => {
+  return Signal.label(tag, Signal.join(
+    Signal.join(...metaFiles),
+    Signal.join(...nonMetaFiles)
+  ).map<data.Note>(([metaFiles, files]) => {
     let meta: data.Meta = {};
     metaFiles.forEach(metaFile => {
       const metaString = metaFile.buffer.toString('utf8');
-      // TODO(jaked) catch JSON parse error
-      meta = { ...meta, ...sanitizeMeta(JSON.parse(metaString)) }
+      meta = { ...meta, ...parseMeta(metaString) }
     });
-    if (!(files.length === 1)) throw new Error(`expected 1 file for ${tag}, ${files}`);
-    const file = files[0];
-    let type = typeOfPath(file.path);
-    if (!meta.type) meta = { ...meta, type };
-    if (meta.type !== type) throw new Error(`expected metadata type to match file extension for ${tag}`);
-    if (type === 'jpeg') {
+    if (files.length === 0 && Path.parse(tag).base === 'index') {
+      const file = metaFiles.find(file => file.path.endsWith('index.meta')) || bug(`expected index.meta file for ${tag}`);
+      const type = 'table';
+      if (meta.type !== type) throw new Error(`expected type table for ${tag}`);
       return { ...file, tag, meta, type, content: '' };
     } else {
-      const content = file.buffer.toString('utf8');
-      return { ...file, tag, meta, type, content };
+      if (!(files.length === 1)) throw new Error(`expected 1 file for ${tag}, ${files}`);
+      const file = files[0];
+
+      let type;
+      const pathType = typeOfPath(file.path);
+      if (meta.type && !pathType) {
+        type = meta.type;
+      } else if (pathType && !meta.type) {
+        type = pathType;
+        meta = { ...meta, type };
+      } else if (pathType && meta.type) {
+        if (pathType === meta.type)
+          type = pathType;
+        else
+          throw new Error(`expected metadata type to match file extension for ${tag}`);
+      } else {
+        type = 'mdx';
+        meta = { ...meta, type };
+      }
+
+      if (type === 'jpeg') {
+        return { ...file, tag, meta, type, content: '' };
+      } else {
+        const content = file.buffer.toString('utf8');
+        return { ...file, tag, meta, type, content };
+      }
     }
   }));
 }
@@ -295,57 +324,33 @@ function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
   }
 }
 
-function parseMdx(
-  trace: Trace,
-  tag: string,
-  content: string,
-  layout: string | undefined,
-): { ast: MDXHAST.Root, imports: Set<string> } {
-  const ast = Parser.parse(trace, content);
-  const imports = new Set<string>();
-  // TODO(jaked) fix layout != tag hack
-  // layouts shouldn't themselves have layouts
-  // but we don't know here that we are defining a layout
-  // and a directory-level .meta file can give a layout a layout
-  if (layout && layout != tag) imports.add(layout);
-  trace.time('findImportsMdx', () => findImportsMdx(ast, imports));
-  return { ast, imports };
-}
-
-function parseJson(
-  content: string
-): ESTree.Expression {
-  return Parser.parseExpression(content);
-}
-
-const emptyImports = new Set<string>();
-
 function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   switch (note.type) {
     case 'mdx': {
       const type = note.type; // tell TS something it already knows
-      try {
-        const { ast, imports } = parseMdx(trace, note.tag, note.content, note.meta.layout);
-        return { ...note, type, ast: Try.ok(ast), imports };
-      } catch (e) {
-        return { ...note, type, ast: Try.err(e), imports: emptyImports };
-      }
+      const ast = Try.apply(() => Parser.parse(trace, note.content));
+      return { ...note, type, ast };
     }
 
     case 'json': {
-      const ast = Try.apply(() => parseJson(note.content));
+      const ast = Try.apply(() => Parser.parseExpression(note.content));
       const type = note.type; // tell TS something it already knows
-      return { ...note, type, ast, imports: emptyImports };
+      return { ...note, type, ast };
     }
 
     case 'txt': {
       const type = note.type; // tell TS something it already knows
-      return { ...note, type, imports: emptyImports };
+      return { ...note, type };
     }
 
     case 'jpeg': {
       const type = note.type; // tell TS something it already knows
-      return { ...note, type, imports: emptyImports };
+      return { ...note, type };
+    }
+
+    case 'table': {
+      const type = note.type; // tell TS something it already knows
+      return { ...note, type };
     }
 
     default:
@@ -353,7 +358,7 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   }
 }
 
-function sortNotes(notes: data.ParsedNotes): Array<string> {
+function sortNotes(notes: data.ParsedNotesWithImports): Array<string> {
   const sortedTags: Array<string> = [];
   const remaining = new Set(notes.keys());
   let again = true;
@@ -387,7 +392,7 @@ function sortNotes(notes: data.ParsedNotes): Array<string> {
 function dirtyTransitively(
   orderedTags: Array<string>,
   compiledNotes: data.CompiledNotes,
-  parsedNotes: data.ParsedNotes
+  parsedNotes: data.ParsedNotesWithImports
 ): data.CompiledNotes {
   const dirty = new Set<string>();
   orderedTags.forEach(tag => {
@@ -407,12 +412,6 @@ function dirtyTransitively(
     }
   });
   return compiledNotes.filterNot(note => dirty.has(note.tag))
-}
-
-function sortProgram(ast: ESTree.Program): ESTree.Program {
-  // TODO(jaked)
-  // topologically sort bindings as we do for MDX
-  return ast;
 }
 
 // topologically sort bindings
@@ -620,6 +619,7 @@ function compileMdx(
 }
 
 function compileJson(
+  tag: string,
   ast: ESTree.Expression,
   meta: data.Meta
 ): data.Compiled {
@@ -663,13 +663,59 @@ function compileJpeg(
   return { exportType, exportValue, rendered };
 }
 
+function compileTable(
+  trace: Trace,
+  parsedNote: data.ParsedNoteWithImports,
+  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
+  moduleValueEnv: ModuleValueEnv,
+): data.Compiled {
+  // TODO(jaked)
+  // maybe we want to expose tables as an array and also as a map by tag?
+  const types: Type[] = [];
+  parsedNote.imports.forEach(tag => {
+    const moduleType = moduleTypeEnv.get(tag) || bug(`expected module type for ${tag}`);
+    // TODO(jaked) could skip notes without default exports
+    const defaultField = moduleType.fields.find(({ field }) => field === 'default') || bug(`expected default export for ${tag}`);
+    types.push(defaultField.type);
+  });
+  const values: Signal<any>[] = [];
+  parsedNote.imports.forEach(tag => {
+    const moduleValue = moduleValueEnv.get(tag) || bug(`expected module value for ${tag}`);
+    const defaultValue = moduleValue['default'];
+    values.push(defaultValue);
+  });
+  const typeUnion = Type.union(...types);
+  const exportType = Type.module({
+    default: Type.array(typeUnion)
+  });
+  const exportValue = {
+    default: Signal.join(...values)
+  }
+  let columns: { Header: string, accessor: string }[] = [];
+  switch (typeUnion.kind) {
+    case 'Object':
+      columns =
+        typeUnion.fields.map(({ field }) => ({ Header: field, accessor: field }));
+    break;
+
+    default:
+      // TODO(jaked)
+      // maybe we can display nonuniform / non-Object types a different way?
+      bug(`unhandled table value type ${typeUnion.kind}`)
+  }
+  const rendered = exportValue.default.map(data =>
+    React.createElement(ReactTable, { data, columns, pageSize: 10 })
+  );
+  return { exportType, exportValue, rendered };
+}
+
 function compileNote(
   trace: Trace,
-  parsedNote: data.ParsedNote,
+  parsedNote: data.ParsedNoteWithImports,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: Evaluator.Env,
+  moduleValueEnv: ModuleValueEnv,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): Try<data.Compiled> {
   return Try.apply(() => {
@@ -688,7 +734,9 @@ function compileNote(
         );
 
       case 'json': {
+        // TODO(jaked) pass the whole note instead of pieces
         return compileJson(
+          parsedNote.tag,
           parsedNote.ast.get(),
           parsedNote.meta
         );
@@ -702,6 +750,14 @@ function compileNote(
           parsedNote.tag
         );
 
+      case 'table':
+        return compileTable(
+          trace,
+          parsedNote,
+          moduleTypeEnv,
+          moduleValueEnv
+        );
+
       default:
         throw new Error(`unhandled note type '${(<data.ParsedNote>parsedNote).type}'`);
     }
@@ -711,7 +767,7 @@ function compileNote(
 function compileDirtyNotes(
   trace: Trace,
   orderedTags: Array<string>,
-  parsedNotes: data.ParsedNotes,
+  parsedNotes: data.ParsedNotesWithImports,
   compiledNotes: data.CompiledNotes,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
@@ -751,7 +807,7 @@ export function compileNotes(
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledNotes> {
-  const parsedNotesSignal =
+  const parsedNotesSignal: Signal<Immutable.Map<string, Signal<data.ParsedNote>>> =
     Signal.label('parseNotes',
       Signal.mapImmutableMap(
         notesSignal,
@@ -771,14 +827,44 @@ export function compileNotes(
         changed.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
         deleted.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
 
+        const parsedNotesWithImports: data.ParsedNotesWithImports = parsedNotes.map(note => {
+          let imports = new Set<string>();
+          switch (note.type) {
+            case 'mdx':
+              // TODO(jaked) fix layout != tag hack
+              // layouts shouldn't themselves have layouts
+              // but we don't know here that we are defining a layout
+              // and a directory-level .meta file can give a layout a layout
+              if (note.meta.layout && note.meta.layout != note.tag)
+                imports.add(note.meta.layout);
+              note.ast.forEach(ast => {
+                trace.time('findImportsMdx', () => findImportsMdx(ast, imports))
+              });
+              break;
+
+            case 'table':
+              const dir = Path.parse(note.tag).dir;
+              parsedNotes.forEach(note => {
+                // TODO(jaked) not sure if we should handle nested dirs in tables
+                // TODO(jaked) fix type === 'table' hack; tables shouldn't depend on themselves
+                if (!Path.relative(dir, note.tag).startsWith('..') && note.meta.type != 'table')
+                  imports.add(note.tag);
+              });
+              break;
+
+            default:
+              break;
+          }
+          return { ...note, imports };
+        });
         // topologically sort notes according to imports
-        const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotes));
+        const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotesWithImports));
 
         // dirty notes that import a dirty note (post-sorting for transitivity)
-        compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotes));
+        compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotesWithImports));
 
         // compile dirty notes (post-sorting for dependency ordering)
-        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, mkCell, setSelected));
+        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotesWithImports, compiledNotes, mkCell, setSelected));
         return compiledNotes;
       },
       Immutable.Map(),

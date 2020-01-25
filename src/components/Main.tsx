@@ -89,6 +89,8 @@ export class Main extends React.Component<Props, {}> {
         const notePath = path.resolve(tempdir, note.path);
         await mkdir(path.dirname(notePath), { recursive: true });
         await writeFile(notePath, note.buffer);
+      } else if (note.type === 'table') {
+        // ???
       } else {
         const notePath = path.resolve(tempdir, note.path) + '.html';
         const node = note.compiled.get().rendered.get();  // TODO(jaked) fix Try.get()

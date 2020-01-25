@@ -33,6 +33,9 @@ export default function ofTSType(tsType: TypeAnnotation): Types.Type {
       return Type.object(props);
     }
 
+    case 'TSArrayType':
+      return Type.array(ofTSType(tsType.elementType));
+
     case 'TSFunctionType': {
       const args =
         tsType.parameters.map(param => {

@@ -449,7 +449,10 @@ function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type {
   ast.openingElement.attributes.forEach(attr => {
     const type = propTypes.get(attr.name.name);
     if (type) return check(attr.value, env, type);
-    else return Throw.extraField(attr, attr.name.name);
+    else {
+      // TODO(jaked) disabled for now
+      // return Throw.extraField(attr, attr.name.name);
+    }
   });
 
   ast.children.map(child =>
