@@ -529,6 +529,7 @@ export function freeIdentifiers(expr: Expression): Array<string> {
         }
 
         case 'JSXOpeningElement': {
+          fn(node.name, bound);
           node.attributes.forEach(attr =>  {
             // keys are not identifier references, skip them
             fn(attr.value, bound);
