@@ -1,12 +1,16 @@
 import React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
+import { FixedSizeList } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+
 import * as data from '../data';
 import { Note } from './Note';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
-  outline: 'none'
+  outline: 'none',
+  height: '100%'
 });
 
 interface Props {
@@ -44,36 +48,27 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
     }
   }
 
-  const selectedRef = React.createRef<HTMLDivElement>();
+  // TODO(jaked)
+  // this scrolls the list on any render, even if selected item hasn't changed
+  const selectedIndex = notes.findIndex(note => note.tag === selected);
+  const fixedSizeListRef = React.createRef<HTMLDivElement>();
   React.useEffect(() => {
-    // scrollIntoViewIfNeeded is nonstandard, not in React type
-    const current: any = selectedRef.current;
-    if (current) current.scrollIntoViewIfNeeded();
+    const current: any = fixedSizeListRef.current;
+    if (current && selectedIndex !== -1) current.scrollToItem(selectedIndex);
   });
 
-  const noteNodes =
-    notes.map((note) => {
-      if (note.tag === selected) {
-        return (
-          <Note
-            ref={selectedRef}
-            key={note.tag}
-            note={note}
-            selected={true}
-            onClick={ () => onSelect(note.tag) }
-          />
-        );
-      } else {
-        return (
-          <Note
-            key={note.tag}
-            note={note}
-            selected={false}
-            onClick={ () => onSelect(note.tag) }
-          />
-        );
-      }
-    });
+  const Notes = ({ index, style }: { index: number, style: any }) => {
+    const note = notes[index];
+    return (
+      <Note
+        key={note.tag}
+        note={note}
+        selected={note.tag === selected}
+        onClick={ () => onSelect(note.tag) }
+        style={style}
+      />
+    );
+  };
 
   return (
     <Box
@@ -84,7 +79,19 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
           e.preventDefault();
       }}
     >
-      {noteNodes}
+      <AutoSizer>
+        {({ height, width }) => {
+          return (<FixedSizeList
+            ref={fixedSizeListRef}
+            itemCount={notes.length}
+            itemSize={30} // TODO(jaked) compute somehow
+            width={width}
+            height={height}
+          >
+            {Notes}
+          </FixedSizeList>);
+        }}
+      </AutoSizer>
     </Box>
   );
 });

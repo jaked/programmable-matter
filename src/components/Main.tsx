@@ -153,14 +153,12 @@ export class Main extends React.Component<Props, {}> {
         onSearch={this.props.app.setSearch}
         onKeyDown={this.onKeyDown}
       />
-      <Box>
-        <Notes
-          ref={this.notesRef}
-          notes={this.props.app.matchingNotes}
-          selected={this.props.app.selected}
-          onSelect={this.props.app.setSelected}
-        />
-      </Box>
+      <Notes
+        ref={this.notesRef}
+        notes={this.props.app.matchingNotes}
+        selected={this.props.app.selected}
+        onSelect={this.props.app.setSelected}
+      />
     </Flex>
 
   EditorPane = ({ width }: { width: number }) =>
