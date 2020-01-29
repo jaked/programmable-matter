@@ -119,8 +119,11 @@ export class Main extends React.Component<Props, {}> {
     GTasks.authAndSyncTaskLists(filesPath);
   }
 
-  onKeyDown = (key: string): boolean => {
-    switch (key) {
+  onKeyDown = (e: React.KeyboardEvent): boolean => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
+      return false;
+
+    switch (e.key) {
       case 'ArrowUp':
         this.notesRef.current && this.notesRef.current.focus();
         this.props.app.setSelected(this.props.app.matchingNotes[this.props.app.matchingNotes.length - 1].tag);
@@ -145,6 +148,12 @@ export class Main extends React.Component<Props, {}> {
     }
   }
 
+  focusEditor = (): void => {
+    if (this.editorRef.current) {
+      this.editorRef.current.focus();
+    }
+  }
+
   SideBar = ({ width }: { width: number }) =>
     <Flex width={width} flexDirection='column'>
       <SearchBox
@@ -158,6 +167,7 @@ export class Main extends React.Component<Props, {}> {
         notes={this.props.app.matchingNotes}
         selected={this.props.app.selected}
         onSelect={this.props.app.setSelected}
+        focusEditor={this.focusEditor}
       />
     </Flex>
 

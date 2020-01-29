@@ -6,7 +6,7 @@ import { borders } from 'styled-system';
 type Props = {
   search: string,
   onSearch: (search: string) => void,
-  onKeyDown: (key: string) => boolean,
+  onKeyDown: (e: React.KeyboardEvent) => boolean,
 }
 
 const Input = styled.input({
@@ -14,6 +14,7 @@ const Input = styled.input({
   borderStyle: 'none',
   outline: 'none',
   fontSize: '14px',
+  width: '100%',
 });
 
 const Box = styled(BoxBase)({}, borders);
@@ -40,7 +41,6 @@ export class SearchBox extends React.Component<Props, {}> {
         <Box width={1} padding={1} borderWidth={1} borderStyle='solid'>
           <Input
             ref={this.inputRef}
-            width={1}
             type='text'
             maxLength={100}
             value={search}
@@ -49,7 +49,7 @@ export class SearchBox extends React.Component<Props, {}> {
               onSearch(e.currentTarget.value);
             }}
             onKeyDown={(e: React.KeyboardEvent) => {
-              if (onKeyDown(e.key))
+              if (onKeyDown(e))
                 e.preventDefault();
             }}
           />

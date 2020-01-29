@@ -17,9 +17,10 @@ interface Props {
   notes: Array<data.Note>;
   selected: string | null;
   onSelect: (tag: string) => void;
+  focusEditor: () => void;
 }
 
-export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect }, ref) => {
+export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect, focusEditor }, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (notes.length === 0) return false;
     let nextTagIndex: number;
@@ -36,13 +37,20 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
     return true;
   }
 
-  function onKeyDown(key: string): boolean {
-    switch (key) {
+  function onKeyDown(e: React.KeyboardEvent): boolean {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
+      return false;
+
+    switch (e.key) {
       case 'ArrowUp':
         return nextNote('prev');
 
       case 'ArrowDown':
         return nextNote('next');
+
+      case 'Enter':
+        focusEditor();
+        return true;
 
       default: return false;
     }
@@ -75,7 +83,7 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
       ref={ref}
       tabIndex='0'
       onKeyDown={(e: React.KeyboardEvent) => {
-        if (onKeyDown(e.key))
+        if (onKeyDown(e))
           e.preventDefault();
       }}
     >
