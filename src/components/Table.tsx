@@ -1,8 +1,11 @@
+import * as Immutable from 'immutable';
 import * as React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { VariableSizeGrid } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
+
+import { bug } from '../util/bug';
 
 const Box = styled(BoxBase)`
   border-style: solid;
@@ -30,46 +33,50 @@ export type Field = {
 }
 
 type Props = {
-  data: object[],
+  data: Immutable.Map<string, object>,
   fields: Field[],
   onSelect: (tag: string) => void
 }
 
-export const Table = ({ data, fields, onSelect }: Props) =>
-  <AutoSizer>
-    {({ height, width }) =>
-      <VariableSizeGrid
-        columnCount={fields.length}
-        rowCount={data.length}
-        columnWidth={(col) => fields[col].width}
-        rowHeight={(row) => 30}
-        height={height}
-        width={width}
-      >
-        {({ rowIndex, columnIndex, style }) => {
-          const object = data[rowIndex];
-          const field = fields[columnIndex];
-          const value = field.accessor(object);
-          const Component = field.component;
-          const borderTopWidth = rowIndex === 0 ? 1 : 0;
-          const borderLeftWidth = columnIndex === 0 ? 1 : 0;
+export const Table = ({ data, fields, onSelect }: Props) => {
+  const tagsByIndex = data.keySeq().toIndexedSeq();
+  return (
+    <AutoSizer>
+      {({ height, width }) =>
+        <VariableSizeGrid
+          columnCount={fields.length}
+          rowCount={data.size}
+          columnWidth={(col) => fields[col].width}
+          rowHeight={(row) => 30}
+          height={height}
+          width={width}
+        >
+          {({ rowIndex, columnIndex, style }) => {
+            const tag = tagsByIndex.get(rowIndex) || bug(`expected tag for ${rowIndex}`)
+            const object = data.get(tag) || bug(`expected object for ${tag}`);
+            const field = fields[columnIndex];
+            const value = field.accessor(object);
+            const Component = field.component;
+            const borderTopWidth = rowIndex === 0 ? 1 : 0;
+            const borderLeftWidth = columnIndex === 0 ? 1 : 0;
 
-          // TODO(jaked)
-          // handle record IDs generally
-          // create one function for whole row
-          const onClick = () => onSelect(object['id']);
+            // TODO(jaked)
+            // create one function for whole row
+            const onClick = () => onSelect(tag);
 
-          return (
-            <Box
-              style={style}
-              borderTopWidth={borderTopWidth}
-              borderLeftWidth={borderLeftWidth}
-              onClick={onClick}
-            >
-              <Component data={value} />
-            </Box>
-          );
-        }}
-      </VariableSizeGrid>
-    }
-  </AutoSizer>
+            return (
+              <Box
+                style={style}
+                borderTopWidth={borderTopWidth}
+                borderLeftWidth={borderLeftWidth}
+                onClick={onClick}
+              >
+                <Component data={value} />
+              </Box>
+            );
+          }}
+        </VariableSizeGrid>
+      }
+    </AutoSizer>
+  );
+}

@@ -671,8 +671,6 @@ function compileTable(
   moduleValueEnv: ModuleValueEnv,
   setSelected: (tag: string) => void,
 ): data.Compiled {
-  // TODO(jaked)
-  // maybe we want to expose tables as an array and also as a map by tag?
   const types: Type[] = [];
   parsedNote.imports.forEach(tag => {
     const moduleType = moduleTypeEnv.get(tag) || bug(`expected module type for ${tag}`);
@@ -680,18 +678,22 @@ function compileTable(
     const defaultField = moduleType.fields.find(({ field }) => field === 'default') || bug(`expected default export for ${tag}`);
     types.push(defaultField.type);
   });
-  const values: Signal<any>[] = [];
-  parsedNote.imports.forEach(tag => {
-    const moduleValue = moduleValueEnv.get(tag) || bug(`expected module value for ${tag}`);
-    const defaultValue = moduleValue['default'];
-    values.push(defaultValue);
-  });
+  // TODO(jaked)
+  // treat parsedNote.imports as a Signal<Map> to make tables incremental
+  const table = Signal.ok(Immutable.Map<string, Signal<any>>().withMutations(map =>
+    parsedNote.imports.forEach(tag => {
+      const moduleValue = moduleValueEnv.get(tag) || bug(`expected module value for ${tag}`);
+      const defaultValue = moduleValue['default'] || bug(`expected default member for ${tag}`);
+      const relativeTag = Path.relative(Path.dirname(parsedNote.tag), tag);
+      map.set(relativeTag, defaultValue)
+    })
+  ));
   const typeUnion = Type.union(...types);
   const exportType = Type.module({
     default: Type.array(typeUnion)
   });
   const exportValue = {
-    default: Signal.join(...values)
+    default: Signal.joinImmutableMap(table)
   }
 
   switch (typeUnion.kind) {
