@@ -669,6 +669,7 @@ function compileTable(
   parsedNote: data.ParsedNoteWithImports,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
+  setSelected: (tag: string) => void,
 ): data.Compiled {
   // TODO(jaked)
   // maybe we want to expose tables as an array and also as a map by tag?
@@ -702,8 +703,10 @@ function compileTable(
           width: 100,
           component: ({ data }) => React.createElement(React.Fragment, null, data)
         }));
+      const onSelect = (tag: string) =>
+        setSelected(Path.join(Path.dirname(parsedNote.tag), tag));
       const rendered = exportValue.default.map(data =>
-        React.createElement(Table, { data, fields })
+        React.createElement(Table, { data, fields, onSelect })
       );
       return { exportType, exportValue, rendered };
 
@@ -722,6 +725,7 @@ function compileNote(
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
+  setSelected: (tag: string) => void,
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (parsedNote.type) {
@@ -760,7 +764,8 @@ function compileNote(
           trace,
           parsedNote,
           moduleTypeEnv,
-          moduleValueEnv
+          moduleValueEnv,
+          setSelected
         );
 
       default:
@@ -794,7 +799,7 @@ function compileDirtyNotes(
       if (!parsedNote) throw new Error('expected note');
       if (debug) console.log('typechecking / rendering ' + tag);
       const compiled =
-        trace.time(tag, () => compileNote(trace, parsedNote, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell));
+        trace.time(tag, () => compileNote(trace, parsedNote, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell, setSelected));
       compiled.forEach(compiled => {
         moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
         moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);

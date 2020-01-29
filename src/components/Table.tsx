@@ -4,11 +4,23 @@ import styled from 'styled-components';
 import { VariableSizeGrid } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-const Box = styled(BoxBase)({
-  whiteSpace: 'nowrap',
-  textOverflow: 'ellipsis',
-  overflow: 'hidden',
-});
+const Box = styled(BoxBase)`
+  border-style: solid;
+  border-color: #cccccc;
+  border-top-width: ${props => props.borderTopWidth}px;
+  border-left-width: ${props => props.borderLeftWidth}px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  padding: 6px;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+
+  :hover {
+    cursor: pointer;
+  }
+`;
 
 export type Field = {
   label: string,
@@ -19,10 +31,11 @@ export type Field = {
 
 type Props = {
   data: object[],
-  fields: Field[]
+  fields: Field[],
+  onSelect: (tag: string) => void
 }
 
-export const Table = ({ data, fields }: Props) =>
+export const Table = ({ data, fields, onSelect }: Props) =>
   <AutoSizer>
     {({ height, width }) =>
       <VariableSizeGrid
@@ -38,8 +51,21 @@ export const Table = ({ data, fields }: Props) =>
           const field = fields[columnIndex];
           const value = field.accessor(object);
           const Component = field.component;
+          const borderTopWidth = rowIndex === 0 ? 1 : 0;
+          const borderLeftWidth = columnIndex === 0 ? 1 : 0;
+
+          // TODO(jaked)
+          // handle record IDs generally
+          // create one function for whole row
+          const onClick = () => onSelect(object['id']);
+
           return (
-            <Box style={style}>
+            <Box
+              style={style}
+              borderTopWidth={borderTopWidth}
+              borderLeftWidth={borderLeftWidth}
+              onClick={onClick}
+            >
               <Component data={value} />
             </Box>
           );
