@@ -5,7 +5,6 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
-import ReactTable from 'react-table';
 
 import Signal from '../util/Signal';
 import Trace from '../util/Trace';
@@ -21,6 +20,8 @@ import * as Render from './Render';
 import * as String from '../util/String';
 import { diffMap } from '../util/immutable/Map';
 import { bug } from '../util/bug';
+
+import { Table, Field } from '../components/Table';
 
 const debug = false;
 
@@ -691,22 +692,26 @@ function compileTable(
   const exportValue = {
     default: Signal.join(...values)
   }
-  let columns: { Header: string, accessor: string }[] = [];
+
   switch (typeUnion.kind) {
     case 'Object':
-      columns =
-        typeUnion.fields.map(({ field }) => ({ Header: field, accessor: field }));
-    break;
+      const fields: Field[] =
+        typeUnion.fields.map(({ field, type }) => ({
+          label: field,
+          accessor: (o: object) => o[field],
+          width: 100,
+          component: ({ data }) => React.createElement(React.Fragment, null, data)
+        }));
+      const rendered = exportValue.default.map(data =>
+        React.createElement(Table, { data, fields })
+      );
+      return { exportType, exportValue, rendered };
 
     default:
       // TODO(jaked)
       // maybe we can display nonuniform / non-Object types a different way?
       bug(`unhandled table value type ${typeUnion.kind}`)
   }
-  const rendered = exportValue.default.map(data =>
-    React.createElement(ReactTable, { data, columns, pageSize: 10 })
-  );
-  return { exportType, exportValue, rendered };
 }
 
 function compileNote(

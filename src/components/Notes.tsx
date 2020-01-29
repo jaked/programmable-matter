@@ -80,8 +80,8 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
       }}
     >
       <AutoSizer>
-        {({ height, width }) => {
-          return (<FixedSizeList
+        {({ height, width }) =>
+          <FixedSizeList
             ref={fixedSizeListRef}
             itemCount={notes.length}
             itemSize={30} // TODO(jaked) compute somehow
@@ -89,8 +89,8 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
             height={height}
           >
             {Notes}
-          </FixedSizeList>);
-        }}
+          </FixedSizeList>
+        }
       </AutoSizer>
     </Box>
   );
