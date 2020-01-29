@@ -51,10 +51,10 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
   // TODO(jaked)
   // this scrolls the list on any render, even if selected item hasn't changed
   const selectedIndex = notes.findIndex(note => note.tag === selected);
-  const fixedSizeListRef = React.createRef<HTMLDivElement>();
+  const fixedSizeListRef = React.createRef<FixedSizeList>();
   React.useEffect(() => {
-    const current: any = fixedSizeListRef.current;
-    if (current && selectedIndex !== -1) current.scrollToItem(selectedIndex);
+    const current = fixedSizeListRef.current;
+    if (current && selectedIndex !== -1) current.scrollToItem(selectedIndex, 'auto');
   });
 
   const Notes = ({ index, style }: { index: number, style: any }) => {

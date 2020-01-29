@@ -14,18 +14,14 @@ const Box = styled(BaseBox)`
   :hover {
     cursor: pointer;
   }
-white-space: nowrap;
-text-overflow: ellipsis;
-// TODO(jaked)
-// ellipsis doesn't work without this
-// but it creates some weird scrolling behavior
-// overflow-x: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 `;
 
-export const Note = React.forwardRef<HTMLDivElement, Props>(({ note: { tag }, selected, onClick, style }, ref) => {
+export const Note = ({ note: { tag }, selected, onClick, style } : Props) => {
   return (
     <Box
-      ref={ref}
       padding={2}
       backgroundColor={selected ? '#cccccc' : '#ffffff'}
       onClick={onClick}
@@ -34,4 +30,4 @@ export const Note = React.forwardRef<HTMLDivElement, Props>(({ note: { tag }, se
       {tag}
     </Box>
   );
-});
+};
