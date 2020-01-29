@@ -167,6 +167,7 @@ export class Main extends React.Component<Props, {}> {
       justifyContent='space-between'
       width={width}
       padding={1}
+      borderColor='#cccccc'
       borderStyle='solid'
       borderWidth='0px 0px 0px 1px'
     >
@@ -185,7 +186,13 @@ export class Main extends React.Component<Props, {}> {
     </Flex>
 
   DisplayPane = ({ width }: { width: number }) =>
-    <Box width={width} padding={1} borderStyle='solid' borderWidth='0px 0px 0px 1px'>
+    <Box
+      width={width}
+      padding={1}
+      borderColor='#cccccc'
+      borderStyle='solid'
+      borderWidth='0px 0px 0px 1px'
+    >
       <Catch>
         <Display compiledNote={this.props.app.compiledNote} />
       </Catch>
