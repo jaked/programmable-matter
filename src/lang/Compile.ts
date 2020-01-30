@@ -784,28 +784,37 @@ function compileDirtyNotes(
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
-  let typeEnv = Render.initTypeEnv;
-  let valueEnv = Render.initValueEnv(setSelected);
-  let moduleTypeEnv: Immutable.Map<string, Type.ModuleType> = Immutable.Map();
-  let moduleValueEnv: Evaluator.Env = Immutable.Map();
+  const typeEnv = Render.initTypeEnv;
+  const valueEnv = Render.initValueEnv(setSelected);
   orderedTags.forEach(tag => {
     const compiledNote = compiledNotes.get(tag);
-    if (compiledNote) {
-      if (debug) console.log('adding type / value env for ' + tag);
-      compiledNote.compiled.forEach(compiled => {
-        moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
-        moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
-      });
-    } else {
-      const parsedNote = parsedNotes.get(tag);
-      if (!parsedNote) throw new Error('expected note');
+    if (!compiledNote) {
+      const parsedNote = parsedNotes.get(tag) || bug(`expected note for ${tag}`);
       if (debug) console.log('typechecking / rendering ' + tag);
-      const compiled =
-        trace.time(tag, () => compileNote(trace, parsedNote, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv, mkCell, setSelected));
-      compiled.forEach(compiled => {
-        moduleTypeEnv = moduleTypeEnv.set(tag, compiled.exportType);
-        moduleValueEnv = moduleValueEnv.set(tag, compiled.exportValue);
+
+      const moduleTypeEnv = Immutable.Map<string, Type.ModuleType>().asMutable();
+      const moduleValueEnv = Immutable.Map<string, any>().asMutable();
+      parsedNote.imports.forEach(tag => {
+        const compiledNote = compiledNotes.get(tag) || bug(`expected compiled note for ${tag}`);
+        compiledNote.compiled.forEach(compiled => {
+          moduleTypeEnv.set(tag, compiled.exportType);
+          moduleValueEnv.set(tag, compiled.exportValue);
+        });
       });
+
+      const compiled =
+        trace.time(tag, () =>
+          compileNote(
+            trace,
+            parsedNote,
+            typeEnv,
+            valueEnv,
+            moduleTypeEnv.asImmutable(),
+            moduleValueEnv.asImmutable(),
+            mkCell,
+            setSelected
+          )
+        );
       const compiledNote = { ...parsedNote, compiled };
       compiledNotes = compiledNotes.set(tag, compiledNote);
     }
