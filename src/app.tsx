@@ -72,7 +72,7 @@ export class App {
       if (this.compileDirty) {
         this.compileDirty = false;
 
-        this.__trace = new Trace();
+        this.__trace.reset();
         this.matchingNotesSignal.reconcile(this.__trace, this.level);
         this.compiledNoteSignal.reconcile(this.__trace, this.level);
 

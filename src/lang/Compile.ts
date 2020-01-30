@@ -813,62 +813,83 @@ function compileDirtyNotes(
   return compiledNotes;
 }
 
+function findImports(
+  note: data.ParsedNote,
+  notes: data.ParsedNotes
+): data.ParsedNoteWithImports {
+  let imports = new Set<string>();
+  switch (note.type) {
+    case 'mdx':
+      // TODO(jaked) fix layout != tag hack
+      // layouts shouldn't themselves have layouts
+      // but we don't know here that we are defining a layout
+      // and a directory-level .meta file can give a layout a layout
+      if (note.meta.layout && note.meta.layout != note.tag)
+        imports.add(note.meta.layout);
+      note.ast.forEach(ast => findImportsMdx(ast, imports));
+      break;
+
+    case 'table':
+      const dir = Path.parse(note.tag).dir;
+      notes.forEach(note => {
+        // TODO(jaked) not sure if we should handle nested dirs in tables
+        // TODO(jaked) fix type === 'table' hack; tables shouldn't depend on themselves
+        if (!Path.relative(dir, note.tag).startsWith('..') && note.meta.type != 'table')
+          imports.add(note.tag);
+      });
+      break;
+
+    default:
+      break;
+  }
+  return { ...note, imports };
+}
+
 export function compileNotes(
   trace: Trace,
   notesSignal: Signal<data.Notes>,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledNotes> {
-  const parsedNotesSignal: Signal<Immutable.Map<string, Signal<data.ParsedNote>>> =
-    Signal.label('parseNotes',
-      Signal.mapImmutableMap(
-        notesSignal,
-        note => note.map(note => parseNote(trace, note))
-      )
-    );
+  const parsedNotesSignal = Signal.label('parseNotes',
+    Signal.joinImmutableMap(Signal.mapImmutableMap(
+      notesSignal,
+      note => note.map(note => parseNote(trace, note))
+    ))
+  );
+
+  const parsedNotesWithImportsSignal = Signal.label('parseNotesWithImports',
+    Signal.mapWithPrev<data.ParsedNotes, data.ParsedNotesWithImports>(
+      parsedNotesSignal,
+      (parsedNotes, prevParsedNotes, prevParsedNotesWithImports) =>
+        prevParsedNotesWithImports.withMutations(parsedNotesWithImports => {
+          const { added, changed, deleted } = diffMap(prevParsedNotes, parsedNotes);
+
+          deleted.forEach((v, tag) => { parsedNotesWithImports.delete(tag) });
+          changed.forEach(([prev, curr], tag) => {
+            parsedNotesWithImports.set(tag, findImports(curr, parsedNotes))
+          });
+          added.forEach((v, tag) => {
+            parsedNotesWithImports.set(tag, findImports(v, parsedNotes))
+          });
+        }),
+      Immutable.Map(),
+      Immutable.Map()
+    )
+  );
 
   // TODO(jaked)
   // maybe could do this with more fine-grained Signals
   // but it's easier to do all together
   return Signal.label('compileNotes',
     Signal.mapWithPrev(
-      Signal.joinImmutableMap(parsedNotesSignal),
-      (parsedNotes, prevParsedNotes, compiledNotes) => {
-        const { added, changed, deleted } = diffMap(prevParsedNotes, parsedNotes);
+      parsedNotesWithImportsSignal,
+      (parsedNotesWithImports, prevParsedNotesWithImports, compiledNotes) => {
+        const { added, changed, deleted } = diffMap(prevParsedNotesWithImports, parsedNotesWithImports);
 
         changed.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
         deleted.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
 
-        const parsedNotesWithImports: data.ParsedNotesWithImports = parsedNotes.map(note => {
-          let imports = new Set<string>();
-          switch (note.type) {
-            case 'mdx':
-              // TODO(jaked) fix layout != tag hack
-              // layouts shouldn't themselves have layouts
-              // but we don't know here that we are defining a layout
-              // and a directory-level .meta file can give a layout a layout
-              if (note.meta.layout && note.meta.layout != note.tag)
-                imports.add(note.meta.layout);
-              note.ast.forEach(ast => {
-                trace.time('findImportsMdx', () => findImportsMdx(ast, imports))
-              });
-              break;
-
-            case 'table':
-              const dir = Path.parse(note.tag).dir;
-              parsedNotes.forEach(note => {
-                // TODO(jaked) not sure if we should handle nested dirs in tables
-                // TODO(jaked) fix type === 'table' hack; tables shouldn't depend on themselves
-                if (!Path.relative(dir, note.tag).startsWith('..') && note.meta.type != 'table')
-                  imports.add(note.tag);
-              });
-              break;
-
-            default:
-              break;
-          }
-          return { ...note, imports };
-        });
         // topologically sort notes according to imports
         const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotesWithImports));
 
