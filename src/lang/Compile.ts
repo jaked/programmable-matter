@@ -368,13 +368,19 @@ function sortNotes(notes: data.ParsedNotesWithImports): Array<string> {
     remaining.forEach(tag => {
       const note = notes.get(tag);
       if (!note) throw new Error('expected note');
-      const imports = [...note.imports.values()];
-      if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
-      if (imports.every(tag => sortedTags.includes(tag))) {
-        if (debug) console.log('adding ' + tag + ' to order');
+      if (note.imports.size === 0) {
         sortedTags.push(tag);
         remaining.delete(tag);
         again = true;
+      } else {
+        const imports = [...note.imports.values()];
+        if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
+        if (imports.every(tag => !remaining.has(tag))) {
+          if (debug) console.log('adding ' + tag + ' to order');
+          sortedTags.push(tag);
+          remaining.delete(tag);
+          again = true;
+        }
       }
     });
   }
@@ -876,10 +882,10 @@ export function compileNotes(
 
           deleted.forEach((v, tag) => { parsedNotesWithImports.delete(tag) });
           changed.forEach(([prev, curr], tag) => {
-            parsedNotesWithImports.set(tag, findImports(curr, parsedNotes))
+            parsedNotesWithImports.set(tag, trace.time(tag, () => findImports(curr, parsedNotes)))
           });
           added.forEach((v, tag) => {
-            parsedNotesWithImports.set(tag, findImports(v, parsedNotes))
+            parsedNotesWithImports.set(tag, trace.time(tag, () => findImports(v, parsedNotes)))
           });
         }),
       Immutable.Map(),
