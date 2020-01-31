@@ -679,17 +679,35 @@ function compileTable(
 ): data.Compiled {
   const types: Type[] = [];
   parsedNote.imports.forEach(tag => {
-    const moduleType = moduleTypeEnv.get(tag) || bug(`expected module type for ${tag}`);
-    // TODO(jaked) could skip notes without default exports
-    const defaultField = moduleType.fields.find(({ field }) => field === 'default') || bug(`expected default export for ${tag}`);
+    // TODO(jaked) surface these errors somehow
+    // also surface underlying errors
+    // e.g. a module doesn't match its type signature
+    const moduleType = moduleTypeEnv.get(tag);
+    if (!moduleType) {
+      console.log(`expected module type for ${tag}`);
+      return;
+    }
+    const defaultField = moduleType.fields.find(({ field }) => field === 'default');
+    if (!defaultField) {
+      console.log(`expected default export for ${tag}`);
+      return;
+    }
     types.push(defaultField.type);
   });
   // TODO(jaked)
   // treat parsedNote.imports as a Signal<Map> to make tables incremental
   const table = Signal.ok(Immutable.Map<string, Signal<any>>().withMutations(map =>
     parsedNote.imports.forEach(tag => {
-      const moduleValue = moduleValueEnv.get(tag) || bug(`expected module value for ${tag}`);
-      const defaultValue = moduleValue['default'] || bug(`expected default member for ${tag}`);
+      const moduleValue = moduleValueEnv.get(tag);
+      if (!moduleValue) {
+        console.log(`expected module value for ${tag}`);
+        return;
+      }
+      const defaultValue = moduleValue['default'];
+      if (!defaultValue) {
+        console.log(`expected default member for ${tag}`);
+        return;
+      }
       const relativeTag = Path.relative(Path.dirname(parsedNote.tag), tag);
       map.set(relativeTag, defaultValue)
     })
