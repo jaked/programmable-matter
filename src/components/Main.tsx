@@ -1,16 +1,4 @@
-import { ipcRenderer as ipc, remote } from 'electron';
-import fs from 'fs';
-import path from 'path';
-import util from 'util';
-import rimrafCallback from 'rimraf';
-import ghPages from 'gh-pages';
-const rimraf = util.promisify(rimrafCallback);
-const writeFile = util.promisify(fs.writeFile);
-const mkdir = util.promisify(fs.mkdir);
-const publish = util.promisify(ghPages.publish);
-
 import React from 'react';
-import ReactDOMServer from 'react-dom/server';
 import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
@@ -22,8 +10,6 @@ import { Display } from './Display';
 import { Editor } from './Editor';
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
-
-import * as GTasks from '../integrations/gtasks';
 
 interface Props {
   app: App;
@@ -45,78 +31,8 @@ export class Main extends React.Component<Props, {}> {
     super(props);
   }
 
-  componentDidMount() {
-    ipc.on('focus-search-box', this.focusSearchBox);
-    ipc.on('toggle-side-bar-visible', this.props.app.toggleSideBarVisible);
-    ipc.on('set-main-pane-view-code', this.setMainPaneViewCode);
-    ipc.on('set-main-pane-view-display', this.setMainPaneViewDisplay);
-    ipc.on('set-main-pane-view-split', this.setMainPaneViewSplit);
-
-    ipc.on('publish-site', this.publishSite);
-    ipc.on('sync-google-tasks', this.syncGoogleTasks);
-  }
-
-  componentWillUnmount() {
-    ipc.removeListener('focus-search-box', this.focusSearchBox);
-    ipc.removeListener('toggle-side-bar-visible', this.props.app.toggleSideBarVisible);
-    ipc.removeListener('set-main-pane-view-code', this.setMainPaneViewCode);
-    ipc.removeListener('set-main-pane-view-display', this.setMainPaneViewDisplay);
-    ipc.removeListener('set-main-pane-view-split', this.setMainPaneViewSplit);
-
-    ipc.removeListener('publish-site', this.publishSite);
-    ipc.removeListener('sync-google-tasks', this.syncGoogleTasks);
-  }
-
   focusSearchBox = () => {
     this.searchBoxRef.current && this.searchBoxRef.current.focus();
-  }
-
-  setMainPaneViewCode = () => this.props.app.setMainPaneView('code');
-  setMainPaneViewDisplay = () => this.props.app.setMainPaneView('display');
-  setMainPaneViewSplit = () => this.props.app.setMainPaneView('split');
-
-  publishSite = async () => {
-    // TODO(jaked) generate random dir name?
-    const tempdir = path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-    // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
-    await rimraf(tempdir, { glob: false })
-    await mkdir(tempdir);
-    await writeFile(path.resolve(tempdir, '.nojekyll'), '');
-    await writeFile(path.resolve(tempdir, 'CNAME'), "jaked.org");
-    await Promise.all(this.props.app.compiledNotes.map(async note => {
-      // TODO(jaked) figure out file extensions
-      if (note.type === 'jpeg') {
-        const notePath = path.resolve(tempdir, note.path);
-        await mkdir(path.dirname(notePath), { recursive: true });
-        await writeFile(notePath, note.buffer);
-      } else if (note.type === 'table') {
-        // ???
-      } else {
-        const notePath = path.resolve(tempdir, note.path) + '.html';
-        const node = note.compiled.get().rendered.get();  // TODO(jaked) fix Try.get()
-        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-        await mkdir(path.dirname(notePath), { recursive: true });
-        await writeFile(notePath, html);
-      }
-    }).values());
-    if (true) {
-      await publish(tempdir, {
-        src: '**',
-        dotfiles: true,
-        branch: 'master',
-        repo: 'https://github.com/jaked/jaked.github.io.git',
-        message: 'published from Programmable Matter',
-        name: 'Jake Donham',
-        email: 'jake.donham@gmail.com',
-      });
-    }
-  }
-
-  syncGoogleTasks = () => {
-    // TODO(jaked) should do this via Filesystem object
-    // not via direct filesystem accesss
-    const filesPath = fs.realpathSync(path.resolve(process.cwd(), 'docs'));
-    GTasks.authAndSyncTaskLists(filesPath);
   }
 
   onKeyDown = (e: React.KeyboardEvent): boolean => {

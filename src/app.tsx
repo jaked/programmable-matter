@@ -1,6 +1,14 @@
 import * as fs from "fs";
 import * as Path from 'path';
 import * as process from 'process';
+import { ipcRenderer as ipc, remote } from 'electron';
+import util from 'util';
+import rimrafCallback from 'rimraf';
+import ghPages from 'gh-pages';
+const rimraf = util.promisify(rimrafCallback);
+const writeFile = util.promisify(fs.writeFile);
+const mkdir = util.promisify(fs.mkdir);
+const publish = util.promisify(ghPages.publish);
 
 import * as Immutable from 'immutable';
 
@@ -15,9 +23,12 @@ import Server from './Server';
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
+import ReactDOMServer from 'react-dom/server';
 
 import { Main } from './components/Main';
 import { Session } from './components/react-simple-code-editor';
+
+import * as GTasks from './integrations/gtasks';
 
 import Unhandled from 'electron-unhandled';
 
@@ -89,6 +100,16 @@ export class App {
         console.log(this.__trace.finish());
       }
     }, 50);
+
+    // TODO(jaked) do we need to remove these somewhere?
+    ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
+    ipc.on('toggle-side-bar-visible', this.toggleSideBarVisible);
+    ipc.on('set-main-pane-view-code', () => this.setMainPaneView('code'));
+    ipc.on('set-main-pane-view-display', () => this.setMainPaneView('display'));
+    ipc.on('set-main-pane-view-split', () => this.setMainPaneView('split'));
+
+    ipc.on('publish-site', this.publishSite);
+    ipc.on('sync-google-tasks', this.syncGoogleTasks);
   }
 
   private selectedCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
@@ -264,17 +285,63 @@ export class App {
 
   private server = new Server(this.compiledNotesSignal);
 
+  private mainRef = React.createRef<Main>();
   private level = 0;
 
   private reactRender = (trace: Trace) => {
     trace.open('ReactDOM.render');
     ReactDOM.render(
       <Main
+        ref={this.mainRef}
         app={this}
       />,
       document.getElementById('main')
     );
     trace.close();
+  }
+
+  publishSite = async () => {
+    // TODO(jaked) generate random dir name?
+    const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
+    // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
+    await rimraf(tempdir, { glob: false })
+    await mkdir(tempdir);
+    await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
+    await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
+    await Promise.all(this.compiledNotes.map(async note => {
+      // TODO(jaked) figure out file extensions
+      if (note.type === 'jpeg') {
+        const notePath = Path.resolve(tempdir, note.path);
+        await mkdir(Path.dirname(notePath), { recursive: true });
+        await writeFile(notePath, note.buffer);
+      } else if (note.type === 'table') {
+        // ???
+      } else {
+        const notePath = Path.resolve(tempdir, note.path) + '.html';
+        const node = note.compiled.get().rendered.get();  // TODO(jaked) fix Try.get()
+        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+        await mkdir(Path.dirname(notePath), { recursive: true });
+        await writeFile(notePath, html);
+      }
+    }).values());
+    if (true) {
+      await publish(tempdir, {
+        src: '**',
+        dotfiles: true,
+        branch: 'master',
+        repo: 'https://github.com/jaked/jaked.github.io.git',
+        message: 'published from Programmable Matter',
+        name: 'Jake Donham',
+        email: 'jake.donham@gmail.com',
+      });
+    }
+  }
+
+  syncGoogleTasks = () => {
+    // TODO(jaked) should do this via Filesystem object
+    // not via direct filesystem accesss
+    const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
+    GTasks.authAndSyncTaskLists(filesPath);
   }
 }
 
