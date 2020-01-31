@@ -221,8 +221,8 @@ export function renderMdx(
     case 'text': {
       // TODO(jaked) this is pretty slow :(
       // TODO(jaked) and doesn't work when quotes are split across text nodes
-      const value = smartypants.processSync(ast.value).toString();
-      return [env, Signal.ok(value)];
+      // const value = smartypants.processSync(ast.value).toString();
+      return [env, Signal.ok(ast.value)];
     }
 
     case 'jsx':
