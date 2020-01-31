@@ -6,7 +6,7 @@ import * as data from '../data';
 type Props = {
   search: string;
   onSearch: (s: string) => void;
-  matchingNotes: data.Note[];
+  matchingNotes: data.CompiledNote[];
   selected: string | null;
   onSelect: (s: string | null) => void;
   newNote: (s: string) => void;

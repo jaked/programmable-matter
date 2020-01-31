@@ -14,7 +14,7 @@ const Box = styled(BoxBase)({
 });
 
 interface Props {
-  notes: Array<data.Note>;
+  notes: Array<data.CompiledNote>;
   selected: string | null;
   onSelect: (tag: string) => void;
   focusEditor: () => void;

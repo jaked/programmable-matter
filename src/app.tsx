@@ -278,7 +278,7 @@ export class App {
         // TODO(jaked)
         // map matching function over individual note signals
         // so we only need to re-match notes that have changed
-        Signal.label("join notes", Signal.joinImmutableMap(this.notesSignal)),
+        this.compiledNotesSignal,
         this.searchCell
       ).map(([notes, search]) => {
         return this.__trace.time('match notes', () => {
