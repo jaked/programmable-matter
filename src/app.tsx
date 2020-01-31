@@ -107,15 +107,36 @@ export class App {
     ipc.on('set-main-pane-view-code', () => this.setMainPaneView('code'));
     ipc.on('set-main-pane-view-display', () => this.setMainPaneView('display'));
     ipc.on('set-main-pane-view-split', () => this.setMainPaneView('split'));
+    ipc.on('history-back', this.historyBack);
+    ipc.on('history-forward', this.historyForward);
 
     ipc.on('publish-site', this.publishSite);
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
   }
 
+  private history: string[] = [];
+  private historyIndex: number = -1; // index of current selection, or -1 if none
   private selectedCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
   public get selected() { return this.selectedCell.get() }
   public setSelected = (selected: string | null) => {
+    if (selected != null) {
+      this.history = this.history.slice(0, this.historyIndex + 1);
+      this.history.push(selected);
+      this.historyIndex++;
+    }
     this.selectedCell.setOk(selected);
+  }
+  public historyBack = () => {
+    if (this.historyIndex > 0) {
+      this.historyIndex--;
+      this.selectedCell.setOk(this.history[this.historyIndex]);
+    }
+  }
+  public historyForward = () => {
+    if (this.historyIndex < this.history.length - 1) {
+      this.historyIndex++;
+      this.selectedCell.setOk(this.history[this.historyIndex])
+    }
   }
 
   public searchCell = Signal.cellOk<string>('', this.dirtyAndRender);

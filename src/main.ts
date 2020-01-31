@@ -60,6 +60,14 @@ function setMainPaneView(view: 'code' | 'display' | 'split') {
   mainWindow && mainWindow.webContents.send(`set-main-pane-view-${view}`);
 }
 
+function historyBack() {
+  mainWindow && mainWindow.webContents.send('history-back');
+}
+
+function historyForward() {
+  mainWindow && mainWindow.webContents.send('history-forward');
+}
+
 function initGlobalShortcut() {
   const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
     if (mainWindow === null) {
@@ -150,6 +158,23 @@ function initMenu() {
         {
           type: 'separator'
         },
+      ]
+    },
+    {
+      label: 'Go',
+      submenu: [
+        {
+          // TODO(jaked) show current state of history in menu
+          label: 'Back',
+          accelerator: 'CmdOrCtrl+[',
+          click: historyBack
+        },
+        {
+          // TODO(jaked) show current state of history in menu
+          label: 'Forward',
+          accelerator: 'CmdOrCtrl+]',
+          click: historyForward
+        }
       ]
     },
     {
