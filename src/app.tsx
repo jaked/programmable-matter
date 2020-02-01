@@ -109,6 +109,8 @@ export class App {
     ipc.on('set-main-pane-view-split', () => this.setMainPaneView('split'));
     ipc.on('history-back', this.historyBack);
     ipc.on('history-forward', this.historyForward);
+    ipc.on('previous-problem', this.previousProblem);
+    ipc.on('next-problem', this.nextProblem);
 
     ipc.on('publish-site', this.publishSite);
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
@@ -119,6 +121,7 @@ export class App {
   private selectedCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
   public get selected() { return this.selectedCell.get() }
   public setSelected = (selected: string | null) => {
+    if (selected === this.selected) return;
     if (selected != null) {
       this.history = this.history.slice(0, this.historyIndex + 1);
       this.history.push(selected);
@@ -319,6 +322,32 @@ export class App {
       document.getElementById('main')
     );
     trace.close();
+  }
+
+  private nextProblem = () => {
+    const selected = this.selected;
+    const matchingNotes = this.matchingNotes;
+    const nextIndex = matchingNotes.findIndex(note => note.tag === selected) + 1;
+    for (let i = 0; i < matchingNotes.length; i++) {
+      const index = (nextIndex + i) % matchingNotes.length;
+      if (matchingNotes[index].compiled.type === 'err') {
+        this.setSelected(matchingNotes[index].tag);
+        break;
+      }
+    }
+  }
+
+  private previousProblem = () => {
+    const selected = this.selected;
+    const matchingNotes = this.matchingNotes;
+    const previousIndex = matchingNotes.findIndex(note => note.tag === selected) - 1;
+    for (let i = matchingNotes.length - 1; i > 0; i--) {
+      const index = (previousIndex + i) % matchingNotes.length;
+      if (matchingNotes[index].compiled.type === 'err') {
+        this.setSelected(matchingNotes[index].tag);
+        break;
+      }
+    }
   }
 
   publishSite = async () => {

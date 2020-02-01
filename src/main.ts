@@ -68,6 +68,14 @@ function historyForward() {
   mainWindow && mainWindow.webContents.send('history-forward');
 }
 
+function previousProblem() {
+  mainWindow && mainWindow.webContents.send('previous-problem');
+}
+
+function nextProblem() {
+  mainWindow && mainWindow.webContents.send('next-problem');
+}
+
 function initGlobalShortcut() {
   const shortcut = globalShortcut.register('CommandOrControl+Alt+,', () => {
     if (mainWindow === null) {
@@ -174,7 +182,20 @@ function initMenu() {
           label: 'Forward',
           accelerator: 'CmdOrCtrl+]',
           click: historyForward
-        }
+        },
+        { type: 'separator'},
+        {
+          // TODO(jaked) show current state of history in menu
+          label: 'Previous Problem',
+          accelerator: 'Shift+F8',
+          click: previousProblem
+        },
+        {
+          // TODO(jaked) show current state of history in menu
+          label: 'Next Problem',
+          accelerator: 'F8',
+          click: nextProblem
+        },
       ]
     },
     {
