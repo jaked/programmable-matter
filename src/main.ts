@@ -9,7 +9,7 @@ import { default as installExtension, REACT_DEVELOPER_TOOLS } from 'electron-dev
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let mainWindow
+let mainWindow: null | BrowserWindow;
 
 function createWindow () {
   installExtension(REACT_DEVELOPER_TOOLS)
@@ -40,40 +40,12 @@ function createWindow () {
   })
 }
 
-function focusSearchBox() {
-  mainWindow && mainWindow.webContents.send('focus-search-box');
+function send(msg: string, ...args) {
+  mainWindow && mainWindow.webContents.send(msg, ...args);
 }
 
-function publishSite() {
-  mainWindow && mainWindow.webContents.send('publish-site');
-}
-
-function syncGoogleTasks() {
-  mainWindow && mainWindow.webContents.send('sync-google-tasks');
-}
-
-function toggleSideBarVisible() {
-  mainWindow && mainWindow.webContents.send('toggle-side-bar-visible');
-}
-
-function setMainPaneView(view: 'code' | 'display' | 'split') {
-  mainWindow && mainWindow.webContents.send(`set-main-pane-view-${view}`);
-}
-
-function historyBack() {
-  mainWindow && mainWindow.webContents.send('history-back');
-}
-
-function historyForward() {
-  mainWindow && mainWindow.webContents.send('history-forward');
-}
-
-function previousProblem() {
-  mainWindow && mainWindow.webContents.send('previous-problem');
-}
-
-function nextProblem() {
-  mainWindow && mainWindow.webContents.send('next-problem');
+function sendFunc(msg: string, ...args) {
+  return () => send(msg, ...args);
 }
 
 function initGlobalShortcut() {
@@ -82,7 +54,7 @@ function initGlobalShortcut() {
       createWindow();
     } else if (!mainWindow.isFocused()) {
       app.focus();
-      focusSearchBox();
+      send('focus-search-box');
     } else {
       app.hide();
     }
@@ -136,18 +108,18 @@ function initMenu() {
         {
           label: 'Search...',
           accelerator: 'CmdOrCtrl+L',
-          click: focusSearchBox,
+          click: sendFunc('focus-search-box'),
         },
         {
           type: 'separator'
         },
         {
           label: 'Publish Site',
-          click: publishSite,
+          click: sendFunc('publish-site'),
         },
         {
           label: 'Sync Google Tasks',
-          click: syncGoogleTasks,
+          click: sendFunc('sync-google-tasks'),
         },
       ]
     },
@@ -175,26 +147,26 @@ function initMenu() {
           // TODO(jaked) show current state of history in menu
           label: 'Back',
           accelerator: 'CmdOrCtrl+[',
-          click: historyBack
+          click: sendFunc('history-back'),
         },
         {
           // TODO(jaked) show current state of history in menu
           label: 'Forward',
           accelerator: 'CmdOrCtrl+]',
-          click: historyForward
+          click: sendFunc('history-forward'),
         },
         { type: 'separator'},
         {
           // TODO(jaked) show current state of history in menu
           label: 'Previous Problem',
           accelerator: 'Shift+F8',
-          click: previousProblem
+          click: sendFunc('previous-problem'),
         },
         {
           // TODO(jaked) show current state of history in menu
           label: 'Next Problem',
           accelerator: 'F8',
-          click: nextProblem
+          click: sendFunc('next-problem'),
         },
       ]
     },
@@ -205,25 +177,25 @@ function initMenu() {
           // TODO(jaked) show current state of side bar in menu
           label: 'Toggle Side Bar',
           accelerator: 'CmdOrCtrl+B',
-          click: toggleSideBarVisible
+          click: sendFunc('toggle-sidebar-visible'),
         },
         {
           // TODO(jaked) show current state of main pane in menu
           label: 'Code View',
           accelerator: 'CmdOrCtrl+Alt+C',
-          click: () => setMainPaneView('code')
+          click: sendFunc('set-main-pane-view', 'code'),
         },
         {
           // TODO(jaked) show current state of main pane in menu
           label: 'Display View',
           accelerator: 'CmdOrCtrl+Alt+D',
-          click: () => setMainPaneView('display')
+          click: sendFunc('set-main-pane-view', 'display'),
         },
         {
           // TODO(jaked) show current state of main pane in menu
           label: 'Split View',
           accelerator: 'CmdOrCtrl+Alt+S',
-          click: () => setMainPaneView('split')
+          click: sendFunc('set-main-pane-view', 'split'),
         },
         { type: 'separator'},
         {

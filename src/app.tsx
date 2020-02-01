@@ -103,10 +103,10 @@ export class App {
 
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
-    ipc.on('toggle-side-bar-visible', this.toggleSideBarVisible);
-    ipc.on('set-main-pane-view-code', () => this.setMainPaneView('code'));
-    ipc.on('set-main-pane-view-display', () => this.setMainPaneView('display'));
-    ipc.on('set-main-pane-view-split', () => this.setMainPaneView('split'));
+    ipc.on('toggle-sidebar-visible', this.toggleSidebarVisible);
+    ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
+      this.setMainPaneView(view)
+    });
     ipc.on('history-back', this.historyBack);
     ipc.on('history-forward', this.historyForward);
     ipc.on('previous-problem', this.previousProblem);
@@ -156,7 +156,7 @@ export class App {
 
   private sideBarVisibleCell = Signal.cellOk<boolean>(true, this.render);
   public get sideBarVisible() { return this.sideBarVisibleCell.get() }
-  public toggleSideBarVisible = () => {
+  public toggleSidebarVisible = () => {
     // TODO(jaked) `update` method on cells
     this.sideBarVisibleCell.setOk(!this.sideBarVisibleCell.get());
   };
