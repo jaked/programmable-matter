@@ -114,6 +114,14 @@ function initMenu() {
           type: 'separator'
         },
         {
+          label: 'Delete Note',
+          accelerator: 'CmdOrCtrl+Backspace',
+          click: sendFunc('delete-note'),
+        },
+        {
+          type: 'separator'
+        },
+        {
           label: 'Publish Site',
           click: sendFunc('publish-site'),
         },

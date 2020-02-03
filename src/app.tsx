@@ -112,6 +112,8 @@ export class App {
     ipc.on('previous-problem', this.previousProblem);
     ipc.on('next-problem', this.nextProblem);
 
+    ipc.on('delete-note', this.deleteNote);
+
     ipc.on('publish-site', this.publishSite);
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
   }
@@ -165,6 +167,20 @@ export class App {
   public get mainPaneView() { return this.mainPaneViewCell.get() }
   public setMainPaneView = (view: 'code' | 'display' | 'split') => {
     this.mainPaneViewCell.setOk(view);
+  }
+
+  deleteNote = () => {
+    const tag = app.selected;
+    if (tag) {
+      const note = this.notesSignal.get().get(tag);
+      if (note) {
+        // TODO(jaked)
+        // if note has a metadata file it should also be deleted
+        const path = note.get().path;
+        if (debug) console.log(`deleteNote(${path})`);
+        this.filesystem.delete(path);
+      }
+    }
   }
 
   writeNote = (path: string, tag: string, meta: data.Meta, content: string) => {

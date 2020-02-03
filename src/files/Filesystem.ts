@@ -11,6 +11,7 @@ type FileMetadata = {
   writing: boolean; // true if we are in the middle of writing the file
   lastUpdateMs: number; // timestamp of last in-memory update
   lastWriteMs: number; // timestamp of last write to underlying filesystem
+  deleted: boolean;
 };
 
 const debug = false;
@@ -78,11 +79,21 @@ export class Filesystem {
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
-        const fileMetadata = { writing: false, lastUpdateMs, lastWriteMs: 0 };
+        const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false, deleted: false };
         this.filesMetadata.set(path, fileMetadata);
         const file = { path, version: 0, buffer }
         return files.set(path, Signal.cellOk(file, this.onChange));
       }
+    });
+  }
+
+  public delete = (path: string) => {
+    this.updateFiles(files => {
+      const lastUpdateMs = Date.now();
+      const fileMetadata = this.filesMetadata.get(path) || bug(`delete: expected metadata for ${path}`);
+      fileMetadata.deleted = true;
+      fileMetadata.lastUpdateMs = lastUpdateMs;
+      return files.delete(path);
     });
   }
 
@@ -129,20 +140,27 @@ export class Filesystem {
   }
 
   private timerCallback = () => {
-    this.filesCell.get().forEach((fileCell, path) => {
-      const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);
+    this.filesMetadata.forEach((fileMetadata, path) => {
       if (this.shouldWrite(path, fileMetadata)) {
         fileMetadata.writing = true;
 
         const lastWriteMs = Date.now();
-        if (debug) console.log(`before writeFile ${path}`);
-        Fs.writeFile(Path.resolve(this.filesPath, path), fileCell.get().buffer)
-          .finally(
-            () => {
+        const fileCell = this.filesCell.get().get(path);
+        if (fileCell) {
+          if (debug) console.log(`writeFile(${path})`);
+          Fs.writeFile(Path.resolve(this.filesPath, path), fileCell.get().buffer)
+            .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
             });
-        if (debug) console.log(`after writeFile ${path}`);
+        } else {
+          if (debug) console.log(`unlink(${path})`);
+          Fs.unlink(Path.resolve(this.filesPath, path))
+            .finally(() => {
+              fileMetadata.lastWriteMs = lastWriteMs;
+              fileMetadata.writing = false;
+            });
+        }
       }
     });
   };
@@ -213,7 +231,8 @@ export class Filesystem {
       return files;
     } else {
       if (debug) console.log(`adding ${path}`);
-      const fileMetadata = { lastUpdateMs: now, lastWriteMs: now, writing: false };
+      const fileMetadata =
+        { lastUpdateMs: now, lastWriteMs: now, writing: false, deleted: false };
       this.filesMetadata.set(path, fileMetadata);
       const file = {
         path,
