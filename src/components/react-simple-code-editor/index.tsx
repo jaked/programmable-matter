@@ -243,6 +243,34 @@ export default class Editor extends React.Component<Props, State> {
     }
   };
 
+  _handleClick = e => {
+    const { onClick } = this.props;
+    if (onClick) {
+      onClick(e);
+      if (e.defaultPrevented) {
+        return;
+      }
+    }
+
+    // click may have moved the selection; save it in case of a rerender
+    const { value } = e.target;
+    this.props.onChange(value, this.session);
+  }
+
+  _handleKeyUp = e => {
+    const { onKeyUp } = this.props;
+    if (onKeyUp) {
+      onKeyUp(e);
+      if (e.defaultPrevented) {
+        return;
+      }
+    }
+
+    // key up have moved the selection; save it in case of a rerender
+    const { value } = e.target;
+    this.props.onChange(value, this.session);
+  }
+
   _handleKeyDown = e => {
     const { tabSize, insertSpaces, ignoreTabKey, onKeyDown } = this.props;
 
@@ -561,8 +589,8 @@ export default class Editor extends React.Component<Props, State> {
           value={value}
           onChange={this._handleChange}
           onKeyDown={this._handleKeyDown}
-          onClick={onClick}
-          onKeyUp={onKeyUp}
+          onClick={this._handleClick}
+          onKeyUp={this._handleKeyUp}
           onFocus={onFocus}
           onBlur={onBlur}
           onMouseOver={onMouseOver}

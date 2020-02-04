@@ -279,14 +279,14 @@ export class App {
     const selected = this.selectedCell.get();
     if (!selected) return;
 
+    const sessions = this.sessionsCell.get().set(selected, session);
+    this.sessionsCell.setOk(sessions);
+
     const noteSignal = this.notesSignal.get().get(selected);
     if (!noteSignal) return;
     const note = noteSignal.get();
     if (note.type !== 'mdx' && note.type !== 'txt' && note.type !== 'json') return;
     if (note.content === content) return;
-
-    const sessions = this.sessionsCell.get().set(selected, session);
-    this.sessionsCell.setOk(sessions);
 
     this.writeNote(note.path, note.tag, note.meta, content);
   }

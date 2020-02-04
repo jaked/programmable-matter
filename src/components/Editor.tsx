@@ -330,10 +330,6 @@ export class Editor extends React.Component<Props, {}> {
     }
   }
 
-  onChange = (value: string, session: Session) => {
-    this.props.onChange(value, session);
-  }
-
   findHighlightSpan = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
     if (!this.preRef.current) return;
     for (let i = 0; i < this.preRef.current.children.length; i++) {
@@ -382,7 +378,7 @@ export class Editor extends React.Component<Props, {}> {
           name={selected}
           value={content}
           session={this.props.session}
-          onChange={this.onChange}
+          onChange={this.props.onChange}
           highlight={_ => highlight}
           onMouseOver={this.onMouseEvent}
           onMouseMove={this.onMouseEvent}
