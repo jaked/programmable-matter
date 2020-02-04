@@ -526,7 +526,7 @@ function extendEnvWithImport(
 ): Env {
   const module = moduleEnv.get(decl.source.value);
   if (!module)
-    return Throw.withLocation(decl, `no module '${decl.source.value}'`);
+    return Throw.withLocation(decl.source, `no module '${decl.source.value}'`);
   decl.specifiers.forEach(spec => {
     switch (spec.type) {
       case 'ImportNamespaceSpecifier':
@@ -535,13 +535,13 @@ function extendEnvWithImport(
       case 'ImportDefaultSpecifier':
         const defaultField = module.fields.find(ft => ft.field === 'default');
         if (!defaultField)
-          return Throw.withLocation(decl, `no default export on '${decl.source.value}'`);
+          return Throw.withLocation(decl.source, `no default export on '${decl.source.value}'`);
         env = env.set(spec.local.name, defaultField.type);
         break;
       case 'ImportSpecifier':
         const importedField = module.fields.find(ft => ft.field === spec.imported.name)
         if (!importedField)
-          return Throw.withLocation(decl, `no exported member '${spec.imported.name}' on '${decl.source.value}'`);
+          return Throw.withLocation(decl.source, `no exported member '${spec.imported.name}' on '${decl.source.value}'`);
         env = env.set(spec.local.name, importedField.type);
         break;
     }

@@ -17,6 +17,7 @@ interface Props {
 
   onChange: (content: string, session: Session) => void;
   setStatus: (status: string | undefined) => void;
+  setSelected: (tag: string) => void;
 }
 
 const okComponents =
@@ -29,6 +30,15 @@ const okComponents =
   definition: styled.span({ color: '#0000ff' }),
   variable:   styled.span({ color: '#268bd2' }),
   property:   styled.span({ color: '#b58900' }),
+  // TODO(jaked)
+  // hover doesn't work because enclosing pre is not on top
+  link:       styled.span`
+    :hover {
+      cursor: pointer;
+    }
+    color: #aa1111;
+    text-decoration: underline;
+  `,
 }
 
 const errStyle = { backgroundColor: '#ffc0c0' };
@@ -43,13 +53,15 @@ const errComponents =
   definition: styled(okComponents.definition)(errStyle),
   variable:   styled(okComponents.variable)(errStyle),
   property:   styled(okComponents.property)(errStyle),
+  link:       styled(okComponents.link)(errStyle),
 }
 
 type Span = {
   start: number,
   end: number,
   component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
-  status: string | undefined
+  status?: string,
+  link?: string,
 };
 
 function computeJsSpans(
@@ -60,9 +72,10 @@ function computeJsSpans(
     start: number,
     end: number,
     component: React.FunctionComponent<React.HTMLAttributes<HTMLSpanElement>>,
-    status: string | undefined
+    status?: string,
+    link?: string,
   ) {
-    spans.push({ start, end, component, status });
+    spans.push({ start, end, component, status, link });
   }
 
   function fn(ast: ESTree.Node) {
@@ -71,7 +84,7 @@ function computeJsSpans(
     if (ast.etype) {
       if (ast.etype.type === 'err') {
         components = errComponents;
-        status = ast.etype.err.toString();
+        status = ast.etype.err.message;
       }
     }
 
@@ -117,7 +130,21 @@ function computeJsSpans(
 
       case 'ImportDeclaration':
         // TODO(jaked) handle `from`
-        return span(ast.start, ast.start + 6, components.keyword, status); // import
+        span(ast.start, ast.start + 6, components.keyword, status); // import
+        ESTree.visit(ast.specifiers, fn);
+        {
+          // TODO(jaked) clean up duplication
+          let components = okComponents;
+          let status: string | undefined = undefined;
+          if (ast.source.etype && ast.source.etype.type === 'err') {
+            components = errComponents;
+            status = ast.source.etype.err.message;
+          }
+          // TODO(jaked) maybe a link doesn't make sense for a nonexistent note
+          const link = ast.source.value;
+          span(ast.source.start, ast.source.end, components.link, status, link);
+        }
+        return false;
 
       case 'ImportSpecifier':
         // TODO(jaked) handle `as`
@@ -243,7 +270,7 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
     const Component = span.component;
     const chunk = content.slice(span.start, span.end);
     lineNodes.push(
-      <Component data-status={span.status}>{chunk}</Component>
+      <Component data-status={span.status} data-link={span.link}>{chunk}</Component>
     );
     lastOffset = span.end;
   }
@@ -295,6 +322,7 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
 
 export class Editor extends React.Component<Props, {}> {
   rscEditorRef = React.createRef<RSCEditor>();
+  preRef = React.createRef<HTMLPreElement>();
 
   focus() {
     if (this.rscEditorRef.current) {
@@ -304,6 +332,37 @@ export class Editor extends React.Component<Props, {}> {
 
   onChange = (value: string, session: Session) => {
     this.props.onChange(value, session);
+  }
+
+  findHighlightSpan = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    if (!this.preRef.current) return;
+    for (let i = 0; i < this.preRef.current.children.length; i++) {
+      const child = this.preRef.current.children.item(i);
+      if (child) {
+        const clientRect = child.getBoundingClientRect();
+        if (e.clientX >= clientRect.left && e.clientX <= clientRect.right &&
+            e.clientY >= clientRect.top && e.clientY <= clientRect.bottom) {
+          return (child as HTMLElement);
+        }
+      }
+    }
+  }
+
+  onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    const span = this.findHighlightSpan(e);
+    if (span) {
+      this.props.setStatus(span.dataset.status);
+    } else {
+      this.props.setStatus(undefined);
+    }
+  }
+
+  onClick = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    const span = this.findHighlightSpan(e);
+    if (span && span.dataset.link) {
+      e.preventDefault();
+      this.props.setSelected(span.dataset.link);
+    }
   }
 
   render() {
@@ -319,12 +378,15 @@ export class Editor extends React.Component<Props, {}> {
       }}>
         <RSCEditor
           ref={this.rscEditorRef}
+          preRef={this.preRef}
           name={selected}
           value={content}
           session={this.props.session}
           onChange={this.onChange}
           highlight={_ => highlight}
-          setStatus={this.props.setStatus}
+          onMouseOver={this.onMouseEvent}
+          onMouseMove={this.onMouseEvent}
+          onClick={this.onClick}
         />
       </div>
     );

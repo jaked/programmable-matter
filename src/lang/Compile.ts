@@ -819,11 +819,13 @@ function compileDirtyNotes(
       const moduleTypeEnv = Immutable.Map<string, Type.ModuleType>().asMutable();
       const moduleValueEnv = Immutable.Map<string, any>().asMutable();
       parsedNote.imports.forEach(tag => {
-        const compiledNote = compiledNotes.get(tag) || bug(`expected compiled note for ${tag}`);
-        compiledNote.compiled.forEach(compiled => {
-          moduleTypeEnv.set(tag, compiled.exportType);
-          moduleValueEnv.set(tag, compiled.exportValue);
-        });
+        const compiledNote = compiledNotes.get(tag);
+        if (compiledNote) {
+          compiledNote.compiled.forEach(compiled => {
+            moduleTypeEnv.set(tag, compiled.exportType);
+            moduleValueEnv.set(tag, compiled.exportValue);
+          });
+        }
       });
 
       const compiled =

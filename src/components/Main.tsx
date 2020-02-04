@@ -66,6 +66,7 @@ export class Main extends React.Component<Props, {}> {
           session={this.props.app.session}
           onChange={this.props.app.setContentAndSession}
           setStatus={this.props.app.setStatus}
+          setSelected={this.props.app.setSelected}
         />
       </Box>
       <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>

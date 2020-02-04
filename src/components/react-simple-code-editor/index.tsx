@@ -11,7 +11,6 @@ type Props = {
   ignoreTabKey: boolean,
   padding: number | string,
   style?: {},
-  setStatus: (status: string | undefined) => void,
 
   // Props for the textarea
   textareaId?: string,
@@ -29,6 +28,11 @@ type Props = {
   onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void,
   onKeyUp?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void,
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void,
+  onMouseOver?: (e: React.MouseEvent<HTMLTextAreaElement>) => void,
+  onMouseMove?: (e: React.MouseEvent<HTMLTextAreaElement>) => void,
+
+  // Props for the highlight pre
+  preRef: React.RefObject<HTMLPreElement>,
 };
 
 type State = {
@@ -476,24 +480,6 @@ export default class Editor extends React.Component<Props, State> {
     this.props.onChange(value, this.session);
   };
 
-  _onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
-    if (this._pre) {
-      let status: string | undefined = undefined;
-      for (let i = 0; i < this._pre.children.length; i++) {
-        const child = this._pre.children.item(i);
-        if (child) {
-          const clientRect = child.getBoundingClientRect();
-          if (e.clientX >= clientRect.left && e.clientX <= clientRect.right &&
-              e.clientY >= clientRect.top && e.clientY <= clientRect.bottom) {
-            status = (child as HTMLElement).dataset.status;
-            break;
-          }
-        }
-      }
-      this.props.setStatus(status);
-    }
-  }
-
   _history: History;
   constructor(props: Props) {
     super(props);
@@ -501,7 +487,6 @@ export default class Editor extends React.Component<Props, State> {
   }
 
   _input: HTMLTextAreaElement | null = null;
-  _pre: HTMLPreElement | null = null;
 
   focus() {
     if (this._input) {
@@ -522,6 +507,7 @@ export default class Editor extends React.Component<Props, State> {
 
   render() {
     const {
+      preRef,
       value,
       style,
       padding,
@@ -542,6 +528,8 @@ export default class Editor extends React.Component<Props, State> {
       onKeyUp,
       /* eslint-disable no-unused-vars */
       onKeyDown,
+      onMouseOver,
+      onMouseMove,
       onChange,
       tabSize,
       insertSpaces,
@@ -577,8 +565,8 @@ export default class Editor extends React.Component<Props, State> {
           onKeyUp={onKeyUp}
           onFocus={onFocus}
           onBlur={onBlur}
-          onMouseOver={this._onMouseEvent}
-          onMouseMove={this._onMouseEvent}
+          onMouseOver={onMouseOver}
+          onMouseMove={onMouseMove}
           disabled={disabled}
           form={form}
           maxLength={maxLength}
@@ -595,7 +583,7 @@ export default class Editor extends React.Component<Props, State> {
           data-gramm={false}
         />
         <pre
-          ref={c => (this._pre = c)}
+          ref={preRef}
           aria-hidden="true"
           style={{ ...styles.editor, ...styles.highlight, ...contentStyle }}
           {...(typeof highlighted === 'string'
