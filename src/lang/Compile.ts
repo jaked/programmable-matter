@@ -3,8 +3,6 @@ import * as Path from 'path';
 import * as Immutable from 'immutable';
 
 import * as React from 'react';
-import 'regenerator-runtime/runtime'; // required for react-inspector
-import { Inspector } from 'react-inspector';
 
 import Signal from '../util/Signal';
 import Trace from '../util/Trace';
@@ -21,7 +19,8 @@ import * as String from '../util/String';
 import { diffMap } from '../util/immutable/Map';
 import { bug } from '../util/bug';
 
-import { Table, Field } from '../components/Table';
+import { Table, Field as TableField } from '../components/Table';
+import { Record, Field as RecordField } from '../components/Record';
 
 const debug = false;
 
@@ -639,9 +638,16 @@ function compileJson(
   }
   const exportType = Type.module({ default: type });
   const value = Evaluator.evaluateExpression(ast, Immutable.Map());
-  const exportValue = { default: Signal.ok(value) }
+  const exportValue = { default: Signal.ok(value) };
+  if (type.kind !== 'Object') bug(`expected Object type`);
+  const fields: RecordField[] =
+    type.fields.map(({ field, type }) => ({
+      label: field,
+      accessor: (o: object) => o[field],
+      component: ({ data }) => React.createElement(React.Fragment, null, data)
+    }));
   const rendered = Signal.ok(
-    React.createElement(Inspector, { data: value, expandLevel: 1 })
+    React.createElement(Record, { object: value, fields })
   );
   return { exportType, exportValue, rendered };
 }
@@ -722,7 +728,7 @@ function compileTable(
 
   switch (typeUnion.kind) {
     case 'Object':
-      const fields: Field[] =
+      const fields: TableField[] =
         typeUnion.fields.map(({ field, type }) => ({
           label: field,
           accessor: (o: object) => o[field],
