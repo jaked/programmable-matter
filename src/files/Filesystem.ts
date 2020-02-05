@@ -62,7 +62,7 @@ export class Filesystem {
   public update = (path: string, buffer: Buffer) => {
     this.updateFiles(files => {
       const oldFileCell = files.get(path);
-      const lastUpdateMs = Date.now(); // TODO(jaked) not sure how accurate this is
+      const lastUpdateMs = Date.now();
       if (oldFileCell) {
         const oldFile = oldFileCell.get();
         const fileMetadata = this.filesMetadata.get(path) || bug(`expected metadata for ${path}`);

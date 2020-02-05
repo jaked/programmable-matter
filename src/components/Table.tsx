@@ -40,6 +40,18 @@ type Props = {
 
 export const Table = ({ data, fields, onSelect }: Props) => {
   const tagsByIndex = data.keySeq().toIndexedSeq();
+
+  // TODO(jaked) Util.memoize
+  const onSelectByTagMap = new Map<string, () => void>();
+  const onSelectByTag = (tag: string) => {
+    let onSelectForTag = onSelectByTagMap.get(tag);
+    if (!onSelectForTag) {
+      onSelectForTag = () => onSelect(tag);
+      onSelectByTagMap.set(tag, onSelectForTag);
+    }
+    return onSelectForTag;
+  }
+
   return (
     <AutoSizer>
       {({ height, width }) =>
@@ -60,16 +72,12 @@ export const Table = ({ data, fields, onSelect }: Props) => {
             const borderTopWidth = rowIndex === 0 ? 1 : 0;
             const borderLeftWidth = columnIndex === 0 ? 1 : 0;
 
-            // TODO(jaked)
-            // create one function for whole row
-            const onClick = () => onSelect(tag);
-
             return (
               <Box
                 style={style}
                 borderTopWidth={borderTopWidth}
                 borderLeftWidth={borderLeftWidth}
-                onClick={onClick}
+                onClick={onSelectByTag(tag)}
               >
                 <Component data={value} />
               </Box>

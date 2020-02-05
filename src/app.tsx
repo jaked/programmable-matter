@@ -26,7 +26,7 @@ import * as ReactDOM from 'react-dom';
 import ReactDOMServer from 'react-dom/server';
 
 import { Main } from './components/Main';
-import { Session } from './components/react-simple-code-editor';
+import { Session, emptySession } from './components/react-simple-code-editor';
 
 import * as GTasks from './integrations/gtasks';
 
@@ -159,8 +159,7 @@ export class App {
   private sideBarVisibleCell = Signal.cellOk<boolean>(true, this.render);
   public get sideBarVisible() { return this.sideBarVisibleCell.get() }
   public toggleSidebarVisible = () => {
-    // TODO(jaked) `update` method on cells
-    this.sideBarVisibleCell.setOk(!this.sideBarVisibleCell.get());
+    this.sideBarVisibleCell.update(b => !b);
   };
 
   private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', this.render);;
@@ -183,7 +182,7 @@ export class App {
     }
   }
 
-  writeNote = (path: string, tag: string, meta: data.Meta, content: string) => {
+  writeNote = (path: string, tag: string, content: string) => {
     if (debug) console.log(`writeNote path=${path} tag=${tag}`);
     let buffer = Buffer.from(content, 'utf8');
     this.filesystem.update(path, buffer);
@@ -194,7 +193,6 @@ export class App {
     this.writeNote(
       tag,
       tag,
-      { type: 'mdx' },
       ''
     )
   }
@@ -209,16 +207,7 @@ export class App {
             return session;
           }
         }
-        // TODO(jaked)
-        // empty session should be defined on RSCEditor
-        return {
-          history: {
-            stack: [],
-            offset: -1,
-          },
-          selectionStart: 0,
-          selectionEnd: 0
-        };
+        return emptySession();
       })
     );
   public get session() { return this.sessionSignal.get() }
@@ -273,7 +262,7 @@ export class App {
   public get content() { return this.contentSignal.get() }
 
   // TODO(jaked) maybe these functions can be generated via signals
-  // then passed into components so there isn't so much dereferecing here
+  // then passed into components so there isn't so much dereferencing here
   public setContentAndSession = (content: string, session: Session) => {
     if (content === null) return;
     const selected = this.selectedCell.get();
@@ -288,7 +277,7 @@ export class App {
     if (note.type !== 'mdx' && note.type !== 'txt' && note.type !== 'json') return;
     if (note.content === content) return;
 
-    this.writeNote(note.path, note.tag, note.meta, content);
+    this.writeNote(note.path, note.tag, content);
   }
 
   private matchingNotesSignal =

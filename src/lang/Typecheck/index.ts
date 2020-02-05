@@ -6,7 +6,6 @@ module Typecheck {
   export type Env = Env.Env;
   export const env = Env.env;
   export const synth = Synth.synth;
-  export const synthProgram = Synth.synthProgram;
   export const synthMdx = Synth.synthMdx;
   export const check = Check.check;
 }

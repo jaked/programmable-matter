@@ -598,10 +598,9 @@ function compileMdx(
         Type.reactNodeType);
     const layoutModule = moduleTypeEnv.get(meta.layout);
     if (layoutModule) {
-      // TODO(jaked) add a .get method on Type.ModuleType
-      const defaultField = layoutModule.fields.find(field => field.field === 'default');
-      if (defaultField) {
-        if (Type.isSubtype(defaultField.type, layoutType)) {
+      const defaultType = layoutModule.get('default');
+      if (defaultType) {
+        if (Type.isSubtype(defaultType, layoutType)) {
           const layoutModule = moduleValueEnv.get(meta.layout);
           if (layoutModule) {
             layoutFunction = layoutModule['default'];
@@ -625,7 +624,6 @@ function compileMdx(
 }
 
 function compileJson(
-  tag: string,
   ast: ESTree.Expression,
   meta: data.Meta
 ): data.Compiled {
@@ -647,6 +645,7 @@ function compileJson(
       component: ({ data }) => React.createElement(React.Fragment, null, data)
     }));
   const rendered = Signal.ok(
+    // TODO(json) handle arrays of records (with Table)
     React.createElement(Record, { object: value, fields })
   );
   return { exportType, exportValue, rendered };
@@ -693,12 +692,12 @@ function compileTable(
       console.log(`expected module type for ${tag}`);
       return;
     }
-    const defaultField = moduleType.fields.find(({ field }) => field === 'default');
-    if (!defaultField) {
+    const defaultType = moduleType.get('default');
+    if (!defaultType) {
       console.log(`expected default export for ${tag}`);
       return;
     }
-    types.push(defaultField.type);
+    types.push(defaultType);
   });
   // TODO(jaked)
   // treat parsedNote.imports as a Signal<Map> to make tables incremental
@@ -775,9 +774,7 @@ function compileNote(
         );
 
       case 'json': {
-        // TODO(jaked) pass the whole note instead of pieces
         return compileJson(
-          parsedNote.tag,
           parsedNote.ast.get(),
           parsedNote.meta
         );

@@ -104,6 +104,17 @@ const cssText = /* CSS */ `
 }
 `;
 
+export function emptySession(): Session {
+  return {
+    history: {
+      stack: [],
+      offset: -1,
+    },
+    selectionStart: 0,
+    selectionEnd: 0
+  };
+}
+
 export default class Editor extends React.Component<Props, State> {
   static defaultProps = {
     tabSize: 2,

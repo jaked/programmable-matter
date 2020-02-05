@@ -21,12 +21,14 @@ export type FunctionType = {
 export type ObjectType = {
   kind: 'Object',
   fields: Array<{ field: string, type: Type }>
+  get(field: string): Type | undefined;
 };
 
 // invariant: no duplicate fields
 export type ModuleType = {
   kind: 'Module',
   fields: Array<{ field: string, type: Type }>
+  get(field: string): Type | undefined;
 };
 
 // invariant: no nested unions, > 1 element

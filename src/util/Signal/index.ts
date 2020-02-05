@@ -98,6 +98,7 @@ interface CellIntf<T> extends Signal<T> {
   set(t: Try<T>): void;
   setOk(t: T): void;
   setErr(err: Error): void;
+  update(fn: (t: T) => T): void;
 }
 
 class CellImpl<T> implements CellIntf<T> {
@@ -126,6 +127,7 @@ class CellImpl<T> implements CellIntf<T> {
   }
   setOk(t: T) { this.set(Try.ok(t)); }
   setErr(err: Error) { this.set(Try.err(err)); }
+  update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
 }
 
 class Map<T, U> implements Signal<U> {
@@ -278,14 +280,7 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
     if (s.value.type === 'ok') {
       this.vsSignals = s.value.ok;
       this.vsVersions = s.value.ok.map(v => v.version);
-      // TODO(jaked) add Try.joinImmutableMap
-      const vs = Try.join(...this.vsSignals.valueSeq().map(s => s.value));
-      this.value = vs.map(vs =>
-        this.vsSignals.keySeq().reduce<Immutable.Map<K, V>>(
-          (map, key, i) => map.set(key, vs[i]),
-          Immutable.Map()
-        )
-      );
+      this.value = Try.joinImmutableMap(this.vsSignals.map(s => s.value));
       const vsLevels = Math.min(...this.vsSignals.valueSeq().map(s => s.level));
       this.level = Math.min(s.level, vsLevels);
     } else {
@@ -319,14 +314,7 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
       // incrementally update value / versions instead of rebuilding from scratch
       // since it is likely that only some values are updated
       this.vsVersions = this.vsSignals.map(v => v.version);
-      // TODO(jaked) add Try.joinImmutableMap
-      const vs = Try.join(...this.vsSignals.valueSeq().map(s => s.value));
-      this.value = vs.map(vs =>
-        this.vsSignals.keySeq().reduce<Immutable.Map<K, V>>(
-          (map, key, i) => map.set(key, vs[i]),
-          Immutable.Map()
-        )
-      );
+      this.value = Try.joinImmutableMap(this.vsSignals.map(s => s.value));
       this.version++;
     } else {
       this.sVersion = this.s.version
@@ -334,18 +322,11 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
         this.vsSignals = this.s.value.ok;
         this.vsSignals.forEach(v => v.reconcile(trace, level));
 
-      // TODO(jaked)
-      // incrementally update value / versions instead of rebuilding from scratch
-      // since it is likely that only some values are updated
-      this.vsVersions = this.vsSignals.map(v => v.version);
-        // TODO(jaked) add Try.joinImmutableMap
-        const vs = Try.join(...this.vsSignals.valueSeq().map(s => s.value));
-        this.value = vs.map(vs =>
-          this.vsSignals.keySeq().reduce<Immutable.Map<K, V>>(
-            (map, key, i) => map.set(key, vs[i]),
-            Immutable.Map()
-          )
-        );
+        // TODO(jaked)
+        // incrementally update value / versions instead of rebuilding from scratch
+        // since it is likely that only some values are updated
+        this.vsVersions = this.vsSignals.map(v => v.version);
+        this.value = Try.joinImmutableMap(this.vsSignals.map(s => s.value));
       } else {
         this.vsSignals = Immutable.Map();
         this.vsVersions = Immutable.Map();

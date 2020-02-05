@@ -15,7 +15,7 @@ function checkSubtype(ast: ESTree.Expression, env: Env, type: Type) {
     case 'ConditionalExpression': {
       const testType = synth(ast.test, env);
 
-      if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+      if (testType.kind === 'Singleton') {
         if (testType.value) {
           const envConsequent = narrowEnvironment(env, ast.test, true);
           return check(ast.consequent, envConsequent, type);

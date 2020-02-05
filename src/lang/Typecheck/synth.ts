@@ -50,7 +50,7 @@ const typeofType =
 function synthUnaryExpression(ast: ESTree.UnaryExpression, env: Env): Type {
   const type = synth(ast.argument, env);
 
-  if (type.kind === 'Singleton') {  // TODO(jaked) handle compound singletons
+  if (type.kind === 'Singleton') {
     switch (ast.operator) {
       case '!':
         return Type.singleton(!type.value);
@@ -75,7 +75,7 @@ function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type {
   switch (ast.operator) {
     case '&&': {
       const left = synth(ast.left, env);
-      if (left.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+      if (left.kind === 'Singleton') {
         const right = synth(ast.right, env); // synth even when !left.value
         return !left.value ? left : right;
       } else {
@@ -87,7 +87,7 @@ function synthLogicalExpression(ast: ESTree.LogicalExpression, env: Env): Type {
 
     case '||': {
       const left = synth(ast.left, env);
-      if (left.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+      if (left.kind === 'Singleton') {
         const right = synth(ast.right, env); // synth even when left.value
         return left.value ? left : right;
       } else {
@@ -107,7 +107,6 @@ function synthBinaryExpression(ast: ESTree.BinaryExpression, env: Env): Type {
   let left = synth(ast.left, env);
   let right = synth(ast.right, env);
 
-  // TODO(jaked) handle compound singletons
   if (left.kind === 'Singleton' && right.kind === 'Singleton') {
     // TODO(jaked) handle other operators
     switch (ast.operator) {
@@ -379,7 +378,7 @@ function synthConditionalExpression(
 ): Type {
   const testType = synth(ast.test, env);
 
-  if (testType.kind === 'Singleton') { // TODO(jaked) handle compound singletons
+  if (testType.kind === 'Singleton') {
     if (testType.value) {
       const envConsequent = narrowEnvironment(env, ast.test, true);
       return synth(ast.consequent, envConsequent);
@@ -621,32 +620,5 @@ export function synthMdx(
     }
 
     default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
-  }
-}
-
-// TODO(jaked) this interface is a little weird
-export function synthProgram(
-  ast: ESTree.Node,
-  moduleEnv: Immutable.Map<string, Type.ModuleType>,
-  env: Env,
-  exportTypes: { [s: string]: Type }
-): Env {
-  switch (ast.type) {
-    case 'Program':
-      ast.body.forEach(child =>
-        env = synthProgram(child, moduleEnv, env, exportTypes)
-      );
-      return env;
-
-    case 'ImportDeclaration':
-      return extendEnvWithImport(ast, moduleEnv, env);
-
-    case 'ExportNamedDeclaration':
-      return extendEnvWithNamedExport(ast, exportTypes, env);
-
-    case 'ExportDefaultDeclaration':
-      return extendEnvWithDefaultExport(ast, exportTypes, env);
-
-    default: throw new Error('unexpected AST ' + (ast as ESTree.Node).type);
   }
 }

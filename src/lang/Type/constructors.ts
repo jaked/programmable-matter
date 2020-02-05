@@ -40,19 +40,44 @@ export function functionType(
   return { kind: 'Function', args, ret };
 }
 
+class ObjectType {
+  kind: 'Object' = 'Object';
+  fields: Array<{ field: string, type: Types.Type }>;
+
+  constructor(fields: Array<{ field: string, type: Types.Type }>) {
+    this.fields = fields;
+  }
+
+  get(field: string) {
+    const ft = this.fields.find(ft => ft.field === field);
+    if (ft) return ft.type;
+  }
+}
+
 export function object(fields: { [f: string]: Types.Type } | Array<{ field: string, type: Types.Type }>): Types.ObjectType {
   if (Array.isArray(fields)) {
-    return { kind: 'Object', fields };
+    return new ObjectType(fields);
   } else {
-    fields = Object.entries(fields).map(([ field, type]) => ({ field, type }));
-    return { kind: 'Object', fields };
+    return new ObjectType(Object.entries(fields).map(([ field, type]) => ({ field, type })));
+  }
+}
+
+class ModuleType {
+  kind: 'Module' = 'Module';
+  fields: Array<{ field: string, type: Types.Type }>;
+
+  constructor(fields: Array<{ field: string, type: Types.Type }>) {
+    this.fields = fields;
+  }
+
+  get(field: string) {
+    const ft = this.fields.find(ft => ft.field === field);
+    if (ft) return ft.type;
   }
 }
 
 export function module(obj: { [f: string]: Types.Type }): Types.ModuleType {
-  const fields =
-    Object.entries(obj).map(([ field, type ]) => ({ field, type }));
-  return { kind: 'Module', fields };
+  return new ModuleType(Object.entries(obj).map(([ field, type ]) => ({ field, type })));
 }
 
 export function singleton(value: any): Types.Type {
