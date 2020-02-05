@@ -335,13 +335,16 @@ export class App {
         } else {
           const expanded = dirExpanded.get(dir, false);
           const indent = dir.split('/').length;
+          const indexTag = Path.join(dir, 'index');
 
           if (!dirs.has(dir)) {
             dirs.add(dir);
-            matchingNotesDirs.push({ kind: 'dir', expanded, indent: indent - 1, dir });
+            // TODO(jaked) only includes index if it matches search
+            const note = matchingNotes.find(note => note.tag === indexTag);
+            matchingNotesDirs.push({ kind: 'dir', expanded, indent: indent - 1, dir, note });
           }
 
-          if (expanded) {
+          if (expanded && note.tag !== indexTag) {
             matchingNotesDirs.push({ kind: 'note', indent, note });
           }
         }
