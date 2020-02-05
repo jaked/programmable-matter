@@ -84,7 +84,7 @@ export class App {
         this.compileDirty = false;
 
         this.__trace.reset();
-        this.matchingNotesSignal.reconcile(this.__trace, this.level);
+        this.matchingNotesDirsSignal.reconcile(this.__trace, this.level);
         this.compiledNoteSignal.reconcile(this.__trace, this.level);
 
         // TODO(jaked) fix hack
@@ -311,6 +311,23 @@ export class App {
       })
     );
   public get matchingNotes() { return this.matchingNotesSignal.get() }
+
+  private matchingNotesDirsSignal = Signal.label('matchingNotesDirs',
+    this.matchingNotesSignal.map(matchingNotes => {
+      const matchingNotesDirs: data.NoteDir[] = [];
+      const dirs = new Set<string>();
+      matchingNotes.forEach(note => {
+        const dir = Path.dirname(note.tag);
+        if (dir !== '.' && !dirs.has(dir)) {
+          dirs.add(dir);
+          matchingNotesDirs.push({ kind: 'dir', dir });
+        }
+        matchingNotesDirs.push({ kind: 'note', note });
+      });
+      return matchingNotesDirs;
+    })
+  );
+  public get matchingNotesDirs() { return this.matchingNotesDirsSignal.get() }
 
   private server = new Server(this.compiledNotesSignal);
 

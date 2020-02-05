@@ -1,3 +1,4 @@
+import * as Immutable from 'immutable';
 import React from 'react';
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
@@ -7,6 +8,7 @@ type Props = {
   search: string;
   onSearch: (s: string) => void;
   matchingNotes: data.CompiledNote[];
+  matchingNotesDirs: data.NoteDir[];
   selected: string | null;
   onSelect: (s: string | null) => void;
   newNote: (s: string) => void;
@@ -63,6 +65,7 @@ export class Sidebar extends React.Component<Props, {}> {
       <Notes
         ref={this.notesRef}
         notes={this.props.matchingNotes}
+        notesDirs={this.props.matchingNotesDirs}
         selected={this.props.selected}
         onSelect={this.props.onSelect}
         focusEditor={this.props.focusEditor}

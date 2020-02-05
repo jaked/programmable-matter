@@ -40,6 +40,7 @@ export class Main extends React.Component<Props, {}> {
         search={this.props.app.search}
         onSearch={this.props.app.setSearch}
         matchingNotes={this.props.app.matchingNotes}
+        matchingNotesDirs={this.props.app.matchingNotesDirs}
         selected={this.props.app.selected}
         onSelect={this.props.app.setSelected}
         newNote={this.props.app.newNote}

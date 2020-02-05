@@ -70,3 +70,7 @@ export type Notes = Immutable.Map<string, Signal<Note>>;
 export type ParsedNotes = Immutable.Map<string, ParsedNote>;
 export type ParsedNotesWithImports = Immutable.Map<string, ParsedNoteWithImports>;
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;
+
+export type NoteDir =
+  { kind: 'note', note: CompiledNote } |
+  { kind: 'dir', dir: string }

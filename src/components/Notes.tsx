@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
+import { bug } from '../util/bug';
 import * as data from '../data';
 import { Note } from './Note';
 
@@ -14,13 +15,14 @@ const Box = styled(BoxBase)({
 });
 
 interface Props {
-  notes: Array<data.CompiledNote>;
+  notes: data.CompiledNote[];
+  notesDirs: data.NoteDir[];
   selected: string | null;
   onSelect: (tag: string) => void;
   focusEditor: () => void;
 }
 
-export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect, focusEditor }, ref) => {
+export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, notesDirs, selected, onSelect, focusEditor }, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (notes.length === 0) return false;
     let nextTagIndex: number;
@@ -66,16 +68,36 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
   });
 
   const Notes = ({ index, style }: { index: number, style: any }) => {
-    const note = notes[index];
-    return (
-      <Note
-        key={note.tag}
-        note={note}
-        selected={note.tag === selected}
-        onClick={ () => onSelect(note.tag) }
-        style={style}
-      />
-    );
+    const noteDir = notesDirs[index];
+    switch (noteDir.kind) {
+      case 'note': {
+        const note = noteDir.note;
+        return (
+          <Note
+            key={note.tag}
+            tag={note.tag}
+            err={note.compiled.type === 'err'}
+            selected={note.tag === selected}
+            onClick={ () => onSelect(note.tag) }
+            style={style}
+          />
+        );
+      }
+
+      case 'dir': {
+        const dir = noteDir.dir;
+        return (
+          <Note
+            key={dir}
+            tag={dir}
+            err={false}
+            selected={false}
+            onClick={ () => { } }
+            style={style}
+          />
+        );
+      }
+    }
   };
 
   return (
@@ -91,7 +113,7 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
         {({ height, width }) =>
           <FixedSizeList
             ref={fixedSizeListRef}
-            itemCount={notes.length}
+            itemCount={notesDirs.length}
             itemSize={30} // TODO(jaked) compute somehow
             width={width}
             height={height}
