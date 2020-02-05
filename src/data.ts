@@ -74,4 +74,4 @@ export type CompiledNotes = Immutable.Map<string, CompiledNote>;
 // TODO(jaked) describes UI, belongs elsewhere
 export type NoteDir =
   { kind: 'note', indent: number, note: CompiledNote } |
-  { kind: 'dir', icon: '+' | '-', indent: number, dir: string }
+  { kind: 'dir', expanded: boolean, indent: number, dir: string }

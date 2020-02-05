@@ -312,21 +312,39 @@ export class App {
     );
   public get matchingNotes() { return this.matchingNotesSignal.get() }
 
+  private dirExpandedCell = Signal.cellOk(Immutable.Map<string, boolean>(), this.dirtyAndRender);
+  public toggleDirExpanded = (dir: string) => {
+    this.dirExpandedCell.update(dirExpanded => {
+      const flag = dirExpanded.get(dir, false);
+      return dirExpanded.set(dir, !flag);
+    });
+  }
+
   private matchingNotesDirsSignal = Signal.label('matchingNotesDirs',
-    this.matchingNotesSignal.map(matchingNotes => {
+    Signal.join(
+      this.matchingNotesSignal,
+      this.dirExpandedCell
+    ).map(([matchingNotes, dirExpanded]) => {
       const matchingNotesDirs: data.NoteDir[] = [];
       const dirs = new Set<string>();
       matchingNotes.forEach(note => {
         const dir = Path.dirname(note.tag);
 
-        if (dir !== '.' && !dirs.has(dir)) {
-          const indent = dir.split('/').length - 1;
-          dirs.add(dir);
-          matchingNotesDirs.push({ kind: 'dir', icon: '-', indent, dir });
-        }
+        if (dir === '.') {
+          matchingNotesDirs.push({ kind: 'note', indent: 0, note });
+        } else {
+          const expanded = dirExpanded.get(dir, false);
+          const indent = dir.split('/').length;
 
-        const indent = dir === '.' ? 0 : dir.split('/').length;
-        matchingNotesDirs.push({ kind: 'note', indent, note });
+          if (!dirs.has(dir)) {
+            dirs.add(dir);
+            matchingNotesDirs.push({ kind: 'dir', expanded, indent: indent - 1, dir });
+          }
+
+          if (expanded) {
+            matchingNotesDirs.push({ kind: 'note', indent, note });
+          }
+        }
       });
       return matchingNotesDirs;
     })

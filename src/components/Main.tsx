@@ -45,6 +45,7 @@ export class Main extends React.Component<Props, {}> {
         onSelect={this.props.app.setSelected}
         newNote={this.props.app.newNote}
         focusEditor={this.focusEditor}
+        toggleDirExpanded={this.props.app.toggleDirExpanded}
       />
     </Flex>
 

@@ -4,7 +4,7 @@ import styled from 'styled-components';
 
 interface Props {
   tag: string,
-  icon?: '+' | '-',
+  expanded?: boolean,
   indent: number,
   err: boolean,
   selected: boolean;
@@ -21,11 +21,13 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export const Note = ({ tag, icon, indent, err, selected, onClick, style } : Props) => {
+export const Note = ({ tag, expanded, indent, err, selected, onClick, style } : Props) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :
       (selected ? '#cccccc' : '#ffffff');
+  const icon = (typeof expanded === 'undefined') ? undefined :
+               expanded ? '-' : '+';
   return (
     <Flex
       padding={2}

@@ -13,6 +13,7 @@ type Props = {
   onSelect: (s: string | null) => void;
   newNote: (s: string) => void;
   focusEditor: () => void;
+  toggleDirExpanded: (s: string) => void;
 }
 
 export class Sidebar extends React.Component<Props, {}> {
@@ -69,6 +70,7 @@ export class Sidebar extends React.Component<Props, {}> {
         selected={this.props.selected}
         onSelect={this.props.onSelect}
         focusEditor={this.props.focusEditor}
+        toggleDirExpanded={this.props.toggleDirExpanded}
       />
     </>);
   }
