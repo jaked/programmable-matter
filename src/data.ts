@@ -71,6 +71,7 @@ export type ParsedNotes = Immutable.Map<string, ParsedNote>;
 export type ParsedNotesWithImports = Immutable.Map<string, ParsedNoteWithImports>;
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;
 
+// TODO(jaked) describes UI, belongs elsewhere
 export type NoteDir =
-  { kind: 'note', note: CompiledNote } |
-  { kind: 'dir', dir: string }
+  { kind: 'note', indent: number, note: CompiledNote } |
+  { kind: 'dir', icon: '+' | '-', indent: number, dir: string }

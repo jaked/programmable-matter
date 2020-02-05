@@ -76,6 +76,7 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, notesDirs
           <Note
             key={note.tag}
             tag={note.tag}
+            indent={noteDir.indent}
             err={note.compiled.type === 'err'}
             selected={note.tag === selected}
             onClick={ () => onSelect(note.tag) }
@@ -90,6 +91,8 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, notesDirs
           <Note
             key={dir}
             tag={dir}
+            icon={noteDir.icon}
+            indent={noteDir.indent}
             err={false}
             selected={false}
             onClick={ () => { } }

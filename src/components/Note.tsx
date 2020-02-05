@@ -1,16 +1,18 @@
 import * as React from 'react';
-import { Box as BaseBox } from 'rebass';
+import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
 
 interface Props {
   tag: string,
+  icon?: '+' | '-',
+  indent: number,
   err: boolean,
   selected: boolean;
   onClick: () => void;
   style: any;
 }
 
-const Box = styled(BaseBox)`
+const Flex = styled(BaseFlex)`
   :hover {
     cursor: pointer;
   }
@@ -19,19 +21,21 @@ const Box = styled(BaseBox)`
   overflow: hidden;
 `;
 
-export const Note = ({ tag, err, selected, onClick, style } : Props) => {
+export const Note = ({ tag, icon, indent, err, selected, onClick, style } : Props) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :
       (selected ? '#cccccc' : '#ffffff');
   return (
-    <Box
+    <Flex
       padding={2}
       backgroundColor={backgroundColor}
       onClick={onClick}
       style={style}
     >
-      {tag}
-    </Box>
+      <div style={{ width: '10px' }}>{icon}</div>
+      <div style={{ width: `${indent * 10}px` }} />
+      <div>{tag}</div>
+    </Flex>
   );
 };

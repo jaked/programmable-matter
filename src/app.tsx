@@ -318,11 +318,15 @@ export class App {
       const dirs = new Set<string>();
       matchingNotes.forEach(note => {
         const dir = Path.dirname(note.tag);
+
         if (dir !== '.' && !dirs.has(dir)) {
+          const indent = dir.split('/').length - 1;
           dirs.add(dir);
-          matchingNotesDirs.push({ kind: 'dir', dir });
+          matchingNotesDirs.push({ kind: 'dir', icon: '-', indent, dir });
         }
-        matchingNotesDirs.push({ kind: 'note', note });
+
+        const indent = dir === '.' ? 0 : dir.split('/').length;
+        matchingNotesDirs.push({ kind: 'note', indent, note });
       });
       return matchingNotesDirs;
     })
