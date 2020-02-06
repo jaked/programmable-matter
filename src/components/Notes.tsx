@@ -1,3 +1,5 @@
+import * as Path from 'path';
+
 import React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
@@ -15,15 +17,14 @@ const Box = styled(BoxBase)({
 });
 
 interface Props {
-  notes: data.CompiledNote[];
-  notesDirs: data.NoteDir[];
+  notes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
   selected: string | null;
   onSelect: (tag: string) => void;
   focusEditor: () => void;
   toggleDirExpanded: (tag: string) => void;
 }
 
-export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, notesDirs, selected, onSelect, focusEditor, toggleDirExpanded }, ref) => {
+export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect, focusEditor, toggleDirExpanded }, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (notes.length === 0) return false;
     let nextTagIndex: number;
@@ -69,45 +70,24 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, notesDirs
   });
 
   const Notes = ({ index, style }: { index: number, style: any }) => {
-    const noteDir = notesDirs[index];
-    switch (noteDir.kind) {
-      case 'note': {
-        const note = noteDir.note;
-        return (
-          <Note
-            key={note.tag}
-            tag={note.tag}
-            indent={noteDir.indent}
-            err={note.compiled.type === 'err'}
-            selected={note.tag === selected}
-            onClick={ () => onSelect(note.tag) }
-            style={style}
-          />
-        );
-      }
-
-      case 'dir': {
-        const dir = noteDir.dir;
-        return (
-          <Note
-            key={dir}
-            tag={dir}
-            expanded={noteDir.expanded}
-            indent={noteDir.indent}
-            err={false}
-            selected={ !!noteDir.note && noteDir.note.tag === selected }
-            onClick={ () => {
-              // TODO(jaked) fix double render
-              if (noteDir.note) {
-                onSelect(noteDir.note.tag)
-              }
-              toggleDirExpanded(dir);
-            } }
-            style={style}
-          />
-        );
-      }
-    }
+    const note = notes[index];
+    return (
+      <Note
+        key={note.tag}
+        label={Path.parse(note.tag).base}
+        expanded={note.expanded}
+        indent={note.indent}
+        err={note.compiled.type === 'err'}
+        selected={note.tag === selected}
+        onClick={ () => {
+          // TODO(jaked) fix double render
+          onSelect(note.tag);
+          if (typeof note.expanded != 'undefined')
+            toggleDirExpanded(note.tag);
+        } }
+        style={style}
+      />
+    );
   };
 
   return (
@@ -123,7 +103,7 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, notesDirs
         {({ height, width }) =>
           <FixedSizeList
             ref={fixedSizeListRef}
-            itemCount={notesDirs.length}
+            itemCount={notes.length}
             itemSize={30} // TODO(jaked) compute somehow
             width={width}
             height={height}

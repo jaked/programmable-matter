@@ -12,6 +12,7 @@ const publish = util.promisify(ghPages.publish);
 
 import * as Immutable from 'immutable';
 
+import { bug } from './util/bug';
 import Signal from './util/Signal';
 import Trace from './util/Trace';
 import * as data from './data';
@@ -84,7 +85,7 @@ export class App {
         this.compileDirty = false;
 
         this.__trace.reset();
-        this.matchingNotesDirsSignal.reconcile(this.__trace, this.level);
+        this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
         this.compiledNoteSignal.reconcile(this.__trace, this.level);
 
         // TODO(jaked) fix hack
@@ -290,19 +291,37 @@ export class App {
         this.searchCell
       ).map(([notes, search]) => {
         return this.__trace.time('match notes', () => {
-          let matchingNotes = notes;
+          let matchingNotes: data.CompiledNotes;
           if (search) {
             // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
             const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
             const regexp = RegExp(escaped, 'i');
 
-            function matches(note: data.Note): boolean {
+            function matchesSearch(note: data.Note): boolean {
               if (note.content.match(regexp)) return true;
               if (note.tag.match(regexp)) return true;
               if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
               return false;
             }
-            matchingNotes = notes.filter(matches);
+            const matches = notes.filter(matchesSearch);
+            matchingNotes = matches.withMutations(map => {
+              matches.forEach((_, tag) => {
+                const dirname = Path.dirname(tag);
+                if (dirname != '.') {
+                  const dirs = dirname.split('/');
+                  let dir = '';
+                  for (let i=0; i < dirs.length; i++) {
+                    dir = Path.join(dir, dirs[i]);
+                    if (!map.has(dir)) {
+                      const note = notes.get(dir) || bug(`expected note for ${dir}`);
+                      map.set(dir, note);
+                    }
+                  }
+                }
+              });
+            });
+          } else {
+            matchingNotes = notes;
           }
           return matchingNotes.valueSeq().toArray().sort((a, b) =>
             a.tag < b.tag ? -1 : 1
@@ -320,39 +339,40 @@ export class App {
     });
   }
 
-  private matchingNotesDirsSignal = Signal.label('matchingNotesDirs',
+  private matchingNotesTreeSignal = Signal.label('matchingNotesTree',
     Signal.join(
       this.matchingNotesSignal,
-      this.dirExpandedCell
-    ).map(([matchingNotes, dirExpanded]) => {
-      const matchingNotesDirs: data.NoteDir[] = [];
-      const dirs = new Set<string>();
+      this.dirExpandedCell,
+      this.selectedCell
+    ).map(([matchingNotes, dirExpanded, selected]) => {
+      const matchingNotesTree: Array<data.CompiledNote & { indent: number, expanded?: boolean }> = [];
       matchingNotes.forEach(note => {
-        const dir = Path.dirname(note.tag);
-
-        if (dir === '.') {
-          matchingNotesDirs.push({ kind: 'note', indent: 0, note });
-        } else {
-          const expanded = dirExpanded.get(dir, false);
-          const indent = dir.split('/').length;
-          const indexTag = Path.join(dir, 'index');
-
-          if (!dirs.has(dir)) {
-            dirs.add(dir);
-            // TODO(jaked) only includes index if it matches search
-            const note = matchingNotes.find(note => note.tag === indexTag);
-            matchingNotesDirs.push({ kind: 'dir', expanded, indent: indent - 1, dir, note });
+        const dirname = Path.dirname(note.tag);
+        let showNote = true;
+        let indent = 0;
+        if (dirname !== '.') {
+          const dirs = dirname.split('/');
+          indent = dirs.length;
+          let dir = '';
+          for (let i = 0; i < dirs.length; i++) {
+            dir = Path.join(dir, dirs[i]);
+            if (!dirExpanded.get(dir, false)) showNote = false;
           }
-
-          if (expanded && note.tag !== indexTag) {
-            matchingNotesDirs.push({ kind: 'note', indent, note });
+          if (selected && selected.startsWith(note.tag))
+            showNote = true;
+        }
+        if (showNote) {
+          let expanded: boolean | undefined = undefined;
+          if (Path.parse(note.path).name === 'index') { // TODO(jaked) make this a Note property
+            expanded = dirExpanded.get(note.tag, false);
           }
+          matchingNotesTree.push({ ...note, indent, expanded });
         }
       });
-      return matchingNotesDirs;
+      return matchingNotesTree;
     })
   );
-  public get matchingNotesDirs() { return this.matchingNotesDirsSignal.get() }
+  public get matchingNotesTree() { return this.matchingNotesTreeSignal.get() }
 
   private server = new Server(this.compiledNotesSignal);
 

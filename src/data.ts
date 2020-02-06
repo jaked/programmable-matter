@@ -70,8 +70,3 @@ export type Notes = Immutable.Map<string, Signal<Note>>;
 export type ParsedNotes = Immutable.Map<string, ParsedNote>;
 export type ParsedNotesWithImports = Immutable.Map<string, ParsedNoteWithImports>;
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;
-
-// TODO(jaked) describes UI, belongs elsewhere
-export type NoteDir =
-  { kind: 'note', indent: number, note: CompiledNote } |
-  { kind: 'dir', expanded: boolean, indent: number, dir: string, note?: CompiledNote }

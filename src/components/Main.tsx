@@ -39,8 +39,7 @@ export class Main extends React.Component<Props, {}> {
         ref={this.sidebarRef}
         search={this.props.app.search}
         onSearch={this.props.app.setSearch}
-        matchingNotes={this.props.app.matchingNotes}
-        matchingNotesDirs={this.props.app.matchingNotesDirs}
+        matchingNotes={this.props.app.matchingNotesTree}
         selected={this.props.app.selected}
         onSelect={this.props.app.setSelected}
         newNote={this.props.app.newNote}

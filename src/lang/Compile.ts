@@ -68,7 +68,8 @@ function parseMeta(string: string): data.Meta {
 
 function tagOfPath(path: string) {
   const pathParts = Path.parse(path);
-  return Path.join(pathParts.dir, pathParts.name);
+  if (pathParts.name === 'index') return pathParts.dir;
+  else return Path.join(pathParts.dir, pathParts.name);
 }
 
 function isDotMeta(path: string) {
@@ -190,6 +191,28 @@ function groupFilesByTag(
   groupedFiles =
     groupedFiles.filterNot(group => group.every((_, path) => isDotMeta(path)));
 
+  // add dummy index notes for all dirs
+  // TODO(jaked) need to delete old dummies if all real files are deleted
+  groupedFiles.forEach((_, tag) => {
+    const dirname = Path.dirname(tag);
+    if (dirname !== '.') {
+      const dirs = dirname.split('/');
+      let dir = '';
+      for (let i = 0; i < dirs.length; i++) {
+        dir = Path.join(dir, dirs[i]);
+        if (!groupedFiles.has(dir)) {
+          groupedFiles = groupedFiles.set(dir, Immutable.Map({
+            [dir]: Signal.ok({
+              path: Path.join(dir, 'index'),
+              version: 0,
+              buffer: new Buffer('')
+            })
+          }));
+        }
+      }
+    }
+  });
+
   return groupedFiles;
 }
 
@@ -226,12 +249,12 @@ function noteOfGroup(
     group.filter((_, path) => isDotMeta(path)).sortBy((_, path) => path);
   dirMetas.forEach(file => metaFiles.push(file));
 
-  const metaFile = group.get(tag + '.meta');
+  const metaFile = group.find((_, path) => Path.extname(path) === '.meta' && !isDotMeta(path));
   if (metaFile) metaFiles.push(metaFile);
 
   let nonMetaFiles: Signal<data.File>[] = [];
   const nonMetaFilesGroup =
-    group.filter((_, path) => !isDotMeta(path) && Path.parse(path).ext != '.meta')
+    group.filter((_, path) => !isDotMeta(path) && Path.extname(path) != '.meta')
   nonMetaFilesGroup.forEach(file => nonMetaFiles.push(file));
 
   return Signal.label(tag, Signal.join(
@@ -243,10 +266,12 @@ function noteOfGroup(
       const metaString = metaFile.buffer.toString('utf8');
       meta = { ...meta, ...parseMeta(metaString) }
     });
-    if (files.length === 0 && Path.parse(tag).base === 'index') {
-      const file = metaFiles.find(file => file.path.endsWith('index.meta')) || bug(`expected index.meta file for ${tag}`);
-      const type = 'table';
-      if (meta.type !== type) throw new Error(`expected type table for ${tag}`);
+    if (files.length === 0) {
+      const file =
+        metaFiles.find(file => file.path === `${tag}.meta`) ||
+        metaFiles.find(file => file.path === `${Path.join(tag, 'index')}.meta`) ||
+        bug(`expected ${tag}.meta or ${Path.join(tag, 'index')}.meta`);
+      const type = meta.type || 'mdx';
       return { ...file, tag, meta, type, content: '' };
     } else {
       if (!(files.length === 1)) throw new Error(`expected 1 file for ${tag}, ${files}`);

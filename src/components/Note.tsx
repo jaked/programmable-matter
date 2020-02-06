@@ -3,7 +3,7 @@ import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
 
 interface Props {
-  tag: string,
+  label: string,
   expanded?: boolean,
   indent: number,
   err: boolean,
@@ -21,7 +21,7 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export const Note = ({ tag, expanded, indent, err, selected, onClick, style } : Props) => {
+export const Note = ({ label: tag, expanded, indent, err, selected, onClick, style } : Props) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :
@@ -35,8 +35,8 @@ export const Note = ({ tag, expanded, indent, err, selected, onClick, style } : 
       onClick={onClick}
       style={style}
     >
-      <div style={{ width: '10px' }}>{icon}</div>
       <div style={{ width: `${indent * 10}px` }} />
+      <div style={{ width: '10px' }}>{icon}</div>
       <div>{tag}</div>
     </Flex>
   );
