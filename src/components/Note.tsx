@@ -35,8 +35,8 @@ export const Note = ({ label: tag, expanded, indent, err, selected, onClick, sty
       onClick={onClick}
       style={style}
     >
-      <div style={{ width: `${indent * 10}px` }} />
-      <div style={{ width: '10px' }}>{icon}</div>
+      <div style={{ minWidth: `${indent * 10}px` }} />
+      <div style={{ minWidth: '10px' }}>{icon}</div>
       <div>{tag}</div>
     </Flex>
   );
