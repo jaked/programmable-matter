@@ -14,6 +14,7 @@ export interface Meta {
   tags?: Array<string>;
   layout?: string;
   dataType?: Type;
+  dirMeta?: Meta;
 }
 
 export type Parsed<Ast> = {

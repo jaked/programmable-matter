@@ -26,15 +26,7 @@ const debug = false;
 
 export type ModuleValueEnv = Immutable.Map<string, { [s: string]: Signal<any> }>
 
-function parseMeta(string: string): data.Meta {
-  let obj;
-  try {
-    obj = JSON.parse(string);
-  } catch (e) {
-    console.log(e);
-    return {};
-  }
-
+function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
   const type =
@@ -63,7 +55,23 @@ function parseMeta(string: string): data.Meta {
     }
   }
 
-  return { ...type, ...title, ...tags, ...layout, ...dataType };
+  const dirMeta =
+    typeof obj.dirMeta === 'object' ?
+    { dirMeta: sanitizeMeta(obj.dirMeta) } : {};
+
+  return { ...type, ...title, ...tags, ...layout, ...dataType, ...dirMeta };
+}
+
+function parseMeta(file: data.File): data.Meta {
+  let obj;
+  try {
+    obj = JSON.parse(file.buffer.toString('utf8'));
+  } catch (e) {
+    console.log(e);
+    return {};
+  }
+
+  return sanitizeMeta(obj);
 }
 
 function tagOfPath(path: string) {
@@ -72,16 +80,17 @@ function tagOfPath(path: string) {
   else return Path.join(pathParts.dir, pathParts.name);
 }
 
-function isDotMeta(path: string) {
-  const pathParts = Path.parse(path);
-  return pathParts.base === '.meta';
+function isIndexMeta(path: string) {
+  return Path.parse(path).base === 'index.meta';
 }
 
-function isDotMetaForTag(path, tag) {
+function isIndexMetaFor(path: string, tag: string) {
+  return isIndexMeta(path) && Path.dirname(path) === Path.dirname(tag);
+}
+
+function isNonIndexMeta(path: string) {
   const pathParts = Path.parse(path);
-  const is = pathParts.base === '.meta' && !Path.relative(pathParts.dir, tag).startsWith('..');
-  if (debug) console.log(`isDotMetaForTag(${path}, ${tag}) = ${is}`)
-  return is;
+  return pathParts.ext === '.meta' && pathParts.name !== 'index';
 }
 
 function groupFilesByTag(
@@ -89,107 +98,35 @@ function groupFilesByTag(
   oldFiles: data.Files,
   oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, Signal<data.File>>>
 ): Immutable.Map<string, Immutable.Map<string, Signal<data.File>>> {
-
   // TODO(jaked)
   // seems like we could extract an abstraction here to Signal
   // i.e. an incrementally-maintained view of a join, somehow
 
   let groupedFiles = oldGroupedFiles;
-  const { added, changed, deleted } = diffMap(oldFiles, files);
+  let { added, changed, deleted } = diffMap(oldFiles, files);
 
   // first, handle updates of non-.meta files, so groupedFiles has correct tags
   deleted.forEach(path => {
     if (debug) console.log(`${path} deleted`);
-    if (!isDotMeta(path)) {
-      const tag = tagOfPath(path);
-      const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-      groupedFiles = groupedFiles.set(tag, group.delete(path));
-    }
+    const tag = tagOfPath(path);
+    const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+    groupedFiles = groupedFiles.set(tag, group.delete(path));
   });
 
   changed.forEach(([prev, curr], path) => {
     // TODO(jaked) can this ever happen for Filesystem?
     if (debug) console.log(`${path} signal changed`);
-    if (!isDotMeta(path)) {
-      const tag = tagOfPath(path);
-      const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-      groupedFiles = groupedFiles.set(tag, group.set(path, curr));
-    }
+    const tag = tagOfPath(path);
+    const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+    groupedFiles = groupedFiles.set(tag, group.set(path, curr));
   });
 
   added.forEach((v, path) => {
     if (debug) console.log(`${path} added`);
-    if (!isDotMeta(path)) {
-      const tag = tagOfPath(path);
-      const group = groupedFiles.get(tag) || Immutable.Map();
-      groupedFiles = groupedFiles.set(tag, group.set(path, v));
-    }
+    const tag = tagOfPath(path);
+    const group = groupedFiles.get(tag) || Immutable.Map();
+    groupedFiles = groupedFiles.set(tag, group.set(path, v));
   });
-
-  // next, update join for changed .meta files
-  groupedFiles = groupedFiles.map((group, tag) => {
-    deleted.forEach(path => {
-      if (isDotMetaForTag(path, tag)) {
-        group = group.delete(path);
-      }
-    });
-
-    changed.forEach(([prev, curr], path) => {
-      // TODO(jaked) can this ever happen for Filesystem?
-      if (isDotMetaForTag(path, tag)) {
-        group = group.set(path, curr);
-      }
-    });
-
-    added.forEach((v, path) => {
-      if (isDotMetaForTag(path, tag)) {
-        group = group.set(path, v);
-      }
-    });
-
-    return group;
-  });
-
-  // finally, update join for changed non-.meta files
-  files.forEach((file, path) => {
-    if (isDotMeta(path)) {
-      const metaPath = path;
-
-      deleted.forEach(path => {
-        if (!isDotMeta(path)) {
-          const tag = tagOfPath(path);
-          if (isDotMetaForTag(metaPath, tag)) {
-            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-            groupedFiles = groupedFiles.set(tag, group.delete(metaPath));
-          }
-        }
-      });
-
-      changed.forEach((_, path) => {
-        // TODO(jaked) can this ever happen for Filesystem?
-        if (!isDotMeta(path)) {
-          const tag = tagOfPath(path);
-          if (isDotMetaForTag(metaPath, tag)) {
-            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-            groupedFiles = groupedFiles.set(tag, group.set(metaPath, file));
-          }
-        }
-      });
-
-      added.forEach((_, path) => {
-        if (!isDotMeta(path)) {
-          const tag = tagOfPath(path);
-          if (isDotMetaForTag(metaPath, tag)) {
-            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-            groupedFiles = groupedFiles.set(tag, group.set(metaPath, file));
-          }
-        }
-      });
-    }
-  })
-
-  groupedFiles =
-    groupedFiles.filterNot(group => group.every((_, path) => isDotMeta(path)));
 
   // add dummy index notes for all dirs
   // TODO(jaked) need to delete old dummies if all real files are deleted
@@ -201,17 +138,78 @@ function groupFilesByTag(
       for (let i = 0; i < dirs.length; i++) {
         dir = Path.join(dir, dirs[i]);
         if (!groupedFiles.has(dir)) {
-          groupedFiles = groupedFiles.set(dir, Immutable.Map({
-            [dir]: Signal.ok({
-              path: Path.join(dir, 'index'),
-              version: 0,
-              buffer: new Buffer('')
-            })
-          }));
+          const fileSignal = Signal.ok({
+            path: Path.join(dir, 'index'),
+            version: 0,
+            buffer: new Buffer('')
+          });
+          added = added.set(dir, fileSignal);
+          const group = Immutable.Map({ [dir]: fileSignal });
+          groupedFiles = groupedFiles.set(dir, group);
         }
       }
     }
   });
+
+  // next, update join for changed index.meta files
+  groupedFiles = groupedFiles.map((group, tag) => {
+    deleted.forEach(path => {
+      if (isIndexMetaFor(path, tag)) {
+        group = group.delete(path);
+      }
+    });
+
+    changed.forEach(([prev, curr], path) => {
+      if (isIndexMetaFor(path, tag)) {
+        group = group.set(path, curr);
+      }
+    });
+
+    added.forEach((v, path) => {
+      if (isIndexMetaFor(path, tag)) {
+        group = group.set(path, v);
+      }
+    });
+
+    return group;
+  });
+
+  // finally, update join for changed non-index.meta files
+  files.forEach((file, path) => {
+    if (isIndexMeta(path)) {
+      const metaPath = path;
+
+      deleted.forEach(path => {
+        if (!isIndexMeta(path)) {
+          const tag = tagOfPath(path);
+          if (isIndexMetaFor(metaPath, tag)) {
+            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+            groupedFiles = groupedFiles.set(tag, group.delete(metaPath));
+          }
+        }
+      });
+
+      changed.forEach((_, path) => {
+        if (!isIndexMeta(path)) {
+          const tag = tagOfPath(path);
+          if (isIndexMetaFor(metaPath, tag)) {
+            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+            groupedFiles = groupedFiles.set(tag, group.set(metaPath, file));
+          }
+        }
+      });
+
+      added.forEach((_, path) => {
+        if (!isIndexMeta(path)) {
+          const tag = tagOfPath(path);
+          if (isIndexMetaFor(metaPath, tag)) {
+            const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+            groupedFiles = groupedFiles.set(tag, group.set(metaPath, file));
+          }
+        }
+      });
+    }
+  })
 
   return groupedFiles;
 }
@@ -243,63 +241,51 @@ function noteOfGroup(
   group: Immutable.Map<string, Signal<data.File>>,
   tag: string
 ): Signal<data.Note> {
-  let metaFiles: Signal<data.File>[] = [];
+  return Signal.label(tag,
+    Signal.join(...group.values()
+  ).map<data.Note>(files => {
 
-  const dirMetas =
-    group.filter((_, path) => isDotMeta(path)).sortBy((_, path) => path);
-  dirMetas.forEach(file => metaFiles.push(file));
+    let nonMetaFiles = files.filter(file => Path.extname(file.path) !== '.meta');
+    if (nonMetaFiles.length === 0) {
+      const indexMetaFile = files.find(file => isIndexMeta(file.path));
+      if (indexMetaFile) nonMetaFiles = [ indexMetaFile ];
+    }
+    if (nonMetaFiles.length !== 1) throw new Error(`expected 1 file for ${tag}`);
+    const file = nonMetaFiles[0];
 
-  const metaFile = group.find((_, path) => Path.extname(path) === '.meta' && !isDotMeta(path));
-  if (metaFile) metaFiles.push(metaFile);
-
-  let nonMetaFiles: Signal<data.File>[] = [];
-  const nonMetaFilesGroup =
-    group.filter((_, path) => !isDotMeta(path) && Path.extname(path) != '.meta')
-  nonMetaFilesGroup.forEach(file => nonMetaFiles.push(file));
-
-  return Signal.label(tag, Signal.join(
-    Signal.join(...metaFiles),
-    Signal.join(...nonMetaFiles)
-  ).map<data.Note>(([metaFiles, files]) => {
     let meta: data.Meta = {};
-    metaFiles.forEach(metaFile => {
-      const metaString = metaFile.buffer.toString('utf8');
-      meta = { ...meta, ...parseMeta(metaString) }
-    });
-    if (files.length === 0) {
-      const file =
-        metaFiles.find(file => file.path === `${tag}.meta`) ||
-        metaFiles.find(file => file.path === `${Path.join(tag, 'index')}.meta`) ||
-        bug(`expected ${tag}.meta or ${Path.join(tag, 'index')}.meta`);
-      const type = meta.type || 'mdx';
+    if (Path.parse(file.path).name === 'index') {
+      const metaFile = files.find(file => Path.extname(file.path) === '.meta');
+      if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
+    } else {
+      const indexMetaFile = files.find(file => isIndexMeta(file.path));
+      if (indexMetaFile) meta = { ...meta, ...parseMeta(indexMetaFile).dirMeta }
+      const metaFile = files.find(file => isNonIndexMeta(file.path));
+      if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
+    }
+
+    let type;
+    const pathType = typeOfPath(file.path);
+    if (meta.type && !pathType) {
+      type = meta.type;
+    } else if (pathType && !meta.type) {
+      type = pathType;
+      meta = { ...meta, type };
+    } else if (pathType && meta.type) {
+      if (pathType === meta.type)
+        type = pathType;
+      else
+        throw new Error(`expected metadata type to match file extension for ${tag}`);
+    } else {
+      type = 'mdx';
+      meta = { ...meta, type };
+    }
+
+    if (type === 'jpeg') {
       return { ...file, tag, meta, type, content: '' };
     } else {
-      if (!(files.length === 1)) throw new Error(`expected 1 file for ${tag}, ${files}`);
-      const file = files[0];
-
-      let type;
-      const pathType = typeOfPath(file.path);
-      if (meta.type && !pathType) {
-        type = meta.type;
-      } else if (pathType && !meta.type) {
-        type = pathType;
-        meta = { ...meta, type };
-      } else if (pathType && meta.type) {
-        if (pathType === meta.type)
-          type = pathType;
-        else
-          throw new Error(`expected metadata type to match file extension for ${tag}`);
-      } else {
-        type = 'mdx';
-        meta = { ...meta, type };
-      }
-
-      if (type === 'jpeg') {
-        return { ...file, tag, meta, type, content: '' };
-      } else {
-        const content = file.buffer.toString('utf8');
-        return { ...file, tag, meta, type, content };
-      }
+      const content = file.buffer.toString('utf8');
+      return { ...file, tag, meta, type, content };
     }
   }));
 }
@@ -893,7 +879,7 @@ function findImports(
       break;
 
     case 'table':
-      const dir = Path.parse(note.tag).dir;
+      const dir = note.tag;
       notes.forEach(note => {
         // TODO(jaked) not sure if we should handle nested dirs in tables
         // TODO(jaked) fix type === 'table' hack; tables shouldn't depend on themselves
