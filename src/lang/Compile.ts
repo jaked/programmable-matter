@@ -141,7 +141,7 @@ function groupFilesByTag(
           const fileSignal = Signal.ok({
             path: Path.join(dir, 'index'),
             version: 0,
-            buffer: new Buffer('')
+            buffer: Buffer.from('')
           });
           added = added.set(dir, fileSignal);
           const group = Immutable.Map({ [dir]: fileSignal });
@@ -211,6 +211,8 @@ function groupFilesByTag(
     }
   })
 
+  groupedFiles = groupedFiles.filter(group => group.size > 0);
+
   return groupedFiles;
 }
 
@@ -250,7 +252,8 @@ function noteOfGroup(
       const indexMetaFile = files.find(file => isIndexMeta(file.path));
       if (indexMetaFile) nonMetaFiles = [ indexMetaFile ];
     }
-    if (nonMetaFiles.length !== 1) throw new Error(`expected 1 file for ${tag}`);
+    if (nonMetaFiles.length !== 1)
+      throw new Error(`expected 1 file for ${tag}: ${files.map(file => file.path).join(', ')}`);
     const file = nonMetaFiles[0];
 
     let meta: data.Meta = {};
