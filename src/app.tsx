@@ -57,8 +57,10 @@ export class App {
     // TODO(jaked) fix hack
     const compiledNote = this.compiledNoteSignal.get();
     if (compiledNote) {
-      compiledNote.compiled.forEach(compiled =>
-        compiled.rendered.reconcile(this.__trace, this.level)
+      Object.values(compiledNote.compiled).forEach(compiled =>
+        compiled?.forEach(compiled =>
+          compiled.rendered.reconcile(this.__trace, this.level)
+        )
       );
     }
 
@@ -91,8 +93,10 @@ export class App {
         // TODO(jaked) fix hack
         const compiledNote = this.compiledNoteSignal.get();
         if (compiledNote) {
-          compiledNote.compiled.forEach(compiled =>
-            compiled.rendered.reconcile(this.__trace, this.level)
+          Object.values(compiledNote.compiled).forEach(compiled =>
+            compiled?.forEach(compiled =>
+              compiled.rendered.reconcile(this.__trace, this.level)
+            )
           );
         }
 
@@ -252,9 +256,10 @@ export class App {
           const note = notes.get(selected);
           if (note) {
             return note.map(note => {
-              if (note.type === 'mdx' || note.type === 'txt' || note.type === 'json') {
-                return note.content[note.type] ?? bug(`expected ${note.type} content`);
-              } else return null;
+              // TODO(jaked) separate editable content objects
+              const keys = Object.keys(note.content);
+              if (keys.length === 0) return null;
+              else return note.content[keys[0]];
             });
           }
         }
@@ -276,8 +281,10 @@ export class App {
     const noteSignal = this.notesSignal.get().get(selected);
     if (!noteSignal) return;
     const note = noteSignal.get();
-    if (note.type !== 'mdx' && note.type !== 'txt' && note.type !== 'json') return;
-    const oldContent = note.content[note.type] && bug('expected ${note.type} content');
+    // TODO(jaked) separate editable content objects
+    const keys = Object.keys(note.content);
+    if (keys.length === 0) return;
+    const oldContent = note.content[keys[0]];
     if (oldContent === content) return;
 
     this.writeNote(note.path, note.tag, content);
@@ -399,12 +406,17 @@ export class App {
     const selected = this.selected;
     const matchingNotes = this.matchingNotes;
     const nextIndex = matchingNotes.findIndex(note => note.tag === selected) + 1;
-    for (let i = 0; i < matchingNotes.length; i++) {
+    let cont = true;
+    for (let i = 0; cont && i < matchingNotes.length; i++) {
       const index = (nextIndex + i) % matchingNotes.length;
-      if (matchingNotes[index].compiled.type === 'err') {
-        this.setSelected(matchingNotes[index].tag);
-        break;
-      }
+      const matchingNote = matchingNotes[index];
+      // TODO(jaked) separate selectable content objects in notes?
+      Object.values(matchingNote.compiled).forEach(compiled => {
+        if (compiled?.type === 'err') {
+          cont = false;
+          this.setSelected(matchingNote.tag);
+        }
+      });
     }
   }
 
@@ -412,12 +424,17 @@ export class App {
     const selected = this.selected;
     const matchingNotes = this.matchingNotes;
     const previousIndex = matchingNotes.findIndex(note => note.tag === selected) - 1;
-    for (let i = matchingNotes.length - 1; i > 0; i--) {
+    let cont = true;
+    for (let i = matchingNotes.length - 1; cont && i > 0; i--) {
       const index = (previousIndex + i) % matchingNotes.length;
-      if (matchingNotes[index].compiled.type === 'err') {
-        this.setSelected(matchingNotes[index].tag);
-        break;
-      }
+      const matchingNote = matchingNotes[index];
+      // TODO(jaked) separate selectable content objects in notes?
+      Object.values(matchingNote.compiled).forEach(compiled => {
+        if (compiled?.type === 'err') {
+          cont = false;
+          this.setSelected(matchingNote.tag);
+        }
+      });
     }
   }
 
@@ -431,19 +448,24 @@ export class App {
     await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
     await Promise.all(this.compiledNotes.map(async note => {
       // TODO(jaked) figure out file extensions
-      if (note.type === 'jpeg') {
-        const notePath = Path.resolve(tempdir, note.path);
-        await mkdir(Path.dirname(notePath), { recursive: true });
-        await writeFile(notePath, note.buffer);
-      } else if (note.type === 'table') {
-        // ???
-      } else {
-        const notePath = Path.resolve(tempdir, note.path) + '.html';
-        const node = note.compiled.get().rendered.get();  // TODO(jaked) fix Try.get()
-        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-        await mkdir(Path.dirname(notePath), { recursive: true });
-        await writeFile(notePath, html);
-      }
+      // TODO(jaked) handle jpegs
+      // if (note.type === 'jpeg') {
+      //   const notePath = Path.resolve(tempdir, note.path);
+      //   await mkdir(Path.dirname(notePath), { recursive: true });
+      //   await writeFile(notePath, note.buffer);
+      // } else if (note.type === 'table') {
+      //   // ???
+      const notePath = Path.resolve(tempdir, note.path) + '.html';
+      let node;
+      Object.values(note.compiled).forEach(compiled => {
+        compiled?.forEach(compiled => {
+          node = compiled.rendered.get(); // TODO(jaked) fix Try.get()
+        });
+      })
+      if (!node) return;
+      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+      await mkdir(Path.dirname(notePath), { recursive: true });
+      await writeFile(notePath, html);
     }).values());
     if (true) {
       await publish(tempdir, {

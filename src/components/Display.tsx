@@ -10,7 +10,10 @@ interface Props {
 export function Display({ compiledNote: note }: Props) {
   try {
     if (note) {
-      const rendered = note.compiled.get().rendered.get();
+      let rendered;
+      Object.values(note.compiled).forEach(compiled => {
+        rendered = compiled?.get().rendered.get();
+      });
       return (<Catch>{rendered}</Catch>);
     }
     throw new Error('no note');

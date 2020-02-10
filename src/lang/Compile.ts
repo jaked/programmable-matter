@@ -226,6 +226,7 @@ function typeOfPath(path: string): data.Types | undefined {
       case '.mdx': type = 'mdx'; break;
       case '.json': type = 'json'; break;
       case '.txt': type = 'txt'; break;
+      case '.table': type = 'table'; break;
       case '.JPG': type = 'jpeg'; break;
       case '.jpg': type = 'jpeg'; break;
       case '.jpeg': type = 'jpeg'; break;
@@ -267,28 +268,12 @@ function noteOfGroup(
       if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
     }
 
-    let type;
-    const pathType = typeOfPath(file.path);
-    if (meta.type && !pathType) {
-      type = meta.type;
-    } else if (pathType && !meta.type) {
-      type = pathType;
-      meta = { ...meta, type };
-    } else if (pathType && meta.type) {
-      if (pathType === meta.type)
-        type = pathType;
-      else
-        throw new Error(`expected metadata type to match file extension for ${tag}`);
-    } else {
-      type = 'mdx';
-      meta = { ...meta, type };
-    }
-
+    const type = typeOfPath(file.path) ?? 'mdx';
     if (type === 'jpeg') {
-      return { ...file, tag, meta, type, content: {} };
+      return { ...file, tag, meta, content: {} };
     } else {
       const content = file.buffer.toString('utf8');
-      return { ...file, tag, meta, type, content: { [type]: content } };
+      return { ...file, tag, meta, content: { [type]: content } };
     }
   }));
 }
@@ -339,28 +324,33 @@ function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
 }
 
 function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
-  switch (note.type) {
-    case 'mdx': {
-      const type = note.type; // tell TS something it already knows
-      const content = note.content.mdx ?? bug(`expected mdx content for ${note.tag}`);
-      const ast = Try.apply(() => Parser.parse(trace, content));
-      return { ...note, type, parsed: { mdx: ast } };
-    }
+  // TODO(jaked) Object.map or wrap object in helper
+  const parsed = Object.keys(note.content).reduce<data.NoteParsed>(
+    (obj, key) => {
+      switch (key) {
+        case 'mdx': {
+          const content = note.content.mdx ?? bug(`expected mdx content for ${note.tag}`);
+          const ast = Try.apply(() => Parser.parse(trace, content));
+          return { ...obj, mdx: ast };
+        }
 
-    case 'json': {
-      const type = note.type; // tell TS something it already knows
-      const content = note.content.json ?? bug(`expected json content for ${note.tag}`);
-      const ast = Try.apply(() => Parser.parseExpression(content));
-      return { ...note, type, parsed: { json: ast } };
-    }
+        case 'json': {
+          const content = note.content.json ?? bug(`expected json content for ${note.tag}`);
+          const ast = Try.apply(() => Parser.parseExpression(content));
+          return { ...obj, json: ast };
+        }
 
-    case 'txt': return { ...note, parsed: {} };
-    case 'jpeg': return { ...note, parsed: {} }
-    case 'table': return { ...note, parsed: {} }
+        case 'table': {
+          const content = note.content.table ?? bug(`expected table content for ${note.tag}`);
+          return { ...obj, table: Try.ok({}) };
+        }
 
-    default:
-      throw new Error(`unhandled note type '${(<data.Note>note).type}' for '${(<data.Note>note).tag}'`);
-  }
+        default: return obj;
+      }
+    },
+    {}
+  );
+  return { ...note, parsed };
 }
 
 function sortNotes(notes: data.ParsedNotesWithImports): Array<string> {
@@ -762,55 +752,67 @@ function compileNote(
   moduleValueEnv: ModuleValueEnv,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (tag: string) => void,
-): Try<data.Compiled> {
-  return Try.apply(() => {
-    switch (parsedNote.type) {
-      case 'mdx': {
-        const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
-        return compileMdx(
-          trace,
-          ast.get(),
-          String.capitalize(parsedNote.tag),
-          parsedNote.meta,
-          typeEnv,
-          valueEnv,
-          moduleTypeEnv,
-          moduleValueEnv,
-          mkCell,
-        );
+): data.CompiledNote {
+  // TODO(jaked) Object.map or wrap object in helper
+  const compiled = Object.keys(parsedNote.content).reduce<data.NoteCompiled>(
+    (obj, key) => {
+      switch (key) {
+        case 'mdx': {
+          const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
+          const compiled = Try.apply(() => compileMdx(
+            trace,
+            ast.get(),
+            String.capitalize(parsedNote.tag),
+            parsedNote.meta,
+            typeEnv,
+            valueEnv,
+            moduleTypeEnv,
+            moduleValueEnv,
+            mkCell,
+          ));
+          return { ...obj, mdx: compiled };
+        }
+
+        case 'json': {
+          const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
+          const compiled = Try.apply(() => compileJson(
+            ast.get(),
+            parsedNote.meta
+          ));
+          return { ...obj, json: compiled };
+        }
+
+        case 'txt': {
+          const content = parsedNote.content.txt ?? bug(`expected txt content`);
+          const compiled = Try.apply(() => compileTxt(content));
+          return { ...obj, txt: compiled };
+        }
+
+        case 'jpeg': {
+          const compiled = Try.apply(() => compileJpeg(
+            parsedNote.tag
+          ));
+          return { ...obj, jpeg: compiled };
+        }
+
+        case 'table': {
+          const compiled = Try.apply(() => compileTable(
+            trace,
+            parsedNote,
+            moduleTypeEnv,
+            moduleValueEnv,
+            setSelected
+          ));
+          return { ...obj, table: compiled };
+        }
+
+        default:
+          throw new Error(`unhandled note type '${key}'`);
       }
-
-      case 'json': {
-        const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-        return compileJson(
-          ast.get(),
-          parsedNote.meta
-        );
-      }
-
-      case 'txt': {
-        const content = parsedNote.content.txt ?? bug(`expected txt content`);
-        return compileTxt(content);
-      }
-
-      case 'jpeg':
-        return compileJpeg(
-          parsedNote.tag
-        );
-
-      case 'table':
-        return compileTable(
-          trace,
-          parsedNote,
-          moduleTypeEnv,
-          moduleValueEnv,
-          setSelected
-        );
-
-      default:
-        throw new Error(`unhandled note type '${(<data.ParsedNote>parsedNote).type}'`);
-    }
-  });
+    },
+    {}
+  );
+  return { ...parsedNote, compiled };
 }
 
 function compileDirtyNotes(
@@ -834,14 +836,17 @@ function compileDirtyNotes(
       parsedNote.imports.forEach(tag => {
         const compiledNote = compiledNotes.get(tag);
         if (compiledNote) {
-          compiledNote.compiled.forEach(compiled => {
-            moduleTypeEnv.set(tag, compiled.exportType);
-            moduleValueEnv.set(tag, compiled.exportValue);
+          Object.values(compiledNote.compiled).forEach(compiled => {
+            compiled?.forEach(compiled => {
+              // TODO(jaked) merge modules instead of overwriting
+              moduleTypeEnv.set(tag, compiled.exportType);
+              moduleValueEnv.set(tag, compiled.exportValue);
+            })
           });
         }
       });
 
-      const compiled =
+      const compiledNote =
         trace.time(tag, () =>
           compileNote(
             trace,
@@ -854,7 +859,6 @@ function compileDirtyNotes(
             setSelected
           )
         );
-      const compiledNote = { ...parsedNote, compiled };
       compiledNotes = compiledNotes.set(tag, compiledNote);
     }
   });
@@ -866,31 +870,33 @@ function findImports(
   notes: data.ParsedNotes
 ): data.ParsedNoteWithImports {
   let imports = new Set<string>();
-  switch (note.type) {
-    case 'mdx':
-      // TODO(jaked) fix layout != tag hack
-      // layouts shouldn't themselves have layouts
-      // but we don't know here that we are defining a layout
-      // and a directory-level .meta file can give a layout a layout
-      if (note.meta.layout && note.meta.layout != note.tag)
-        imports.add(note.meta.layout);
-      const ast = note.parsed.mdx ?? bug(`expected parsed mdx`);
-      ast.forEach(ast => findImportsMdx(ast, imports));
+  // TODO(jaked) separate imports for note components
+  Object.keys(note.parsed).forEach(key => {
+    switch (key) {
+      case 'mdx': {
+        // TODO(jaked) fix layout != tag hack
+        // layouts shouldn't themselves have layouts
+        // but we don't know here that we are defining a layout
+        // and a directory-level .meta file can give a layout a layout
+        if (note.meta.layout && note.meta.layout != note.tag)
+          imports.add(note.meta.layout);
+        const ast = note.parsed.mdx ?? bug(`expected parsed mdx`);
+        ast.forEach(ast => findImportsMdx(ast, imports));
+      }
       break;
 
-    case 'table':
-      const dir = note.tag;
-      notes.forEach(note => {
-        // TODO(jaked) not sure if we should handle nested dirs in tables
-        // TODO(jaked) fix type === 'table' hack; tables shouldn't depend on themselves
-        if (!Path.relative(dir, note.tag).startsWith('..') && note.meta.type != 'table')
-          imports.add(note.tag);
-      });
+      case 'table': {
+        const dir = note.tag;
+        const thisNote = note;
+        notes.forEach(note => {
+          // TODO(jaked) not sure if we should handle nested dirs in tables
+          if (!Path.relative(dir, note.tag).startsWith('..') && note !== thisNote)
+            imports.add(note.tag);
+        });
+      }
       break;
-
-    default:
-      break;
-  }
+    }
+  });
   return { ...note, imports };
 }
 

@@ -221,19 +221,21 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
   if (parsedNote) {
     // TODO(jaked)
     // parsing should always succeed with some AST
-    switch (parsedNote.type) {
-      case 'mdx': {
-        const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
-        ast.forEach(ast => computeSpans(ast, spans));
-      }
-      break;
+    Object.keys(parsedNote.parsed).forEach(key => {
+      switch (key) {
+        case 'mdx': {
+          const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
+          ast.forEach(ast => computeSpans(ast, spans));
+        }
+        break;
 
-      case 'json': {
-        const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-        ast.forEach(ast => computeJsSpans(ast, spans));
+        case 'json': {
+          const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
+          ast.forEach(ast => computeJsSpans(ast, spans));
+        }
+        break;
       }
-      break;
-    }
+    });
   }
 
   // TODO(jaked) this could use some tests

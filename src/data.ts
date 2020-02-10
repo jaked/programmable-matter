@@ -9,7 +9,6 @@ import Type from './lang/Type';
 export type Types = 'mdx' | 'json' | 'txt' | 'jpeg' | 'table';
 
 export interface Meta {
-  type?: Types;
   title?: string;
   tags?: Array<string>;
   layout?: string;
@@ -38,18 +37,19 @@ type NoteContent = {
   'mdx'?: string;
   'json'?: string;
   'txt'?: string;
+  'table'?: string;
 }
 
 export type Note = File & {
   tag: string;
   meta: Meta;
-  type: Types;
   content: NoteContent;
 };
 
-type NoteParsed = {
+export type NoteParsed = {
   'mdx'?: Try<MDXHAST.Root>;
   'json'?: Try<ESTree.Expression>;
+  'table'?: Try<{}>; // TODO(jaked) table config
 }
 
 export type ParsedNote = Note & {
@@ -60,8 +60,16 @@ export type ParsedNoteWithImports = ParsedNote & {
   imports: Set<string>;
 }
 
+export type NoteCompiled = {
+  'mdx'?: Try<Compiled>;
+  'json'?: Try<Compiled>;
+  'txt'?: Try<Compiled>;
+  'jpeg'?: Try<Compiled>;
+  'table'?: Try<Compiled>;
+}
+
 export type CompiledNote = ParsedNoteWithImports & {
-  compiled: Try<Compiled>;
+  compiled: NoteCompiled;
 }
 
 // indexed by path

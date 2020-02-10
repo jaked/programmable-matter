@@ -57,24 +57,22 @@ export default class Server {
       res.statusCode = 404;
       res.end(`no note ${tag}`);
     } else {
-      switch (note.type) {
-        case 'jpeg':
-          res.setHeader("Content-Type", "image/jpeg");
-          res.end(note.buffer);
-          break;
+      // TODO(jaked) handle jpegs
+      // case 'jpeg':
+      //   res.setHeader("Content-Type", "image/jpeg");
+      //   res.end(note.buffer);
+      //   break;
+      let node;
+      Object.values(note.compiled).forEach(compiled => {
+        compiled?.forEach(compiled => {
+          node = compiled.rendered.get(); // TODO(jaked) fix Try.get()
+        });
+      })
 
-        case 'table':
-          // ???
-          break;
-
-        default:
-          const node = note.compiled.get().rendered.get(); // TODO(jaked) fix Try.get()
-
-          // TODO(jaked) compute at note compile time?
-          const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-          res.setHeader("Content-Type", "text/html; charset=UTF-8")
-          res.end(html);
-      }
+      // TODO(jaked) compute at note compile time?
+      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+      res.setHeader("Content-Type", "text/html; charset=UTF-8")
+      res.end(html);
     }
   }
 }

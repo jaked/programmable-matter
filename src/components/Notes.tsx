@@ -71,13 +71,17 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
 
   const Notes = ({ index, style }: { index: number, style: any }) => {
     const note = notes[index];
+    let err = false;
+    Object.values(note.compiled).forEach(compiled => {
+      if (compiled?.type === 'err') err = true;
+    });
     return (
       <Note
         key={note.tag}
         label={Path.parse(note.tag).base}
         expanded={note.expanded}
         indent={note.indent}
-        err={note.compiled.type === 'err'}
+        err={err}
         selected={note.tag === selected}
         onClick={ () => {
           // TODO(jaked) fix double render
