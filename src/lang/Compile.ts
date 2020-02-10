@@ -285,10 +285,10 @@ function noteOfGroup(
     }
 
     if (type === 'jpeg') {
-      return { ...file, tag, meta, type, content: '' };
+      return { ...file, tag, meta, type, content: {} };
     } else {
       const content = file.buffer.toString('utf8');
-      return { ...file, tag, meta, type, content };
+      return { ...file, tag, meta, type, content: { [type]: content } };
     }
   }));
 }
@@ -342,30 +342,21 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   switch (note.type) {
     case 'mdx': {
       const type = note.type; // tell TS something it already knows
-      const ast = Try.apply(() => Parser.parse(trace, note.content));
-      return { ...note, type, ast };
+      const content = note.content.mdx ?? bug(`expected mdx content for ${note.tag}`);
+      const ast = Try.apply(() => Parser.parse(trace, content));
+      return { ...note, type, parsed: { mdx: ast } };
     }
 
     case 'json': {
-      const ast = Try.apply(() => Parser.parseExpression(note.content));
       const type = note.type; // tell TS something it already knows
-      return { ...note, type, ast };
+      const content = note.content.json ?? bug(`expected json content for ${note.tag}`);
+      const ast = Try.apply(() => Parser.parseExpression(content));
+      return { ...note, type, parsed: { json: ast } };
     }
 
-    case 'txt': {
-      const type = note.type; // tell TS something it already knows
-      return { ...note, type };
-    }
-
-    case 'jpeg': {
-      const type = note.type; // tell TS something it already knows
-      return { ...note, type };
-    }
-
-    case 'table': {
-      const type = note.type; // tell TS something it already knows
-      return { ...note, type };
-    }
+    case 'txt': return { ...note, parsed: {} };
+    case 'jpeg': return { ...note, parsed: {} }
+    case 'table': return { ...note, parsed: {} }
 
     default:
       throw new Error(`unhandled note type '${(<data.Note>note).type}' for '${(<data.Note>note).tag}'`);
@@ -774,10 +765,11 @@ function compileNote(
 ): Try<data.Compiled> {
   return Try.apply(() => {
     switch (parsedNote.type) {
-      case 'mdx':
+      case 'mdx': {
+        const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
         return compileMdx(
           trace,
-          parsedNote.ast.get(),
+          ast.get(),
           String.capitalize(parsedNote.tag),
           parsedNote.meta,
           typeEnv,
@@ -786,16 +778,20 @@ function compileNote(
           moduleValueEnv,
           mkCell,
         );
+      }
 
       case 'json': {
+        const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
         return compileJson(
-          parsedNote.ast.get(),
+          ast.get(),
           parsedNote.meta
         );
       }
 
-      case 'txt':
-        return compileTxt(parsedNote.content);
+      case 'txt': {
+        const content = parsedNote.content.txt ?? bug(`expected txt content`);
+        return compileTxt(content);
+      }
 
       case 'jpeg':
         return compileJpeg(
@@ -878,7 +874,8 @@ function findImports(
       // and a directory-level .meta file can give a layout a layout
       if (note.meta.layout && note.meta.layout != note.tag)
         imports.add(note.meta.layout);
-      note.ast.forEach(ast => findImportsMdx(ast, imports));
+      const ast = note.parsed.mdx ?? bug(`expected parsed mdx`);
+      ast.forEach(ast => findImportsMdx(ast, imports));
       break;
 
     case 'table':

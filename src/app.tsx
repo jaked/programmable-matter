@@ -252,8 +252,9 @@ export class App {
           const note = notes.get(selected);
           if (note) {
             return note.map(note => {
-              if (note.type === 'mdx' || note.type === 'txt' || note.type === 'json') return note.content;
-              else return null;
+              if (note.type === 'mdx' || note.type === 'txt' || note.type === 'json') {
+                return note.content[note.type] ?? bug(`expected ${note.type} content`);
+              } else return null;
             });
           }
         }
@@ -276,7 +277,8 @@ export class App {
     if (!noteSignal) return;
     const note = noteSignal.get();
     if (note.type !== 'mdx' && note.type !== 'txt' && note.type !== 'json') return;
-    if (note.content === content) return;
+    const oldContent = note.content[note.type] && bug('expected ${note.type} content');
+    if (oldContent === content) return;
 
     this.writeNote(note.path, note.tag, content);
   }
@@ -298,9 +300,11 @@ export class App {
             const regexp = RegExp(escaped, 'i');
 
             function matchesSearch(note: data.Note): boolean {
-              if (note.content.match(regexp)) return true;
-              if (note.tag.match(regexp)) return true;
-              if (note.meta.tags && note.meta.tags.some(tag => tag.match(regexp))) return true;
+              if (note.content.mdx && regexp.test(note.content.mdx)) return true;
+              if (note.content.json && regexp.test(note.content.json)) return true;
+              if (note.content.txt && regexp.test(note.content.txt)) return true;
+              if (regexp.test(note.tag)) return true;
+              if (note.meta.tags && note.meta.tags.some(regexp.test)) return true;
               return false;
             }
             const matches = notes.filter(matchesSearch);

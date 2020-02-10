@@ -8,6 +8,7 @@ import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
 
 import * as data from '../data';
+import { bug } from '../util/bug';
 
 interface Props {
   selected: string | null;
@@ -221,17 +222,17 @@ function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
     // TODO(jaked)
     // parsing should always succeed with some AST
     switch (parsedNote.type) {
-      case 'mdx':
-        parsedNote.ast.forEach(ast => {
-          computeSpans(ast, spans);
-        });
-        break;
+      case 'mdx': {
+        const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
+        ast.forEach(ast => computeSpans(ast, spans));
+      }
+      break;
 
-      case 'json':
-        parsedNote.ast.forEach(ast => {
-          computeJsSpans(ast, spans);
-        });
-        break;
+      case 'json': {
+        const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
+        ast.forEach(ast => computeJsSpans(ast, spans));
+      }
+      break;
     }
   }
 

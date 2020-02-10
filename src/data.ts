@@ -34,26 +34,27 @@ export type File = {
   buffer: Buffer;
 }
 
+type NoteContent = {
+  'mdx'?: string;
+  'json'?: string;
+  'txt'?: string;
+}
+
 export type Note = File & {
   tag: string;
   meta: Meta;
   type: Types;
-  content: string;
+  content: NoteContent;
 };
 
-export type ParsedNote = Note & ({
-  type: 'mdx';
-  ast: Try<MDXHAST.Root>;
-} | {
-  type: 'json';
-  ast: Try<ESTree.Expression>;
-} | {
-  type: 'txt';
-} | {
-  type: 'jpeg';
-} | {
-  type: 'table';
-});
+type NoteParsed = {
+  'mdx'?: Try<MDXHAST.Root>;
+  'json'?: Try<ESTree.Expression>;
+}
+
+export type ParsedNote = Note & {
+  parsed: NoteParsed;
+}
 
 export type ParsedNoteWithImports = ParsedNote & {
   imports: Set<string>;
