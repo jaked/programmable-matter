@@ -184,7 +184,8 @@ function groupFilesByTag(
           const tag = tagOfPath(path);
           if (isIndexMetaFor(metaPath, tag)) {
             const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-            groupedFiles = groupedFiles.set(tag, group.delete(metaPath));
+            if (group.size === 1) // last non-index.meta file was deleted
+              groupedFiles = groupedFiles.set(tag, group.delete(metaPath));
           }
         }
       });
