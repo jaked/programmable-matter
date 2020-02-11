@@ -255,15 +255,15 @@ export class App {
         this.selectedCell,
         this.editorViewCell
       ).flatMap(([notes, selected, editorView]) => {
-        if (selected) {
+        if (selected !== null) {
           const note = notes.get(selected);
           if (note) {
             return note.map(note => {
               const editorViewContent = note.content[editorView];
-              if (editorViewContent) return [editorView, editorViewContent];
-              if (note.content.mdx) return ['mdx', note.content.mdx];
-              if (note.content.json) return ['json', note.content.json];
-              if (note.content.meta) return ['meta', note.content.meta];
+              if (typeof editorViewContent !== 'undefined') return [editorView, editorViewContent];
+              if (typeof note.content.mdx !== 'undefined') return ['mdx', note.content.mdx];
+              if (typeof note.content.json !== 'undefined') return ['json', note.content.json];
+              if (typeof note.content.meta !== 'undefined') return ['meta', note.content.meta];
               return null;
             });
           }

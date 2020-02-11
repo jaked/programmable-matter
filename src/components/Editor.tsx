@@ -11,9 +11,9 @@ import * as data from '../data';
 import { bug } from '../util/bug';
 
 interface Props {
-  selected: string | null;
-  view: data.Types | null;
-  content: string | null;
+  selected: string;
+  view: data.Types;
+  content: string;
   parsedNote: data.ParsedNote | null;
   session: Session;
 
@@ -218,12 +218,12 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
 }
 
 function computeHighlight(
-  view: data.Types | null,
+  view: data.Types,
   content: string,
   parsedNote: data.ParsedNote | null
 ) {
   const spans: Array<Span> = [];
-  if (view && parsedNote) {
+  if (parsedNote) {
     // TODO(jaked)
     // parsing should always succeed with some AST
     switch (view) {
@@ -375,9 +375,6 @@ export class Editor extends React.Component<Props, {}> {
 
   render() {
     const { view, selected, content, parsedNote } = this.props;
-    if (selected === null || content === null) {
-      return <span>no note</span>;
-    }
     let highlight = computeHighlight(view, content, parsedNote);
     return (
       <div style={{

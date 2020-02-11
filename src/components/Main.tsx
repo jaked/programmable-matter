@@ -59,17 +59,20 @@ export class Main extends React.Component<Props, {}> {
       borderWidth='0px 0px 0px 1px'
     >
       <Box>
-        <Editor
-          ref={this.editorRef}
-          selected={this.props.app.selected}
-          view={this.props.app.view}
-          content={this.props.app.content}
-          parsedNote={this.props.app.highlightValid ? this.props.app.compiledNote : null}
-          session={this.props.app.session}
-          onChange={this.props.app.setContentAndSession}
-          setStatus={this.props.app.setStatus}
-          setSelected={this.props.app.setSelected}
-        />
+        { this.props.app.selected !== null && this.props.app.content !== null && this.props.app.view ?
+          (<Editor
+            ref={this.editorRef}
+            selected={this.props.app.selected}
+            view={this.props.app.view}
+            content={this.props.app.content}
+            parsedNote={this.props.app.highlightValid ? this.props.app.compiledNote : null}
+            session={this.props.app.session}
+            onChange={this.props.app.setContentAndSession}
+            setStatus={this.props.app.setStatus}
+            setSelected={this.props.app.setSelected}
+          />) :
+          (<span>no note</span>)
+        }
       </Box>
       <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>
     </Flex>
