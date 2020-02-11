@@ -11,6 +11,7 @@ export function Display({ compiledNote: note }: Props) {
   try {
     if (note) {
       let rendered;
+      // TODO(jaked) render whole note
       Object.values(note.compiled).forEach(compiled => {
         rendered = compiled?.get().rendered.get();
       });

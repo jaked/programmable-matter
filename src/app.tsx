@@ -304,10 +304,7 @@ export class App {
     const noteSignal = this.notesSignal.get().get(selected);
     if (!noteSignal) return;
     const note = noteSignal.get();
-    const keys = Object.keys(note.content);
-    if (keys.length === 0) return;
-    const oldContent = note.content[keys[0]];
-    if (oldContent === content) return;
+    if (note.content[view] === content) return;
 
     this.filesystem.update(note.files[view].path, Buffer.from(content, 'utf8'));
   }
@@ -479,6 +476,7 @@ export class App {
       //   // ???
       const notePath = Path.resolve(tempdir, note.tag) + '.html';
       let node;
+      // TODO(jaked) render whole note
       Object.values(note.compiled).forEach(compiled => {
         compiled?.forEach(compiled => {
           node = compiled.rendered.get(); // TODO(jaked) fix Try.get()
