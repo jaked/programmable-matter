@@ -62,6 +62,7 @@ export class Main extends React.Component<Props, {}> {
         <Editor
           ref={this.editorRef}
           selected={this.props.app.selected}
+          view={this.props.app.view}
           content={this.props.app.content}
           parsedNote={this.props.app.highlightValid ? this.props.app.compiledNote : null}
           session={this.props.app.session}

@@ -51,6 +51,7 @@ export class App {
     this.level++;
 
     // TODO(jaked) write this as a join instead of .get()s
+    this.viewSignal.reconcile(this.__trace, this.level);
     this.contentSignal.reconcile(this.__trace, this.level);
     this.sessionSignal.reconcile(this.__trace, this.level);
 
@@ -112,6 +113,9 @@ export class App {
     ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
       this.setMainPaneView(view)
     });
+    ipc.on('set-editor-view', (_, view: 'mdx' | 'json' | 'meta') => {
+      this.setEditorView(view)
+    });
     ipc.on('history-back', this.historyBack);
     ipc.on('history-forward', this.historyForward);
     ipc.on('previous-problem', this.previousProblem);
@@ -167,39 +171,34 @@ export class App {
     this.sideBarVisibleCell.update(b => !b);
   };
 
-  private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', this.render);;
+  private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', this.render);
   public get mainPaneView() { return this.mainPaneViewCell.get() }
   public setMainPaneView = (view: 'code' | 'display' | 'split') => {
     this.mainPaneViewCell.setOk(view);
   }
 
-  deleteNote = () => {
-    const tag = app.selected;
-    if (tag) {
-      const note = this.notesSignal.get().get(tag);
-      if (note) {
-        // TODO(jaked)
-        // if note has a metadata file it should also be deleted
-        const path = note.get().path;
-        if (debug) console.log(`deleteNote(${path})`);
-        this.filesystem.delete(path);
-      }
-    }
+  private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'meta'>('mdx', this.render);
+  public get editorView() { return this.editorViewCell.get() }
+  public setEditorView = (view: 'mdx' | 'json' | 'meta') => {
+    this.editorViewCell.setOk(view);
   }
 
-  writeNote = (path: string, tag: string, content: string) => {
-    if (debug) console.log(`writeNote path=${path} tag=${tag}`);
-    let buffer = Buffer.from(content, 'utf8');
-    this.filesystem.update(path, buffer);
+  deleteNote = () => {
+    const selected = this.selected;
+    const view = this.view;
+    if (!selected || !view) return;
+
+    const noteSignal = this.notesSignal.get().get(selected);
+    if (!noteSignal) return;
+    const note = noteSignal.get();
+
+    Object.values(note.files).forEach(file => {
+      if (file) this.filesystem.delete(file.path);
+    });
   }
 
   public newNote = (tag: string) => {
-    // TODO(jaked) check that we aren't overwriting existing note
-    this.writeNote(
-      tag,
-      tag,
-      ''
-    )
+    this.filesystem.update(tag, Buffer.from('', 'utf8'));
   }
 
   private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
@@ -249,23 +248,46 @@ export class App {
     );
   public get compiledNote() { return this.compiledNoteSignal.get() }
 
-  private contentSignal =
-    Signal.label('content',
-      Signal.join(this.notesSignal, this.selectedCell).flatMap(([notes, selected]) => {
+  private viewContentSignal: Signal<[data.Types, string] | null> =
+    Signal.label('viewContent',
+      Signal.join(
+        this.notesSignal,
+        this.selectedCell,
+        this.editorViewCell
+      ).flatMap(([notes, selected, editorView]) => {
         if (selected) {
           const note = notes.get(selected);
           if (note) {
             return note.map(note => {
-              // TODO(jaked) separate editable content objects
-              const keys = Object.keys(note.content);
-              if (keys.length === 0) return null;
-              else return note.content[keys[0]];
+              const editorViewContent = note.content[editorView];
+              if (editorViewContent) return [editorView, editorViewContent];
+              if (note.content.mdx) return ['mdx', note.content.mdx];
+              if (note.content.json) return ['json', note.content.json];
+              if (note.content.meta) return ['meta', note.content.meta];
+              return null;
             });
           }
         }
         return Signal.ok(null);
       })
     );
+
+  private viewSignal = this.viewContentSignal.map(viewContent => {
+    if (!viewContent) return null;
+    else {
+      const [view, _] = viewContent;
+      return view;
+    }
+  });
+  public get view() { return this.viewSignal.get() }
+
+  private contentSignal = this.viewContentSignal.map(viewContent => {
+    if (!viewContent) return null;
+    else {
+      const [_, content] = viewContent;
+      return content;
+    }
+  });
   public get content() { return this.contentSignal.get() }
 
   // TODO(jaked) maybe these functions can be generated via signals
@@ -273,7 +295,8 @@ export class App {
   public setContentAndSession = (content: string, session: Session) => {
     if (content === null) return;
     const selected = this.selectedCell.get();
-    if (!selected) return;
+    const view = this.viewSignal.get();
+    if (!selected || !view) return;
 
     const sessions = this.sessionsCell.get().set(selected, session);
     this.sessionsCell.setOk(sessions);
@@ -281,13 +304,12 @@ export class App {
     const noteSignal = this.notesSignal.get().get(selected);
     if (!noteSignal) return;
     const note = noteSignal.get();
-    // TODO(jaked) separate editable content objects
     const keys = Object.keys(note.content);
     if (keys.length === 0) return;
     const oldContent = note.content[keys[0]];
     if (oldContent === content) return;
 
-    this.writeNote(note.path, note.tag, content);
+    this.filesystem.update(note.files[view].path, Buffer.from(content, 'utf8'));
   }
 
   private matchingNotesSignal =
@@ -374,7 +396,7 @@ export class App {
         }
         if (showNote) {
           let expanded: boolean | undefined = undefined;
-          if (Path.parse(note.path).name === 'index') { // TODO(jaked) make this a Note property
+          if (note.isIndex) {
             expanded = dirExpanded.get(note.tag, false);
           }
           matchingNotesTree.push({ ...note, indent, expanded });
@@ -455,7 +477,7 @@ export class App {
       //   await writeFile(notePath, note.buffer);
       // } else if (note.type === 'table') {
       //   // ???
-      const notePath = Path.resolve(tempdir, note.path) + '.html';
+      const notePath = Path.resolve(tempdir, note.tag) + '.html';
       let node;
       Object.values(note.compiled).forEach(compiled => {
         compiled?.forEach(compiled => {
@@ -467,7 +489,7 @@ export class App {
       await mkdir(Path.dirname(notePath), { recursive: true });
       await writeFile(notePath, html);
     }).values());
-    if (true) {
+    if (false) {
       await publish(tempdir, {
         src: '**',
         dotfiles: true,

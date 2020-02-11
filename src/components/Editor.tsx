@@ -12,6 +12,7 @@ import { bug } from '../util/bug';
 
 interface Props {
   selected: string | null;
+  view: data.Types | null;
   content: string | null;
   parsedNote: data.ParsedNote | null;
   session: Session;
@@ -216,26 +217,34 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
     }
 }
 
-function computeHighlight(content: string, parsedNote: data.ParsedNote | null) {
+function computeHighlight(
+  view: data.Types | null,
+  content: string,
+  parsedNote: data.ParsedNote | null
+) {
   const spans: Array<Span> = [];
-  if (parsedNote) {
+  if (view && parsedNote) {
     // TODO(jaked)
     // parsing should always succeed with some AST
-    Object.keys(parsedNote.parsed).forEach(key => {
-      switch (key) {
-        case 'mdx': {
-          const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
-          ast.forEach(ast => computeSpans(ast, spans));
-        }
-        break;
-
-        case 'json': {
-          const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-          ast.forEach(ast => computeJsSpans(ast, spans));
-        }
-        break;
+    switch (view) {
+      case 'meta': {
+        const ast = parsedNote.parsed.meta ?? bug(`expected parsed meta`);
+        ast.forEach(ast => computeJsSpans(ast, spans));
       }
-    });
+      break;
+
+      case 'mdx': {
+        const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
+        ast.forEach(ast => computeSpans(ast, spans));
+      }
+      break;
+
+      case 'json': {
+        const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
+        ast.forEach(ast => computeJsSpans(ast, spans));
+      }
+      break;
+    }
   }
 
   // TODO(jaked) this could use some tests
@@ -365,11 +374,11 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { selected, content, parsedNote } = this.props;
+    const { view, selected, content, parsedNote } = this.props;
     if (selected === null || content === null) {
       return <span>no note</span>;
     }
-    let highlight = computeHighlight(content, parsedNote);
+    let highlight = computeHighlight(view, content, parsedNote);
     return (
       <div style={{
         fontFamily: 'Monaco, monospace',

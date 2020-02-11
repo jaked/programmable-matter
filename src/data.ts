@@ -6,7 +6,7 @@ import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
 
-export type Types = 'mdx' | 'json' | 'txt' | 'jpeg' | 'table';
+export type Types = 'meta' | 'mdx' | 'json' | 'txt' | 'jpeg' | 'table';
 
 export interface Meta {
   title?: string;
@@ -33,20 +33,33 @@ export type File = {
   buffer: Buffer;
 }
 
-type NoteContent = {
+export type NoteFiles = {
+  'meta'?: File;
+  'mdx'?: File;
+  'json'?: File;
+  'txt'?: File;
+  'jpg'?: File;
+  'table'?: File;
+}
+
+export type NoteContent = {
+  'meta'?: string;
   'mdx'?: string;
   'json'?: string;
   'txt'?: string;
   'table'?: string;
 }
 
-export type Note = File & {
+export type Note = {
   tag: string;
+  isIndex: boolean;
   meta: Meta;
+  files: NoteFiles;
   content: NoteContent;
 };
 
 export type NoteParsed = {
+  'meta'?: Try<ESTree.Expression>;
   'mdx'?: Try<MDXHAST.Root>;
   'json'?: Try<ESTree.Expression>;
   'table'?: Try<{}>; // TODO(jaked) table config

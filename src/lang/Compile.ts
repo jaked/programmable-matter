@@ -222,6 +222,7 @@ function typeOfPath(path: string): data.Types | undefined {
   let type: undefined | data.Types = undefined;
   if (pathParts.ext) {
     switch (pathParts.ext) {
+      case '.meta': type = 'meta'; break;
       case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
       case '.mdx': type = 'mdx'; break;
       case '.json': type = 'json'; break;
@@ -244,22 +245,14 @@ function noteOfGroup(
   group: Immutable.Map<string, Signal<data.File>>,
   tag: string
 ): Signal<data.Note> {
-  return Signal.label(tag,
-    Signal.join(...group.values()
-  ).map<data.Note>(files => {
+  return Signal.label(tag, Signal.join(...group.values()).map<data.Note>(files => {
 
-    let nonMetaFiles = files.filter(file => Path.extname(file.path) !== '.meta');
-    if (nonMetaFiles.length === 0) {
-      const indexMetaFile = files.find(file => isIndexMeta(file.path));
-      if (indexMetaFile) nonMetaFiles = [ indexMetaFile ];
-    }
-    if (nonMetaFiles.length !== 1)
-      throw new Error(`expected 1 file for ${tag}: ${files.map(file => file.path).join(', ')}`);
-    const file = nonMetaFiles[0];
+    const isIndex = files.some(file => file.path === Path.join(tag, 'index.meta'));
 
     let meta: data.Meta = {};
-    if (Path.parse(file.path).name === 'index') {
-      const metaFile = files.find(file => Path.extname(file.path) === '.meta');
+    if (isIndex) {
+      // dirMeta of index.meta does not apply to index note
+      const metaFile = files.find(file => isIndexMeta(file.path));
       if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
     } else {
       const indexMetaFile = files.find(file => isIndexMeta(file.path));
@@ -268,13 +261,26 @@ function noteOfGroup(
       if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
     }
 
-    const type = typeOfPath(file.path) ?? 'mdx';
-    if (type === 'jpeg') {
-      return { ...file, tag, meta, content: {} };
-    } else {
-      const content = file.buffer.toString('utf8');
-      return { ...file, tag, meta, content: { [type]: content } };
-    }
+    const noteFiles: data.NoteFiles =
+      files.reduce<data.NoteFiles>((obj, file) => {
+        if (!isIndex && isIndexMeta(file.path)) return obj;
+        const type = typeOfPath(file.path) ?? 'mdx';
+        return { ...obj, [type]: file };
+      },
+      {});
+
+    const content: data.NoteContent =
+      Object.keys(noteFiles).reduce<data.NoteContent>((obj, key) => {
+        const file = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
+        if (key === 'jpeg') return obj;
+        else {
+          const content = file.buffer.toString('utf8');
+          return { ...obj, [key]: content };
+        }
+      },
+      {});
+
+    return { tag, isIndex, meta, files: noteFiles, content };
   }));
 }
 
@@ -328,6 +334,12 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
   const parsed = Object.keys(note.content).reduce<data.NoteParsed>(
     (obj, key) => {
       switch (key) {
+        case 'meta': {
+          const content = note.content.meta ?? bug(`expected meta content for ${note.tag}`);
+          const ast = Try.apply(() => Parser.parseExpression(content));
+          return { ...obj, meta: ast };
+        }
+
         case 'mdx': {
           const content = note.content.mdx ?? bug(`expected mdx content for ${note.tag}`);
           const ast = Try.apply(() => Parser.parse(trace, content));
@@ -805,6 +817,8 @@ function compileNote(
           ));
           return { ...obj, table: compiled };
         }
+
+        case 'meta': return obj;
 
         default:
           throw new Error(`unhandled note type '${key}'`);
