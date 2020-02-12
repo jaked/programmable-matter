@@ -248,7 +248,7 @@ function noteOfGroup(
 ): Signal<data.Note> {
   return Signal.label(tag, Signal.join(...group.values()).map<data.Note>(files => {
 
-    const isIndex = files.some(file => file.path === Path.join(tag, 'index.meta'));
+    const isIndex = files.some(file => file.path.startsWith(Path.join(tag, 'index')));
 
     let meta: data.Meta = {};
     if (isIndex) {

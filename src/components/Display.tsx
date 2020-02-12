@@ -15,6 +15,8 @@ export function Display({ compiledNote: note }: Props) {
       Object.values(note.compiled).forEach(compiled => {
         rendered = compiled?.get().rendered.get();
       });
+      if (typeof rendered === 'undefined')
+        rendered = '';
       return (<Catch>{rendered}</Catch>);
     }
     throw new Error('no note');
