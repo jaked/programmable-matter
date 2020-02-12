@@ -269,6 +269,7 @@ export class App {
               if (typeof editorViewContent !== 'undefined') return [editorView, editorViewContent];
               if (typeof note.content.mdx !== 'undefined') return ['mdx', note.content.mdx];
               if (typeof note.content.json !== 'undefined') return ['json', note.content.json];
+              if (typeof note.content.txt !== 'undefined') return ['txt', note.content.txt];
               if (typeof note.content.meta !== 'undefined') return ['meta', note.content.meta];
               return null;
             });
