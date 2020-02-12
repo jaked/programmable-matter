@@ -153,6 +153,12 @@ export class App {
     }
   }
 
+  public focusDirCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
+  public get focusDir() { return this.focusDirCell.get() }
+  public setFocusDir = (focus: string | null) => {
+    this.focusDirCell.setOk(focus);
+  }
+
   public searchCell = Signal.cellOk<string>('', this.dirtyAndRender);
   public get search() { return this.searchCell.get() }
   public setSearch = (search: string) => {
@@ -316,9 +322,16 @@ export class App {
         // map matching function over individual note signals
         // so we only need to re-match notes that have changed
         this.compiledNotesSignal,
+        this.focusDirCell,
         this.searchCell
-      ).map(([notes, search]) => {
+      ).map(([notes, focusDir, search]) => {
         return this.__trace.time('match notes', () => {
+          let focusDirNotes: data.CompiledNotes;
+          if (focusDir) {
+            focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
+          } else {
+            focusDirNotes = notes;
+          }
           let matchingNotes: data.CompiledNotes;
           if (search) {
             // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
@@ -333,9 +346,14 @@ export class App {
               if (note.meta.tags && note.meta.tags.some(regexp.test)) return true;
               return false;
             }
-            const matches = notes.filter(matchesSearch);
+            const matches = focusDirNotes.filter(matchesSearch);
+
+            // include parents of matching notes
             matchingNotes = matches.withMutations(map => {
               matches.forEach((_, tag) => {
+                if (focusDir) {
+                  tag = Path.relative(focusDir, tag);
+                }
                 const dirname = Path.dirname(tag);
                 if (dirname != '.') {
                   const dirs = dirname.split('/');
@@ -351,7 +369,7 @@ export class App {
               });
             });
           } else {
-            matchingNotes = notes;
+            matchingNotes = focusDirNotes;
           }
           return matchingNotes.valueSeq().toArray().sort((a, b) =>
             a.tag < b.tag ? -1 : 1
@@ -373,11 +391,17 @@ export class App {
     Signal.join(
       this.matchingNotesSignal,
       this.dirExpandedCell,
-      this.selectedCell
-    ).map(([matchingNotes, dirExpanded, selected]) => {
+      this.selectedCell,
+      this.focusDirCell
+    ).map(([matchingNotes, dirExpanded, selected, focusDir]) => {
       const matchingNotesTree: Array<data.CompiledNote & { indent: number, expanded?: boolean }> = [];
       matchingNotes.forEach(note => {
-        const dirname = Path.dirname(note.tag);
+        // TODO(jaked) this code is bad
+        let tag = note.tag;
+        if (focusDir) {
+          tag = Path.relative(focusDir, tag);
+        }
+        const dirname = Path.dirname(tag);
         let showNote = true;
         let indent = 0;
         if (dirname !== '.') {
@@ -386,11 +410,15 @@ export class App {
           let dir = '';
           for (let i = 0; i < dirs.length; i++) {
             dir = Path.join(dir, dirs[i]);
+            if (focusDir) {
+              dir = Path.join(focusDir, dir);
+            }
             if (!dirExpanded.get(dir, false)) showNote = false;
           }
           if (selected && selected.startsWith(note.tag))
             showNote = true;
         }
+        if (focusDir) indent += 1;
         if (showNote) {
           let expanded: boolean | undefined = undefined;
           if (note.isIndex) {

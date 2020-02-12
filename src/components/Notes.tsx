@@ -20,11 +20,12 @@ interface Props {
   notes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
   selected: string | null;
   onSelect: (tag: string) => void;
+  onFocusDir: (tag: string | null) => void;
   focusEditor: () => void;
   toggleDirExpanded: (tag: string) => void;
 }
 
-export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect, focusEditor, toggleDirExpanded }, ref) => {
+export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect, onFocusDir, focusEditor, toggleDirExpanded }, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (notes.length === 0) return false;
     let nextTagIndex: number;
@@ -87,6 +88,11 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
         toggleDirExpanded={
           typeof note.expanded !== 'undefined' ?
             (() => toggleDirExpanded(note.tag)) :
+            undefined
+        }
+        onFocusDir={
+          typeof note.expanded !== 'undefined' ?
+            (() => onFocusDir(note.tag)) :
             undefined
         }
         style={style}

@@ -10,6 +10,7 @@ interface Props {
   selected: boolean;
   onSelect: () => void;
   toggleDirExpanded?: () => void;
+  onFocusDir?: () => void;
   style: any;
 }
 
@@ -22,22 +23,29 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export const Note = ({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, style } : Props) => {
+export const Note = ({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style } : Props) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :
       (selected ? '#cccccc' : '#ffffff');
   const icon = (typeof expanded === 'undefined') ? undefined :
                expanded ? '-' : '+';
+
+  const onClick = (e: React.MouseEvent) => {
+    if (e.altKey && onFocusDir) onFocusDir();
+    else onSelect();
+  }
+
   return (
     <Flex
       padding={2}
       backgroundColor={backgroundColor}
       style={style}
+      onClick={onClick}
     >
-      <div onClick={toggleDirExpanded} style={{ minWidth: `${indent * 10}px` }} />
-      <div onClick={toggleDirExpanded} style={{ minWidth: '10px' }}>{icon}</div>
-      <div onClick={onSelect}>{label}</div>
+      <div style={{ minWidth: `${indent * 10}px` }} />
+      <div onClick={e => { toggleDirExpanded && toggleDirExpanded(); e.stopPropagation() }} style={{ minWidth: '10px' }}>{icon}</div>
+      <div>{label}</div>
     </Flex>
   );
 };

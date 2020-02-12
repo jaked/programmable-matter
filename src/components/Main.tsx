@@ -37,6 +37,8 @@ export class Main extends React.Component<Props, {}> {
     <Flex width={width} flexDirection='column'>
       <Sidebar
         ref={this.sidebarRef}
+        focusDir={this.props.app.focusDir}
+        onFocusDir={this.props.app.setFocusDir}
         search={this.props.app.search}
         onSearch={this.props.app.setSearch}
         matchingNotes={this.props.app.matchingNotesTree}

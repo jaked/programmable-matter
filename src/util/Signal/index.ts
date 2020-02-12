@@ -411,6 +411,12 @@ module Signal {
     s2: Signal<T2>,
     s3: Signal<T3>
   ): Signal<[T1, T2, T3]>
+  export function join<T1, T2, T3, T4>(
+    s1: Signal<T1>,
+    s2: Signal<T2>,
+    s3: Signal<T3>,
+    s4: Signal<T4>
+  ): Signal<[T1, T2, T3, T4]>
   export function join<T>(
     ...signals: Signal<T>[]
   ): Signal<T[]>

@@ -1,10 +1,14 @@
-import * as Immutable from 'immutable';
 import React from 'react';
+import { Flex as BaseFlex } from 'rebass';
+import styled from 'styled-components';
+
 import { Notes } from './Notes';
 import { SearchBox } from './SearchBox';
 import * as data from '../data';
 
 type Props = {
+  focusDir: string | null;
+  onFocusDir: (s: string | null) => void;
   search: string;
   onSearch: (s: string) => void;
   matchingNotes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
@@ -14,6 +18,15 @@ type Props = {
   focusEditor: () => void;
   toggleDirExpanded: (s: string) => void;
 }
+
+const Flex = styled(BaseFlex)`
+  :hover {
+    cursor: pointer;
+  }
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+`;
 
 export class Sidebar extends React.Component<Props, {}> {
   notesRef = React.createRef<HTMLDivElement>();
@@ -62,11 +75,21 @@ export class Sidebar extends React.Component<Props, {}> {
         onSearch={this.props.onSearch}
         onKeyDown={this.onKeyDown}
       />
+      { this.props.focusDir && (
+        <Flex
+          padding={2}
+          onClick={() => this.props.onSelect(this.props.focusDir) }
+        >
+          <div onClick={e => { this.props.onFocusDir(null); e.stopPropagation() } } style={{ minWidth: '10px' }}>x</div>
+          <div>{this.props.focusDir}</div>
+        </Flex>
+      )}
       <Notes
         ref={this.notesRef}
         notes={this.props.matchingNotes}
         selected={this.props.selected}
         onSelect={this.props.onSelect}
+        onFocusDir={this.props.onFocusDir}
         focusEditor={this.props.focusEditor}
         toggleDirExpanded={this.props.toggleDirExpanded}
       />
