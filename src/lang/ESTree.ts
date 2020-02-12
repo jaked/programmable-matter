@@ -559,6 +559,13 @@ export function freeIdentifiers(expr: Expression): Array<string> {
           });
           fn(node.body, bound);
           return false;
+
+        case 'MemberExpression':
+          fn(node.object, bound);
+          if (node.computed) {
+            fn(node.property, bound);
+          }
+          return false;
       }
     });
   }

@@ -63,6 +63,7 @@ export default class Server {
       //   res.end(note.buffer);
       //   break;
       let node;
+      // TODO(jaked) render whole note
       Object.values(note.compiled).forEach(compiled => {
         compiled?.forEach(compiled => {
           node = compiled.rendered.get(); // TODO(jaked) fix Try.get()

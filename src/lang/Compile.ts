@@ -767,59 +767,44 @@ function compileNote(
   setSelected: (tag: string) => void,
 ): data.CompiledNote {
   // TODO(jaked) Object.map or wrap object in helper
-  const compiled = Object.keys(parsedNote.content).reduce<data.NoteCompiled>(
+  let compiled = Object.keys(parsedNote.content).reduce<data.NoteCompiled>(
     (obj, key) => {
       switch (key) {
-        case 'mdx': {
-          const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
-          const compiled = Try.apply(() => compileMdx(
-            trace,
-            ast.get(),
-            String.capitalize(parsedNote.tag),
-            parsedNote.meta,
-            typeEnv,
-            valueEnv,
-            moduleTypeEnv,
-            moduleValueEnv,
-            mkCell,
-          ));
-          return { ...obj, mdx: compiled };
-        }
-
         case 'json': {
           const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-          const compiled = Try.apply(() => compileJson(
+          const json = Try.apply(() => compileJson(
             ast.get(),
             parsedNote.meta
           ));
-          return { ...obj, json: compiled };
+          return { ...obj, json };
         }
 
         case 'txt': {
           const content = parsedNote.content.txt ?? bug(`expected txt content`);
-          const compiled = Try.apply(() => compileTxt(content));
-          return { ...obj, txt: compiled };
+          const txt = Try.apply(() => compileTxt(content));
+          return { ...obj, txt };
         }
 
         case 'jpeg': {
-          const compiled = Try.apply(() => compileJpeg(
+          const jpeg = Try.apply(() => compileJpeg(
             parsedNote.tag
           ));
-          return { ...obj, jpeg: compiled };
+          return { ...obj, jpeg };
         }
 
         case 'table': {
-          const compiled = Try.apply(() => compileTable(
+          const table = Try.apply(() => compileTable(
             trace,
             parsedNote,
             moduleTypeEnv,
             moduleValueEnv,
             setSelected
           ));
-          return { ...obj, table: compiled };
+          return { ...obj, table };
         }
 
         case 'meta': return obj;
+        case 'mdx': return obj; // handled below
 
         default:
           throw new Error(`unhandled note type '${key}'`);
@@ -827,6 +812,41 @@ function compileNote(
     },
     {}
   );
+
+  if (typeof parsedNote.parsed.mdx !== 'undefined') {
+    if (typeof compiled.json !== 'undefined' && compiled.json.type === 'ok') {
+      const dataType = compiled.json.ok.exportType.get('default');
+      const dataValue = compiled.json.ok.exportValue['default'];
+      if (typeof dataType !== 'undefined' && typeof dataValue !== 'undefined') {
+        typeEnv = typeEnv.set('data', dataType);
+        valueEnv = valueEnv.set('data', dataValue);
+      }
+    }
+
+    if (typeof compiled.table !== 'undefined' && compiled.table.type === 'ok') {
+      const tableType = compiled.table.ok.exportType.get('default');
+      const tableValue = compiled.table.ok.exportValue['default'];
+      if (typeof tableType !== 'undefined' && typeof tableValue !== 'undefined') {
+        typeEnv = typeEnv.set('table', tableType);
+        valueEnv = valueEnv.set('table', tableValue);
+      }
+    }
+
+    const ast = parsedNote.parsed.mdx;
+    const mdx = Try.apply(() => compileMdx(
+      trace,
+      ast.get(),
+      String.capitalize(parsedNote.tag),
+      parsedNote.meta,
+      typeEnv,
+      valueEnv,
+      moduleTypeEnv,
+      moduleValueEnv,
+      mkCell,
+    ));
+    compiled = { ...compiled, mdx };
+  }
+
   return { ...parsedNote, compiled };
 }
 
@@ -851,13 +871,38 @@ function compileDirtyNotes(
       parsedNote.imports.forEach(tag => {
         const compiledNote = compiledNotes.get(tag);
         if (compiledNote) {
-          Object.values(compiledNote.compiled).forEach(compiled => {
-            compiled?.forEach(compiled => {
-              // TODO(jaked) merge modules instead of overwriting
-              moduleTypeEnv.set(tag, compiled.exportType);
-              moduleValueEnv.set(tag, compiled.exportValue);
-            })
-          });
+          // TODO(jaked) compute this in note compile
+          const moduleTypeFields: Array<{ field: string, type: Type }> = [];
+          let moduleValue: { [s: string]: Signal<any> } = {};
+          const mdx = compiledNote.compiled.mdx;
+          if (typeof mdx !== 'undefined' && mdx.type === 'ok') {
+            moduleTypeFields.push(...mdx.ok.exportType.fields);
+            moduleValue = { ...moduleValue, ...mdx.ok.exportValue };
+          }
+          const json = compiledNote.compiled.json;
+          if (typeof json !== 'undefined' && json.type === 'ok') {
+            moduleTypeFields.push(...json.ok.exportType.fields);
+            moduleValue = { ...moduleValue, ...json.ok.exportValue };
+          }
+          const table = compiledNote.compiled.table;
+          if (typeof table !== 'undefined' && table.type === 'ok') {
+            moduleTypeFields.push(...table.ok.exportType.fields);
+            moduleValue = { ...moduleValue, ...table.ok.exportValue };
+          }
+
+          // TODO(jaked) make this easier somehow
+          const moduleType =
+            Type.module(
+              moduleTypeFields.reduce<{ [f: string]: Type }>(
+                (obj, fieldType) => {
+                  const { field, type } = fieldType;
+                  return { ...obj, [field]: type };
+                },
+                {}
+              )
+            );
+          moduleTypeEnv.set(tag, moduleType);
+          moduleValueEnv.set(tag, moduleValue);
         }
       });
 
