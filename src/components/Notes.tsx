@@ -83,12 +83,12 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
         indent={note.indent}
         err={err}
         selected={note.tag === selected}
-        onClick={ () => {
-          // TODO(jaked) fix double render
-          onSelect(note.tag);
-          if (typeof note.expanded != 'undefined')
-            toggleDirExpanded(note.tag);
-        } }
+        onSelect={ () => onSelect(note.tag) }
+        toggleDirExpanded={
+          typeof note.expanded !== 'undefined' ?
+            (() => toggleDirExpanded(note.tag)) :
+            undefined
+        }
         style={style}
       />
     );

@@ -8,7 +8,8 @@ interface Props {
   indent: number,
   err: boolean,
   selected: boolean;
-  onClick: () => void;
+  onSelect: () => void;
+  toggleDirExpanded?: () => void;
   style: any;
 }
 
@@ -21,7 +22,7 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export const Note = ({ label: tag, expanded, indent, err, selected, onClick, style } : Props) => {
+export const Note = ({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, style } : Props) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :
@@ -32,12 +33,11 @@ export const Note = ({ label: tag, expanded, indent, err, selected, onClick, sty
     <Flex
       padding={2}
       backgroundColor={backgroundColor}
-      onClick={onClick}
       style={style}
     >
-      <div style={{ minWidth: `${indent * 10}px` }} />
-      <div style={{ minWidth: '10px' }}>{icon}</div>
-      <div>{tag}</div>
+      <div onClick={toggleDirExpanded} style={{ minWidth: `${indent * 10}px` }} />
+      <div onClick={toggleDirExpanded} style={{ minWidth: '10px' }}>{icon}</div>
+      <div onClick={onSelect}>{label}</div>
     </Flex>
   );
 };
