@@ -5,23 +5,23 @@ import JSON5 from 'json5';
 
 import * as React from 'react';
 
-import Signal from '../util/Signal';
-import Trace from '../util/Trace';
-import Try from '../util/Try';
-import * as data from '../data';
-import * as MDXHAST from './mdxhast';
-import * as ESTree from './ESTree';
-import * as Parse from './Parse';
-import Type from './Type';
-import Typecheck from './Typecheck';
-import * as Evaluator from './Evaluator';
-import * as Render from './Render';
-import * as String from '../util/String';
-import { diffMap } from '../util/immutable/Map';
-import { bug } from '../util/bug';
+import Signal from '../../util/Signal';
+import Trace from '../../util/Trace';
+import Try from '../../util/Try';
+import * as data from '../../data';
+import * as MDXHAST from '../mdxhast';
+import * as ESTree from '../ESTree';
+import * as Parse from '../Parse';
+import Type from '../Type';
+import Typecheck from '../Typecheck';
+import * as Evaluator from '../Evaluator';
+import * as Render from '../Render';
+import * as String from '../../util/String';
+import { diffMap } from '../../util/immutable/Map';
+import { bug } from '../../util/bug';
 
-import { Table, Field as TableField } from '../components/Table';
-import { Record, Field as RecordField } from '../components/Record';
+import { Table, Field as TableField } from '../../components/Table';
+import { Record, Field as RecordField } from '../../components/Record';
 
 const debug = false;
 
