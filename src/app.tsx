@@ -222,14 +222,6 @@ export class App {
     );
   public get session() { return this.sessionSignal.get() }
 
-  private letCells = Immutable.Map<string, Immutable.Map<string, Signal.Cell<any>>>();
-  private mkCell = (module: string, name: string, init: any): Signal.Cell<any> => {
-    let noteLetCells = this.letCells.get(module) || Immutable.Map();
-    let letCell = noteLetCells.get(name) || Signal.cellOk(init, this.render);
-    this.letCells = this.letCells.set(module, noteLetCells.set(name, letCell));
-    return letCell;
-  }
-
   private notesSignal =
     Compile.notesOfFiles(this.__trace, this.filesystem.files);
 
@@ -238,7 +230,6 @@ export class App {
       this.__trace,
       this.notesSignal,
       this.filesystem.update,
-      this.mkCell,
       this.setSelected
     );
   public get compiledNotes() { return this.compiledNotesSignal.get() }

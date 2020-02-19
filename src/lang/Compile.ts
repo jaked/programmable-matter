@@ -586,7 +586,6 @@ function compileMdx(
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
 ): data.Compiled {
   const exportTypes: { [s: string]: Type.Type } = {};
   const exportValue: { [s: string]: Signal<any> } = {};
@@ -621,7 +620,7 @@ function compileMdx(
   const rendered =
     trace.time('renderMdx', () => {
       const [_, node] =
-        Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, mkCell, exportValue);
+        Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, exportValue);
       if (layoutFunction)
         return Signal.join(layoutFunction, node).map(([layoutFunction, node]) =>
           layoutFunction({ children: node, meta })
@@ -884,7 +883,6 @@ function compileNote(
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
   updateFile: (path: string, buffer: Buffer) => void,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (tag: string) => void,
 ): data.CompiledNote {
   // TODO(jaked) Object.map or wrap object in helper
@@ -970,7 +968,6 @@ function compileNote(
       valueEnv,
       moduleTypeEnv,
       moduleValueEnv,
-      mkCell,
     ));
     compiled = { ...compiled, mdx };
   }
@@ -984,7 +981,6 @@ function compileDirtyNotes(
   parsedNotes: data.ParsedNotesWithImports,
   compiledNotes: data.CompiledNotes,
   updateFile: (path: string, buffer: Buffer) => void,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
   const typeEnv = Render.initTypeEnv;
@@ -1045,7 +1041,6 @@ function compileDirtyNotes(
             moduleTypeEnv.asImmutable(),
             moduleValueEnv.asImmutable(),
             updateFile,
-            mkCell,
             setSelected
           )
         );
@@ -1094,7 +1089,6 @@ export function compileNotes(
   trace: Trace,
   notesSignal: Signal<data.Notes>,
   updateFile: (path: string, buffer: Buffer) => void,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledNotes> {
   const parsedNotesSignal = Signal.label('parseNotes',
@@ -1143,7 +1137,7 @@ export function compileNotes(
         compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotesWithImports));
 
         // compile dirty notes (post-sorting for dependency ordering)
-        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotesWithImports, compiledNotes, updateFile, mkCell, setSelected));
+        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotesWithImports, compiledNotes, updateFile, setSelected));
         return compiledNotes;
       },
       Immutable.Map(),

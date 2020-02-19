@@ -85,7 +85,6 @@ function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
   module: string,
   env: Env,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   exportValue: { [s: string]: Signal<any> }
 ): Env {
   const declaration = decl.declaration;
@@ -99,21 +98,6 @@ function extendEnvWithNamedExport(
       });
     }
     break;
-
-    case 'let': {
-      declaration.declarations.forEach(declarator => {
-        // TODO(jaked)
-        // need to ensure that initializer isn't changeable
-        // (and/or rethink how cells are created / initialized)
-        const init =
-          Evaluator.evaluateExpression(declarator.init, Immutable.Map());
-        const name = declarator.id.name;
-        const cell = mkCell(module, name, init);
-        exportValue[name] = cell;
-        env = env.set(name, cell);
-      });
-      break;
-    }
 
     default: throw new Error('unexpected AST ' + declaration.kind);
   }
@@ -135,7 +119,6 @@ export function renderMdx(
   module: string,
   moduleEnv: Compile.ModuleValueEnv,
   env: Env,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   exportValue: { [s: string]: Signal<any> }
 ): [Env, Signal<React.ReactNode>] {
   // TODO(jaked)
@@ -145,7 +128,7 @@ export function renderMdx(
     case 'root': {
       const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
+        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -187,7 +170,7 @@ export function renderMdx(
         case 'a': {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
+            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -206,7 +189,7 @@ export function renderMdx(
         default: {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, mkCell, exportValue);
+            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -283,7 +266,7 @@ export function renderMdx(
             break;
 
           case 'ExportNamedDeclaration':
-            env = extendEnvWithNamedExport(decl, module, env, mkCell, exportValue);
+            env = extendEnvWithNamedExport(decl, module, env, exportValue);
             break;
 
           case 'ExportDefaultDeclaration':
@@ -303,13 +286,12 @@ export function renderProgram(
   module: string,
   moduleEnv: Compile.ModuleValueEnv,
   env: Env,
-  mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   exportValue: { [s: string]: Signal<any> }
 ): Env {
   switch (ast.type) {
     case 'Program':
       ast.body.forEach(child => {
-        env = renderProgram(child, module, moduleEnv, env, mkCell, exportValue);
+        env = renderProgram(child, module, moduleEnv, env, exportValue);
       });
       return env;
 
@@ -317,7 +299,7 @@ export function renderProgram(
       return extendEnvWithImport(ast, moduleEnv, env);
 
     case 'ExportNamedDeclaration':
-      return extendEnvWithNamedExport(ast, module, env, mkCell, exportValue);
+      return extendEnvWithNamedExport(ast, module, env, exportValue);
 
     case 'ExportDefaultDeclaration':
       return extendEnvWithDefaultExport(ast, env, exportValue);
