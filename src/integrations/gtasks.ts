@@ -1,5 +1,6 @@
 import { promises as Fs } from 'fs';
 import * as Path from 'path';
+import JSON5 from 'json5';
 import { OAuth2Client } from 'google-auth-library';
 import { google as GoogleApis } from 'googleapis';
 import { bug } from '../util/bug';
@@ -24,7 +25,7 @@ type Credentials = {
 
 export async function authAndSyncTaskLists(path: string) {
   const credentials = await Fs.readFile('credentials.json', 'utf8');
-  authorize(JSON.parse(credentials), auth => syncTaskLists(auth, path));
+  authorize(JSON5.parse(credentials), auth => syncTaskLists(auth, path));
 }
 
 /**
@@ -41,7 +42,7 @@ async function authorize(credentials: Credentials, callback: (oauth2Client: OAut
   // Check if we have previously stored a token.
   try {
     const token = await Fs.readFile(TOKEN_PATH, 'utf8');
-    oAuth2Client.setCredentials(JSON.parse(token));
+    oAuth2Client.setCredentials(JSON5.parse(token));
     callback(oAuth2Client);
   } catch {
     return getNewToken(oAuth2Client, callback);
@@ -65,7 +66,7 @@ async function getNewToken(oAuth2Client: OAuth2Client, callback: (oAuth2Client: 
   oAuth2Client.setCredentials(token.tokens);
   // Store the token to disk for later program executions
   // TODO(jaked) some biz with reissuing tokens
-  await Fs.writeFile(TOKEN_PATH, JSON.stringify(token), 'utf8');
+  await Fs.writeFile(TOKEN_PATH, JSON5.stringify(token, undefined, 2), 'utf8');
   callback(oAuth2Client);
 }
 
@@ -87,7 +88,7 @@ async function syncTaskLists(auth: OAuth2Client, path: string) {
     return Promise.all(tasks.data.items.map(async (task) => {
       if (!task.id) return bug('expected task.id');
       const taskPath = Path.resolve(taskListPath, task.id);
-      return Fs.writeFile(taskPath, JSON.stringify(task, undefined, 2), 'utf8');
+      return Fs.writeFile(taskPath, JSON5.stringify(task, undefined, 2), 'utf8');
     }));
   }));
 }

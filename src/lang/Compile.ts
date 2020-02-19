@@ -1,6 +1,7 @@
 import * as Path from 'path';
 
 import * as Immutable from 'immutable';
+import JSON5 from 'json5';
 
 import * as React from 'react';
 
@@ -65,7 +66,7 @@ function sanitizeMeta(obj: any): data.Meta {
 function parseMeta(file: data.File): data.Meta {
   let obj;
   try {
-    obj = JSON.parse(file.buffer.toString('utf8'));
+    obj = JSON5.parse(file.buffer.toString('utf8'));
   } catch (e) {
     console.log(e);
     return {};
@@ -894,7 +895,7 @@ function compileNote(
           const file = parsedNote.files.json ?? bug(`expected json file`);
           const updateJsonFile = (obj: any) => {
             // TODO(jaked) use json5 and pretty-print
-            updateFile(file.path, Buffer.from(JSON.stringify(obj), 'utf-8'));
+            updateFile(file.path, Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf-8'));
           }
           const json = Try.apply(() => compileJson(
             ast.get(),
