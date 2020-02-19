@@ -120,7 +120,8 @@ function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType) {
   // but we don't know which arm was intended, so the error could be confusing.
   const matchingArms = type.types.filter(t =>
     (t.kind === 'Object' && ast.type === 'ObjectExpression') ||
-    (t.kind === 'Array' && ast.type === 'ArrayExpression')
+    (t.kind === 'Array' && ast.type === 'ArrayExpression') ||
+    (t.kind === 'Function' && ast.type === 'ArrowFunctionExpression')
   );
   if (matchingArms.length === 1)
     return check(ast, env, matchingArms[0]);

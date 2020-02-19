@@ -139,7 +139,7 @@ export function evaluateExpression(
     case 'CallExpression': {
       const callee = evaluateExpression(ast.callee, env);
       const args = ast.arguments.map(arg => evaluateExpression(arg, env));
-      return callee(args);
+      return callee(...args);
     }
 
     case 'ObjectExpression': {

@@ -414,9 +414,15 @@ export const initTypeEnv = Typecheck.env({
   'input': componentType({
     type: Type.singleton('range'),
     id: Type.undefinedOrString,
-    min: Type.numberOrString,
-    max: Type.numberOrString,
+    min: Type.string,
+    max: Type.string,
     value: Type.unknown,
+    onChange: Type.undefinedOr(Type.functionType(
+      [Type.object({
+        currentTarget: Type.object({ value: Type.string })
+      })],
+      Type.undefined // TODO(jaked) Type.void?
+    ))
   }),
 
   'style': componentType({

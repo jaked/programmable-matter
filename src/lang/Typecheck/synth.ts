@@ -157,7 +157,21 @@ function synthMemberExpression(
 ): Type {
   objectType = objectType || synth(ast.object, env);
 
-  if (objectType.kind === 'Union') {
+  if (objectType.kind === 'Intersection') {
+    const memberTypes =
+      objectType.types
+        .filter(type => type.kind === 'Object') // TODO(jaked) handle others
+        .map(type => Try.apply(() => synthMemberExpression(ast, env, type)));
+    if (memberTypes.some(tryType => tryType.type === 'ok')) {
+      const retTypes =
+        memberTypes.filter(tryType => tryType.type === 'ok')
+          .map(tryType => tryType.get());
+      return Type.intersection(...retTypes);
+    } else {
+      // TODO(jaked) better error message
+      return Throw.withLocation(ast.object, 'no matching object type');
+    }
+  } else if (objectType.kind === 'Union') {
     const types =
       objectType.types.map(type => synthMemberExpression(ast, env, type));
     return Type.union(...types);
@@ -240,20 +254,19 @@ function synthMemberExpression(
           }
 
         case 'Object': {
-          const field = objectType.fields.find(ft => ft.field === name);
-          if (field) return field.type;
-          else return Throw.unknownField(ast.property, name);
+          const field = objectType.get(name);
+          if (field) return field;
+          Throw.unknownField(ast.property, name);
         }
 
         case 'Module': {
-          const field = objectType.fields.find(ft => ft.field === name);
-          if (field) return field.type;
-          else return Throw.unknownField(ast.property, name);
+          const field = objectType.get(name);
+          if (field) return field;
+          Throw.unknownField(ast.property, name);
         }
 
         default:
-          // TODO(jaked) Typescript gives a separate error for null / undefined
-          return Throw.unknownField(ast, name);
+          Throw.expectedType(ast.object, 'Array / Object / Module');
       }
     } else {
       return bug('expected identifier on non-computed property');
@@ -449,8 +462,7 @@ function synthJSXElement(ast: ESTree.JSXElement, env: Env): Type {
     const type = propTypes.get(attr.name.name);
     if (type) return check(attr.value, env, type);
     else {
-      // TODO(jaked) disabled for now
-      // return Throw.extraField(attr, attr.name.name);
+      return Throw.extraField(attr, attr.name.name);
     }
   });
 
