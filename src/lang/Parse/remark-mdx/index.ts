@@ -9,7 +9,7 @@ const SLASH = '/'
 const EXCLAMATION = '!'
 
 import * as Babel from '@babel/parser';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../ESTree';
 
 tokenizeEsSyntax.locator = tokenizeEsSyntaxLocator
 

@@ -9,12 +9,12 @@ import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 
 import * as Babel from '@babel/parser';
 
-import { bug } from '../util/bug';
-import Trace from '../util/Trace';
-import Try from '../util/Try';
-import * as MDXHAST from './mdxhast';
-import * as ESTree from './ESTree';
-import Type from './Type';
+import { bug } from '../../util/bug';
+import Trace from '../../util/Trace';
+import Try from '../../util/Try';
+import * as MDXHAST from '../mdxhast';
+import * as ESTree from '../ESTree';
+import Type from '../Type';
 
 const mdxParser =
   unified()

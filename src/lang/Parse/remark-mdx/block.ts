@@ -4,7 +4,7 @@
 // MIT License https://github.com/remarkjs/remark/blob/master/license
 
 import * as Babel from '@babel/parser';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../ESTree';
 
 import { openCloseTag } from './tag';
 

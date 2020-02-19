@@ -11,7 +11,7 @@ import Try from '../util/Try';
 import * as data from '../data';
 import * as MDXHAST from './mdxhast';
 import * as ESTree from './ESTree';
-import * as Parser from './Parser';
+import * as Parse from './Parse';
 import Type from './Type';
 import Typecheck from './Typecheck';
 import * as Evaluator from './Evaluator';
@@ -49,7 +49,7 @@ function sanitizeMeta(obj: any): data.Meta {
   let dataType = {}
   if (typeof obj.dataType === 'string') {
     try {
-      dataType = { dataType: Parser.parseType(obj.dataType) }
+      dataType = { dataType: Parse.parseType(obj.dataType) }
     } catch (e) {
       // TODO(jaked) how to surface these?
       console.log(e)
@@ -338,19 +338,19 @@ function parseNote(trace: Trace, note: data.Note): data.ParsedNote {
       switch (key) {
         case 'meta': {
           const content = note.content.meta ?? bug(`expected meta content for ${note.tag}`);
-          const ast = Try.apply(() => Parser.parseExpression(content));
+          const ast = Try.apply(() => Parse.parseExpression(content));
           return { ...obj, meta: ast };
         }
 
         case 'mdx': {
           const content = note.content.mdx ?? bug(`expected mdx content for ${note.tag}`);
-          const ast = Try.apply(() => Parser.parse(trace, content));
+          const ast = Try.apply(() => Parse.parse(trace, content));
           return { ...obj, mdx: ast };
         }
 
         case 'json': {
           const content = note.content.json ?? bug(`expected json content for ${note.tag}`);
-          const ast = Try.apply(() => Parser.parseExpression(content));
+          const ast = Try.apply(() => Parse.parseExpression(content));
           return { ...obj, json: ast };
         }
 

@@ -1,5 +1,5 @@
 import * as ESTree from '../ESTree';
-import * as Parser from '../Parser';
+import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from './index';
 
@@ -10,7 +10,7 @@ describe('check', () => {
     env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
+      (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
     expect(() => Typecheck.check(expr, env, type)).toThrow();
   }
@@ -21,7 +21,7 @@ describe('check', () => {
     env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
+      (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
     expect(Typecheck.check(expr, env, type)).toBe(undefined);
   }

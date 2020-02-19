@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import * as ESTree from './ESTree';
-import * as Parser from './Parser';
+import * as Parse from './Parse';
 import * as Evaluator from './Evaluator';
 
 describe('evaluateExpression', () => {
@@ -10,7 +10,7 @@ describe('evaluateExpression', () => {
     env: Evaluator.Env = Immutable.Map()
   ) {
     const expr =
-      (typeof exprOrString === 'string') ? Parser.parseExpression(exprOrString)
+      (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
     expect(Evaluator.evaluateExpression(expr, env)).toEqual(value)
   }

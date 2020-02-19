@@ -1,9 +1,9 @@
 import { bug } from '../../util/bug';
-import * as Parser from '../Parser';
+import * as Parse from '../Parse';
 import Type from './index';
 
 function expectOfTSType(typeExpr: string, type: Type) {
-  const ast = Parser.parseExpression(`_ as ${typeExpr}`);
+  const ast = Parse.parseExpression(`_ as ${typeExpr}`);
   if (ast.type !== 'TSAsExpression') bug(`unexpected ${ast.type}`);
   expect(Type.ofTSType(ast.typeAnnotation)).toEqual(type);
 }
