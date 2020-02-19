@@ -237,6 +237,7 @@ export class App {
     Compile.compileNotes(
       this.__trace,
       this.notesSignal,
+      this.filesystem.update,
       this.mkCell,
       this.setSelected
     );

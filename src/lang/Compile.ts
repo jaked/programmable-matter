@@ -631,9 +631,105 @@ function compileMdx(
   return { exportType, exportValue, rendered };
 }
 
+function lensType(type: Type): Type {
+  switch (type.kind) {
+    case 'Object':
+      return Type.intersection(
+        Type.functionType([], type),
+        Type.functionType([type], Type.undefined),
+        Type.object(type.fields.map(({ field, type }) => {
+          return { field, type: lensType(type) };
+        }))
+      );
+
+    case 'Map':
+      return Type.intersection(
+        Type.functionType([], type),
+        Type.functionType([type], Type.undefined),
+        Type.map(type.key, lensType(type.value))
+      );
+
+    case 'Union':
+      return Type.intersection(
+        Type.functionType([], type),
+        Type.functionType([type], Type.undefined), // TODO(jaked) Type.void?
+
+        // TODO(jaked)
+        // a union over object types should permit projecting common fields
+        // but this also return lens types that are redundant with the ones above
+        // e.g. for string | boolean we get
+        //   () => string | boolean & (string | boolean) => undefined &
+        //   ((() => string & string => undefined) | () => boolean & boolean => undefined)
+        // maybe we should special case this somehow to avoid blowup.
+        Type.union(...type.types.map(lensType))
+      );
+
+    case 'boolean':
+    case 'number':
+    case 'string':
+    case 'null':
+    case 'undefined':
+      return Type.intersection(
+        Type.functionType([], type),
+        Type.functionType([type], Type.undefined) // TODO(jaked) Type.void?
+      );
+
+    default:
+      bug(`unimplemented lensType(${type.kind})`);
+  }
+}
+
+function lensValue(value: any, setValue: (v: any) => void, type: Type) {
+  // TODO(jaked) tighten this up, be careful about array / function cases
+
+  const f = function(...v: any[]) {
+    // TODO(jaked)
+    // is there a better way to distinguish 0-arg and 1-arg invocation?
+    // v might legitimately be undefined so checking for that won't work
+    switch (v.length) {
+      case 0: return value;
+      case 1: return setValue(v[0]);
+      default: bug(`expected 0- or 1-arg invocation`);
+    }
+  }
+
+  switch (type.kind) {
+    case 'Object':
+      // we can't just assign the fields of `value` to `f`
+      // because `name` is a read-only property on Function
+      return new Proxy(f, { get: (target, key, receiver) => {
+        if (typeof key !== 'string') return undefined;
+        const setFieldValue = (v) => setValue({ ...value, [key]: v });
+        const fieldType = type.get(key) || bug(`expected field type for ${key}`);
+        return lensValue(value[key], setFieldValue, fieldType);
+      }});
+
+    case 'Map':
+      // TODO(jaked) proxy map operations
+      break;
+
+    case 'Union':
+      // TODO(jaked) handle union of object
+      break;
+
+    case 'boolean':
+    case 'number':
+    case 'string':
+    case 'null':
+    case 'undefined':
+      break;
+
+    default:
+      bug(`unimplemented lensValue(${type.kind})`);
+  }
+
+  return f;
+}
+
 function compileJson(
   ast: ESTree.Expression,
-  meta: data.Meta
+  meta: data.Meta,
+  updateFile: (obj: any) => void
 ): data.Compiled {
   let type: Type;
   if (meta.dataType) {
@@ -642,10 +738,19 @@ function compileJson(
   } else {
     type = Typecheck.synth(ast, Typecheck.env());
   }
-  const exportType = Type.module({ default: type });
-  const value = Evaluator.evaluateExpression(ast, Immutable.Map());
-  const exportValue = { default: Signal.ok(value) };
+  // TODO(jaked) handle other JSON types
   if (type.kind !== 'Object') bug(`expected Object type`);
+
+  const exportType = Type.module({
+    default: type,
+    mutable: lensType(type),
+  });
+  const value = Evaluator.evaluateExpression(ast, Immutable.Map());
+  const setValue = (v) => { updateFile(v) };
+  const exportValue = {
+    default: Signal.ok(value),
+    mutable: Signal.ok(lensValue(value, setValue, type))
+  };
   const fields: RecordField[] =
     type.fields.map(({ field, type }) => ({
       label: field,
@@ -707,6 +812,7 @@ function compileTable(
     }
     types.push(defaultType);
   });
+
   // TODO(jaked)
   // treat parsedNote.imports as a Signal<Map> to make tables incremental
   const table = Signal.ok(Immutable.Map<string, Signal<any>>().withMutations(map =>
@@ -726,34 +832,48 @@ function compileTable(
     })
   ));
   const typeUnion = Type.union(...types);
-  const exportType = Type.module({
-    default: Type.array(typeUnion)
-  });
-  const exportValue = {
-    default: Signal.joinImmutableMap(table)
-  }
 
+  let objectType: Type.ObjectType | undefined = undefined;
   switch (typeUnion.kind) {
     case 'Object':
-      const fields: TableField[] =
-        typeUnion.fields.map(({ field, type }) => ({
-          label: field,
-          accessor: (o: object) => o[field],
-          width: 100,
-          component: ({ data }) => React.createElement(React.Fragment, null, data)
-        }));
-      const onSelect = (tag: string) =>
-        setSelected(Path.join(Path.dirname(parsedNote.tag), tag));
-      const rendered = exportValue.default.map(data =>
-        React.createElement(Table, { data, fields, onSelect })
-      );
-      return { exportType, exportValue, rendered };
+      objectType = typeUnion;
+      break;
+
+    case 'Intersection':
+      // TODO(jaked) tighten up
+      typeUnion.types.filter(type => type.kind === 'Object').forEach(type => {
+        if (type.kind !== 'Object') bug(`expected Object type, got ${type.kind}`);
+        objectType = type;
+      });
+      break;
 
     default:
       // TODO(jaked)
       // maybe we can display nonuniform / non-Object types a different way?
       bug(`unhandled table value type ${typeUnion.kind}`)
   }
+  if (!objectType) bug(`expected objectType to be set`);
+
+  const exportType = Type.module({
+    default: Type.map(Type.string, objectType)
+  });
+  const exportValue = {
+    default: Signal.joinImmutableMap(table)
+  }
+
+  const fields: TableField[] =
+    objectType.fields.map(({ field, type }) => ({
+      label: field,
+      accessor: (o: object) => o[field],
+      width: 100,
+      component: ({ data }) => React.createElement(React.Fragment, null, data)
+    }));
+  const onSelect = (tag: string) =>
+    setSelected(Path.join(Path.dirname(parsedNote.tag), tag));
+  const rendered = exportValue.default.map(data => {
+    return React.createElement(Table, { data, fields, onSelect })
+  });
+  return { exportType, exportValue, rendered };
 }
 
 function compileNote(
@@ -763,6 +883,7 @@ function compileNote(
   valueEnv: Evaluator.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
+  updateFile: (path: string, buffer: Buffer) => void,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (tag: string) => void,
 ): data.CompiledNote {
@@ -772,9 +893,15 @@ function compileNote(
       switch (key) {
         case 'json': {
           const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
+          const file = parsedNote.files.json ?? bug(`expected json file`);
+          const updateJsonFile = (obj: any) => {
+            // TODO(jaked) use json5 and pretty-print
+            updateFile(file.path, Buffer.from(JSON.stringify(obj), 'utf-8'));
+          }
           const json = Try.apply(() => compileJson(
             ast.get(),
-            parsedNote.meta
+            parsedNote.meta,
+            updateJsonFile
           ));
           return { ...obj, json };
         }
@@ -815,8 +942,9 @@ function compileNote(
 
   if (typeof parsedNote.parsed.mdx !== 'undefined') {
     if (typeof compiled.json !== 'undefined' && compiled.json.type === 'ok') {
-      const dataType = compiled.json.ok.exportType.get('default');
-      const dataValue = compiled.json.ok.exportValue['default'];
+      // TODO(jaked) immutable data files?
+      const dataType = compiled.json.ok.exportType.get('mutable');
+      const dataValue = compiled.json.ok.exportValue['mutable'];
       if (typeof dataType !== 'undefined' && typeof dataValue !== 'undefined') {
         typeEnv = typeEnv.set('data', dataType);
         valueEnv = valueEnv.set('data', dataValue);
@@ -855,6 +983,7 @@ function compileDirtyNotes(
   orderedTags: Array<string>,
   parsedNotes: data.ParsedNotesWithImports,
   compiledNotes: data.CompiledNotes,
+  updateFile: (path: string, buffer: Buffer) => void,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): data.CompiledNotes {
@@ -915,6 +1044,7 @@ function compileDirtyNotes(
             valueEnv,
             moduleTypeEnv.asImmutable(),
             moduleValueEnv.asImmutable(),
+            updateFile,
             mkCell,
             setSelected
           )
@@ -963,6 +1093,7 @@ function findImports(
 export function compileNotes(
   trace: Trace,
   notesSignal: Signal<data.Notes>,
+  updateFile: (path: string, buffer: Buffer) => void,
   mkCell: (module: string, name: string, init: any) => Signal.Cell<any>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledNotes> {
@@ -1012,7 +1143,7 @@ export function compileNotes(
         compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotesWithImports));
 
         // compile dirty notes (post-sorting for dependency ordering)
-        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotesWithImports, compiledNotes, mkCell, setSelected));
+        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotesWithImports, compiledNotes, updateFile, mkCell, setSelected));
         return compiledNotes;
       },
       Immutable.Map(),
