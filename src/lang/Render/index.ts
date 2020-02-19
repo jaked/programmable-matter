@@ -17,17 +17,17 @@ import Gist from 'react-gist';
 
 import { InlineMath, BlockMath } from 'react-katex';
 
-import { bug } from '../util/bug';
-import Signal from '../util/Signal';
+import { bug } from '../../util/bug';
+import Signal from '../../util/Signal';
 
-import * as MDXHAST from './mdxhast';
-import * as ESTree from './ESTree';
-import * as Evaluator from './evaluator';
-import Type from './Type';
-import Typecheck from './Typecheck';
-import * as Compile from './Compile';
+import * as MDXHAST from '../mdxhast';
+import * as ESTree from '../ESTree';
+import * as Evaluator from '../evaluator';
+import Type from '../Type';
+import Typecheck from '../Typecheck';
+import * as Compile from '../Compile';
 
-import HighlightedCode from './HighlightedCode';
+import HighlightedCode from '../HighlightedCode';
 
 const smartypants =
   Retext().use(RetextSmartypants, { dashes: 'oldschool' })
