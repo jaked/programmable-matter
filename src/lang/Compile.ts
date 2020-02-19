@@ -894,7 +894,6 @@ function compileNote(
           const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
           const file = parsedNote.files.json ?? bug(`expected json file`);
           const updateJsonFile = (obj: any) => {
-            // TODO(jaked) use json5 and pretty-print
             updateFile(file.path, Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf-8'));
           }
           const json = Try.apply(() => compileJson(

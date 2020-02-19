@@ -52,6 +52,12 @@ export function evaluateExpression(
         return { [name.name]: evaluateExpression(value, env) };
       });
       const attrs = Object.assign({}, ...attrObjs);
+      // TODO(jaked) what if both bind and value/onChange are given?
+      if (attrs['bind']) {
+        const bind = attrs['bind'];
+        attrs['onChange'] = (e) => bind(e.currentTarget.value);
+        attrs['value'] = bind();
+      }
 
       let elem: any;
       const name = ast.openingElement.name.name;

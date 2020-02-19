@@ -213,41 +213,7 @@ export function renderMdx(
       switch (ast.jsxElement.type) {
         case 'ok': {
           const jsx = ast.jsxElement.ok;
-
-          // special-case `input` to handle cell binding
-          // TODO(jaked) cleaner way to handle this
-          if (jsx.type === 'JSXElement' &&
-              jsx.openingElement.name.name === 'input' &&
-              jsx.openingElement.attributes.some(({ name }) => name.name === 'id')) {
-            const idents = ESTree.freeIdentifiers(jsx);
-            const signals = idents.map(id => {
-              const signal = env.get(id);
-              if (signal) return signal;
-              else throw new Error(`unbound identifier ${id}`);
-            });
-            const signalEnv = env;
-            const signal = Signal.join(...signals).map(values => {
-              const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
-              const attrObjs = jsx.openingElement.attributes.map(({ name, value }) => {
-                return { [name.name]: Evaluator.evaluateExpression(value, env) };
-              });
-              const attrs = Object.assign({}, ...attrObjs);
-              if (env.has(attrs.id)) {
-                const cell = signalEnv.get(attrs.id) as Signal.Cell<any>;
-                attrs.onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                  cell.setOk(e.currentTarget.value);
-                }
-              } else {
-                // TODO(jaked) check statically
-                // also check that it is a Cell
-                throw new Error('unbound identifier ' + attrs.id);
-              }
-              return React.createElement('input', attrs);
-            });
-            return [env, signal];
-          } else {
-            return [env, evaluateExpressionSignal(jsx, env)];
-          }
+          return [env, evaluateExpressionSignal(jsx, env)];
         }
         case 'err':
           return [env, Signal.ok(null)];
@@ -404,6 +370,10 @@ export const initTypeEnv = Typecheck.env({
         currentTarget: Type.object({ value: Type.string })
       })],
       Type.undefined // TODO(jaked) Type.void?
+    )),
+    bind: Type.undefinedOr(Type.intersection(
+      Type.functionType([], Type.string),
+      Type.functionType([Type.string], Type.undefined)
     ))
   }),
 
