@@ -1,18 +1,18 @@
 import * as Immutable from 'immutable';
-import * as ESTree from './ESTree';
-import * as Parse from './Parse';
-import * as Evaluator from './Evaluator';
+import * as ESTree from '../ESTree';
+import * as Parse from '../Parse';
+import * as Evaluate from './index';
 
 describe('evaluateExpression', () => {
   function expectEval(
     exprOrString: ESTree.Expression | string,
     value: any,
-    env: Evaluator.Env = Immutable.Map()
+    env: Evaluate.Env = Immutable.Map()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(Evaluator.evaluateExpression(expr, env)).toEqual(value)
+    expect(Evaluate.evaluateExpression(expr, env)).toEqual(value)
   }
 
   describe('conditional expressions', () => {

@@ -22,7 +22,7 @@ import Signal from '../../util/Signal';
 
 import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
-import * as Evaluator from '../evaluator';
+import * as Evaluate from '../Evaluate';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Compile from '../Compile';
@@ -46,7 +46,7 @@ function evaluateExpressionSignal(
   });
   return Signal.join(...signals).map(values => {
     const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
-    return Evaluator.evaluateExpression(ast, env);
+    return Evaluate.evaluateExpression(ast, env);
   });
 }
 

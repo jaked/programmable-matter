@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
-import * as ESTree from './ESTree';
+import * as ESTree from '../ESTree';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 

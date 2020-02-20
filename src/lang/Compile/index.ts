@@ -14,7 +14,7 @@ import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Evaluator from '../Evaluator';
+import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
 import * as String from '../../util/String';
 import { diffMap } from '../../util/immutable/Map';
@@ -584,7 +584,7 @@ function compileMdx(
   capitalizedTag: string,
   meta: data.Meta,
   typeEnv: Typecheck.Env,
-  valueEnv: Evaluator.Env,
+  valueEnv: Evaluate.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
 ): data.Compiled {
@@ -745,7 +745,7 @@ function compileJson(
     default: type,
     mutable: lensType(type),
   });
-  const value = Evaluator.evaluateExpression(ast, Immutable.Map());
+  const value = Evaluate.evaluateExpression(ast, Immutable.Map());
   const setValue = (v) => { updateFile(v) };
   const exportValue = {
     default: Signal.ok(value),
@@ -880,7 +880,7 @@ function compileNote(
   trace: Trace,
   parsedNote: data.ParsedNoteWithImports,
   typeEnv: Typecheck.Env,
-  valueEnv: Evaluator.Env,
+  valueEnv: Evaluate.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
   updateFile: (path: string, buffer: Buffer) => void,
