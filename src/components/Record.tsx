@@ -21,7 +21,7 @@ const Box = styled(BoxBase)`
 export type Field = {
   label: string,
   accessor: (o: object) => any,
-  component: React.FunctionComponent<{ data: any }>
+  component: React.FunctionComponent<{ lens: any }>
 }
 
 type Props = {
@@ -57,7 +57,7 @@ export const Record = ({ object, fields }: Props) => {
                 </Box>
               );
             } else {
-              const value = field.accessor(object);
+              const lens = field.accessor(object);
               const Component = field.component;
 
               return (
@@ -66,7 +66,7 @@ export const Record = ({ object, fields }: Props) => {
                   borderTopWidth={borderTopWidth}
                   borderLeftWidth={borderLeftWidth}
                 >
-                  <Component data={value} />
+                  <Component lens={lens} />
                 </Box>
               );
             }

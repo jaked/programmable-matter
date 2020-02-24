@@ -60,10 +60,9 @@ export const initTypeEnv = Typecheck.env({
   'inlineCode': componentType({}),
 
   'input': componentType({
-    type: Type.singleton('range'),
-    id: Type.undefinedOrString,
-    min: Type.string,
-    max: Type.string,
+    type: Type.enumerate('text', 'range'),
+    min: Type.undefinedOr(Type.string),
+    max: Type.undefinedOr(Type.string),
     value: Type.unknown,
     onChange: Type.undefinedOr(Type.functionType(
       [Type.object({
