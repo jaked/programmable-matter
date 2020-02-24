@@ -39,6 +39,7 @@ export default function lensType(type: Type): Type {
     case 'string':
     case 'null':
     case 'undefined':
+    case 'Singleton':
       return Type.intersection(
         Type.functionType([], type),
         Type.functionType([type], Type.undefined) // TODO(jaked) Type.void?

@@ -39,6 +39,7 @@ export default function lensValue(value: any, setValue: (v: any) => void, type: 
     case 'string':
     case 'null':
     case 'undefined':
+    case 'Singleton':
       break;
 
     default:
