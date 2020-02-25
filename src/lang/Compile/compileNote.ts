@@ -1,5 +1,4 @@
 import * as Immutable from 'immutable';
-import JSON5 from 'json5';
 import Signal from '../../util/Signal';
 import * as String from '../../util/String';
 import Trace from '../../util/Trace';
@@ -32,17 +31,7 @@ export default function compileNote(
         case 'json': {
           const file = parsedNote.files.json ?? bug(`expected json file`);
           const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-          const json =
-            Signal.join(file, ast, parsedNote.meta).map(([file, ast, meta]) => {
-              const updateJsonFile = (obj: any) => {
-                updateFile(file.path, Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf-8'));
-              }
-              return compileJson(
-                ast,
-                meta,
-                updateJsonFile
-              );
-            });
+          const json = compileJson(file, ast, parsedNote.meta, updateFile);
           return { ...obj, json };
         }
 
