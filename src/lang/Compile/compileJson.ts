@@ -24,13 +24,32 @@ const Input = styled.input({
 
 function fieldComponent(field: string, type: Type) {
   switch (type.kind) {
-    default:
+    case 'string':
       return ({ lens }) =>
         React.createElement(Input, {
           type: 'text',
           value: lens(),
           onChange: (e: React.FormEvent<HTMLInputElement>) => lens(e.currentTarget.value)
         });
+
+    case 'boolean':
+      return ({ lens }) =>
+        React.createElement(Input, {
+          type: 'text',
+          value: String(lens()),
+          onChange: (e: React.FormEvent<HTMLInputElement>) => lens(Boolean(e.currentTarget.value))
+        });
+
+    case 'number':
+      return ({ lens }) =>
+        React.createElement(Input, {
+          type: 'text',
+          value: String(lens()),
+          onChange: (e: React.FormEvent<HTMLInputElement>) => lens(Number(e.currentTarget.value))
+        });
+
+    default:
+      bug(`unhandled type ${type.kind} in fieldComponent`);
   }
 }
 
