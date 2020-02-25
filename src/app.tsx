@@ -329,10 +329,10 @@ export class App {
 
           function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
             return Signal.join(
-              note.content.mdx ? note.content.mdx.map(regexp.test) : Signal.ok(false),
-              note.content.json ? note.content.json.map(regexp.test) : Signal.ok(false),
-              note.content.txt ? note.content.txt.map(regexp.test) : Signal.ok(false),
-              note.meta.map(meta => !!(meta.tags && meta.tags.some(regexp.test))),
+              note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
+              note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
+              note.content.txt ? note.content.txt.map(txt => regexp.test(txt)) : Signal.ok(false),
+              note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
               Signal.ok(regexp.test(note.tag)),
             ).map(bools => [bools.some(bool => bool), note])
           }
