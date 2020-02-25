@@ -37,21 +37,19 @@ export function notesOfFiles(
   );
 }
 
-function sortNotes(notes: data.ParsedNotesWithImports): Array<string> {
-  const sortedTags: Array<string> = [];
-  const remaining = new Set(notes.keys());
+function sortNotes(noteImports: Immutable.Map<string, Immutable.Set<string>>): Immutable.List<string> {
+  const sortedTags = Immutable.List<string>().asMutable();
+  const remaining = new Set(noteImports.keys());
   let again = true;
   while (again) {
     again = false;
     remaining.forEach(tag => {
-      const note = notes.get(tag);
-      if (!note) throw new Error('expected note');
-      if (note.imports.size === 0) {
+      const imports = noteImports.get(tag) ?? bug(`expected imports for ${tag}`);
+      if (imports.size === 0) {
         sortedTags.push(tag);
         remaining.delete(tag);
         again = true;
       } else {
-        const imports = [...note.imports.values()];
         if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
         if (imports.every(tag => !remaining.has(tag))) {
           if (debug) console.log('adding ' + tag + ' to order');
@@ -67,7 +65,7 @@ function sortNotes(notes: data.ParsedNotesWithImports): Array<string> {
     if (debug) console.log(tag + ' failed to parse or has a loop');
     sortedTags.push(tag)
   });
-  return sortedTags;
+  return sortedTags.asImmutable();
 }
 
 // dirty notes that import a dirty note (post-sorting for transitivity)
@@ -75,9 +73,9 @@ function sortNotes(notes: data.ParsedNotesWithImports): Array<string> {
 // don't need to re-typecheck / re-compile a note if it hasn't changed
 // and its dependencies haven't changed their types
 function dirtyTransitively(
-  orderedTags: Array<string>,
+  orderedTags: Immutable.List<string>,
   compiledNotes: data.CompiledNotes,
-  parsedNotes: data.ParsedNotesWithImports
+  noteImports: Immutable.Map<string, Immutable.Set<string>>
 ): data.CompiledNotes {
   const dirty = new Set<string>();
   orderedTags.forEach(tag => {
@@ -85,23 +83,22 @@ function dirtyTransitively(
       if (debug) console.log(tag + ' dirty because file changed');
       dirty.add(tag);
     }
-    const note = parsedNotes.get(tag);
-    if (!note) throw new Error('expected note');
-    const imports = [...note.imports.values()];
+    const imports = noteImports.get(tag) ?? bug(`expected imports for ${tag}`);
     if (debug) console.log('imports for ' + tag + ' are ' + imports.join(' '));
     // a note importing a dirty note must be re-typechecked
     if (!dirty.has(tag) && imports.some(tag => dirty.has(tag))) {
       const dirtyTag = imports.find(tag => dirty.has(tag));
       if (debug) console.log(tag + ' dirty because ' + dirtyTag);
       dirty.add(tag);
+      compiledNotes.delete(tag);
     }
   });
-  return compiledNotes.filterNot(note => dirty.has(note.tag))
+  return compiledNotes;
 }
 
 function compileDirtyNotes(
   trace: Trace,
-  orderedTags: Array<string>,
+  orderedTags: Immutable.List<string>,
   parsedNotes: data.ParsedNotesWithImports,
   compiledNotes: data.CompiledNotes,
   updateFile: (path: string, buffer: Buffer) => void,
@@ -112,48 +109,66 @@ function compileDirtyNotes(
   orderedTags.forEach(tag => {
     const compiledNote = compiledNotes.get(tag);
     if (!compiledNote) {
-      const parsedNote = parsedNotes.get(tag) || bug(`expected note for ${tag}`);
+      const parsedNote = parsedNotes.get(tag) ?? bug(`expected note for ${tag}`);
       if (debug) console.log('typechecking / rendering ' + tag);
 
-      const moduleTypeEnv = Immutable.Map<string, Type.ModuleType>().asMutable();
-      const moduleValueEnv = Immutable.Map<string, any>().asMutable();
-      parsedNote.imports.forEach(tag => {
-        const compiledNote = compiledNotes.get(tag);
-        if (compiledNote) {
-          // TODO(jaked) compute this in note compile
-          const moduleTypeFields: Array<{ field: string, type: Type }> = [];
-          let moduleValue: { [s: string]: Signal<any> } = {};
-          const mdx = compiledNote.compiled.mdx;
-          if (typeof mdx !== 'undefined' && mdx.type === 'ok') {
-            moduleTypeFields.push(...mdx.ok.exportType.fields);
-            moduleValue = { ...moduleValue, ...mdx.ok.exportValue };
-          }
-          const json = compiledNote.compiled.json;
-          if (typeof json !== 'undefined' && json.type === 'ok') {
-            moduleTypeFields.push(...json.ok.exportType.fields);
-            moduleValue = { ...moduleValue, ...json.ok.exportValue };
-          }
-          const table = compiledNote.compiled.table;
-          if (typeof table !== 'undefined' && table.type === 'ok') {
-            moduleTypeFields.push(...table.ok.exportType.fields);
-            moduleValue = { ...moduleValue, ...table.ok.exportValue };
-          }
-
-          // TODO(jaked) make this easier somehow
-          const moduleType =
-            Type.module(
-              moduleTypeFields.reduce<{ [f: string]: Type }>(
-                (obj, fieldType) => {
-                  const { field, type } = fieldType;
-                  return { ...obj, [field]: type };
-                },
-                {}
-              )
-            );
-          moduleTypeEnv.set(tag, moduleType);
-          moduleValueEnv.set(tag, moduleValue);
-        }
+      const importedModules = parsedNote.imports.map(imports => {
+        const modules = Immutable.Map<string, data.NoteCompiled>().asMutable();
+        imports.forEach(tag => {
+          const compiled = compiledNotes.get(tag)?.compiled;
+          if (compiled) modules.set(tag, compiled);
+        });
+        return modules.asImmutable();
       });
+
+      const moduleTypeEnv =
+        Signal.joinImmutableMap(
+          importedModules.map(importedModules =>
+            importedModules.map((mod) => {
+              // TODO(jaked) compute this in note compile
+              const compileds: Signal<data.Compiled>[] = [];
+              if (mod.mdx) compileds.push(mod.mdx);
+              if (mod.json) compileds.push(mod.json);
+              if (mod.table) compileds.push(mod.table);
+
+              return Signal.join(...compileds).map(compileds => {
+                const moduleTypeFields: Array<{ field: string, type: Type }> = [];
+                compileds.forEach(compiled => moduleTypeFields.push(...compiled.exportType.fields));
+
+                // TODO(jaked) make this easier somehow
+                return Type.module(
+                  moduleTypeFields.reduce<{ [f: string]: Type }>(
+                    (obj, fieldType) => {
+                      const { field, type } = fieldType;
+                      return { ...obj, [field]: type };
+                    },
+                    {}
+                  )
+                );
+              });
+            })
+          )
+        );
+
+      const moduleValueEnv =
+        Signal.joinImmutableMap(
+          importedModules.map(importedModules =>
+            importedModules.map((mod) => {
+              // TODO(jaked) compute this in note compile
+              const compileds: Signal<data.Compiled>[] = [];
+              if (mod.mdx) compileds.push(mod.mdx);
+              if (mod.json) compileds.push(mod.json);
+              if (mod.table) compileds.push(mod.table);
+
+              return Signal.join(...compileds).map(compileds => {
+                let moduleValue: { [s: string]: Signal<any> } = {};
+                compileds.forEach(compiled => moduleValue = { ...moduleValue, ...compiled.exportValue });
+                return moduleValue;
+              });
+            })
+          )
+        );
+
 
       const compiledNote =
         trace.time(tag, () =>
@@ -162,8 +177,8 @@ function compileDirtyNotes(
             parsedNote,
             typeEnv,
             valueEnv,
-            moduleTypeEnv.asImmutable(),
-            moduleValueEnv.asImmutable(),
+            moduleTypeEnv,
+            moduleValueEnv,
             updateFile,
             setSelected
           )
@@ -181,29 +196,26 @@ export function compileNotes(
   setSelected: (note: string) => void,
 ): Signal<data.CompiledNotes> {
   const parsedNotesSignal = Signal.label('parseNotes',
-    Signal.joinImmutableMap(Signal.mapImmutableMap(
+    Signal.mapImmutableMap(
       notesSignal,
-      note => note.map(note => parseNote(trace, note))
-    ))
+      note => parseNote(trace, note)
+    )
   );
 
+  // TODO(jaked) consolidate with prev mapImmutableMap?
   const parsedNotesWithImportsSignal = Signal.label('parseNotesWithImports',
-    Signal.mapWithPrev<data.ParsedNotes, data.ParsedNotesWithImports>(
+    Signal.mapImmutableMap(
       parsedNotesSignal,
-      (parsedNotes, prevParsedNotes, prevParsedNotesWithImports) =>
-        prevParsedNotesWithImports.withMutations(parsedNotesWithImports => {
-          const { added, changed, deleted } = diffMap(prevParsedNotes, parsedNotes);
+      (v, k, parsedNotes) => findImports(v, parsedNotes)
+    )
+  );
 
-          deleted.forEach((v, tag) => { parsedNotesWithImports.delete(tag) });
-          changed.forEach(([prev, curr], tag) => {
-            parsedNotesWithImports.set(tag, trace.time(tag, () => findImports(curr, parsedNotes)))
-          });
-          added.forEach((v, tag) => {
-            parsedNotesWithImports.set(tag, trace.time(tag, () => findImports(v, parsedNotes)))
-          });
-        }),
-      Immutable.Map(),
-      Immutable.Map()
+  const noteImportsSignal = Signal.label('noteImports',
+    Signal.joinImmutableMap(
+      Signal.mapImmutableMap(
+        parsedNotesWithImportsSignal,
+        note => note.imports
+      )
     )
   );
 
@@ -211,25 +223,29 @@ export function compileNotes(
   // maybe could do this with more fine-grained Signals
   // but it's easier to do all together
   return Signal.label('compileNotes',
-    Signal.mapWithPrev(
-      parsedNotesWithImportsSignal,
-      (parsedNotesWithImports, prevParsedNotesWithImports, compiledNotes) => {
-        const { added, changed, deleted } = diffMap(prevParsedNotesWithImports, parsedNotesWithImports);
+    Signal.mapWithPrev<[data.ParsedNotesWithImports, Immutable.Map<string, Immutable.Set<string>>], data.CompiledNotes>(
+      Signal.join(parsedNotesWithImportsSignal, noteImportsSignal),
+      ([parsedNotes, imports], [prevParsedNotes, prevImports], prevCompiledNotes) => {
+        const compiledNotes = prevCompiledNotes.asMutable();
+        const parsedNotesDiff = diffMap(prevParsedNotes, parsedNotes);
+        const importsDiff = diffMap(prevImports, imports);
 
-        changed.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
-        deleted.forEach((v, tag) => { compiledNotes = compiledNotes.delete(tag) });
+        parsedNotesDiff.deleted.forEach((v, tag) => compiledNotes.delete(tag));
+        parsedNotesDiff.changed.forEach((v, tag) => compiledNotes.delete(tag));
+        importsDiff.deleted.forEach((v, tag) => compiledNotes.delete(tag));
+        importsDiff.changed.forEach((v, tag) => compiledNotes.delete(tag));
 
         // topologically sort notes according to imports
-        const orderedTags = trace.time('sortNotes', () => sortNotes(parsedNotesWithImports));
+        const orderedTags = trace.time('sortNotes', () => sortNotes(imports));
 
         // dirty notes that import a dirty note (post-sorting for transitivity)
-        compiledNotes = trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, parsedNotesWithImports));
+        trace.time('dirtyTransitively', () => dirtyTransitively(orderedTags, compiledNotes, imports));
 
         // compile dirty notes (post-sorting for dependency ordering)
-        compiledNotes = trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotesWithImports, compiledNotes, updateFile, setSelected));
-        return compiledNotes;
+        trace.time('compileDirtyNotes', () => compileDirtyNotes(trace, orderedTags, parsedNotes, compiledNotes, updateFile, setSelected));
+        return compiledNotes.asImmutable();
       },
-      Immutable.Map(),
+      [Immutable.Map(), Immutable.Map()],
       Immutable.Map()
     )
   );

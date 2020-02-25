@@ -54,16 +54,7 @@ export class App {
     this.viewSignal.reconcile(this.__trace, this.level);
     this.contentSignal.reconcile(this.__trace, this.level);
     this.sessionSignal.reconcile(this.__trace, this.level);
-
-    // TODO(jaked) fix hack
-    const compiledNote = this.compiledNoteSignal.get();
-    if (compiledNote) {
-      Object.values(compiledNote.compiled).forEach(compiled =>
-        compiled?.forEach(compiled =>
-          compiled.rendered.reconcile(this.__trace, this.level)
-        )
-      );
-    }
+    this.setContentAndSessionSignal.reconcile(this.__trace, this.level);
 
     this.reactRender(this.__trace);
     console.log(this.__trace.finish());
@@ -94,11 +85,11 @@ export class App {
         // TODO(jaked) fix hack
         const compiledNote = this.compiledNoteSignal.get();
         if (compiledNote) {
-          Object.values(compiledNote.compiled).forEach(compiled =>
-            compiled?.forEach(compiled =>
-              compiled.rendered.reconcile(this.__trace, this.level)
-            )
-          );
+          Object.values(compiledNote.compiled).forEach(compiled => {
+            if (!compiled) return;
+            compiled.reconcile(this.__trace, this.level);
+            compiled.value.forEach(compiled => compiled.rendered.reconcile(this.__trace, this.level));
+          });
         }
 
         this.server.update(this.__trace, this.level);
@@ -194,12 +185,12 @@ export class App {
     const view = this.view;
     if (!selected || !view) return;
 
-    const noteSignal = this.notesSignal.get().get(selected);
-    if (!noteSignal) return;
-    const note = noteSignal.get();
+    const note = this.notesSignal.get().get(selected);
+    if (!note) return;
 
     Object.values(note.files).forEach(file => {
-      if (file) this.filesystem.delete(file.path);
+      if (!file) return;
+      this.filesystem.delete(file.get().path);
     });
   }
 
@@ -256,15 +247,17 @@ export class App {
         if (selected !== null) {
           const note = notes.get(selected);
           if (note) {
-            return note.map(note => {
-              const editorViewContent = note.content[editorView];
-              if (typeof editorViewContent !== 'undefined') return [editorView, editorViewContent];
-              if (typeof note.content.mdx !== 'undefined') return ['mdx', note.content.mdx];
-              if (typeof note.content.json !== 'undefined') return ['json', note.content.json];
-              if (typeof note.content.txt !== 'undefined') return ['txt', note.content.txt];
-              if (typeof note.content.meta !== 'undefined') return ['meta', note.content.meta];
-              return null;
-            });
+            let viewContent: [data.Types, Signal<string>] | null = null;
+            const editorViewContent = note.content[editorView];
+            if (editorViewContent) viewContent = [editorView, editorViewContent];
+            else if (note.content.mdx) viewContent = ['mdx', note.content.mdx];
+            else if (note.content.json) viewContent = ['json', note.content.json];
+            else if (note.content.txt) viewContent = ['txt', note.content.txt];
+            else if (note.content.meta) viewContent = ['meta', note.content.meta];
+            if (viewContent) {
+              const [view, content] = viewContent;
+              return content.map(content => [view, content]);
+            }
           }
         }
         return Signal.ok(null);
@@ -289,24 +282,26 @@ export class App {
   });
   public get content() { return this.contentSignal.get() }
 
-  // TODO(jaked) maybe these functions can be generated via signals
-  // then passed into components so there isn't so much dereferencing here
-  public setContentAndSession = (content: string, session: Session) => {
-    if (content === null) return;
-    const selected = this.selectedCell.get();
-    const view = this.viewSignal.get();
-    if (!selected || !view) return;
-
-    const sessions = this.sessionsCell.get().set(selected, session);
-    this.sessionsCell.setOk(sessions);
-
-    const noteSignal = this.notesSignal.get().get(selected);
-    if (!noteSignal) return;
-    const note = noteSignal.get();
-    if (note.content[view] === content) return;
-
-    this.filesystem.update(note.files[view].path, Buffer.from(content, 'utf8'));
-  }
+  private setContentAndSessionSignal =
+    Signal.join(
+      this.selectedCell,
+      this.viewSignal,
+      this.sessionsCell,
+      this.notesSignal,
+    ).flatMap(([selected, view, sessions, notes]) => {
+      const noop = Signal.ok((updateContent: string, session: Session) => {});
+      if (!selected || !view) return noop;
+      const note = notes.get(selected);
+      if (!note) return noop;
+      return Signal.join<string, data.File>(note.content[view], note.files[view]).map(([content, file]) =>
+        (updateContent: string, session: Session) => {
+          this.sessionsCell.setOk(sessions.set(selected, session));
+          if (updateContent === content) return; // TODO(jaked) still needed?
+          this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
+        }
+      );
+    });
+  public get setContentAndSession() { return this.setContentAndSessionSignal.get() }
 
   private matchingNotesSignal =
     Signal.label('matchingNotes',
@@ -317,57 +312,62 @@ export class App {
         this.compiledNotesSignal,
         this.focusDirCell,
         this.searchCell
-      ).map(([notes, focusDir, search]) => {
-        return this.__trace.time('match notes', () => {
-          let focusDirNotes: data.CompiledNotes;
-          if (focusDir) {
-            focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
-          } else {
-            focusDirNotes = notes;
+      ).flatMap(([notes, focusDir, search]) => {
+
+        let focusDirNotes: data.CompiledNotes;
+        if (focusDir) {
+          focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
+        } else {
+          focusDirNotes = notes;
+        }
+
+        let matchingNotes: Signal<data.CompiledNotes>;
+        if (search) {
+          // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+          const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+          const regexp = RegExp(escaped, 'i');
+
+          function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
+            return Signal.join(
+              note.content.mdx ? note.content.mdx.map(regexp.test) : Signal.ok(false),
+              note.content.json ? note.content.json.map(regexp.test) : Signal.ok(false),
+              note.content.txt ? note.content.txt.map(regexp.test) : Signal.ok(false),
+              note.meta.map(meta => !!(meta.tags && meta.tags.some(regexp.test))),
+              Signal.ok(regexp.test(note.tag)),
+            ).map(bools => [bools.some(bool => bool), note])
           }
-          let matchingNotes: data.CompiledNotes;
-          if (search) {
-            // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-            const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-            const regexp = RegExp(escaped, 'i');
+          // TODO(jaked) wrap this up in a function on Signal
+          const matches =
+            Signal.joinImmutableMap(Signal.ok(focusDirNotes.map(matchesSearch)))
+              .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note));
 
-            function matchesSearch(note: data.Note): boolean {
-              if (note.content.mdx && regexp.test(note.content.mdx)) return true;
-              if (note.content.json && regexp.test(note.content.json)) return true;
-              if (note.content.txt && regexp.test(note.content.txt)) return true;
-              if (regexp.test(note.tag)) return true;
-              if (note.meta.tags && note.meta.tags.some(regexp.test)) return true;
-              return false;
-            }
-            const matches = focusDirNotes.filter(matchesSearch);
-
-            // include parents of matching notes
-            matchingNotes = matches.withMutations(map => {
-              matches.forEach((_, tag) => {
-                if (focusDir) {
-                  tag = Path.relative(focusDir, tag);
-                }
-                const dirname = Path.dirname(tag);
-                if (dirname != '.') {
-                  const dirs = dirname.split('/');
-                  let dir = '';
-                  for (let i=0; i < dirs.length; i++) {
-                    dir = Path.join(dir, dirs[i]);
-                    if (!map.has(dir)) {
-                      const note = notes.get(dir) || bug(`expected note for ${dir}`);
-                      map.set(dir, note);
-                    }
+          // include parents of matching notes
+          matchingNotes = matches.map(matches => matches.withMutations(map => {
+            matches.forEach((_, tag) => {
+              if (focusDir) {
+                tag = Path.relative(focusDir, tag);
+              }
+              const dirname = Path.dirname(tag);
+              if (dirname != '.') {
+                const dirs = dirname.split('/');
+                let dir = '';
+                for (let i=0; i < dirs.length; i++) {
+                  dir = Path.join(dir, dirs[i]);
+                  if (!map.has(dir)) {
+                    const note = notes.get(dir) || bug(`expected note for ${dir}`);
+                    map.set(dir, note);
                   }
                 }
-              });
+              }
             });
-          } else {
-            matchingNotes = focusDirNotes;
-          }
-          return matchingNotes.valueSeq().toArray().sort((a, b) =>
-            a.tag < b.tag ? -1 : 1
-          );
-        })
+          }));
+        } else {
+          matchingNotes = Signal.ok(focusDirNotes);
+        }
+
+        return matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
+          a.tag < b.tag ? -1 : 1
+        ));
       })
     );
   public get matchingNotes() { return this.matchingNotesSignal.get() }
@@ -452,7 +452,8 @@ export class App {
       const matchingNote = matchingNotes[index];
       // TODO(jaked) separate selectable content objects in notes?
       Object.values(matchingNote.compiled).forEach(compiled => {
-        if (compiled?.type === 'err') {
+        if (!compiled) return;
+        if (compiled.value.type === 'err') {
           cont = false;
           this.setSelected(matchingNote.tag);
         }
@@ -470,7 +471,8 @@ export class App {
       const matchingNote = matchingNotes[index];
       // TODO(jaked) separate selectable content objects in notes?
       Object.values(matchingNote.compiled).forEach(compiled => {
-        if (compiled?.type === 'err') {
+        if (!compiled) return;
+        if (compiled.value.type === 'err') {
           cont = false;
           this.setSelected(matchingNote.tag);
         }
@@ -499,10 +501,10 @@ export class App {
       let node;
       // TODO(jaked) render whole note
       Object.values(note.compiled).forEach(compiled => {
-        compiled?.forEach(compiled => {
-          node = compiled.rendered.get(); // TODO(jaked) fix Try.get()
-        });
-      })
+        if (!compiled) return;
+        // TODO(jaked) don't blow up on failed notes
+        node = compiled.get().rendered.get();
+      });
       if (!node) return;
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
       await mkdir(Path.dirname(notePath), { recursive: true });

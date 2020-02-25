@@ -11,13 +11,14 @@ import { ModuleValueEnv } from './index';
 
 export default function compileTable(
   trace: Trace,
-  parsedNote: data.ParsedNoteWithImports,
+  noteTag: string,
+  imports: Immutable.Set<string>,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
   setSelected: (tag: string) => void,
 ): data.Compiled {
   const types: Type[] = [];
-  parsedNote.imports.forEach(tag => {
+  imports.forEach(tag => {
     // TODO(jaked) surface these errors somehow
     // also surface underlying errors
     // e.g. a module doesn't match its type signature
@@ -35,9 +36,9 @@ export default function compileTable(
   });
 
   // TODO(jaked)
-  // treat parsedNote.imports as a Signal<Map> to make tables incremental
+  // treat imports as a Signal<Map> to make tables incremental
   const table = Signal.ok(Immutable.Map<string, Signal<any>>().withMutations(map =>
-    parsedNote.imports.forEach(tag => {
+    imports.forEach(tag => {
       const moduleValue = moduleValueEnv.get(tag);
       if (!moduleValue) {
         console.log(`expected module value for ${tag}`);
@@ -48,7 +49,7 @@ export default function compileTable(
         console.log(`expected default member for ${tag}`);
         return;
       }
-      const relativeTag = Path.relative(Path.dirname(parsedNote.tag), tag);
+      const relativeTag = Path.relative(Path.dirname(noteTag), tag);
       map.set(relativeTag, defaultValue)
     })
   ));
@@ -90,7 +91,7 @@ export default function compileTable(
       component: ({ data }) => React.createElement(React.Fragment, null, data)
     }));
   const onSelect = (tag: string) =>
-    setSelected(Path.join(Path.dirname(parsedNote.tag), tag));
+    setSelected(Path.join(Path.dirname(noteTag), tag));
   const rendered = exportValue.default.map(data => {
     return React.createElement(Table, { data, fields, onSelect })
   });

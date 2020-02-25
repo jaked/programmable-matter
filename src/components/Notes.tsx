@@ -74,7 +74,8 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
     const note = notes[index];
     let err = false;
     Object.values(note.compiled).forEach(compiled => {
-      if (compiled?.type === 'err') err = true;
+      if (!compiled) return;
+      if (compiled.value.type === 'err') err = true;
     });
     return (
       <Note

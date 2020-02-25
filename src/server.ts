@@ -65,10 +65,10 @@ export default class Server {
       let node;
       // TODO(jaked) render whole note
       Object.values(note.compiled).forEach(compiled => {
-        compiled?.forEach(compiled => {
-          node = compiled.rendered.get(); // TODO(jaked) fix Try.get()
-        });
-      })
+        if (!compiled) return;
+        // TODO(jaked) don't blow up on failed notes
+        node = compiled.get().rendered.get();
+      });
 
       // TODO(jaked) compute at note compile time?
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);

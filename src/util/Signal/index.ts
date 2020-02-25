@@ -404,19 +404,34 @@ module Signal {
 
   export function join<T1, T2>(
     s1: Signal<T1>,
-    s2: Signal<T2>
+    s2: Signal<T2>,
   ): Signal<[T1, T2]>
   export function join<T1, T2, T3>(
     s1: Signal<T1>,
     s2: Signal<T2>,
-    s3: Signal<T3>
+    s3: Signal<T3>,
   ): Signal<[T1, T2, T3]>
   export function join<T1, T2, T3, T4>(
     s1: Signal<T1>,
     s2: Signal<T2>,
     s3: Signal<T3>,
-    s4: Signal<T4>
+    s4: Signal<T4>,
   ): Signal<[T1, T2, T3, T4]>
+  export function join<T1, T2, T3, T4, T5>(
+    s1: Signal<T1>,
+    s2: Signal<T2>,
+    s3: Signal<T3>,
+    s4: Signal<T4>,
+    s5: Signal<T5>,
+  ): Signal<[T1, T2, T3, T4, T5]>
+  export function join<T1, T2, T3, T4, T5, T6>(
+    s1: Signal<T1>,
+    s2: Signal<T2>,
+    s3: Signal<T3>,
+    s4: Signal<T4>,
+    s5: Signal<T5>,
+    s6: Signal<T6>,
+  ): Signal<[T1, T2, T3, T4, T5, T6]>
   export function join<T>(
     ...signals: Signal<T>[]
   ): Signal<T[]>
@@ -448,7 +463,7 @@ module Signal {
 
   export function mapImmutableMap<K, V, U>(
     input: Signal<Immutable.Map<K, V>>,
-    f: (v: V, k: K) => U
+    f: (v: V, k: K, coll: Immutable.Map<K, V>) => U
   ): Signal<Immutable.Map<K, U>> {
     let prevInput: Immutable.Map<K, V> = Immutable.Map();
     let prevOutput: Immutable.Map<K, U> = Immutable.Map();
@@ -456,8 +471,8 @@ module Signal {
       const output = prevOutput.withMutations(output => {
         const { added, changed, deleted } = diffMap(prevInput, input);
         deleted.forEach(key => { output = output.delete(key) });
-        changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr, key)) });
-        added.forEach((v, key) => { output = output.set(key, f(v, key)) });
+        changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr, key, input)) });
+        added.forEach((v, key) => { output = output.set(key, f(v, key, input)) });
       });
       prevInput = input;
       prevOutput = output;

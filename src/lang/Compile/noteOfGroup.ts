@@ -91,42 +91,54 @@ function parseMeta(file: data.File): data.Meta {
 export default function noteOfGroup(
   group: Immutable.Map<string, Signal<data.File>>,
   tag: string
-): Signal<data.Note> {
-  return Signal.label(tag, Signal.join(...group.values()).map<data.Note>(files => {
+): data.Note {
+  const files = group.entrySeq();
+  const isIndex = files.some(([path, file]) => path.startsWith(Path.join(tag, 'index')));
 
-    const isIndex = files.some(file => file.path.startsWith(Path.join(tag, 'index')));
-
-    let meta: data.Meta = {};
-    if (isIndex) {
-      // dirMeta of index.meta does not apply to index note
-      const metaFile = files.find(file => isIndexMeta(file.path));
-      if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
+  let meta: Signal<data.Meta>;
+  if (isIndex) {
+    // dirMeta of index.meta does not apply to index note
+    const metaFile = files.find(([path, file]) => isIndexMeta(path));
+    if (metaFile) {
+      const [path, file] = metaFile;
+      meta = file.map(parseMeta);
     } else {
-      const indexMetaFile = files.find(file => isIndexMeta(file.path));
-      if (indexMetaFile) meta = { ...meta, ...parseMeta(indexMetaFile).dirMeta }
-      const metaFile = files.find(file => isNonIndexMeta(file.path));
-      if (metaFile) meta = { ...meta, ...parseMeta(metaFile)};
+      meta = Signal.ok<data.Meta>({});
     }
+  } else {
+    const indexMetaFile = files.find(([path, file]) => isIndexMeta(path));
+    if (indexMetaFile) {
+      const [path, file] = indexMetaFile;
+      meta = file.map(parseMeta).map(meta => ({ ...meta.dirMeta }));
+    } else {
+      meta = Signal.ok<data.Meta>({});
+    }
+    const metaFile = files.find(([path, file]) => isNonIndexMeta(path));
+    if (metaFile) {
+      const [path, file] = metaFile;
+      const meta2 = file.map(parseMeta);
+      meta = Signal.join(meta, meta2).map(([meta, meta2]) => ({ ...meta, ...meta2 }));
+    }
+  }
 
-    const noteFiles: data.NoteFiles =
-      files.reduce<data.NoteFiles>((obj, file) => {
-        if (!isIndex && isIndexMeta(file.path)) return obj;
-        const type = typeOfPath(file.path) ?? 'mdx';
-        return { ...obj, [type]: file };
-      },
-      {});
+  const noteFiles: data.NoteFiles =
+    files.reduce<data.NoteFiles>((obj, [path, file]) => {
+      if (!isIndex && isIndexMeta(path)) return obj;
+      const type = typeOfPath(path) ?? 'mdx';
+      return { ...obj, [type]: file };
+    },
+    {});
 
-    const content: data.NoteContent =
-      Object.keys(noteFiles).reduce<data.NoteContent>((obj, key) => {
-        const file = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
-        if (key === 'jpeg') return obj;
-        else {
-          const content = file.buffer.toString('utf8');
-          return { ...obj, [key]: content };
-        }
-      },
-      {});
+  const content: data.NoteContent =
+    Object.keys(noteFiles).reduce<data.NoteContent>((obj, key) => {
+      const file = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
+      if (key === 'jpeg') return obj;
+      else {
+        const content = file.map(file => file.buffer.toString('utf8'));
+        return { ...obj, [key]: content };
+      }
+    },
+    {});
 
-    return { tag, isIndex, meta, files: noteFiles, content };
-  }));
+  return { tag, isIndex, meta, files: noteFiles, content };
 }

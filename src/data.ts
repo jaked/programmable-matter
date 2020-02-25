@@ -1,7 +1,6 @@
 import Immutable from 'immutable';
 import React from 'react';
 import Signal from './util/Signal';
-import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
@@ -14,11 +13,6 @@ export interface Meta {
   layout?: string;
   dataType?: Type;
   dirMeta?: Meta;
-}
-
-export type Parsed<Ast> = {
-  ast: Ast;
-  imports: Set<string>;
 }
 
 export interface Compiled {
@@ -34,35 +28,35 @@ export type File = {
 }
 
 export type NoteFiles = {
-  'meta'?: File;
-  'mdx'?: File;
-  'json'?: File;
-  'txt'?: File;
-  'jpg'?: File;
-  'table'?: File;
+  'meta'?: Signal<File>;
+  'mdx'?: Signal<File>;
+  'json'?: Signal<File>;
+  'txt'?: Signal<File>;
+  'jpg'?: Signal<File>;
+  'table'?: Signal<File>;
 }
 
 export type NoteContent = {
-  'meta'?: string;
-  'mdx'?: string;
-  'json'?: string;
-  'txt'?: string;
-  'table'?: string;
+  'meta'?: Signal<string>;
+  'mdx'?: Signal<string>;
+  'json'?: Signal<string>;
+  'txt'?: Signal<string>;
+  'table'?: Signal<string>;
 }
 
 export type Note = {
   tag: string;
   isIndex: boolean;
-  meta: Meta;
+  meta: Signal<Meta>;
   files: NoteFiles;
   content: NoteContent;
 };
 
 export type NoteParsed = {
-  'meta'?: Try<ESTree.Expression>;
-  'mdx'?: Try<MDXHAST.Root>;
-  'json'?: Try<ESTree.Expression>;
-  'table'?: Try<{}>; // TODO(jaked) table config
+  'meta'?: Signal<ESTree.Expression>;
+  'mdx'?: Signal<MDXHAST.Root>;
+  'json'?: Signal<ESTree.Expression>;
+  'table'?: Signal<{}>; // TODO(jaked) table config
 }
 
 export type ParsedNote = Note & {
@@ -70,15 +64,15 @@ export type ParsedNote = Note & {
 }
 
 export type ParsedNoteWithImports = ParsedNote & {
-  imports: Set<string>;
+  imports: Signal<Immutable.Set<string>>;
 }
 
 export type NoteCompiled = {
-  'mdx'?: Try<Compiled>;
-  'json'?: Try<Compiled>;
-  'txt'?: Try<Compiled>;
-  'jpeg'?: Try<Compiled>;
-  'table'?: Try<Compiled>;
+  'mdx'?: Signal<Compiled>;
+  'json'?: Signal<Compiled>;
+  'txt'?: Signal<Compiled>;
+  'jpeg'?: Signal<Compiled>;
+  'table'?: Signal<Compiled>;
 }
 
 export type CompiledNote = ParsedNoteWithImports & {
@@ -89,7 +83,7 @@ export type CompiledNote = ParsedNoteWithImports & {
 export type Files = Immutable.Map<string, Signal<File>>;
 
 // indexed by tag
-export type Notes = Immutable.Map<string, Signal<Note>>;
+export type Notes = Immutable.Map<string, Note>;
 export type ParsedNotes = Immutable.Map<string, ParsedNote>;
 export type ParsedNotesWithImports = Immutable.Map<string, ParsedNoteWithImports>;
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;

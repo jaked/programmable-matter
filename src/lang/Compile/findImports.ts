@@ -1,9 +1,11 @@
 import * as Path from 'path';
+import * as Immutable from 'immutable';
+import Signal from '../../util/Signal';
 import { bug } from '../../util/bug';
 import * as MDXHAST from '../mdxhast';
 import * as data from '../../data';
 
-function findImportsMdx(ast: MDXHAST.Node, imports: Set<string>) {
+function findImportsMdx(ast: MDXHAST.Node, imports: Immutable.Set<string>) {
   switch (ast.type) {
     case 'root':
     case 'element':
@@ -33,30 +35,36 @@ export default function findImports(
   note: data.ParsedNote,
   notes: data.ParsedNotes
 ): data.ParsedNoteWithImports {
-  let imports = new Set<string>();
+  let imports = Signal.ok(Immutable.Set<string>());
   // TODO(jaked) separate imports for note components
   Object.keys(note.parsed).forEach(key => {
     switch (key) {
       case 'mdx': {
-        // TODO(jaked) fix layout != tag hack
-        // layouts shouldn't themselves have layouts
-        // but we don't know here that we are defining a layout
-        // and a directory-level .meta file can give a layout a layout
-        if (note.meta.layout && note.meta.layout != note.tag)
-          imports.add(note.meta.layout);
-        const ast = note.parsed.mdx ?? bug(`expected parsed mdx`);
-        ast.forEach(ast => findImportsMdx(ast, imports));
+        const mdx = note.parsed.mdx ?? bug(`expected parsed mdx`);
+        imports = Signal.join(note.meta, mdx).map(([meta, mdx]) => {
+          // TODO(jaked) fix layout != tag hack
+          // layouts shouldn't themselves have layouts
+          // but we don't know here that we are defining a layout
+          // and a directory-level .meta file can give a layout a layout
+          const importsSet = Immutable.Set<string>().asMutable();
+          if (meta.layout && meta.layout != note.tag)
+            importsSet.add(meta.layout);
+          findImportsMdx(mdx, importsSet);
+          return importsSet.asImmutable();
+        });
       }
       break;
 
       case 'table': {
+        const importsSet = Immutable.Set<string>().asMutable();
         const dir = note.tag;
         const thisNote = note;
         notes.forEach(note => {
           // TODO(jaked) not sure if we should handle nested dirs in tables
           if (!Path.relative(dir, note.tag).startsWith('..') && note !== thisNote)
-            imports.add(note.tag);
+            importsSet.add(note.tag);
         });
+        imports = Signal.ok(importsSet.asImmutable());
       }
       break;
     }

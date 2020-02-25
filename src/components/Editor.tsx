@@ -229,19 +229,19 @@ function computeHighlight(
     switch (view) {
       case 'meta': {
         const ast = parsedNote.parsed.meta ?? bug(`expected parsed meta`);
-        ast.forEach(ast => computeJsSpans(ast, spans));
+        ast.value.forEach(ast => computeJsSpans(ast, spans));
       }
       break;
 
       case 'mdx': {
         const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
-        ast.forEach(ast => computeSpans(ast, spans));
+        ast.value.forEach(ast => computeSpans(ast, spans));
       }
       break;
 
       case 'json': {
         const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-        ast.forEach(ast => computeJsSpans(ast, spans));
+        ast.value.forEach(ast => computeJsSpans(ast, spans));
       }
       break;
     }

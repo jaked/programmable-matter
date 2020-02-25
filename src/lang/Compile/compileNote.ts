@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import JSON5 from 'json5';
-import Try from '../../util/Try';
+import Signal from '../../util/Signal';
 import * as String from '../../util/String';
 import Trace from '../../util/Trace';
 import { bug } from '../../util/bug';
@@ -20,8 +20,8 @@ export default function compileNote(
   parsedNote: data.ParsedNoteWithImports,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluate.Env,
-  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: ModuleValueEnv,
+  moduleTypeEnv: Signal<Immutable.Map<string, Type.ModuleType>>,
+  moduleValueEnv: Signal<ModuleValueEnv>,
   updateFile: (path: string, buffer: Buffer) => void,
   setSelected: (tag: string) => void,
 ): data.CompiledNote {
@@ -30,40 +30,49 @@ export default function compileNote(
     (obj, key) => {
       switch (key) {
         case 'json': {
-          const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
           const file = parsedNote.files.json ?? bug(`expected json file`);
-          const updateJsonFile = (obj: any) => {
-            updateFile(file.path, Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf-8'));
-          }
-          const json = Try.apply(() => compileJson(
-            ast.get(),
-            parsedNote.meta,
-            updateJsonFile
-          ));
+          const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
+          const json =
+            Signal.join(file, ast, parsedNote.meta).map(([file, ast, meta]) => {
+              const updateJsonFile = (obj: any) => {
+                updateFile(file.path, Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf-8'));
+              }
+              return compileJson(
+                ast,
+                meta,
+                updateJsonFile
+              );
+            });
           return { ...obj, json };
         }
 
         case 'txt': {
           const content = parsedNote.content.txt ?? bug(`expected txt content`);
-          const txt = Try.apply(() => compileTxt(content));
+          const txt = content.map(compileTxt);
           return { ...obj, txt };
         }
 
         case 'jpeg': {
-          const jpeg = Try.apply(() => compileJpeg(
-            parsedNote.tag
-          ));
+          const file = parsedNote.files.jpg ?? bug(`expected jpg file`);
+          const jpeg = file.map(file => compileJpeg(parsedNote.tag));
           return { ...obj, jpeg };
         }
 
         case 'table': {
-          const table = Try.apply(() => compileTable(
-            trace,
-            parsedNote,
-            moduleTypeEnv,
-            moduleValueEnv,
-            setSelected
-          ));
+          const table =
+            Signal.join(
+              moduleTypeEnv,
+              moduleValueEnv,
+              parsedNote.imports
+            ).map(([moduleTypeEnv, moduleValueEnv, imports]) =>
+              compileTable(
+                trace,
+                parsedNote.tag,
+                imports,
+                moduleTypeEnv,
+                moduleValueEnv,
+                setSelected
+              ));
           return { ...obj, table };
         }
 
@@ -77,37 +86,45 @@ export default function compileNote(
     {}
   );
 
-  if (typeof parsedNote.parsed.mdx !== 'undefined') {
-    if (typeof compiled.json !== 'undefined' && compiled.json.type === 'ok') {
-      // TODO(jaked) immutable data files?
-      const dataType = compiled.json.ok.exportType.get('mutable');
-      const dataValue = compiled.json.ok.exportValue['mutable'];
-      if (typeof dataType !== 'undefined' && typeof dataValue !== 'undefined') {
-        typeEnv = typeEnv.set('data', dataType);
-        valueEnv = valueEnv.set('data', dataValue);
-      }
-    }
+  if (parsedNote.parsed.mdx) {
+    const mdx =
+      Signal.join(
+        moduleTypeEnv,
+        moduleValueEnv,
+        compiled.json ?? Signal.ok(undefined),
+        compiled.table ?? Signal.ok(undefined),
+        parsedNote.parsed.mdx,
+        parsedNote.meta
+      ).map(([moduleTypeEnv, moduleValueEnv, json, table, mdx, meta]) => {
+        if (json) {
+          const dataType = json.exportType.get('mutable');
+          const dataValue = json.exportValue['mutable'];
+          if (dataType && dataValue) {
+            typeEnv = typeEnv.set('data', dataType);
+            valueEnv = valueEnv.set('data', dataValue);
+          }
+        }
 
-    if (typeof compiled.table !== 'undefined' && compiled.table.type === 'ok') {
-      const tableType = compiled.table.ok.exportType.get('default');
-      const tableValue = compiled.table.ok.exportValue['default'];
-      if (typeof tableType !== 'undefined' && typeof tableValue !== 'undefined') {
-        typeEnv = typeEnv.set('table', tableType);
-        valueEnv = valueEnv.set('table', tableValue);
-      }
-    }
+        if (table) {
+          const tableType = table.exportType.get('default');
+          const tableValue = table.exportValue['default'];
+          if (tableType && tableValue) {
+            typeEnv = typeEnv.set('table', tableType);
+            valueEnv = valueEnv.set('table', tableValue);
+          }
+        }
 
-    const ast = parsedNote.parsed.mdx;
-    const mdx = Try.apply(() => compileMdx(
-      trace,
-      ast.get(),
-      String.capitalize(parsedNote.tag),
-      parsedNote.meta,
-      typeEnv,
-      valueEnv,
-      moduleTypeEnv,
-      moduleValueEnv,
-    ));
+        return compileMdx(
+          trace,
+          mdx,
+          String.capitalize(parsedNote.tag),
+          meta,
+          typeEnv,
+          valueEnv,
+          moduleTypeEnv,
+          moduleValueEnv,
+        );
+      });
     compiled = { ...compiled, mdx };
   }
 
