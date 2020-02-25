@@ -14,6 +14,7 @@ import compileMdx from './compileMdx';
 import compileTable from './compileTable';
 import compileTxt from './compileTxt';
 
+// TODO(jaked) recompile only changed note parts
 export default function compileNote(
   trace: Trace,
   parsedNote: data.ParsedNoteWithImports,

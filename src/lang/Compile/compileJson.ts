@@ -35,9 +35,9 @@ function fieldComponent(field: string, type: Type) {
     case 'boolean':
       return ({ lens }) =>
         React.createElement(Input, {
-          type: 'text',
-          value: String(lens()),
-          onChange: (e: React.FormEvent<HTMLInputElement>) => lens(Boolean(e.currentTarget.value))
+          type: 'checkbox',
+          checked: lens(),
+          onChange: (e: React.FormEvent<HTMLInputElement>) => lens(e.currentTarget.checked)
         });
 
     case 'number':
@@ -47,6 +47,25 @@ function fieldComponent(field: string, type: Type) {
           value: String(lens()),
           onChange: (e: React.FormEvent<HTMLInputElement>) => lens(Number(e.currentTarget.value))
         });
+
+    case 'Union':
+      // TODO(jaked) support non-required select if `undefined` in union
+      if (type.types.some(type => type.kind !== 'Singleton' || type.base.kind !== 'string'))
+        bug(`unhandled type ${type.kind} in fieldComponent`);
+      return ({ lens }) =>
+        React.createElement(
+          'select',
+          {
+            required: true,
+            value: lens(),
+            onChange: (e: React.FormEvent<HTMLInputElement>) => lens(e.currentTarget.value)
+          },
+          ...type.types.map(type => {
+            if (type.kind !== 'Singleton' || type.base.kind !== 'string')
+              bug(`unhandled type ${type.kind} in fieldComponent`);
+            return React.createElement('option', { value: type.value }, type.value);
+          })
+        );
 
     default:
       bug(`unhandled type ${type.kind} in fieldComponent`);
