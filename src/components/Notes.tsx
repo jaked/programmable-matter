@@ -16,6 +16,45 @@ const Box = styled(BoxBase)({
   height: '100%'
 });
 
+type NoteFnProps = {
+  index: number,
+  style: object,
+  data: Props,
+}
+
+const NoteFn = ({ index, style, data }: NoteFnProps) => {
+  const note = data.notes[index];
+  let err = false;
+  Object.values(note.compiled).forEach(compiled => {
+    if (!compiled) return;
+    if (compiled.value.type === 'err') err = true;
+    else if (compiled.get().problems) err = true;
+  });
+  return (
+    <Note
+      key={note.tag}
+      label={Path.parse(note.tag).base}
+      expanded={note.expanded}
+      indent={note.indent}
+      err={err}
+      selected={note.tag === data.selected}
+      onSelect={ () => data.onSelect(note.tag) }
+      toggleDirExpanded={
+        typeof note.expanded !== 'undefined' ?
+          (() => data.toggleDirExpanded(note.tag)) :
+          undefined
+      }
+      onFocusDir={
+        typeof note.expanded !== 'undefined' ?
+          (() => data.onFocusDir(note.tag)) :
+          undefined
+      }
+      style={style}
+    />
+  );
+};
+
+
 interface Props {
   notes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
   selected: string | null;
@@ -25,20 +64,20 @@ interface Props {
   toggleDirExpanded: (tag: string) => void;
 }
 
-export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected, onSelect, onFocusDir, focusEditor, toggleDirExpanded }, ref) => {
+export const Notes = React.forwardRef<HTMLDivElement, Props>((props, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
-    if (notes.length === 0) return false;
+    if (props.notes.length === 0) return false;
     let nextTagIndex: number;
-    const tagIndex = notes.findIndex(note => note.tag === selected);
+    const tagIndex = props.notes.findIndex(note => note.tag === props.selected);
     if (tagIndex === -1) {
-      nextTagIndex = dir === 'prev' ? (notes.length - 1) : 0;
+      nextTagIndex = dir === 'prev' ? (props.notes.length - 1) : 0;
     } else {
       nextTagIndex = (tagIndex + (dir === 'prev' ? -1 : 1));
-      if (nextTagIndex === -1) nextTagIndex = notes.length - 1;
-      else if (nextTagIndex === notes.length) nextTagIndex = 0;
+      if (nextTagIndex === -1) nextTagIndex = props.notes.length - 1;
+      else if (nextTagIndex === props.notes.length) nextTagIndex = 0;
     }
-    const nextTag = notes[nextTagIndex].tag;
-    onSelect(nextTag);
+    const nextTag = props.notes[nextTagIndex].tag;
+    props.onSelect(nextTag);
     return true;
   }
 
@@ -54,7 +93,7 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
         return nextNote('next');
 
       case 'Enter':
-        focusEditor();
+        props.focusEditor();
         return true;
 
       default: return false;
@@ -63,44 +102,12 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
 
   // TODO(jaked)
   // this scrolls the list on any render, even if selected item hasn't changed
-  const selectedIndex = notes.findIndex(note => note.tag === selected);
+  const selectedIndex = props.notes.findIndex(note => note.tag === props.selected);
   const fixedSizeListRef = React.createRef<FixedSizeList>();
   React.useEffect(() => {
     const current = fixedSizeListRef.current;
     if (current && selectedIndex !== -1) current.scrollToItem(selectedIndex, 'auto');
   });
-
-  const Notes = ({ index, style }: { index: number, style: any }) => {
-    const note = notes[index];
-    let err = false;
-    Object.values(note.compiled).forEach(compiled => {
-      if (!compiled) return;
-      if (compiled.value.type === 'err') err = true;
-      else if (compiled.get().problems) err = true;
-    });
-    return (
-      <Note
-        key={note.tag}
-        label={Path.parse(note.tag).base}
-        expanded={note.expanded}
-        indent={note.indent}
-        err={err}
-        selected={note.tag === selected}
-        onSelect={ () => onSelect(note.tag) }
-        toggleDirExpanded={
-          typeof note.expanded !== 'undefined' ?
-            (() => toggleDirExpanded(note.tag)) :
-            undefined
-        }
-        onFocusDir={
-          typeof note.expanded !== 'undefined' ?
-            (() => onFocusDir(note.tag)) :
-            undefined
-        }
-        style={style}
-      />
-    );
-  };
 
   return (
     <Box
@@ -115,12 +122,13 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>(({ notes, selected,
         {({ height, width }) =>
           <FixedSizeList
             ref={fixedSizeListRef}
-            itemCount={notes.length}
+            itemCount={props.notes.length}
             itemSize={30} // TODO(jaked) compute somehow
             width={width}
             height={height}
+            itemData={props}
           >
-            {Notes}
+            {NoteFn}
           </FixedSizeList>
         }
       </AutoSizer>
