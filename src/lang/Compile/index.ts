@@ -32,7 +32,7 @@ export function notesOfFiles(
         Immutable.Map()
       )
     );
-  return Signal.label('notes',
+  return Signal.label('notesOfFiles',
     Signal.mapImmutableMap(groupedFiles, noteOfGroup)
   );
 }

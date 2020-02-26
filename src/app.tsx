@@ -55,25 +55,33 @@ export class App {
     this.setContentAndSessionSignal.reconcile(this.__trace, this.level);
 
     this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
-    // TODO(jaked) fix hack
-    const matchingNotesTree = this.matchingNotesTreeSignal.get();
-    matchingNotesTree.forEach(matchingNote =>
-      Object.values(matchingNote.compiled).forEach(compiled => {
-        if (!compiled) return;
-        compiled.reconcile(this.__trace, this.level);
-      })
-    )
+    this.__trace.time('matchingNotesTree_compiled', () => {
+      // TODO(jaked) fix hack
+      const matchingNotesTree = this.matchingNotesTreeSignal.get();
+      matchingNotesTree.forEach(matchingNote =>
+        this.__trace.time(matchingNote.tag, () =>
+          Object.values(matchingNote.compiled).forEach(compiled => {
+            if (!compiled) return;
+            compiled.reconcile(this.__trace, this.level);
+          })
+        )
+      );
+    });
 
     this.compiledNoteSignal.reconcile(this.__trace, this.level);
-    // TODO(jaked) fix hack
-    const compiledNote = this.compiledNoteSignal.get();
-    if (compiledNote) {
-      Object.values(compiledNote.compiled).forEach(compiled => {
-        if (!compiled) return;
-        compiled.reconcile(this.__trace, this.level);
-        compiled.value.forEach(compiled => compiled.rendered.reconcile(this.__trace, this.level));
-      });
-    }
+    this.__trace.time('compileNote_compiled', () => {
+      // TODO(jaked) fix hack
+      const compiledNote = this.compiledNoteSignal.get();
+      if (compiledNote) {
+        this.__trace.time(compiledNote.tag, () =>
+          Object.values(compiledNote.compiled).forEach(compiled => {
+            if (!compiled) return;
+            compiled.reconcile(this.__trace, this.level);
+            compiled.value.forEach(compiled => compiled.rendered.reconcile(this.__trace, this.level));
+          })
+        );
+      }
+    });
 
     this.server.update(this.__trace, this.level);
 
@@ -189,18 +197,17 @@ export class App {
   }
 
   private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
-  private sessionSignal =
-    Signal.label('session',
-      Signal.join(this.sessionsCell, this.selectedCell).map(([sessions, selected]) => {
-        if (selected) {
-          const session = sessions.get(selected);
-          if (session) {
-            return session;
-          }
+  private sessionSignal = Signal.label('session',
+    Signal.join(this.sessionsCell, this.selectedCell).map(([sessions, selected]) => {
+      if (selected) {
+        const session = sessions.get(selected);
+        if (session) {
+          return session;
         }
-        return emptySession();
-      })
-    );
+      }
+      return emptySession();
+    })
+  );
   public get session() { return this.sessionSignal.get() }
 
   private notesSignal =
@@ -215,64 +222,66 @@ export class App {
     );
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 
-  private compiledNoteSignal =
-    Signal.label('compiledNote',
-      Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
-        if (selected) {
-          const note = compiledNotes.get(selected);
-          if (note) return note;
-        }
-        return null;
-      })
-    );
+  private compiledNoteSignal = Signal.label('compiledNote',
+    Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
+      if (selected) {
+        const note = compiledNotes.get(selected);
+        if (note) return note;
+      }
+      return null;
+    })
+  );
   public get compiledNote() { return this.compiledNoteSignal.get() }
 
-  private viewContentSignal: Signal<[data.Types, string] | null> =
-    Signal.label('viewContent',
-      Signal.join(
-        this.notesSignal,
-        this.selectedCell,
-        this.editorViewCell
-      ).flatMap(([notes, selected, editorView]) => {
-        if (selected !== null) {
-          const note = notes.get(selected);
-          if (note) {
-            let viewContent: [data.Types, Signal<string>] | null = null;
-            const editorViewContent = note.content[editorView];
-            if (editorViewContent) viewContent = [editorView, editorViewContent];
-            else if (note.content.mdx) viewContent = ['mdx', note.content.mdx];
-            else if (note.content.json) viewContent = ['json', note.content.json];
-            else if (note.content.txt) viewContent = ['txt', note.content.txt];
-            else if (note.content.meta) viewContent = ['meta', note.content.meta];
-            if (viewContent) {
-              const [view, content] = viewContent;
-              return content.map(content => [view, content]);
-            }
+  private viewContentSignal: Signal<[data.Types, string] | null> = Signal.label('viewContent',
+    Signal.join(
+      this.notesSignal,
+      this.selectedCell,
+      this.editorViewCell
+    ).flatMap(([notes, selected, editorView]) => {
+      if (selected !== null) {
+        const note = notes.get(selected);
+        if (note) {
+          let viewContent: [data.Types, Signal<string>] | null = null;
+          const editorViewContent = note.content[editorView];
+          if (editorViewContent) viewContent = [editorView, editorViewContent];
+          else if (note.content.mdx) viewContent = ['mdx', note.content.mdx];
+          else if (note.content.json) viewContent = ['json', note.content.json];
+          else if (note.content.txt) viewContent = ['txt', note.content.txt];
+          else if (note.content.meta) viewContent = ['meta', note.content.meta];
+          if (viewContent) {
+            const [view, content] = viewContent;
+            return content.map(content => [view, content]);
           }
         }
-        return Signal.ok(null);
-      })
-    );
+      }
+      return Signal.ok(null);
+    })
+  );
 
-  private viewSignal = this.viewContentSignal.map(viewContent => {
-    if (!viewContent) return null;
-    else {
-      const [view, _] = viewContent;
-      return view;
-    }
-  });
+  private viewSignal = Signal.label('view',
+    this.viewContentSignal.map(viewContent => {
+      if (!viewContent) return null;
+      else {
+        const [view, _] = viewContent;
+        return view;
+      }
+    })
+  );
   public get view() { return this.viewSignal.get() }
 
-  private contentSignal = this.viewContentSignal.map(viewContent => {
-    if (!viewContent) return null;
-    else {
-      const [_, content] = viewContent;
-      return content;
-    }
-  });
+  private contentSignal = Signal.label('content',
+    this.viewContentSignal.map(viewContent => {
+      if (!viewContent) return null;
+      else {
+        const [_, content] = viewContent;
+        return content;
+      }
+    })
+  );
   public get content() { return this.contentSignal.get() }
 
-  private setContentAndSessionSignal =
+  private setContentAndSessionSignal = Signal.label('setContentAndSession',
     Signal.join(
       this.selectedCell,
       this.viewSignal,
@@ -290,76 +299,76 @@ export class App {
           this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
         }
       );
-    });
+    })
+  );
   public get setContentAndSession() { return this.setContentAndSessionSignal.get() }
 
-  private matchingNotesSignal =
-    Signal.label('matchingNotes',
-      Signal.join(
-        // TODO(jaked)
-        // map matching function over individual note signals
-        // so we only need to re-match notes that have changed
-        this.compiledNotesSignal,
-        this.focusDirCell,
-        this.searchCell
-      ).flatMap(([notes, focusDir, search]) => {
+  private matchingNotesSignal = Signal.label('matchingNotes',
+    Signal.join(
+      // TODO(jaked)
+      // map matching function over individual note signals
+      // so we only need to re-match notes that have changed
+      this.compiledNotesSignal,
+      this.focusDirCell,
+      this.searchCell
+    ).flatMap(([notes, focusDir, search]) => {
 
-        let focusDirNotes: data.CompiledNotes;
-        if (focusDir) {
-          focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
-        } else {
-          focusDirNotes = notes;
+      let focusDirNotes: data.CompiledNotes;
+      if (focusDir) {
+        focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
+      } else {
+        focusDirNotes = notes;
+      }
+
+      let matchingNotes: Signal<data.CompiledNotes>;
+      if (search) {
+        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+        const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+        const regexp = RegExp(escaped, 'i');
+
+        function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
+          return Signal.join(
+            note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
+            note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
+            note.content.txt ? note.content.txt.map(txt => regexp.test(txt)) : Signal.ok(false),
+            note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
+            Signal.ok(regexp.test(note.tag)),
+          ).map(bools => [bools.some(bool => bool), note])
         }
+        // TODO(jaked) wrap this up in a function on Signal
+        const matches =
+          Signal.joinImmutableMap(Signal.ok(focusDirNotes.map(matchesSearch)))
+            .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note));
 
-        let matchingNotes: Signal<data.CompiledNotes>;
-        if (search) {
-          // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-          const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-          const regexp = RegExp(escaped, 'i');
-
-          function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
-            return Signal.join(
-              note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-              note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
-              note.content.txt ? note.content.txt.map(txt => regexp.test(txt)) : Signal.ok(false),
-              note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
-              Signal.ok(regexp.test(note.tag)),
-            ).map(bools => [bools.some(bool => bool), note])
-          }
-          // TODO(jaked) wrap this up in a function on Signal
-          const matches =
-            Signal.joinImmutableMap(Signal.ok(focusDirNotes.map(matchesSearch)))
-              .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note));
-
-          // include parents of matching notes
-          matchingNotes = matches.map(matches => matches.withMutations(map => {
-            matches.forEach((_, tag) => {
-              if (focusDir) {
-                tag = Path.relative(focusDir, tag);
-              }
-              const dirname = Path.dirname(tag);
-              if (dirname != '.') {
-                const dirs = dirname.split('/');
-                let dir = '';
-                for (let i=0; i < dirs.length; i++) {
-                  dir = Path.join(dir, dirs[i]);
-                  if (!map.has(dir)) {
-                    const note = notes.get(dir) || bug(`expected note for ${dir}`);
-                    map.set(dir, note);
-                  }
+        // include parents of matching notes
+        matchingNotes = matches.map(matches => matches.withMutations(map => {
+          matches.forEach((_, tag) => {
+            if (focusDir) {
+              tag = Path.relative(focusDir, tag);
+            }
+            const dirname = Path.dirname(tag);
+            if (dirname != '.') {
+              const dirs = dirname.split('/');
+              let dir = '';
+              for (let i=0; i < dirs.length; i++) {
+                dir = Path.join(dir, dirs[i]);
+                if (!map.has(dir)) {
+                  const note = notes.get(dir) || bug(`expected note for ${dir}`);
+                  map.set(dir, note);
                 }
               }
-            });
-          }));
-        } else {
-          matchingNotes = Signal.ok(focusDirNotes);
-        }
+            }
+          });
+        }));
+      } else {
+        matchingNotes = Signal.ok(focusDirNotes);
+      }
 
-        return matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
-          a.tag < b.tag ? -1 : 1
-        ));
-      })
-    );
+      return matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
+        a.tag < b.tag ? -1 : 1
+      ));
+    })
+  );
   public get matchingNotes() { return this.matchingNotesSignal.get() }
 
   private dirExpandedCell = Signal.cellOk(Immutable.Map<string, boolean>(), this.render);
