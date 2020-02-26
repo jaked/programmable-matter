@@ -88,7 +88,7 @@ export default function compileTable(
       label: field,
       accessor: (o: object) => o[field],
       width: 100,
-      component: ({ data }) => React.createElement(React.Fragment, null, data)
+      component: ({ data }) => React.createElement(React.Fragment, null, String(data))
     }));
   const onSelect = (tag: string) =>
     setSelected(Path.join(Path.dirname(noteTag), tag));
