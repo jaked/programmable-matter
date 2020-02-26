@@ -44,8 +44,6 @@ export class App {
   // or have a current active trace in Trace instead of threading it around
   private __trace = new Trace();
 
-  private compileDirty: boolean = true;
-
   private render = () => {
     this.__trace.reset();
     this.level++;
@@ -56,56 +54,39 @@ export class App {
     this.sessionSignal.reconcile(this.__trace, this.level);
     this.setContentAndSessionSignal.reconcile(this.__trace, this.level);
 
+    this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
+    // TODO(jaked) fix hack
+    const matchingNotesTree = this.matchingNotesTreeSignal.get();
+    matchingNotesTree.forEach(matchingNote =>
+      Object.values(matchingNote.compiled).forEach(compiled => {
+        if (!compiled) return;
+        compiled.reconcile(this.__trace, this.level);
+      })
+    )
+
+    this.compiledNoteSignal.reconcile(this.__trace, this.level);
+    // TODO(jaked) fix hack
+    const compiledNote = this.compiledNoteSignal.get();
+    if (compiledNote) {
+      Object.values(compiledNote.compiled).forEach(compiled => {
+        if (!compiled) return;
+        compiled.reconcile(this.__trace, this.level);
+        compiled.value.forEach(compiled => compiled.rendered.reconcile(this.__trace, this.level));
+      });
+    }
+
+    this.server.update(this.__trace, this.level);
+
     this.reactRender(this.__trace);
     console.log(this.__trace.finish());
   }
 
-  private dirtyAndRender = () => {
-    this.compileDirty = true;
-    this.render();
-  }
-
-  public get highlightValid() { return !this.compileDirty }
-
-    // TODO(jaked) make this configurable
+  // TODO(jaked) make this configurable
   private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  private filesystem = new Filesystem(this.filesPath, this.dirtyAndRender);
+  private filesystem = new Filesystem(this.filesPath, this.render);
 
   constructor() {
     this.filesystem.start(); // TODO(jaked) stop this on shutdown
-
-    setInterval(() => {
-      if (this.compileDirty) {
-        this.compileDirty = false;
-
-        this.__trace.reset();
-
-        this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
-        // TODO(jaked) fix hack
-        const matchingNotesTree = this.matchingNotesTreeSignal.get();
-        matchingNotesTree.forEach(matchingNote =>
-          Object.values(matchingNote.compiled).forEach(compiled => {
-            if (!compiled) return;
-            compiled.reconcile(this.__trace, this.level);
-          })
-        )
-
-        this.compiledNoteSignal.reconcile(this.__trace, this.level);
-        // TODO(jaked) fix hack
-        const compiledNote = this.compiledNoteSignal.get();
-        if (compiledNote) {
-          Object.values(compiledNote.compiled).forEach(compiled => {
-            if (!compiled) return;
-            compiled.reconcile(this.__trace, this.level);
-            compiled.value.forEach(compiled => compiled.rendered.reconcile(this.__trace, this.level));
-          });
-        }
-
-        this.server.update(this.__trace, this.level);
-        this.reactRender(this.__trace);
-        console.log(this.__trace.finish());
-      }
-    }, 50);
 
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
@@ -129,7 +110,7 @@ export class App {
 
   private history: string[] = [];
   private historyIndex: number = -1; // index of current selection, or -1 if none
-  private selectedCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
+  private selectedCell = Signal.cellOk<string | null>(null, this.render);
   public get selected() { return this.selectedCell.get() }
   public setSelected = (selected: string | null) => {
     if (selected === this.selected) return;
@@ -153,13 +134,13 @@ export class App {
     }
   }
 
-  public focusDirCell = Signal.cellOk<string | null>(null, this.dirtyAndRender);
+  public focusDirCell = Signal.cellOk<string | null>(null, this.render);
   public get focusDir() { return this.focusDirCell.get() }
   public setFocusDir = (focus: string | null) => {
     this.focusDirCell.setOk(focus);
   }
 
-  public searchCell = Signal.cellOk<string>('', this.dirtyAndRender);
+  public searchCell = Signal.cellOk<string>('', this.render);
   public get search() { return this.searchCell.get() }
   public setSearch = (search: string) => {
     this.searchCell.setOk(search);
@@ -381,7 +362,7 @@ export class App {
     );
   public get matchingNotes() { return this.matchingNotesSignal.get() }
 
-  private dirExpandedCell = Signal.cellOk(Immutable.Map<string, boolean>(), this.dirtyAndRender);
+  private dirExpandedCell = Signal.cellOk(Immutable.Map<string, boolean>(), this.render);
   public toggleDirExpanded = (dir: string) => {
     this.dirExpandedCell.update(dirExpanded => {
       const flag = dirExpanded.get(dir, false);
