@@ -24,56 +24,66 @@ export type Field = {
   component: React.FunctionComponent<{ lens: any }>
 }
 
-export const Record = (fields: Field[]) => {
-  const cellFn = ({ rowIndex, columnIndex, style, data }) => {
-    const field = fields[rowIndex];
-    const borderTopWidth = rowIndex === 0 ? 1 : 0;
-    const borderLeftWidth = columnIndex === 0 ? 1 : 0;
+type CellFnProps = {
+  rowIndex: number,
+  columnIndex: number,
+  style: object,
+  data: { fields: Field[], object: object }
+}
 
-    if (columnIndex === 0) {
-      return (
-        <Box
-          style={style}
-          borderTopWidth={borderTopWidth}
-          borderLeftWidth={borderLeftWidth}
-        >
-          {field.label}
-        </Box>
-      );
-    } else {
-      const lens = field.accessor(data);
-      const Component = field.component;
+// defined outside the Record component so it is not recomputed on every render
+const cellFn = ({ rowIndex, columnIndex, style, data: { fields, object } } : CellFnProps) => {
+  const field = fields[rowIndex];
+  const borderTopWidth = rowIndex === 0 ? 1 : 0;
+  const borderLeftWidth = columnIndex === 0 ? 1 : 0;
 
-      return (
-        <Box
-          style={style}
-          borderTopWidth={borderTopWidth}
-          borderLeftWidth={borderLeftWidth}
-        >
-          <Component lens={lens} />
-        </Box>
-      );
-    }
-  }
-
-  return ({ object } : { object: object }) => {
-    const gridFn = ({ height, width }) =>
-      <VariableSizeGrid
-        itemData={object}
-        columnCount={2}
-        rowCount={fields.length}
-        columnWidth={(col) => col === 0 ? 100 : 200}
-        rowHeight={(row) => 30}
-        height={height}
-        width={width}
+  if (columnIndex === 0) {
+    return (
+      <Box
+        style={style}
+        borderTopWidth={borderTopWidth}
+        borderLeftWidth={borderLeftWidth}
       >
-        {cellFn}
-      </VariableSizeGrid>
+        {field.label}
+      </Box>
+    );
+  } else {
+    const lens = field.accessor(object);
 
     return (
-      <AutoSizer>
-        {gridFn}
-      </AutoSizer>
+      <Box
+        style={style}
+        borderTopWidth={borderTopWidth}
+        borderLeftWidth={borderLeftWidth}
+      >
+        {field.component({lens})}
+      </Box>
     );
   }
+}
+
+type Props = {
+  fields: Field[],
+  object: object,
+}
+
+export const Record = ({ fields, object }: Props) => {
+  const gridFn = ({ height, width }) =>
+    <VariableSizeGrid
+      itemData={{ fields, object }}
+      columnCount={2}
+      rowCount={fields.length}
+      columnWidth={(col) => col === 0 ? 100 : 200}
+      rowHeight={(row) => 30}
+      height={height}
+      width={width}
+    >
+      {cellFn}
+    </VariableSizeGrid>
+
+  return (
+    <AutoSizer>
+      {gridFn}
+    </AutoSizer>
+  );
 }

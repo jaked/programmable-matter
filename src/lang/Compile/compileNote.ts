@@ -32,7 +32,10 @@ export default function compileNote(
         case 'json': {
           const file = parsedNote.files.json ?? bug(`expected json file`);
           const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-          const json = compileJson(file, ast, parsedNote.meta, updateFile);
+          const json =
+            Signal.join(file, ast, parsedNote.meta).map(([file, ast, meta]) =>
+              compileJson(file, ast, meta, updateFile)
+            );
           return { ...obj, json };
         }
 
