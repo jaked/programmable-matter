@@ -3,16 +3,11 @@
 //  https://github.com/RReverser/acorn-jsx
 
 import * as Immutable from 'immutable';
-import Type from './Type';
-import Try from '../util/Try';
 
 interface NodeImpl {
   type: string;
   start: number;
   end: number;
-
-  // set in typechecking
-  etype?: Try<Type.Type>;
 }
 
 export interface Program extends NodeImpl {

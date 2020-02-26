@@ -24,5 +24,5 @@ export default function compileJpeg(
       }
     )
   );
-  return { exportType, exportValue, rendered };
+  return { exportType, exportValue, rendered, problems: false };
 }

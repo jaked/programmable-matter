@@ -3,6 +3,7 @@ import Recast from 'recast/main';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
+import { AstAnnotations } from '../../data';
 
 class LocatedError extends Error {
   location: ESTree.Node;
@@ -17,13 +18,18 @@ class LocatedError extends Error {
   }
 }
 
-export function withLocation(ast: ESTree.Node, msg): never {
+export function withLocation(ast: ESTree.Node, msg, annots?: AstAnnotations): never {
   const err = new LocatedError(msg, ast);
-  ast.etype = Try.err(err);
+  if (annots) annots.set(ast, Try.err(err));
   throw err;
 }
 
-export function expectedType(ast: ESTree.Node, expected: string | Type, actual?: string | Type): never {
+export function expectedType(
+  ast: ESTree.Node,
+  expected: string | Type,
+  actual?: string | Type,
+  annots?: AstAnnotations
+): never {
   if (typeof expected !== 'string')
     expected = Type.toString(expected);
   if (actual && typeof actual !== 'string')
@@ -31,21 +37,38 @@ export function expectedType(ast: ESTree.Node, expected: string | Type, actual?:
 
   let msg = 'expected ' + expected;
   if (actual) msg += ', got ' + actual;
-  return withLocation(ast, msg);
+  return withLocation(ast, msg, annots);
 }
 
-export function unknownField(ast: ESTree.Node, field: string): never {
-  return withLocation(ast, `unknown field '${field}'`);
+export function unknownField(
+  ast: ESTree.Node,
+  field: string,
+  annots?: AstAnnotations
+): never {
+  return withLocation(ast, `unknown field '${field}'`, annots);
 }
 
-export function missingField(ast: ESTree.Node, field: string): never {
-  return withLocation(ast, `missing field '${field}'`);
+export function missingField(
+  ast: ESTree.Node,
+  field: string,
+  annots?: AstAnnotations
+): never {
+  return withLocation(ast, `missing field '${field}'`, annots);
 }
 
-export function extraField(ast: ESTree.Node, field: string): never {
-  return withLocation(ast, `extra field ${field}`);
+export function extraField(
+  ast: ESTree.Node,
+  field: string,
+  annots?: AstAnnotations
+): never {
+  return withLocation(ast, `extra field ${field}`, annots);
 }
 
-export function wrongArgsLength(ast: ESTree.Node, expected: number, actual: number) {
-  return withLocation(ast, `expected ${expected} args, function has ${actual} args`);
+export function wrongArgsLength(
+  ast: ESTree.Node,
+  expected: number,
+  actual: number,
+  annots?: AstAnnotations
+) {
+  return withLocation(ast, `expected ${expected} args, function has ${actual} args`, annots);
 }

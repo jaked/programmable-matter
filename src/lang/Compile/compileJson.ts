@@ -3,6 +3,7 @@ import JSON5 from 'json5';
 import * as React from 'react';
 import styled from 'styled-components';
 import Signal from '../../util/Signal';
+import Try from '../../util/Try';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
@@ -78,15 +79,22 @@ export default function compileJson(
   meta: Signal<data.Meta>,
   updateFile: (path: string, buffer: Buffer) => void
 ): Signal<data.Compiled> {
-  const type =
+  const typeAstAnnotations =
     Signal.join(ast, meta).map(([ast, meta]) => {
-      if (meta.dataType) {
-        Typecheck.check(ast, Typecheck.env(), meta.dataType);
-        return meta.dataType;
-      } else {
-        return Typecheck.synth(ast, Typecheck.env());
+      const astAnnotations = new Map<unknown, Try<Type>>();
+      try {
+        if (meta.dataType) {
+          Typecheck.check(ast, Typecheck.env(), meta.dataType, astAnnotations);
+          return { type: meta.dataType, astAnnotations };
+        } else {
+          return { type: Typecheck.synth(ast, Typecheck.env(), astAnnotations), astAnnotations };
+        }
+      } catch (e) {
+        return { type: Type.never, astAnnotations };
       }
     });
+
+  const type = typeAstAnnotations.map(({ type }) => type);
 
   // stage the evaluation of Record
   // so we only build a new function component when type changes
@@ -104,7 +112,19 @@ export default function compileJson(
     return Record(fields);
   });
 
-  return Signal.join(file, ast, type, record).map(([file, ast, type, record]) => {
+  return Signal.join(
+    file,
+    ast,
+    typeAstAnnotations,
+    record
+  ).map(([file, ast, { type, astAnnotations }, record]) => {
+    if (type.kind === 'never') {
+      const exportType = Type.module({ });
+      const exportValue = { };
+      const rendered = Signal.ok(false);
+      return { exportType, exportValue, rendered, astAnnotations, problems: true };
+    }
+
     const exportType = Type.module({
       default: type,
       mutable: lensType(type),
@@ -121,7 +141,6 @@ export default function compileJson(
       // TODO(json) handle arrays of records (with Table)
       React.createElement(record, { object: lens })
     );
-    return { exportType, exportValue, rendered };
-
+    return { exportType, exportValue, rendered, astAnnotations, problems: false };
   })
 }

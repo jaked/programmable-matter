@@ -1,3 +1,4 @@
+import Try from '../../util/Try';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
@@ -9,10 +10,11 @@ describe('check', () => {
     type: Type,
     env: Typecheck.Env = Typecheck.env()
   ) {
+    const annots = new Map<unknown, Try<Type>>();
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(() => Typecheck.check(expr, env, type)).toThrow();
+    expect(() => Typecheck.check(expr, env, type, annots)).toThrow();
   }
 
   function expectCheck(
@@ -20,10 +22,11 @@ describe('check', () => {
     type: Type,
     env: Typecheck.Env = Typecheck.env()
   ) {
+    const annots = new Map<unknown, Try<Type>>();
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.check(expr, env, type)).toBe(undefined);
+    expect(Typecheck.check(expr, env, type, annots)).toBe(undefined);
   }
 
   describe('primitives', () => {

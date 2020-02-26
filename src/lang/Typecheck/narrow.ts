@@ -2,8 +2,9 @@ import deepEqual from 'deep-equal';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
+import { AstAnnotations } from '../../data';
 import { Env } from './env';
-import * as Throw from './throw';
+import { synth } from './synth';
 
 // best-effort intersection of `a` and `b`
 // 'b' may contain Not-types
@@ -141,13 +142,14 @@ function narrowExpression(
 export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
-  assume: boolean
+  assume: boolean,
+  annots: AstAnnotations,
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':
       switch (ast.operator) {
         case '!':
-          return narrowEnvironment(env, ast.argument, !assume);
+          return narrowEnvironment(env, ast.argument, !assume, annots);
         case 'typeof':
           // typeof always returns a truthy value
           return env;
@@ -159,31 +161,29 @@ export function narrowEnvironment(
       switch (ast.operator) {
         case '&&':
           if (assume) {
-            env = narrowEnvironment(env, ast.left, true);
-            return narrowEnvironment(env, ast.right, true);
+            env = narrowEnvironment(env, ast.left, true, annots);
+            return narrowEnvironment(env, ast.right, true, annots);
           } else return env;
         case '||':
           if (!assume) {
-            env = narrowEnvironment(env, ast.left, false);
-            return narrowEnvironment(env, ast.right, false);
+            env = narrowEnvironment(env, ast.left, false, annots);
+            return narrowEnvironment(env, ast.right, false, annots);
           } else return env;
         default:
           return bug(`unexpected AST ${ast.operator}`);
       }
 
     case 'BinaryExpression':
+      const left = synth(ast.left, env, annots);
+      const right = synth(ast.right, env, annots);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
-        if (!ast.right.etype) return bug('expected etype');
-        if (!ast.left.etype) return bug('expected etype');
-        env = narrowExpression(env, ast.left, ast.right.etype.get());
-        return narrowExpression(env, ast.right, ast.left.etype.get());
+        env = narrowExpression(env, ast.left, right);
+        return narrowExpression(env, ast.right, left);
       } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
-        if (!ast.right.etype) return bug('expected etype');
-        if (!ast.left.etype) return bug('expected etype');
-        env = narrowExpression(env, ast.left, Type.not(ast.right.etype.get()));
-        return narrowExpression(env, ast.right, Type.not(ast.left.etype.get()));
+        env = narrowExpression(env, ast.left, Type.not(right));
+        return narrowExpression(env, ast.right, Type.not(left));
       } else {
-        return Throw.withLocation(ast, 'unimplemented');
+        return bug('unimplemented BinaryExpression');
       }
 
     default:

@@ -67,7 +67,7 @@ export class Main extends React.Component<Props, {}> {
             selected={this.props.app.selected}
             view={this.props.app.view}
             content={this.props.app.content}
-            parsedNote={this.props.app.highlightValid ? this.props.app.compiledNote : null}
+            compiledNote={this.props.app.highlightValid ? this.props.app.compiledNote : null}
             session={this.props.app.session}
             onChange={this.props.app.setContentAndSession}
             setStatus={this.props.app.setStatus}

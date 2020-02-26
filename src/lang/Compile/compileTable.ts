@@ -95,5 +95,5 @@ export default function compileTable(
   const rendered = exportValue.default.map(data => {
     return React.createElement(Table, { data, fields, onSelect })
   });
-  return { exportType, exportValue, rendered };
+  return { exportType, exportValue, rendered, problems: false };
 }

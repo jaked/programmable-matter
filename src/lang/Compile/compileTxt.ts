@@ -11,5 +11,5 @@ export default function compileTxt(
   const rendered = Signal.ok(
     React.createElement('pre', null, content)
   );
-  return { exportType, exportValue, rendered };
+  return { exportType, exportValue, rendered, problems: false };
 }

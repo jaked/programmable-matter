@@ -1,3 +1,4 @@
+import Try from '../../util/Try';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
@@ -8,10 +9,11 @@ describe('synth', () => {
     exprOrString: ESTree.Expression | string,
     env: Typecheck.Env = Typecheck.env()
   ) {
+    const annots = new Map<unknown, Try<Type>>();
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(() => Typecheck.synth(expr, env)).toThrow();
+    expect(() => Typecheck.synth(expr, env, annots)).toThrow();
   }
 
   function expectSynth(
@@ -19,10 +21,11 @@ describe('synth', () => {
     type: Type,
     env: Typecheck.Env = Typecheck.env()
   ) {
+    const annots = new Map<unknown, Try<Type>>();
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.synth(expr, env)).toEqual(type);
+    expect(Typecheck.synth(expr, env, annots)).toEqual(type);
   }
 
   describe('identifiers', () => {

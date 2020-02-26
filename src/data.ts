@@ -1,6 +1,7 @@
 import Immutable from 'immutable';
 import React from 'react';
 import Signal from './util/Signal';
+import Try from './util/Try';
 import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
@@ -15,10 +16,14 @@ export interface Meta {
   dirMeta?: Meta;
 }
 
+export type AstAnnotations = Map<unknown, Try<Type>>;
+
 export interface Compiled {
   exportType: Type.ModuleType;
   exportValue: { [s: string]: Signal<any> };
   rendered: Signal<React.ReactNode>;
+  astAnnotations?: AstAnnotations;
+  problems: boolean;
 }
 
 export type File = {

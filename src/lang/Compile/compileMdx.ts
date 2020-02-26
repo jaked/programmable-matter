@@ -1,5 +1,6 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
+import Try from '../../util/Try';
 import Trace from '../../util/Trace';
 import * as data from '../../data';
 import * as MDXHAST from '../mdxhast';
@@ -31,12 +32,18 @@ export default function compileMdx(
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
 ): data.Compiled {
-  const exportTypes: { [s: string]: Type.Type } = {};
-  const exportValue: { [s: string]: Signal<any> } = {};
-
   ast = trace.time('sortMdx', () => sortMdx(ast));
-  trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes));
-  const exportType = Type.module(exportTypes);
+
+  const exportTypes: { [s: string]: Type.Type } = {};
+  const astAnnotations = new Map<unknown, Try<Type>>();
+  try {
+    trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
+  } catch (e) {
+    const exportType = Type.module({ });
+    const exportValue = { };
+    const rendered = Signal.ok(false);
+    return { exportType, exportValue, rendered, astAnnotations, problems: true };
+  }
 
   let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
   if (meta.layout) {
@@ -61,6 +68,8 @@ export default function compileMdx(
     }
   }
 
+  const exportType = Type.module(exportTypes);
+  const exportValue: { [s: string]: Signal<any> } = {};
   const rendered =
     trace.time('renderMdx', () => {
       const [_, node] =
@@ -71,5 +80,5 @@ export default function compileMdx(
         );
       else return node;
     });
-  return { exportType, exportValue, rendered };
+  return { exportType, exportValue, rendered, astAnnotations, problems: false };
 }

@@ -14,7 +14,7 @@ interface Props {
   selected: string;
   view: data.Types;
   content: string;
-  parsedNote: data.ParsedNote | null;
+  compiledNote: data.CompiledNote | null;
   session: Session;
 
   onChange: (content: string, session: Session) => void;
@@ -68,6 +68,7 @@ type Span = {
 
 function computeJsSpans(
   ast: ESTree.Node,
+  annots: data.AstAnnotations | undefined,
   spans: Array<Span>
 ) {
   function span(
@@ -83,10 +84,11 @@ function computeJsSpans(
   function fn(ast: ESTree.Node) {
     let components = okComponents;
     let status: string | undefined = undefined;
-    if (ast.etype) {
-      if (ast.etype.type === 'err') {
+    const type = annots && annots.get(ast);
+    if (type) {
+      if (type.type === 'err') {
         components = errComponents;
-        status = ast.etype.err.message;
+        status = type.err.message;
       }
     }
 
@@ -138,9 +140,10 @@ function computeJsSpans(
           // TODO(jaked) clean up duplication
           let components = okComponents;
           let status: string | undefined = undefined;
-          if (ast.source.etype && ast.source.etype.type === 'err') {
+          let type = annots && annots.get(ast.source);
+          if (type && type.type === 'err') {
             components = errComponents;
-            status = ast.source.etype.err.message;
+            status = type.err.message;
           }
           // TODO(jaked) maybe a link doesn't make sense for a nonexistent note
           const link = ast.source.value;
@@ -187,11 +190,15 @@ function computeJsSpans(
   ESTree.visit(ast, fn);
 }
 
-function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
+function computeSpans(
+  ast: MDXHAST.Node,
+  annots: data.AstAnnotations | undefined,
+  spans: Array<Span>
+) {
   switch (ast.type) {
     case 'root':
     case 'element':
-      return ast.children.forEach(child => computeSpans(child, spans));
+      return ast.children.forEach(child => computeSpans(child, annots, spans));
 
     case 'text':
       return;
@@ -201,7 +208,7 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
       // TODO(jaked)
       // parsing should always succeed with some AST
       return ast.jsxElement.forEach(expr => {
-        computeJsSpans(expr, spans);
+        computeJsSpans(expr, annots, spans);
       });
 
     case 'import':
@@ -211,7 +218,7 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
       // parsing should always succeed with some AST
       return ast.declarations.forEach(decls => {
         decls.forEach(decl => {
-          computeJsSpans(decl, spans);
+          computeJsSpans(decl, annots, spans);
         });
       });
     }
@@ -220,28 +227,33 @@ function computeSpans(ast: MDXHAST.Node, spans: Array<Span>) {
 function computeHighlight(
   view: data.Types,
   content: string,
-  parsedNote: data.ParsedNote | null
+  compiledNote: data.CompiledNote | null
 ) {
   const spans: Array<Span> = [];
-  if (parsedNote) {
+  if (compiledNote) {
     // TODO(jaked)
     // parsing should always succeed with some AST
     switch (view) {
       case 'meta': {
-        const ast = parsedNote.parsed.meta ?? bug(`expected parsed meta`);
-        ast.value.forEach(ast => computeJsSpans(ast, spans));
+        const ast = compiledNote.parsed.meta ?? bug(`expected parsed meta`);
+        // TODO(jaked) should check meta file against type and show annotations
+        ast.value.forEach(ast => computeJsSpans(ast, undefined, spans));
       }
       break;
 
       case 'mdx': {
-        const ast = parsedNote.parsed.mdx ?? bug(`expected parsed mdx`);
-        ast.value.forEach(ast => computeSpans(ast, spans));
+        const ast = compiledNote.parsed.mdx ?? bug(`expected parsed mdx`);
+        const compiled = compiledNote.compiled.mdx ?? bug(`expected compiled mdx`);
+        const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+        ast.value.forEach(ast => computeSpans(ast, annots, spans));
       }
       break;
 
       case 'json': {
-        const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
-        ast.value.forEach(ast => computeJsSpans(ast, spans));
+        const ast = compiledNote.parsed.json ?? bug(`expected parsed json`);
+        const compiled = compiledNote.compiled.json ?? bug(`expected compiled json`);
+        const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+        ast.value.forEach(ast => computeJsSpans(ast, annots, spans));
       }
       break;
     }
@@ -374,8 +386,8 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { view, selected, content, parsedNote } = this.props;
-    let highlight = computeHighlight(view, content, parsedNote);
+    const { view, selected, content, compiledNote } = this.props;
+    let highlight = computeHighlight(view, content, compiledNote);
     return (
       <div style={{
         fontFamily: 'Monaco, monospace',
