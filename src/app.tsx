@@ -79,9 +79,18 @@ export class App {
         this.compileDirty = false;
 
         this.__trace.reset();
-        this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
-        this.compiledNoteSignal.reconcile(this.__trace, this.level);
 
+        this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
+        // TODO(jaked) fix hack
+        const matchingNotesTree = this.matchingNotesTreeSignal.get();
+        matchingNotesTree.forEach(matchingNote =>
+          Object.values(matchingNote.compiled).forEach(compiled => {
+            if (!compiled) return;
+            compiled.reconcile(this.__trace, this.level);
+          })
+        )
+
+        this.compiledNoteSignal.reconcile(this.__trace, this.level);
         // TODO(jaked) fix hack
         const compiledNote = this.compiledNoteSignal.get();
         if (compiledNote) {
