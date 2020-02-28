@@ -48,40 +48,7 @@ export class App {
     this.__trace.reset();
     this.level++;
 
-    // TODO(jaked) write this as a join instead of .get()s
-    this.viewSignal.reconcile(this.__trace, this.level);
-    this.contentSignal.reconcile(this.__trace, this.level);
-    this.sessionSignal.reconcile(this.__trace, this.level);
-    this.setContentAndSessionSignal.reconcile(this.__trace, this.level);
-
-    this.matchingNotesTreeSignal.reconcile(this.__trace, this.level);
-    this.__trace.time('matchingNotesTree_compiled', () => {
-      // TODO(jaked) fix hack
-      const matchingNotesTree = this.matchingNotesTreeSignal.get();
-      matchingNotesTree.forEach(matchingNote =>
-        this.__trace.time(matchingNote.tag, () =>
-          Object.values(matchingNote.compiled).forEach(compiled => {
-            if (!compiled) return;
-            compiled.reconcile(this.__trace, this.level);
-          })
-        )
-      );
-    });
-
-    this.compiledNoteSignal.reconcile(this.__trace, this.level);
-    this.__trace.time('compileNote_compiled', () => {
-      // TODO(jaked) fix hack
-      const compiledNote = this.compiledNoteSignal.get();
-      if (compiledNote) {
-        this.__trace.time(compiledNote.tag, () =>
-          Object.values(compiledNote.compiled).forEach(compiled => {
-            if (!compiled) return;
-            compiled.reconcile(this.__trace, this.level);
-            compiled.value.forEach(compiled => compiled.rendered.reconcile(this.__trace, this.level));
-          })
-        );
-      }
-    });
+    this.mainSignal.reconcile(this.__trace, this.level);
 
     this.server.update(this.__trace, this.level);
 
@@ -423,6 +390,45 @@ export class App {
     })
   );
   public get matchingNotesTree() { return this.matchingNotesTreeSignal.get() }
+
+  // join all the signals used by the Main component for the render loop
+  // TODO(jaked) we could avoid reconciling some of this depending on UI state
+  // e.g. we don't need matchingNotesSignal if the sidebar is hidden
+  // TODO(jaked) but be careful about global commands needing state
+  // e.g. 'next problem' should maybe go to the next global problem?
+  // TODO(jaked) find a way to integrate these demands into the React render
+  // so we don't need to coordinate this manually.
+  private mainSignal = Signal.label('main',
+    Signal.join(
+      this.viewSignal,
+      this.contentSignal,
+      this.sessionSignal,
+      this.setContentAndSessionSignal,
+      this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
+        const matchingNotes = matchingNotesTree.map(matchingNote => {
+          const compileds = Object.values(matchingNote.compiled).map(compiled => {
+            if (!compiled) bug(`undefined compiled`);
+            // we don't need to join compiled.rendered here because it is
+            // not used by the notes tree.
+            return compiled;
+          });
+          return Signal.join(...compileds);
+        });
+        return Signal.join(...matchingNotes);
+      }),
+      this.compiledNoteSignal.flatMap(compiledNote => {
+        if (compiledNote) {
+          const compileds = Object.values(compiledNote.compiled).map(compiled => {
+            if (!compiled) bug(`undefined compiled`);
+            return compiled.flatMap(compiled => compiled.rendered);
+          });
+          return Signal.join(...compileds);
+        } else {
+          return Signal.ok(undefined);
+        }
+      })
+    )
+  );
 
   private server = new Server(this.compiledNotesSignal);
 
