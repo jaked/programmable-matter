@@ -296,46 +296,54 @@ export class App {
         const regexp = RegExp(escaped, 'i');
 
         function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
-          return Signal.join(
-            note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-            note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
-            note.content.txt ? note.content.txt.map(txt => regexp.test(txt)) : Signal.ok(false),
-            note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
-            Signal.ok(regexp.test(note.tag)),
-          ).map(bools => [bools.some(bool => bool), note])
+          return Signal.label(note.tag,
+            Signal.join(
+              note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
+              note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
+              note.content.txt ? note.content.txt.map(txt => regexp.test(txt)) : Signal.ok(false),
+              note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
+              Signal.ok(regexp.test(note.tag)),
+            ).map(bools => [bools.some(bool => bool), note])
+          );
         }
         // TODO(jaked) wrap this up in a function on Signal
-        const matches =
+        const matches = Signal.label('matches',
           Signal.joinImmutableMap(Signal.ok(focusDirNotes.map(matchesSearch)))
-            .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note));
+            .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note)
+          )
+        );
 
         // include parents of matching notes
-        matchingNotes = matches.map(matches => matches.withMutations(map => {
-          matches.forEach((_, tag) => {
-            if (focusDir) {
-              tag = Path.relative(focusDir, tag);
-            }
-            const dirname = Path.dirname(tag);
-            if (dirname != '.') {
-              const dirs = dirname.split('/');
-              let dir = '';
-              for (let i=0; i < dirs.length; i++) {
-                dir = Path.join(dir, dirs[i]);
-                if (!map.has(dir)) {
-                  const note = notes.get(dir) || bug(`expected note for ${dir}`);
-                  map.set(dir, note);
+        matchingNotes = Signal.label('matchingNotes',
+          matches.map(matches => matches.withMutations(map => {
+            matches.forEach((_, tag) => {
+              if (focusDir) {
+                tag = Path.relative(focusDir, tag);
+              }
+              const dirname = Path.dirname(tag);
+              if (dirname != '.') {
+                const dirs = dirname.split('/');
+                let dir = '';
+                for (let i=0; i < dirs.length; i++) {
+                  dir = Path.join(dir, dirs[i]);
+                  if (!map.has(dir)) {
+                    const note = notes.get(dir) || bug(`expected note for ${dir}`);
+                    map.set(dir, note);
+                  }
                 }
               }
-            }
-          });
-        }));
+            });
+          }))
+        );
       } else {
         matchingNotes = Signal.ok(focusDirNotes);
       }
 
-      return matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
-        a.tag < b.tag ? -1 : 1
-      ));
+      return Signal.label('sort',
+        matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
+          a.tag < b.tag ? -1 : 1
+        ))
+      );
     })
   );
   public get matchingNotes() { return this.matchingNotesSignal.get() }
