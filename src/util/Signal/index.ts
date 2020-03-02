@@ -5,9 +5,15 @@ import Try from '../Try';
 import { diffMap } from '../immutable/Map';
 import { bug } from '../bug';
 
+const unreconciled = Try.err(new Error('unreconciled'));
+
 /**
- * Simple implementation of reactive values. Reconciliation is by
- * top-down reevaluation.
+ * Simple implementation of reactive values. Values of signals are
+ * "reconciled" (brought up to date with respect to child signals)
+ * by reevaluating a a tree of signals top-down.
+ *
+ * A newly-created signal is unreconciled; it must be reconciled in order
+ * for its value to be valid.
  *
  * A signal has a value, and a "version". When reconciliation changes a
  * signal's value, the version is incremented. Signals track the
@@ -52,12 +58,12 @@ interface Signal<T> {
   // TODO(jaked) how can we make these private to impl?
 
   /**
-   * if an update changes `value`, `version` is incremented.
+   * if a reconciliation changes `value`, `version` is incremented.
    */
   version: number;
 
   /**
-   * level of the last `update()` on this signal.
+   * level of the last `reconcile` on this signal.
    */
   level: number;
 
@@ -65,7 +71,8 @@ interface Signal<T> {
    * reconcile this signal to `level`, recomputing `value` as needed.
    * if signal is already at (or above) `level` it need not be recomputed.
    *
-   * `reconcile` must be called with monotonically increasing numbers.
+   * `reconcile` must be called with monotonically increasing numbers
+   * greater than 0.
    */
   reconcile(trace: Trace, level: number): void;
 }
@@ -88,8 +95,8 @@ class Const<T> implements Signal<T> {
   flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   value: Try<T>;
-  get version(): 0 { return 0; }
-  // don't need to track `level` because `update` is a no-op
+  get version(): 1 { return 1; }
+  // don't need to track `level` because `reconcile` is a no-op
   get level(): 0 { return 0; }
   reconcile(trace: Trace, level: number) { }
 }
@@ -105,7 +112,7 @@ class CellImpl<T> implements CellIntf<T> {
   constructor(value: Try<T>, onChange?: () => void) {
     this.value = value;
     this.onChange = onChange;
-    this.version = 0;
+    this.version = 1;
   }
 
   get() { return this.value.get(); }
@@ -115,7 +122,7 @@ class CellImpl<T> implements CellIntf<T> {
   value: Try<T>;
   version: number;
   onChange?: () => void;
-  // don't need to track `level` because `update` is a no-op
+  // don't need to track `level` because `reconcile` is a no-op
   get level(): 0 { return 0; }
   reconcile(trace: Trace, level: number) { }
 
@@ -136,12 +143,12 @@ class Map<T, U> implements Signal<U> {
   f: (t: T) => U;
 
   constructor(s: Signal<T>, f: (t: T) => U) {
+    this.value = unreconciled;
+    this.level = 0;
     this.version = 0;
-    this.sVersion = s.version;
+    this.sVersion = 0;
     this.s = s;
     this.f = f;
-    this.value = s.value.map(f);
-    this.level = s.level;
   }
 
   get() { return this.value.get(); }
@@ -172,21 +179,12 @@ class FlatMap<T, U> implements Signal<U> {
   f: (t: T) => Signal<U>;
 
   constructor(s: Signal<T>, f: (t: T) => Signal<U>) {
+    this.value = unreconciled;
+    this.level = 0;
     this.version = 0;
-    this.sVersion = s.version;
+    this.sVersion = 0;
     this.s = s;
     this.f = f;
-    if (s.value.type === 'ok') {
-      this.fs = f(s.value.ok);
-      this.fsVersion = this.fs.version;
-      this.value = this.fs.value;
-      this.level = Math.min(s.level, this.fs.level);
-    } else {
-      this.fs = undefined;
-      this.fsVersion = undefined;
-      this.value = <Try<U>><unknown>s.value;
-      this.level = s.level;
-    }
   }
 
   get() { return this.value.get(); }
@@ -233,11 +231,11 @@ class Join<T> implements Signal<T[]> {
   constructor(
     signals: Signal<T>[]
   ) {
+    this.value = unreconciled;
+    this.level = 0;
     this.version = 0;
     this.signals = signals;
-    this.versions = signals.map(s => s.version);
-    this.value = Try.join(...signals.map(s => s.value));
-    this.level = Math.min(...signals.map(s => s.level));
+    this.versions = signals.map(s => 0);
   }
 
   get() { return this.value.get(); }
@@ -274,21 +272,13 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
   constructor(
     s: Signal<Immutable.Map<K, Signal<V>>>
   ) {
+    this.value = unreconciled;
+    this.level = 0;
     this.version = 0;
-    this.sVersion = s.version;
+    this.sVersion = 0;
     this.s = s;
-    if (s.value.type === 'ok') {
-      this.vsSignals = s.value.ok;
-      this.vsVersions = s.value.ok.map(v => v.version);
-      this.value = Try.joinImmutableMap(this.vsSignals.map(s => s.value));
-      const vsLevels = Math.min(...this.vsSignals.valueSeq().map(s => s.level));
-      this.level = Math.min(s.level, vsLevels);
-    } else {
-      this.vsSignals = Immutable.Map();
-      this.vsVersions = Immutable.Map();
-      this.value = <Try<Immutable.Map<K, V>>><unknown>s.value;
-      this.level = s.level;
-    }
+    this.vsSignals = Immutable.Map();
+    this.vsVersions = Immutable.Map();
   }
 
   get() { return this.value.get(); }
@@ -351,7 +341,6 @@ class Label<T> implements Signal<T> {
   s: Signal<T>;
   get value() { return this.s.value; }
   get version() { return this.s.version; }
-  // don't need to track `level` because `update` is a no-op
   get level() { return this.s.level; }
   reconcile(trace: Trace, level: number) {
     trace.open(this.label);

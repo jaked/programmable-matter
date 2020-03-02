@@ -61,6 +61,8 @@ export class App {
   private filesystem = new Filesystem(this.filesPath, this.render);
 
   constructor() {
+    this.render();
+
     this.filesystem.start(); // TODO(jaked) stop this on shutdown
 
     // TODO(jaked) do we need to remove these somewhere?
