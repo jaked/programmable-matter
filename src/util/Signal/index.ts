@@ -427,7 +427,10 @@ module Signal {
   export function join<T>(
     ...signals: Signal<T>[]
   ): Signal<T[]> {
-    return new Join(signals);
+    if (signals.length > 0)
+      return new Join(signals);
+    else
+      return Signal.ok<T[]>([]);
   }
 
   export function joinObject<T>(

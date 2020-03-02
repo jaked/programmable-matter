@@ -299,6 +299,12 @@ describe('joinImmutableMap', () => {
     expect(j.get()).toEqual(Immutable.Map({ c1: 11, c2: 9 }));
     expect(calls).toBe(2);
   });
+
+  it('handles no signals', () => {
+    const s = Signal.join(...[]);
+    s.reconcile(trace, 1);
+    expect(s.get()).toEqual([]);
+  });
 });
 
 describe('mapImmutableMap', () => {
