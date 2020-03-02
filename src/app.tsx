@@ -181,6 +181,7 @@ export class App {
 
   private notesSignal =
     Compile.notesOfFiles(this.__trace, this.filesystem.files);
+  public get notes() { return this.notesSignal.get() }
 
   private compiledNotesSignal =
     Compile.compileNotes(
@@ -414,6 +415,7 @@ export class App {
       this.contentSignal,
       this.sessionSignal,
       this.setContentAndSessionSignal,
+      this.notesSignal,
       this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
         const matchingNotes = matchingNotesTree.map(matchingNote => {
           const compileds = Object.values(matchingNote.compiled).map(compiled => {

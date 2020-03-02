@@ -1,3 +1,4 @@
+import Immutable from 'immutable';
 import React from 'react';
 import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
@@ -11,6 +12,7 @@ type Props = {
   onFocusDir: (s: string | null) => void;
   search: string;
   onSearch: (s: string) => void;
+  notes: Immutable.Map<string, data.Note>;
   matchingNotes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
   selected: string | null;
   onSelect: (s: string | null) => void;
@@ -56,7 +58,7 @@ export class Sidebar extends React.Component<Props, {}> {
         return true;
 
       case 'Enter':
-        if (this.props.matchingNotes.every(note => note.tag !== this.props.search)) {
+        if (this.props.notes.every(note => note.tag !== this.props.search)) {
           this.props.newNote(this.props.search);
         }
         this.props.onSelect(this.props.search);
