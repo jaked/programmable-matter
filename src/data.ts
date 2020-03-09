@@ -79,6 +79,8 @@ export type NoteCompiled = {
 
 export type CompiledNote = ParsedNoteWithImports & {
   compiled: NoteCompiled;
+  problems: Signal<boolean>;
+  rendered: Signal<React.ReactNode>;
 }
 
 // indexed by path

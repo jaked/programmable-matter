@@ -114,5 +114,23 @@ export default function compileNote(
     compiled = { ...compiled, mdx };
   }
 
-  return { ...parsedNote, compiled };
+  // TODO(jaked) don't compute unneeded renderings
+  let rendered: Signal<React.ReactNode>;
+  if (compiled.mdx) rendered = compiled.mdx.flatMap(mdx => mdx.rendered);
+  else if (compiled.table) rendered = compiled.table.flatMap(table => table.rendered);
+  else if (compiled.json) rendered = compiled.json.flatMap(json => json.rendered);
+  else if (compiled.jpeg) rendered = compiled.jpeg.flatMap(jpeg => jpeg.rendered);
+  else rendered = Signal.ok(undefined); // for dummy dir notes
+
+  const compileds = Object.values(compiled).map(compiled => {
+    if (!compiled) bug(`undefined compiled`);
+    return compiled;
+  });
+  const problems = Signal.join(
+    ...compileds.map(compiled =>
+      compiled.map(compiled => compiled.problems)
+    )
+  ).map(problems => problems.some(problems => problems));
+
+  return { ...parsedNote, compiled, rendered, problems };
 }

@@ -24,12 +24,11 @@ type NoteFnProps = {
 
 const NoteFn = ({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
+
   let err = false;
-  Object.values(note.compiled).forEach(compiled => {
-    if (!compiled) return;
-    if (compiled.value.type === 'err') err = true;
-    else if (compiled.get().problems) err = true;
-  });
+  if (note.problems.value.type === 'err') err = true;
+  else if (note.problems.get()) err = true;
+
   return (
     <Note
       key={note.tag}

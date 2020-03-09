@@ -62,13 +62,9 @@ export default class Server {
       //   res.setHeader("Content-Type", "image/jpeg");
       //   res.end(note.buffer);
       //   break;
-      let node;
-      // TODO(jaked) render whole note
-      Object.values(note.compiled).forEach(compiled => {
-        if (!compiled) return;
-        // TODO(jaked) don't blow up on failed notes
-        node = compiled.get().rendered.get();
-      });
+
+      // TODO(jaked) don't blow up on failed notes
+      const node = note.rendered.get();
 
       // TODO(jaked) compute at note compile time?
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);

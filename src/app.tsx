@@ -416,23 +416,11 @@ export class App {
       this.setContentAndSessionSignal,
       this.notesSignal,
       this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
-        const matchingNotes = matchingNotesTree.map(matchingNote => {
-          const compileds = Object.values(matchingNote.compiled).map(compiled => {
-            if (!compiled) bug(`undefined compiled`);
-            // we don't need to join compiled.rendered here because it is
-            // not used by the notes tree.
-            return compiled;
-          });
-          return Signal.join(...compileds);
-        });
+        const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
         return Signal.join(...matchingNotes);
       }),
       this.compiledNoteSignal.flatMap(compiledNote => {
         if (compiledNote) {
-          const compileds = Object.values(compiledNote.compiled).map(compiled => {
-            if (!compiled) bug(`undefined compiled`);
-            return compiled.flatMap(compiled => compiled.rendered);
-          });
           // not all the parsed signals are depended on by compiled signals
           // so we need to include them in reconciliation
           // TODO(jaked) fix this ^^
@@ -440,7 +428,7 @@ export class App {
             if (!parsed) bug(`undefined parsed`);
             return parsed;
           })
-          return Signal.join(...compileds, ...parseds);
+          return Signal.join(compiledNote.rendered, ...parseds, compiledNote.rendered);
         } else {
           return Signal.ok(undefined);
         }
@@ -521,13 +509,10 @@ export class App {
       // } else if (note.type === 'table') {
       //   // ???
       const notePath = Path.resolve(tempdir, note.tag) + '.html';
-      let node;
-      // TODO(jaked) render whole note
-      Object.values(note.compiled).forEach(compiled => {
-        if (!compiled) return;
-        // TODO(jaked) don't blow up on failed notes
-        node = compiled.get().rendered.get();
-      });
+
+      // TODO(jaked) don't blow up on failed notes
+      const node = note.rendered.get();
+
       if (!node) return;
       const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
       await mkdir(Path.dirname(notePath), { recursive: true });
