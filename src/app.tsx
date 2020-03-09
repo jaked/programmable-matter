@@ -71,7 +71,7 @@ export class App {
     ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
       this.setMainPaneView(view)
     });
-    ipc.on('set-editor-view', (_, view: 'mdx' | 'json' | 'meta') => {
+    ipc.on('set-editor-view', (_, view: 'mdx' | 'json' | 'table' | 'meta') => {
       this.setEditorView(view)
     });
     ipc.on('history-back', this.historyBack);
@@ -141,9 +141,9 @@ export class App {
     this.mainPaneViewCell.setOk(view);
   }
 
-  private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'meta'>('mdx', this.render);
+  private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
   public get editorView() { return this.editorViewCell.get() }
-  public setEditorView = (view: 'mdx' | 'json' | 'meta') => {
+  public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
     this.editorViewCell.setOk(view);
   }
 
@@ -218,6 +218,7 @@ export class App {
           else if (note.content.mdx) viewContent = ['mdx', note.content.mdx];
           else if (note.content.json) viewContent = ['json', note.content.json];
           else if (note.content.txt) viewContent = ['txt', note.content.txt];
+          else if (note.content.table) viewContent = ['table', note.content.table];
           else if (note.content.meta) viewContent = ['meta', note.content.meta];
           if (viewContent) {
             const [view, content] = viewContent;

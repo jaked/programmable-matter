@@ -221,6 +221,12 @@ function initMenu() {
         },
         {
           // TODO(jaked) show current state of main pane in menu
+          label: 'Table View',
+          accelerator: 'CmdOrCtrl+Alt+T',
+          click: sendFunc('set-editor-view', 'table'),
+        },
+        {
+          // TODO(jaked) show current state of main pane in menu
           label: 'Meta View',
           accelerator: 'CmdOrCtrl+Alt+M',
           click: sendFunc('set-editor-view', 'meta'),
