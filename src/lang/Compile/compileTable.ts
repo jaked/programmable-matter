@@ -3,20 +3,40 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
+import Try from '../../util/Try';
 import { bug } from '../../util/bug';
+import * as ESTree from '../ESTree';
 import Type from '../Type';
+import Typecheck from '../Typecheck';
 import * as data from '../../data';
 import { Table, Field as TableField } from '../../components/Table';
 import { ModuleValueEnv } from './index';
 
+// TODO(jaked)
+// not sure how to typecheck this since the members of `fields` vary
+// could implement Typescript index member type?
+const tableType =
+  Type.object({
+    fields: Type.object({})
+  });
+
 export default function compileTable(
   trace: Trace,
+  ast: ESTree.Expression,
   noteTag: string,
   imports: Immutable.Set<string>,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
   moduleValueEnv: ModuleValueEnv,
   setSelected: (tag: string) => void,
 ): data.Compiled {
+  const astAnnotations = new Map<unknown, Try<Type>>();
+  let problems = false;
+  try {
+    Typecheck.check(ast, Typecheck.env(), tableType, astAnnotations);
+  } catch (e) {
+    problems = true;
+  }
+
   const types: Type[] = [];
   imports.forEach(tag => {
     // TODO(jaked) surface these errors somehow
@@ -95,5 +115,5 @@ export default function compileTable(
   const rendered = exportValue.default.map(data => {
     return React.createElement(Table, { data, fields, onSelect })
   });
-  return { exportType, exportValue, rendered, problems: false };
+  return { exportType, exportValue, rendered, astAnnotations, problems };
 }

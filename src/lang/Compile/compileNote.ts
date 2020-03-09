@@ -8,6 +8,7 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
 import { ModuleValueEnv } from './index';
+import compileMeta from './compileMeta';
 import compileJpeg from './compileJpeg';
 import compileJson from './compileJson';
 import compileMdx from './compileMdx';
@@ -45,14 +46,17 @@ export default function compileNote(
         }
 
         case 'table': {
+          const ast = parsedNote.parsed.table ?? bug(`expected parsed table`);
           const table =
             Signal.join(
+              ast,
               moduleTypeEnv,
               moduleValueEnv,
               parsedNote.imports
-            ).map(([moduleTypeEnv, moduleValueEnv, imports]) =>
+            ).map(([ast, moduleTypeEnv, moduleValueEnv, imports]) =>
               compileTable(
                 trace,
+                ast,
                 parsedNote.tag,
                 imports,
                 moduleTypeEnv,
@@ -62,7 +66,12 @@ export default function compileNote(
           return { ...obj, table };
         }
 
-        case 'meta': return obj;
+        case 'meta': {
+          const ast = parsedNote.parsed.meta ?? bug(`expected parsed meta`);
+          const meta = ast.map(ast => compileMeta(ast));
+          return { ...obj, meta };
+        }
+
         case 'mdx': return obj; // handled below
 
         default:

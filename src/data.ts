@@ -71,6 +71,7 @@ export type ParsedNoteWithImports = ParsedNote & {
 }
 
 export type NoteCompiled = {
+  'meta'?: Signal<Compiled>;
   'mdx'?: Signal<Compiled>;
   'json'?: Signal<Compiled>;
   'jpeg'?: Signal<Compiled>;

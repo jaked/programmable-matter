@@ -251,15 +251,17 @@ function computeHighlight(
 
     case 'table': {
       const table = compiledNote.parsed.table ?? bug(`expected parsed table`);
-      // TODO(jaked) should check table file against type and show annotations
-      table.value.forEach(table => computeJsSpans(table, undefined, spans));
+      const compiled = compiledNote.compiled.table ?? bug(`expected compiled table`);
+      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      table.value.forEach(table => computeJsSpans(table, annots, spans));
     }
     break;
 
     case 'meta': {
       const ast = compiledNote.parsed.meta ?? bug(`expected parsed meta`);
-      // TODO(jaked) should check meta file against type and show annotations
-      ast.value.forEach(ast => computeJsSpans(ast, undefined, spans));
+      const compiled = compiledNote.compiled.meta ?? bug(`expected compiled meta`);
+      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      ast.value.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
   }
