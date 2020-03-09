@@ -62,7 +62,10 @@ export class Main extends React.Component<Props, {}> {
       borderWidth='0px 0px 0px 1px'
     >
       <Box>
-        { this.props.app.selected !== null && this.props.app.content !== null && this.props.app.view ?
+        { this.props.app.selected !== null &&
+          this.props.app.content !== null &&
+          this.props.app.compiledNote !== null &&
+          this.props.app.view ?
           (<Editor
             ref={this.editorRef}
             selected={this.props.app.selected}

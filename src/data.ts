@@ -61,7 +61,7 @@ export type NoteParsed = {
   'meta'?: Signal<ESTree.Expression>;
   'mdx'?: Signal<MDXHAST.Root>;
   'json'?: Signal<ESTree.Expression>;
-  'table'?: Signal<{}>; // TODO(jaked) table config
+  'table'?: Signal<ESTree.Expression>;
 }
 
 export type ParsedNote = Note & {

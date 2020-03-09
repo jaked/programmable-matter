@@ -14,7 +14,7 @@ interface Props {
   selected: string;
   view: data.Types;
   content: string;
-  compiledNote: data.CompiledNote | null;
+  compiledNote: data.CompiledNote;
   session: Session;
 
   onChange: (content: string, session: Session) => void;
@@ -227,36 +227,41 @@ function computeSpans(
 function computeHighlight(
   view: data.Types,
   content: string,
-  compiledNote: data.CompiledNote | null
+  compiledNote: data.CompiledNote
 ) {
   const spans: Array<Span> = [];
-  if (compiledNote) {
-    // TODO(jaked)
-    // parsing should always succeed with some AST
-    switch (view) {
-      case 'meta': {
-        const ast = compiledNote.parsed.meta ?? bug(`expected parsed meta`);
-        // TODO(jaked) should check meta file against type and show annotations
-        ast.value.forEach(ast => computeJsSpans(ast, undefined, spans));
-      }
-      break;
-
-      case 'mdx': {
-        const ast = compiledNote.parsed.mdx ?? bug(`expected parsed mdx`);
-        const compiled = compiledNote.compiled.mdx ?? bug(`expected compiled mdx`);
-        const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
-        ast.value.forEach(ast => computeSpans(ast, annots, spans));
-      }
-      break;
-
-      case 'json': {
-        const ast = compiledNote.parsed.json ?? bug(`expected parsed json`);
-        const compiled = compiledNote.compiled.json ?? bug(`expected compiled json`);
-        const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
-        ast.value.forEach(ast => computeJsSpans(ast, annots, spans));
-      }
-      break;
+  // TODO(jaked)
+  // parsing should always succeed with some AST
+  switch (view) {
+    case 'mdx': {
+      const ast = compiledNote.parsed.mdx ?? bug(`expected parsed mdx`);
+      const compiled = compiledNote.compiled.mdx ?? bug(`expected compiled mdx`);
+      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      ast.value.forEach(ast => computeSpans(ast, annots, spans));
     }
+    break;
+
+    case 'json': {
+      const ast = compiledNote.parsed.json ?? bug(`expected parsed json`);
+      const compiled = compiledNote.compiled.json ?? bug(`expected compiled json`);
+      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      ast.value.forEach(ast => computeJsSpans(ast, annots, spans));
+    }
+    break;
+
+    case 'table': {
+      const table = compiledNote.parsed.table ?? bug(`expected parsed table`);
+      // TODO(jaked) should check table file against type and show annotations
+      table.value.forEach(table => computeJsSpans(table, undefined, spans));
+    }
+    break;
+
+    case 'meta': {
+      const ast = compiledNote.parsed.meta ?? bug(`expected parsed meta`);
+      // TODO(jaked) should check meta file against type and show annotations
+      ast.value.forEach(ast => computeJsSpans(ast, undefined, spans));
+    }
+    break;
   }
 
   // TODO(jaked) this could use some tests

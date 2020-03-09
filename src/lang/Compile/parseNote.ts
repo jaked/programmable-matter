@@ -1,4 +1,3 @@
-import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import { bug } from '../../util/bug';
 import * as Parse from '../Parse';
@@ -29,7 +28,8 @@ export default function parseNote(trace: Trace, note: data.Note): data.ParsedNot
 
         case 'table': {
           const content = note.content.table ?? bug(`expected table content for ${note.tag}`);
-          return { ...obj, table: Signal.ok({}) };
+          const table = content.map(Parse.parseExpression);
+          return { ...obj, table };
         }
 
         default: return obj;
