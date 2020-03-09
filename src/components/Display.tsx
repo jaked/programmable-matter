@@ -10,13 +10,7 @@ interface Props {
 export function Display({ compiledNote: note }: Props) {
   try {
     if (note) {
-      let rendered;
-      // TODO(jaked) render whole note
-      Object.values(note.compiled).forEach(compiled => {
-        rendered = compiled?.get().rendered.get();
-      });
-      if (typeof rendered === 'undefined')
-        rendered = '';
+      const rendered = note.rendered.get();
       return (<Catch>{rendered}</Catch>);
     }
     throw new Error('no note');
