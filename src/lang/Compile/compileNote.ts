@@ -12,7 +12,6 @@ import compileJpeg from './compileJpeg';
 import compileJson from './compileJson';
 import compileMdx from './compileMdx';
 import compileTable from './compileTable';
-import compileTxt from './compileTxt';
 
 // TODO(jaked) recompile only changed note parts
 export default function compileNote(
@@ -37,12 +36,6 @@ export default function compileNote(
               compileJson(file, ast, meta, updateFile)
             );
           return { ...obj, json };
-        }
-
-        case 'txt': {
-          const content = parsedNote.content.txt ?? bug(`expected txt content`);
-          const txt = content.map(compileTxt);
-          return { ...obj, txt };
         }
 
         case 'jpeg': {

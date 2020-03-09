@@ -6,7 +6,7 @@ import * as MDXHAST from './lang/mdxhast';
 import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
 
-export type Types = 'meta' | 'mdx' | 'json' | 'txt' | 'jpeg' | 'table';
+export type Types = 'meta' | 'mdx' | 'json' | 'jpeg' | 'table';
 
 export interface Meta {
   title?: string;
@@ -36,7 +36,6 @@ export type NoteFiles = {
   'meta'?: Signal<File>;
   'mdx'?: Signal<File>;
   'json'?: Signal<File>;
-  'txt'?: Signal<File>;
   'jpg'?: Signal<File>;
   'table'?: Signal<File>;
 }
@@ -45,7 +44,6 @@ export type NoteContent = {
   'meta'?: Signal<string>;
   'mdx'?: Signal<string>;
   'json'?: Signal<string>;
-  'txt'?: Signal<string>;
   'table'?: Signal<string>;
 }
 
@@ -75,7 +73,6 @@ export type ParsedNoteWithImports = ParsedNote & {
 export type NoteCompiled = {
   'mdx'?: Signal<Compiled>;
   'json'?: Signal<Compiled>;
-  'txt'?: Signal<Compiled>;
   'jpeg'?: Signal<Compiled>;
   'table'?: Signal<Compiled>;
 }

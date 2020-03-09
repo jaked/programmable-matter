@@ -217,7 +217,6 @@ export class App {
           if (editorViewContent) viewContent = [editorView, editorViewContent];
           else if (note.content.mdx) viewContent = ['mdx', note.content.mdx];
           else if (note.content.json) viewContent = ['json', note.content.json];
-          else if (note.content.txt) viewContent = ['txt', note.content.txt];
           else if (note.content.table) viewContent = ['table', note.content.table];
           else if (note.content.meta) viewContent = ['meta', note.content.meta];
           if (viewContent) {
@@ -302,7 +301,6 @@ export class App {
             Signal.join(
               note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
               note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
-              note.content.txt ? note.content.txt.map(txt => regexp.test(txt)) : Signal.ok(false),
               note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
               Signal.ok(regexp.test(note.tag)),
             ).map(bools => [bools.some(bool => bool), note])

@@ -25,7 +25,6 @@ function typeOfPath(path: string): data.Types | undefined {
       case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
       case '.mdx': type = 'mdx'; break;
       case '.json': type = 'json'; break;
-      case '.txt': type = 'txt'; break;
       case '.table': type = 'table'; break;
       case '.JPG': type = 'jpeg'; break;
       case '.jpg': type = 'jpeg'; break;
@@ -44,7 +43,7 @@ function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
   const type =
-    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'txt' || obj.type === 'jpeg' || obj.type === 'table') ?
+    (obj.type === 'mdx' || obj.type === 'json' || obj.type === 'jpeg' || obj.type === 'table') ?
     { type: obj.type } : {};
 
   const title =
