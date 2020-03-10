@@ -111,6 +111,55 @@ function computeObjectType(
   });
 }
 
+function computeTable(
+  tableConfig: data.Table,
+  noteTag: string,
+  imports: Immutable.Set<string>,
+  noteEnv: Immutable.Map<string, data.CompiledNote>,
+) {
+  return Signal.joinImmutableMap(Signal.ok(
+    Immutable.Map<string, Signal<any>>().withMutations(map =>
+      imports.forEach(tag => {
+        // TODO(jaked) handle partial failures better here
+        const note = noteEnv.get(tag) ?? bug(`expected note for ${tag}`);
+        const defaultValue =
+          note.exportValue.flatMap(exportValue => exportValue['default']);
+
+        const metaValue = note.meta.map(meta =>
+          tableConfig.fields.reduce<object>(
+            (obj, field) => {
+              if (field.kind === 'meta') {
+                switch (field.field) {
+                  case 'title': return { obj, [field.name]: meta.title }
+                }
+              }
+              return obj;
+            },
+            {}
+          ),
+        );
+
+        const value = Signal.join(defaultValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
+        const relativeTag = Path.relative(Path.dirname(noteTag), tag);
+        map.set(relativeTag, value);
+      })
+    )
+  ));
+}
+
+function computeFields(
+  tableConfig: data.Table
+) {
+  return tableConfig.fields.map(field => {
+    return {
+      label: field.label,
+      accessor: (o: object) => o[field.name],
+      width: 100,
+      component: ({ data }) => React.createElement(React.Fragment, null, String(data))
+    };
+  });
+}
+
 export default function compileTable(
   trace: Trace,
   ast: ESTree.Expression,
@@ -131,6 +180,10 @@ export default function compileTable(
 
   const objectType = computeObjectType(imports, noteEnv);
 
+  const table = computeTable(tableConfig, noteTag, imports, noteEnv);
+
+  const fields = computeFields(tableConfig);
+
   return objectType.map(objectType => {
     // TODO(jaked)
     // we derive a type from the fields in the table description
@@ -149,34 +202,16 @@ export default function compileTable(
     if (!Type.equiv(objectType, tableDataType))
       throw new Error('table config type and record data type must be the same');
 
-    const table = Immutable.Map<string, Signal<any>>().withMutations(map =>
-      imports.forEach(tag => {
-        // TODO(jaked) handle partial failures better here
-        const note = noteEnv.get(tag) ?? bug(`expected note for ${tag}`);
-        const defaultValue =
-          note.exportValue.flatMap(exportValue => exportValue['default']);
-        const relativeTag = Path.relative(Path.dirname(noteTag), tag);
-        map.set(relativeTag, defaultValue)
-      })
-    );
-
     const exportType = Type.module({
       default: Type.map(Type.string, objectType)
     });
     const exportValue = {
-      default: Signal.joinImmutableMap(Signal.ok(table))
+      default: table
     }
 
-    const fields: TableField[] =
-      objectType.fields.map(({ field, type }) => ({
-        label: field,
-        accessor: (o: object) => o[field],
-        width: 100,
-        component: ({ data }) => React.createElement(React.Fragment, null, String(data))
-      }));
     const onSelect = (tag: string) =>
       setSelected(Path.join(Path.dirname(noteTag), tag));
-    const rendered = exportValue.default.map(data => {
+    const rendered = table.map(data => {
       return React.createElement(Table, { data, fields, onSelect })
     });
     return { exportType, exportValue, rendered, astAnnotations, problems: false };

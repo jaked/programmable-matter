@@ -120,6 +120,14 @@ export default function noteOfGroup(
     }
   }
 
+  meta = meta.map(meta => {
+    if (!('title' in meta)) {
+      const title = Path.basename(tag);
+      meta = { ...meta, title };
+    }
+    return meta;
+  });
+
   const noteFiles: data.NoteFiles =
     files.reduce<data.NoteFiles>((obj, [path, file]) => {
       if (!isIndex && isIndexMeta(path)) return obj;
