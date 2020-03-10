@@ -70,6 +70,24 @@ export type ParsedNoteWithImports = ParsedNote & {
   imports: Signal<Immutable.Set<string>>;
 }
 
+
+export type TableFieldBase = {
+  name: string;
+  label: string;
+}
+
+export type TableFieldData = TableFieldBase &
+  { kind: 'data', type: Type }
+
+export type TableFieldMeta = TableFieldBase &
+  { kind: 'meta', field: 'tag' | 'title' | 'created' | 'updated' }
+
+export type TableField = TableFieldData | TableFieldMeta
+
+export type Table = {
+  fields: TableField[];
+}
+
 export type NoteCompiled = {
   'meta'?: Signal<Compiled>;
   'mdx'?: Signal<Compiled>;
