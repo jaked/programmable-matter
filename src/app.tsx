@@ -144,6 +144,11 @@ export class App {
   private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
   public get editorView() { return this.editorViewCell.get() }
   public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
+    if (this.selected) {
+      const filename = `${this.selected}.${view}`;
+      if (!this.filesystem.exists(filename))
+        this.filesystem.update(filename, Buffer.from('', 'utf8'));
+    }
     this.editorViewCell.setOk(view);
   }
 

@@ -97,6 +97,10 @@ export class Filesystem {
     });
   }
 
+  public exists = (path: string) => {
+    return !!this.filesCell.get().get(path);
+  }
+
   public start = async () => {
     const events: Array<NsfwEvent> = [];
     await this.walkDir(this.filesPath, events);
