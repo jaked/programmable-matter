@@ -137,9 +137,37 @@ export default function compileNote(
   });
   const problems = Signal.join(
     ...compileds.map(compiled =>
+      // TODO(jaked) should also check for failure
       compiled.map(compiled => compiled.problems)
     )
   ).map(problems => problems.some(problems => problems));
 
-  return { ...parsedNote, compiled, rendered, problems };
+  const compileds2: Signal<data.Compiled>[] = [];
+  if (compiled.mdx) compileds2.push(compiled.mdx);
+  if (compiled.json) compileds2.push(compiled.json);
+  if (compiled.table) compileds2.push(compiled.table);
+
+  const exportType = Signal.join(...compileds).map(compileds => {
+    const moduleTypeFields: Array<{ field: string, type: Type }> = [];
+    compileds.forEach(compiled => moduleTypeFields.push(...compiled.exportType.fields));
+
+    // TODO(jaked) make this easier somehow
+    return Type.module(
+      moduleTypeFields.reduce<{ [f: string]: Type }>(
+        (obj, fieldType) => {
+          const { field, type } = fieldType;
+          return { ...obj, [field]: type };
+        },
+        {}
+      )
+    );
+  });
+
+  const exportValue = Signal.join(...compileds).map(compileds => {
+    let moduleValue: { [s: string]: Signal<any> } = {};
+    compileds.forEach(compiled => moduleValue = { ...moduleValue, ...compiled.exportValue });
+    return moduleValue;
+  });
+
+  return { ...parsedNote, compiled, rendered, problems, exportType, exportValue };
 }

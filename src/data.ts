@@ -100,6 +100,8 @@ export type CompiledNote = ParsedNoteWithImports & {
   compiled: NoteCompiled;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
+  exportType: Signal<Type.ModuleType>;
+  exportValue: Signal<{ [s: string]: Signal<any> }>;
 }
 
 // indexed by path

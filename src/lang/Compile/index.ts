@@ -113,10 +113,10 @@ function compileDirtyNotes(
       if (debug) console.log('typechecking / rendering ' + tag);
 
       const importedModules = parsedNote.imports.map(imports => {
-        const modules = Immutable.Map<string, data.NoteCompiled>().asMutable();
+        const modules = Immutable.Map<string, data.CompiledNote>().asMutable();
         imports.forEach(tag => {
-          const compiled = compiledNotes.get(tag)?.compiled;
-          if (compiled) modules.set(tag, compiled);
+          const note = compiledNotes.get(tag);
+          if (note) modules.set(tag, note);
         });
         return modules.asImmutable();
       });
@@ -124,51 +124,16 @@ function compileDirtyNotes(
       const moduleTypeEnv =
         Signal.joinImmutableMap(
           importedModules.map(importedModules =>
-            importedModules.map((mod) => {
-              // TODO(jaked) compute this in note compile
-              const compileds: Signal<data.Compiled>[] = [];
-              if (mod.mdx) compileds.push(mod.mdx);
-              if (mod.json) compileds.push(mod.json);
-              if (mod.table) compileds.push(mod.table);
-
-              return Signal.join(...compileds).map(compileds => {
-                const moduleTypeFields: Array<{ field: string, type: Type }> = [];
-                compileds.forEach(compiled => moduleTypeFields.push(...compiled.exportType.fields));
-
-                // TODO(jaked) make this easier somehow
-                return Type.module(
-                  moduleTypeFields.reduce<{ [f: string]: Type }>(
-                    (obj, fieldType) => {
-                      const { field, type } = fieldType;
-                      return { ...obj, [field]: type };
-                    },
-                    {}
-                  )
-                );
-              });
-            })
+            importedModules.map(mod => mod.exportType)
           )
         );
 
       const moduleValueEnv =
         Signal.joinImmutableMap(
           importedModules.map(importedModules =>
-            importedModules.map((mod) => {
-              // TODO(jaked) compute this in note compile
-              const compileds: Signal<data.Compiled>[] = [];
-              if (mod.mdx) compileds.push(mod.mdx);
-              if (mod.json) compileds.push(mod.json);
-              if (mod.table) compileds.push(mod.table);
-
-              return Signal.join(...compileds).map(compileds => {
-                let moduleValue: { [s: string]: Signal<any> } = {};
-                compileds.forEach(compiled => moduleValue = { ...moduleValue, ...compiled.exportValue });
-                return moduleValue;
-              });
-            })
+            importedModules.map(mod => mod.exportValue)
           )
         );
-
 
       const compiledNote =
         trace.time(tag, () =>
