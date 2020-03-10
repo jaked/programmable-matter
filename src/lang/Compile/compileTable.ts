@@ -12,7 +12,6 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
 import { Table, Field as TableField } from '../../components/Table';
-import { ModuleValueEnv } from './index';
 
 // see Typescript-level types in data.ts
 // TODO(jaked)
@@ -46,20 +45,13 @@ const tableType =
     fields: Type.array(tableFieldType)
   });
 
-export default function compileTable(
-  trace: Trace,
-  ast: ESTree.Expression,
-  noteTag: string,
-  imports: Immutable.Set<string>,
-  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: ModuleValueEnv,
-  setSelected: (tag: string) => void,
-): data.Compiled {
+function computeTableConfig(
+  ast: ESTree.Expression
+) {
   // TODO(jaked)
   // this blows up when there's a type error in config
   // could we admit partial failure here?
   const astAnnotations = new Map<unknown, Try<Type>>();
-  let problems = false;
   Typecheck.check(ast, Typecheck.env(), tableType, astAnnotations);
 
   // TODO(jaked)
@@ -79,6 +71,56 @@ export default function compileTable(
     })
   };
 
+  return { tableConfig, astAnnotations };
+}
+
+function computeObjectType(
+  imports: Immutable.Set<string>,
+  noteEnv: Immutable.Map<string, data.CompiledNote>,
+) {
+  const typeUnion = Signal.join(...imports.toArray().map(tag => {
+    // TODO(jaked) handle partial failures better here
+    const note = noteEnv.get(tag) ?? bug(`expected note for ${tag}`);
+    return note.exportType.map(exportType =>
+      exportType.get('default') ?? bug(`expected default export for ${tag}`)
+    );
+  })).map(types => Type.union(...types));
+
+  return typeUnion.map(typeUnion => {
+    let objectType: Type.ObjectType | undefined = undefined;
+    switch (typeUnion.kind) {
+      case 'Object':
+        objectType = typeUnion;
+        break;
+
+      case 'Intersection':
+        // TODO(jaked) tighten up
+        typeUnion.types.filter(type => type.kind === 'Object').forEach(type => {
+          if (type.kind !== 'Object') bug(`expected Object type, got ${type.kind}`);
+          objectType = type;
+        });
+        break;
+
+      default:
+        // TODO(jaked)
+        // maybe we can display nonuniform / non-Object types a different way?
+        bug(`unhandled table value type ${typeUnion.kind}`)
+    }
+    if (!objectType) bug(`expected objectType to be set`);
+    return objectType;
+  });
+}
+
+export default function compileTable(
+  trace: Trace,
+  ast: ESTree.Expression,
+  noteTag: string,
+  imports: Immutable.Set<string>,
+  noteEnv: Immutable.Map<string, data.CompiledNote>,
+  setSelected: (tag: string) => void,
+): Signal<data.Compiled> {
+  const { tableConfig, astAnnotations } = computeTableConfig(ast);
+
   const tableDataFields: { field: string, type: Type }[] = [];
   tableConfig.fields.forEach(field => {
     if (field.kind === 'data') {
@@ -87,100 +129,56 @@ export default function compileTable(
   });
   const tableDataType = Type.object(tableDataFields);
 
-  const types: Type[] = [];
-  imports.forEach(tag => {
-    // TODO(jaked) surface these errors somehow
-    // also surface underlying errors
-    // e.g. a module doesn't match its type signature
-    const moduleType = moduleTypeEnv.get(tag);
-    if (!moduleType) {
-      console.log(`expected module type for ${tag}`);
-      return;
+  const objectType = computeObjectType(imports, noteEnv);
+
+  return objectType.map(objectType => {
+    // TODO(jaked)
+    // we derive a type from the fields in the table description
+    // and also from the data files in the directory
+    // then check that they agree
+    // it would be better to directly check the data files
+    // against the fields in the table description
+    // but dependencies make this hairy; we could
+    //   - make data files depend on table for type,
+    //     and table depend on data files for values; or
+    //   - handle table descriptions earlier in compilation
+    //     as we do with index.meta
+    //   - make dependencies more fine-grained
+    //     e.g. per-file instead of per-note, or finer
+    //   - ???
+    if (!Type.equiv(objectType, tableDataType))
+      throw new Error('table config type and record data type must be the same');
+
+    const table = Immutable.Map<string, Signal<any>>().withMutations(map =>
+      imports.forEach(tag => {
+        // TODO(jaked) handle partial failures better here
+        const note = noteEnv.get(tag) ?? bug(`expected note for ${tag}`);
+        const defaultValue =
+          note.exportValue.flatMap(exportValue => exportValue['default']);
+        const relativeTag = Path.relative(Path.dirname(noteTag), tag);
+        map.set(relativeTag, defaultValue)
+      })
+    );
+
+    const exportType = Type.module({
+      default: Type.map(Type.string, objectType)
+    });
+    const exportValue = {
+      default: Signal.joinImmutableMap(Signal.ok(table))
     }
-    const defaultType = moduleType.get('default');
-    if (!defaultType) {
-      console.log(`expected default export for ${tag}`);
-      return;
-    }
-    types.push(defaultType);
+
+    const fields: TableField[] =
+      objectType.fields.map(({ field, type }) => ({
+        label: field,
+        accessor: (o: object) => o[field],
+        width: 100,
+        component: ({ data }) => React.createElement(React.Fragment, null, String(data))
+      }));
+    const onSelect = (tag: string) =>
+      setSelected(Path.join(Path.dirname(noteTag), tag));
+    const rendered = exportValue.default.map(data => {
+      return React.createElement(Table, { data, fields, onSelect })
+    });
+    return { exportType, exportValue, rendered, astAnnotations, problems: false };
   });
-  const typeUnion = Type.union(...types);
-
-  let objectType: Type.ObjectType | undefined = undefined;
-  switch (typeUnion.kind) {
-    case 'Object':
-      objectType = typeUnion;
-      break;
-
-    case 'Intersection':
-      // TODO(jaked) tighten up
-      typeUnion.types.filter(type => type.kind === 'Object').forEach(type => {
-        if (type.kind !== 'Object') bug(`expected Object type, got ${type.kind}`);
-        objectType = type;
-      });
-      break;
-
-    default:
-      // TODO(jaked)
-      // maybe we can display nonuniform / non-Object types a different way?
-      bug(`unhandled table value type ${typeUnion.kind}`)
-  }
-  if (!objectType) bug(`expected objectType to be set`);
-
-  // TODO(jaked)
-  // we derive a type from the fields in the table description
-  // and also from the data files in the directory
-  // then check that they agree
-  // it would be better to directly check the data files
-  // against the fields in the table description
-  // but dependencies make this hairy; we could
-  //   - make data files depend on table for type,
-  //     and table depend on data files for values; or
-  //   - handle table descriptions earlier in compilation
-  //     as we do with index.meta
-  //   - make dependencies more fine-grained
-  //     e.g. per-file instead of per-note, or finer
-  //   - ???
-  if (!Type.equiv(objectType, tableDataType))
-    throw new Error('table config type and record data type must be the same');
-
-  // TODO(jaked)
-  // treat imports as a Signal<Map> to make tables incremental
-  const table = Signal.ok(Immutable.Map<string, Signal<any>>().withMutations(map =>
-    imports.forEach(tag => {
-      const moduleValue = moduleValueEnv.get(tag);
-      if (!moduleValue) {
-        console.log(`expected module value for ${tag}`);
-        return;
-      }
-      const defaultValue = moduleValue['default'];
-      if (!defaultValue) {
-        console.log(`expected default member for ${tag}`);
-        return;
-      }
-      const relativeTag = Path.relative(Path.dirname(noteTag), tag);
-      map.set(relativeTag, defaultValue)
-    })
-  ));
-
-  const exportType = Type.module({
-    default: Type.map(Type.string, objectType)
-  });
-  const exportValue = {
-    default: Signal.joinImmutableMap(table)
-  }
-
-  const fields: TableField[] =
-    objectType.fields.map(({ field, type }) => ({
-      label: field,
-      accessor: (o: object) => o[field],
-      width: 100,
-      component: ({ data }) => React.createElement(React.Fragment, null, String(data))
-    }));
-  const onSelect = (tag: string) =>
-    setSelected(Path.join(Path.dirname(noteTag), tag));
-  const rendered = exportValue.default.map(data => {
-    return React.createElement(Table, { data, fields, onSelect })
-  });
-  return { exportType, exportValue, rendered, astAnnotations, problems };
 }

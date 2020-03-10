@@ -37,28 +37,29 @@ function evaluateExpressionSignal(
 
 function extendEnvWithImport(
   decl: ESTree.ImportDeclaration,
-  moduleEnv: Compile.ModuleValueEnv,
+  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
 ): Env {
-  const module = moduleEnv.get(decl.source.value);
-  if (!module)
-    throw new Error(`expected module '${decl.source.value}'`);
+  // TODO(jaked) handle partial failures better here
+  const module = moduleEnv.get(decl.source.value) ?? bug(`expected module '${decl.source.value}'`);
   decl.specifiers.forEach(spec => {
     switch (spec.type) {
       case 'ImportNamespaceSpecifier': {
-        env = env.set(spec.local.name, Signal.joinObject(module));
+        env = env.set(spec.local.name, module.flatMap(module => Signal.joinObject(module)));
         break;
       }
       case 'ImportDefaultSpecifier':
-        const defaultField = module['default'];
-        if (defaultField === undefined)
-          throw new Error(`expected default export on '${decl.source.value}'`);
+        // TODO(jaked) missing memeber vs. undefined value
+        const defaultField = module.flatMap(module =>
+          module['default'] ?? bug(`expected default export on '${decl.source.value}'`)
+        );
         env = env.set(spec.local.name, defaultField);
         break;
       case 'ImportSpecifier':
-        const importedField = module[spec.imported.name];
-        if (importedField === undefined)
-          throw new Error(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`);
+        // TODO(jaked) missing memeber vs. undefined value
+        const importedField = module.flatMap(module =>
+          module[spec.imported.name] ?? bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`)
+        );
         env = env.set(spec.local.name, importedField);
         break;
     }
@@ -102,7 +103,7 @@ function extendEnvWithDefaultExport(
 export function renderMdx(
   ast: MDXHAST.Node,
   module: string,
-  moduleEnv: Compile.ModuleValueEnv,
+  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
 ): [Env, Signal<React.ReactNode>] {

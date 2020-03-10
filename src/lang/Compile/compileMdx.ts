@@ -9,7 +9,6 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
 import sortMdx from './sortMdx';
-import { ModuleValueEnv } from './index';
 
 // TODO(jaked)
 // is there a way to internalize Typescript types
@@ -30,7 +29,7 @@ export default function compileMdx(
   typeEnv: Typecheck.Env,
   valueEnv: Evaluate.Env,
   moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: ModuleValueEnv,
+  moduleValueEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
 ): data.Compiled {
   ast = trace.time('sortMdx', () => sortMdx(ast));
 

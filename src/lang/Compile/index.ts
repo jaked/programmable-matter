@@ -4,7 +4,6 @@ import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import { diffMap } from '../../util/immutable/Map';
 import { bug } from '../../util/bug';
-import Type from '../Type';
 import * as Render from '../Render';
 import * as data from '../../data';
 
@@ -15,8 +14,6 @@ import noteOfGroup from './noteOfGroup';
 import parseNote from './parseNote';
 
 const debug = false;
-
-export type ModuleValueEnv = Immutable.Map<string, { [s: string]: Signal<any> }>
 
 // TODO(jaked) called from app, where should this go?
 export function notesOfFiles(
@@ -112,7 +109,7 @@ function compileDirtyNotes(
       const parsedNote = parsedNotes.get(tag) ?? bug(`expected note for ${tag}`);
       if (debug) console.log('typechecking / rendering ' + tag);
 
-      const importedModules = parsedNote.imports.map(imports => {
+      const noteEnv = parsedNote.imports.map(imports => {
         const modules = Immutable.Map<string, data.CompiledNote>().asMutable();
         imports.forEach(tag => {
           const note = compiledNotes.get(tag);
@@ -121,20 +118,6 @@ function compileDirtyNotes(
         return modules.asImmutable();
       });
 
-      const moduleTypeEnv =
-        Signal.joinImmutableMap(
-          importedModules.map(importedModules =>
-            importedModules.map(mod => mod.exportType)
-          )
-        );
-
-      const moduleValueEnv =
-        Signal.joinImmutableMap(
-          importedModules.map(importedModules =>
-            importedModules.map(mod => mod.exportValue)
-          )
-        );
-
       const compiledNote =
         trace.time(tag, () =>
           compileNote(
@@ -142,8 +125,7 @@ function compileDirtyNotes(
             parsedNote,
             typeEnv,
             valueEnv,
-            moduleTypeEnv,
-            moduleValueEnv,
+            noteEnv,
             updateFile,
             setSelected
           )

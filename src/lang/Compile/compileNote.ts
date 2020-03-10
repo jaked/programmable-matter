@@ -7,7 +7,6 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
-import { ModuleValueEnv } from './index';
 import compileMeta from './compileMeta';
 import compileJpeg from './compileJpeg';
 import compileJson from './compileJson';
@@ -20,8 +19,7 @@ export default function compileNote(
   parsedNote: data.ParsedNoteWithImports,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluate.Env,
-  moduleTypeEnv: Signal<Immutable.Map<string, Type.ModuleType>>,
-  moduleValueEnv: Signal<ModuleValueEnv>,
+  noteEnv: Signal<Immutable.Map<string, data.CompiledNote>>,
   updateFile: (path: string, buffer: Buffer) => void,
   setSelected: (tag: string) => void,
 ): data.CompiledNote {
@@ -50,17 +48,15 @@ export default function compileNote(
           const table =
             Signal.join(
               ast,
-              moduleTypeEnv,
-              moduleValueEnv,
+              noteEnv,
               parsedNote.imports
-            ).map(([ast, moduleTypeEnv, moduleValueEnv, imports]) =>
+            ).flatMap(([ast, noteEnv, imports]) =>
               compileTable(
                 trace,
                 ast,
                 parsedNote.tag,
                 imports,
-                moduleTypeEnv,
-                moduleValueEnv,
+                noteEnv,
                 setSelected
               ));
           return { ...obj, table };
@@ -82,6 +78,10 @@ export default function compileNote(
   );
 
   if (parsedNote.parsed.mdx) {
+    const moduleTypeEnv =
+      Signal.joinImmutableMap(noteEnv.map(noteEnv => noteEnv.map(note => note.exportType)));
+    const moduleValueEnv =
+      noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
     const mdx =
       Signal.join(
         moduleTypeEnv,
