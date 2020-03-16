@@ -9,6 +9,7 @@ import { Catch } from './Catch';
 import { Display } from './Display';
 import { Editor } from './Editor';
 import { Sidebar } from './Sidebar';
+import { TabBar } from './TabBar';
 
 interface Props {
   app: App;
@@ -51,37 +52,60 @@ export class Main extends React.Component<Props, {}> {
       />
     </Flex>
 
-  EditorPane = ({ width }: { width: number }) =>
-    <Flex
-      flexDirection='column'
-      justifyContent='space-between'
-      width={width}
-      padding={1}
-      borderColor='#cccccc'
-      borderStyle='solid'
-      borderWidth='0px 0px 0px 1px'
-    >
-      <Box>
-        { this.props.app.selected !== null &&
-          this.props.app.content !== null &&
-          this.props.app.compiledNote !== null &&
-          this.props.app.view ?
-          (<Editor
-            ref={this.editorRef}
-            selected={this.props.app.selected}
-            view={this.props.app.view}
-            content={this.props.app.content}
-            compiledNote={this.props.app.compiledNote}
-            session={this.props.app.session}
-            onChange={this.props.app.setContentAndSession}
-            setStatus={this.props.app.setStatus}
-            setSelected={this.props.app.setSelected}
-          />) :
-          (<span>no note</span>)
-        }
-      </Box>
-      <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>
-    </Flex>
+  EditorPane = ({ width }: { width: number }) => {
+    if (this.props.app.selected !== null &&
+        this.props.app.content !== null &&
+        this.props.app.compiledNote !== null &&
+        this.props.app.view) {
+      return (
+        <Flex
+          flexDirection='column'
+          justifyContent='space-between'
+          width={width}
+          borderColor='#cccccc'
+          borderStyle='solid'
+          borderWidth='0px 0px 0px 1px'
+        >
+          <Flex
+            flexDirection='column'
+          >
+            <TabBar
+              editorView={this.props.app.editorView}
+              setEditorView={this.props.app.setEditorView}
+            />
+            <Box
+              padding={1}
+            >
+              <Editor
+                  ref={this.editorRef}
+                  selected={this.props.app.selected}
+                  view={this.props.app.view}
+                  content={this.props.app.content}
+                  compiledNote={this.props.app.compiledNote}
+                  session={this.props.app.session}
+                  onChange={this.props.app.setContentAndSession}
+                  setStatus={this.props.app.setStatus}
+                  setSelected={this.props.app.setSelected}
+              />
+            </Box>
+          </Flex>
+          <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>
+        </Flex>
+      );
+    } else {
+      return (
+        <Flex
+          width={width}
+          padding={1}
+          borderColor='#cccccc'
+          borderStyle='solid'
+          borderWidth='0px 0px 0px 1px'
+        >
+          no note
+        </Flex>
+      );
+    }
+  }
 
   DisplayPane = ({ width }: { width: number }) =>
     <Box
