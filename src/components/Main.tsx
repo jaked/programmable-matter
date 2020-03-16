@@ -72,6 +72,7 @@ export class Main extends React.Component<Props, {}> {
             <TabBar
               editorView={this.props.app.editorView}
               setEditorView={this.props.app.setEditorView}
+              compiledNote={this.props.app.compiledNote}
             />
             <Box
               padding={1}
