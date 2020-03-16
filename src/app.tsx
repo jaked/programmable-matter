@@ -143,14 +143,6 @@ export class App {
 
   private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
   public get editorView() { return this.editorViewCell.get() }
-  public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
-    if (this.selected) {
-      const filename = `${this.selected}.${view}`;
-      if (!this.filesystem.exists(filename))
-        this.filesystem.update(filename, Buffer.from('', 'utf8'));
-    }
-    this.editorViewCell.setOk(view);
-  }
 
   deleteNote = () => {
     const selected = this.selected;
@@ -207,6 +199,19 @@ export class App {
     })
   );
   public get compiledNote() { return this.compiledNoteSignal.get() }
+
+  private setEditorViewSignal =
+    this.compiledNoteSignal.map(compiledNote => {
+      return (view: 'mdx' | 'json' | 'table' | 'meta') => {
+        if (compiledNote && typeof compiledNote.content[view] === 'undefined') {
+          const filename = compiledNote.isIndex ? `${compiledNote.tag}/index.${view}` : `${compiledNote.tag}.${view}`;
+          if (!this.filesystem.exists(filename))
+            this.filesystem.update(filename, Buffer.from('', 'utf8'));
+        }
+        this.editorViewCell.setOk(view);
+      }
+    });
+  public get setEditorView() { return this.setEditorViewSignal.get() }
 
   private viewContentSignal: Signal<[data.Types, string] | null> = Signal.label('viewContent',
     Signal.join(
@@ -437,7 +442,8 @@ export class App {
         } else {
           return Signal.ok(undefined);
         }
-      })
+      }),
+      this.setEditorViewSignal,
     )
   );
 
