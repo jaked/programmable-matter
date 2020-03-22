@@ -3,21 +3,21 @@ import { Box as BoxBase, Flex as FlexBase } from 'rebass';
 import styled from 'styled-components';
 import * as data from '../data';
 
-const Bar = styled(FlexBase)({
-  paddingTop: '4px'
-});
-
-const UnselectedTab = styled(BoxBase)({
-  padding: '5px 5px 4px 5px',
+const BarBox = styled(FlexBase)({
+  paddingLeft: '4px',
+  paddingTop: '4px',
+  width: '100%',
   borderBottom: '1px solid #cccccc'
 });
 
-const SelectedTab = styled(BoxBase)({
-  padding: '4px',
-  borderColor: '#cccccc',
-  borderStyle: 'solid',
-  borderWidth: '1px 1px 0px 1px'
-});
+// TODO(jaked)
+// must we use CSS style to get props interpolation?
+const TabBox = styled(BoxBase)`
+  padding: 4px;
+  border-style: solid
+  border-color: #cccccc
+  border-width: 1px ${props => props.rightmost ? '1px' : '0px'} 0px 1px
+`;
 
 type Props = {
   editorView: 'mdx' | 'json' | 'table' | 'meta',
@@ -27,6 +27,7 @@ type Props = {
 
 type TabProps = Props & {
   view: 'mdx' | 'json' | 'table' | 'meta',
+  rightmost?: boolean
 }
 
 const Tab = (props: TabProps) => {
@@ -37,25 +38,29 @@ const Tab = (props: TabProps) => {
     if (compiled.value.type === 'err') problems = true;
     else if (compiled.value.ok.problems) problems = true;
   }
+
   const backgroundColor =
     problems ?
       (selected ? '#cc8080' : '#ffc0c0') :
       (selected ? '#cccccc' : '#ffffff');
+  const onClick = selected ? () => { } : () => props.setEditorView(props.view)
 
-  if (props.editorView === props.view) {
-    return <SelectedTab backgroundColor={backgroundColor}>{props.view}</SelectedTab>;
-  } else {
-    return <UnselectedTab backgroundColor={backgroundColor} onClick={() => props.setEditorView(props.view)}>{props.view}</UnselectedTab>;
-  }
+  return (
+    <TabBox
+      backgroundColor={backgroundColor}
+      rightmost={props.rightmost}
+      onClick={onClick}
+    >
+      {props.view}
+    </TabBox>
+  );
 }
 
 export const TabBar = (props: Props) => {
-  return <Bar>
-    <UnselectedTab />
+  return <BarBox>
     <Tab view={'meta'} {...props} />
     <Tab view={'mdx'} {...props} />
     <Tab view={'json'} {...props} />
-    <Tab view={'table'} {...props} />
-    <UnselectedTab style={{ width: '100%' }} />
-  </Bar>;
+    <Tab rightmost={true} view={'table'} {...props} />
+  </BarBox>;
 }
