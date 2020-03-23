@@ -17,7 +17,10 @@ const Input = styled.input({
   width: '100%',
 });
 
-const Box = styled(BoxBase)({}, borders);
+const Box = styled(BoxBase)({
+  padding: '6px',
+  borderBottom: '1px solid #cccccc',
+});
 
 export class SearchBox extends React.Component<Props, {}> {
   inputRef = React.createRef<HTMLInputElement>();
@@ -37,23 +40,21 @@ export class SearchBox extends React.Component<Props, {}> {
   render() {
     const { search, onSearch, onKeyDown } = this.props;
     return (
-      <Box width={1} padding={1}>
-        <Box width={1} padding={1} borderWidth={1} borderStyle='solid'>
-          <Input
-            ref={this.inputRef}
-            type='text'
-            maxLength={100}
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+      <Box>
+        <Input
+          ref={this.inputRef}
+          type='text'
+          maxLength={100}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            e.preventDefault();
+            onSearch(e.currentTarget.value);
+          }}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (onKeyDown(e))
               e.preventDefault();
-              onSearch(e.currentTarget.value);
-            }}
-            onKeyDown={(e: React.KeyboardEvent) => {
-              if (onKeyDown(e))
-                e.preventDefault();
-            }}
-          />
-        </Box>
+          }}
+        />
       </Box>
     );
   }
