@@ -16,6 +16,7 @@ interface Props {
 }
 
 const Box = styled(BoxBase)({
+  height: '100%',
   overflow: 'auto',
 }, borders);
 
