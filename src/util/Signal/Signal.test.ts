@@ -137,6 +137,14 @@ describe('map', () => {
     expect(calls).toBe(1);
     expect(m.version).toBe(1);
   });
+
+  it('handles errors in function', () => {
+    const c = Signal.cellOk(7);
+    const m = c.map(x => { throw 'fail' });
+
+    expect(() => m.reconcile(trace, 1)).not.toThrow();
+    expect(() => m.get()).toThrow();
+  });
 });
 
 describe('flatMap', () => {
@@ -191,6 +199,14 @@ describe('flatMap', () => {
     expect(m.get()).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(1);
+  });
+
+  it('handles errors in function', () => {
+    const c = Signal.cellOk(7);
+    const m = c.flatMap(x => { throw 'fail' });
+
+    expect(() => m.reconcile(trace, 1)).not.toThrow();
+    expect(() => m.get()).toThrow();
   });
 });
 

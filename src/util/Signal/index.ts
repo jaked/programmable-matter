@@ -208,8 +208,12 @@ class FlatMap<T, U> implements Signal<U> {
     } else {
       this.sVersion = this.s.version;
       if (this.s.value.type === 'ok') {
-        this.fs = this.f(this.s.value.ok);
-        this.fs.reconcile(trace, level);
+        try {
+          this.fs = this.f(this.s.value.ok);
+          this.fs.reconcile(trace, level);
+        } catch (e) {
+          this.fs = Signal.err(e);
+        }
         this.fsVersion = this.fs.version;
         value = this.fs.value;
       } else {
