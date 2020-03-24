@@ -66,10 +66,10 @@ export default function groupFilesByTag(
       for (let i = 0; i < dirs.length; i++) {
         dir = Path.join(dir, dirs[i]);
         if (!groupedFiles.has(dir)) {
-          const fileSignal = Signal.ok({
-            path: Path.join(dir, 'index'),
-            buffer: Buffer.from('')
-          });
+          const fileSignal = Signal.ok(new data.File(
+            Path.join(dir, 'index'),
+            Buffer.from('')
+          ));
           added = added.set(dir, fileSignal);
           const group = Immutable.Map({ [dir]: fileSignal });
           groupedFiles = groupedFiles.set(dir, group);

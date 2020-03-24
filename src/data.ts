@@ -26,9 +26,14 @@ export interface Compiled {
   problems: boolean;
 }
 
-export type File = {
+export class File {
   path: string;
   buffer: Buffer;
+
+  constructor(path: string, buffer: Buffer) {
+    this.path = path;
+    this.buffer = buffer;
+  }
 }
 
 export type NoteFiles = {

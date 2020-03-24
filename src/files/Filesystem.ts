@@ -72,7 +72,7 @@ export class Filesystem {
         } else {
           if (debug) console.log(`updating file path=${path}`);
           fileMetadata.lastUpdateMs = lastUpdateMs;
-          const file = { ...oldFile, buffer };
+          const file = new data.File(oldFile.path, buffer);
           oldFileCell.setOk(file);
           return files;
         }
@@ -80,7 +80,7 @@ export class Filesystem {
         if (debug) console.log(`new file path=${path}`);
         const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false, deleted: false };
         this.filesMetadata.set(path, fileMetadata);
-        const file = { path, buffer }
+        const file = new data.File(path, buffer);
         return files.set(path, Signal.cellOk(file, this.onChange));
       }
     });
@@ -226,7 +226,7 @@ export class Filesystem {
       if (debug) console.log(`updating ${path}`);
       fileMetadata.lastUpdateMs = now;
       fileMetadata.lastWriteMs = now;
-      const file = { ...oldFile, buffer };
+      const file = new data.File(oldFile.path, buffer);
       oldFileCell.setOk(file);
       return files;
     } else {
@@ -234,7 +234,7 @@ export class Filesystem {
       const fileMetadata =
         { lastUpdateMs: now, lastWriteMs: now, writing: false, deleted: false };
       this.filesMetadata.set(path, fileMetadata);
-      const file = { path, buffer };
+      const file = new data.File(path, buffer);
       return files.set(path, Signal.cellOk(file, this.onChange));
     }
   }
