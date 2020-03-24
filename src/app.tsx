@@ -272,7 +272,9 @@ export class App {
       if (!selected || !view) return noop;
       const note = notes.get(selected);
       if (!note) return noop;
-      return Signal.join<string, data.File>(note.content[view], note.files[view]).map(([content, file]) =>
+      const content: Signal<string> = note.content[view];
+      const file: data.File = note.files[view];
+      return content.map(content =>
         (updateContent: string, session: Session) => {
           this.sessionsCell.setOk(sessions.set(selected, session));
           if (updateContent === content) return; // TODO(jaked) still needed?

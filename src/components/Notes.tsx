@@ -26,7 +26,10 @@ const NoteFn = ({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
 
   let err = false;
-  if (note.problems.value.type === 'err') err = true;
+  if (note.problems.value.type === 'err') {
+    console.log(note.problems.value.err);
+    err = true;
+  }
   else if (note.problems.get()) err = true;
 
   return (

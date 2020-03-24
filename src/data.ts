@@ -28,11 +28,11 @@ export interface Compiled {
 
 export class File {
   path: string;
-  buffer: Buffer;
+  bufferCell: Signal.Cell<Buffer>;
 
-  constructor(path: string, buffer: Buffer) {
+  constructor(path: string, bufferCell: Signal.Cell<Buffer>) {
     this.path = path;
-    this.buffer = buffer;
+    this.bufferCell = bufferCell;
   }
 }
 
@@ -109,7 +109,7 @@ export type CompiledNote = ParsedNoteWithImports & {
 }
 
 // indexed by path
-export type Files = Immutable.Map<string, Signal<File>>;
+export type Files = Immutable.Map<string, File>;
 
 // indexed by tag
 export type Notes = Immutable.Map<string, Note>;

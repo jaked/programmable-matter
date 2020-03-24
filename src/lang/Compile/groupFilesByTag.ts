@@ -24,8 +24,8 @@ function isIndexMetaFor(path: string, tag: string) {
 export default function groupFilesByTag(
   files: data.Files,
   oldFiles: data.Files,
-  oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, Signal<data.File>>>
-): Immutable.Map<string, Immutable.Map<string, Signal<data.File>>> {
+  oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, data.File>>
+): Immutable.Map<string, Immutable.Map<string, data.File>> {
   // TODO(jaked)
   // seems like we could extract an abstraction here to Signal
   // i.e. an incrementally-maintained view of a join, somehow
@@ -66,12 +66,12 @@ export default function groupFilesByTag(
       for (let i = 0; i < dirs.length; i++) {
         dir = Path.join(dir, dirs[i]);
         if (!groupedFiles.has(dir)) {
-          const fileSignal = Signal.ok(new data.File(
+          const file = new data.File(
             Path.join(dir, 'index'),
-            Buffer.from('')
-          ));
-          added = added.set(dir, fileSignal);
-          const group = Immutable.Map({ [dir]: fileSignal });
+            Signal.cellOk(Buffer.from(''))
+          );
+          added = added.set(dir, file);
+          const group = Immutable.Map({ [dir]: file });
           groupedFiles = groupedFiles.set(dir, group);
         }
       }

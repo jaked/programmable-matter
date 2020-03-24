@@ -75,10 +75,10 @@ function sanitizeMeta(obj: any): data.Meta {
   return { ...type, ...title, ...tags, ...layout, ...dataType, ...dirMeta };
 }
 
-function parseMeta(file: data.File): data.Meta {
+function parseMeta(buffer: Buffer): data.Meta {
   let obj;
   try {
-    obj = JSON5.parse(file.buffer.toString('utf8'));
+    obj = JSON5.parse(buffer.toString('utf8'));
   } catch (e) {
     console.log(e);
     return {};
@@ -88,7 +88,7 @@ function parseMeta(file: data.File): data.Meta {
 }
 
 export default function noteOfGroup(
-  group: Immutable.Map<string, Signal<data.File>>,
+  group: Immutable.Map<string, data.File>,
   tag: string
 ): data.Note {
   const files = group.entrySeq();
@@ -100,7 +100,7 @@ export default function noteOfGroup(
     const metaFile = files.find(([path, file]) => isIndexMeta(path));
     if (metaFile) {
       const [path, file] = metaFile;
-      meta = file.map(parseMeta);
+      meta = file.bufferCell.map(parseMeta);
     } else {
       meta = Signal.ok<data.Meta>({});
     }
@@ -108,14 +108,14 @@ export default function noteOfGroup(
     const indexMetaFile = files.find(([path, file]) => isIndexMeta(path));
     if (indexMetaFile) {
       const [path, file] = indexMetaFile;
-      meta = file.map(parseMeta).map(meta => ({ ...meta.dirMeta }));
+      meta = file.bufferCell.map(parseMeta).map(meta => ({ ...meta.dirMeta }));
     } else {
       meta = Signal.ok<data.Meta>({});
     }
     const metaFile = files.find(([path, file]) => isNonIndexMeta(path));
     if (metaFile) {
       const [path, file] = metaFile;
-      const meta2 = file.map(parseMeta);
+      const meta2 = file.bufferCell.map(parseMeta);
       meta = Signal.join(meta, meta2).map(([meta, meta2]) => ({ ...meta, ...meta2 }));
     }
   }
@@ -138,10 +138,10 @@ export default function noteOfGroup(
 
   const content: data.NoteContent =
     Object.keys(noteFiles).reduce<data.NoteContent>((obj, key) => {
-      const file = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
+      const file: data.File = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
       if (key === 'jpeg') return obj;
       else {
-        const content = file.map(file => file.buffer.toString('utf8'));
+        const content = file.bufferCell.map(buffer => buffer.toString('utf8'));
         return { ...obj, [key]: content };
       }
     },
