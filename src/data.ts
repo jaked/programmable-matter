@@ -28,7 +28,6 @@ export interface Compiled {
 
 export type File = {
   path: string;
-  version: number;
   buffer: Buffer;
 }
 

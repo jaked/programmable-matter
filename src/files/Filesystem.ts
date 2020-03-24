@@ -72,8 +72,7 @@ export class Filesystem {
         } else {
           if (debug) console.log(`updating file path=${path}`);
           fileMetadata.lastUpdateMs = lastUpdateMs;
-          const version = oldFile.version + 1;
-          const file = { ...oldFile, version, buffer };
+          const file = { ...oldFile, buffer };
           oldFileCell.setOk(file);
           return files;
         }
@@ -81,7 +80,7 @@ export class Filesystem {
         if (debug) console.log(`new file path=${path}`);
         const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false, deleted: false };
         this.filesMetadata.set(path, fileMetadata);
-        const file = { path, version: 0, buffer }
+        const file = { path, buffer }
         return files.set(path, Signal.cellOk(file, this.onChange));
       }
     });
@@ -227,10 +226,7 @@ export class Filesystem {
       if (debug) console.log(`updating ${path}`);
       fileMetadata.lastUpdateMs = now;
       fileMetadata.lastWriteMs = now;
-      const file = { ...oldFile,
-        version: oldFile.version + 1,
-        buffer
-      };
+      const file = { ...oldFile, buffer };
       oldFileCell.setOk(file);
       return files;
     } else {
@@ -238,11 +234,7 @@ export class Filesystem {
       const fileMetadata =
         { lastUpdateMs: now, lastWriteMs: now, writing: false, deleted: false };
       this.filesMetadata.set(path, fileMetadata);
-      const file = {
-        path,
-        version: 0,
-        buffer,
-      }
+      const file = { path, buffer };
       return files.set(path, Signal.cellOk(file, this.onChange));
     }
   }

@@ -68,7 +68,6 @@ export default function groupFilesByTag(
         if (!groupedFiles.has(dir)) {
           const fileSignal = Signal.ok({
             path: Path.join(dir, 'index'),
-            version: 0,
             buffer: Buffer.from('')
           });
           added = added.set(dir, fileSignal);
