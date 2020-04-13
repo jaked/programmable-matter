@@ -37,11 +37,11 @@ export class File {
 }
 
 export type NoteFiles = {
-  'meta'?: Signal<File>;
-  'mdx'?: Signal<File>;
-  'json'?: Signal<File>;
-  'jpg'?: Signal<File>;
-  'table'?: Signal<File>;
+  'meta'?: File;
+  'mdx'?: File;
+  'json'?: File;
+  'jpg'?: File;
+  'table'?: File;
 }
 
 export type NoteContent = {

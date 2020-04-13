@@ -154,7 +154,7 @@ export class App {
 
     Object.values(note.files).forEach(file => {
       if (!file) return;
-      this.filesystem.delete(file.get().path);
+      this.filesystem.delete(file.path);
     });
   }
 

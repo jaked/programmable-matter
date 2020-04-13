@@ -31,7 +31,7 @@ export default function compileNote(
           const file = parsedNote.files.json ?? bug(`expected json file`);
           const ast = parsedNote.parsed.json ?? bug(`expected parsed json`);
           const json =
-            Signal.join(file, ast, parsedNote.meta).map(([file, ast, meta]) =>
+            Signal.join(ast, parsedNote.meta).map(([ast, meta]) =>
               compileJson(file, ast, meta, updateFile)
             );
           return { ...obj, json };
@@ -39,7 +39,7 @@ export default function compileNote(
 
         case 'jpeg': {
           const file = parsedNote.files.jpg ?? bug(`expected jpg file`);
-          const jpeg = file.map(file => compileJpeg(parsedNote.tag));
+          const jpeg = file.bufferCell.map(buf => compileJpeg(parsedNote.tag));
           return { ...obj, jpeg };
         }
 
