@@ -1,3 +1,4 @@
+import * as Path from 'path';
 import Immutable from 'immutable';
 import React from 'react';
 import Signal from './util/Signal';
@@ -33,6 +34,26 @@ export class File {
   constructor(path: string, bufferCell: Signal.Cell<Buffer>) {
     this.path = path;
     this.bufferCell = bufferCell;
+  }
+
+  get content() {
+    return this.bufferCell.map(buffer => buffer.toString('utf8'));
+  }
+
+  private typeOfExt(ext: string): Types {
+    switch(ext) {
+      case '.meta': return 'meta';
+      case '.mdx': return 'mdx';
+      case '.json': return 'json';
+      case '.table': return 'table';
+      case '.jpeg': return 'jpeg';
+      default:
+        throw new Error(`unhandled extension '${ext}' for '${this.path}'`);
+    }
+  }
+
+  get type() {
+    return this.typeOfExt(Path.parse(this.path).ext);
   }
 }
 

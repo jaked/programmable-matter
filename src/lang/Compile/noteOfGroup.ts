@@ -15,30 +15,6 @@ function isNonIndexMeta(path: string) {
   return pathParts.ext === '.meta' && pathParts.name !== 'index';
 }
 
-function typeOfPath(path: string): data.Types | undefined {
-  const pathParts = Path.parse(path);
-
-  let type: undefined | data.Types = undefined;
-  if (pathParts.ext) {
-    switch (pathParts.ext) {
-      case '.meta': type = 'meta'; break;
-      case '.md': type = 'mdx'; break; // TODO(jaked) support MD without X
-      case '.mdx': type = 'mdx'; break;
-      case '.json': type = 'json'; break;
-      case '.table': type = 'table'; break;
-      case '.JPG': type = 'jpeg'; break;
-      case '.jpg': type = 'jpeg'; break;
-      case '.jpeg': type = 'jpeg'; break;
-      default:
-        // TODO(jaked) throwing here fails the whole UI
-        // need to encode the error in Note somehow
-        // or avoid joining the map values
-        console.log(`unhandled extension '${pathParts.ext}' for '${path}'`);
-    }
-  }
-  return type;
-}
-
 function sanitizeMeta(obj: any): data.Meta {
   // TODO(jaked) json-schema instead of hand-coding this?
   // TODO(jaked) report errors somehow
@@ -75,10 +51,10 @@ function sanitizeMeta(obj: any): data.Meta {
   return { ...type, ...title, ...tags, ...layout, ...dataType, ...dirMeta };
 }
 
-function parseMeta(buffer: Buffer): data.Meta {
+function parseMeta(content: string): data.Meta {
   let obj;
   try {
-    obj = JSON5.parse(buffer.toString('utf8'));
+    obj = JSON5.parse(content);
   } catch (e) {
     console.log(e);
     return {};
@@ -100,7 +76,7 @@ export default function noteOfGroup(
     const metaFile = files.find(([path, file]) => isIndexMeta(path));
     if (metaFile) {
       const [path, file] = metaFile;
-      meta = file.bufferCell.map(parseMeta);
+      meta = file.content.map(parseMeta);
     } else {
       meta = Signal.ok<data.Meta>({});
     }
@@ -108,14 +84,14 @@ export default function noteOfGroup(
     const indexMetaFile = files.find(([path, file]) => isIndexMeta(path));
     if (indexMetaFile) {
       const [path, file] = indexMetaFile;
-      meta = file.bufferCell.map(parseMeta).map(meta => ({ ...meta.dirMeta }));
+      meta = file.content.map(parseMeta).map(meta => ({ ...meta.dirMeta }));
     } else {
       meta = Signal.ok<data.Meta>({});
     }
     const metaFile = files.find(([path, file]) => isNonIndexMeta(path));
     if (metaFile) {
       const [path, file] = metaFile;
-      const meta2 = file.bufferCell.map(parseMeta);
+      const meta2 = file.content.map(parseMeta);
       meta = Signal.join(meta, meta2).map(([meta, meta2]) => ({ ...meta, ...meta2 }));
     }
   }
@@ -131,8 +107,7 @@ export default function noteOfGroup(
   const noteFiles: data.NoteFiles =
     files.reduce<data.NoteFiles>((obj, [path, file]) => {
       if (!isIndex && isIndexMeta(path)) return obj;
-      const type = typeOfPath(path) ?? 'mdx';
-      return { ...obj, [type]: file };
+      return { ...obj, [file.type]: file };
     },
     {});
 
@@ -141,8 +116,7 @@ export default function noteOfGroup(
       const file: data.File = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
       if (key === 'jpeg') return obj;
       else {
-        const content = file.bufferCell.map(buffer => buffer.toString('utf8'));
-        return { ...obj, [key]: content };
+        return { ...obj, [key]: file.content };
       }
     },
     {});
