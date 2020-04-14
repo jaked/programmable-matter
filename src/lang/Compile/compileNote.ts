@@ -37,7 +37,7 @@ export default function compileNote(
         }
 
         case 'jpeg': {
-          const file = parsedNote.files.jpg ?? bug(`expected jpg file`);
+          const file = parsedNote.files.jpeg ?? bug(`expected jpeg file for '${parsedNote.tag}'`);
           const jpeg = file.bufferCell.map(buf => compileJpeg(parsedNote.tag));
           return { ...obj, jpeg };
         }

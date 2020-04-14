@@ -61,7 +61,7 @@ export type NoteFiles = {
   'meta'?: File;
   'mdx'?: File;
   'json'?: File;
-  'jpg'?: File;
+  'jpeg'?: File;
   'table'?: File;
 }
 
