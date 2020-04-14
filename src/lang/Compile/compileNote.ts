@@ -1,6 +1,5 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import * as String from '../../util/String';
 import Trace from '../../util/Trace';
 import { bug } from '../../util/bug';
 import Type from '../Type';
@@ -24,7 +23,7 @@ export default function compileNote(
   setSelected: (tag: string) => void,
 ): data.CompiledNote {
   // TODO(jaked) Object.map or wrap object in helper
-  let compiled = Object.keys(parsedNote.content).reduce<data.NoteCompiled>(
+  let compiled = Object.keys(parsedNote.files).reduce<data.NoteCompiled>(
     (obj, key) => {
       switch (key) {
         case 'json': {
@@ -112,7 +111,6 @@ export default function compileNote(
         return compileMdx(
           trace,
           mdx,
-          String.capitalize(parsedNote.tag),
           meta,
           typeEnv,
           valueEnv,

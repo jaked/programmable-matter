@@ -24,7 +24,6 @@ const metaType =
 export default function compileMdx(
   trace: Trace,
   ast: MDXHAST.Root,
-  capitalizedTag: string,
   meta: data.Meta,
   typeEnv: Typecheck.Env,
   valueEnv: Evaluate.Env,
@@ -72,7 +71,7 @@ export default function compileMdx(
   const rendered =
     trace.time('renderMdx', () => {
       const [_, node] =
-        Render.renderMdx(ast, capitalizedTag, moduleValueEnv, valueEnv, exportValue);
+        Render.renderMdx(ast, moduleValueEnv, valueEnv, exportValue);
       if (layoutFunction)
         return Signal.join(layoutFunction, node).map(([layoutFunction, node]) =>
           layoutFunction({ children: node, meta })

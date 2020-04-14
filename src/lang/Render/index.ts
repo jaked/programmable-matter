@@ -69,7 +69,6 @@ function extendEnvWithImport(
 
 function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
-  module: string,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
 ): Env {
@@ -102,7 +101,6 @@ function extendEnvWithDefaultExport(
 
 export function renderMdx(
   ast: MDXHAST.Node,
-  module: string,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
@@ -114,7 +112,7 @@ export function renderMdx(
     case 'root': {
       const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, module, moduleEnv, env, exportValue);
+        const [env2, childNode] = renderMdx(child, moduleEnv, env, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -156,7 +154,7 @@ export function renderMdx(
         case 'a': {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -175,7 +173,7 @@ export function renderMdx(
         default: {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, module, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -218,7 +216,7 @@ export function renderMdx(
             break;
 
           case 'ExportNamedDeclaration':
-            env = extendEnvWithNamedExport(decl, module, env, exportValue);
+            env = extendEnvWithNamedExport(decl, env, exportValue);
             break;
 
           case 'ExportDefaultDeclaration':
