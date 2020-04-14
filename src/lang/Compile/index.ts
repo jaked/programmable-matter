@@ -7,9 +7,11 @@ import { bug } from '../../util/bug';
 import * as Render from '../Render';
 import * as data from '../../data';
 
+import compileFile from './compileFile';
 import compileNote from './compileNote';
 import findImports from './findImports';
 import groupFilesByTag from './groupFilesByTag';
+import noteTagsOfFiles from './noteTagsOfFiles';
 import noteOfGroup from './noteOfGroup';
 import parseNote from './parseNote';
 
@@ -196,4 +198,59 @@ export function compileNotes(
       Immutable.Map()
     )
   );
+}
+
+const unimplementedSignal = Signal.err(new Error('unimplemented'));
+
+export function compileFiles(
+  trace: Trace,
+  files: Signal<data.Files>
+): Signal<data.CompiledNotes> {
+
+  // TODO(jaked)
+  // * map a file compilation function over files
+  // * collect note list from file list, map a note compilation function over notes
+  // * these compilations are lazy, demanded at the top level by mainSignal
+  // * compilation functions refer to other files / notes via Signal ref
+  //   - Signal ref can be set after creation, maintain increasing version
+  //   - Signal loop breaker to avoid infinite loop
+
+  const noteTags = noteTagsOfFiles(files);
+
+  const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<data.Compiled>>>();
+
+  const compiledNotesRef = Signal.ref<data.CompiledNotes>();
+
+  const compiledFiles = Signal.mapImmutableMap(files, file =>
+    compileFile(trace, file, compiledFilesRef, compiledNotesRef)
+  );
+  compiledFilesRef.set(compiledFiles);
+
+  const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(noteTags, (paths, tag) => {
+    // TODO(jaked) fix temporary hacks
+    if (paths.size !== 1) bug(`expected 1 path for '${tag}'`);
+    const compiled = compiledFiles.flatMap(compiledFiles => {
+      const path = paths.find(path => true);
+      if (!path) bug(`expected path for '${tag}`);
+      const compiled = compiledFiles.get(path);
+      if (!compiled) bug(`expected compiled file for '${path}'`);
+      return compiled;
+    });
+    return {
+      tag,
+      isIndex: false,
+      meta: unimplementedSignal,
+      files: { },
+      parsed: { mdx: compiled.flatMap(compiled => compiled.ast) },
+      imports: unimplementedSignal,
+      compiled: { mdx: compiled },
+      problems: compiled.map(compiled => compiled.problems),
+      rendered: compiled.flatMap(compiled => compiled.rendered),
+      exportType: compiled.map(compiled => compiled.exportType),
+      exportValue: compiled.map(compiled => compiled.exportValue),
+    };
+  });
+  compiledNotesRef.set(compiledNotes);
+
+  return compiledNotes;
 }

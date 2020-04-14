@@ -181,12 +181,18 @@ export class App {
   public get notes() { return this.notesSignal.get() }
 
   private compiledNotesSignal =
-    Compile.compileNotes(
-      this.__trace,
-      this.notesSignal,
-      this.filesystem.update,
-      this.setSelected
-    );
+    false ?
+      Compile.compileFiles(
+        this.__trace,
+        this.filesystem.files
+      )
+    :
+      Compile.compileNotes(
+        this.__trace,
+        this.notesSignal,
+        this.filesystem.update,
+        this.setSelected
+      );
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 
   private compiledNoteSignal = Signal.label('compiledNote',
@@ -272,7 +278,8 @@ export class App {
       if (!selected || !view) return noop;
       const note = notes.get(selected);
       if (!note) return noop;
-      const file: data.File = note.files[view];
+      const file = note.files[view];
+      if (!file) return noop;
       return file.content.map(content =>
         (updateContent: string, session: Session) => {
           this.sessionsCell.setOk(sessions.set(selected, session));
