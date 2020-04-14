@@ -111,15 +111,5 @@ export default function noteOfGroup(
     },
     {});
 
-  const content: data.NoteContent =
-    Object.keys(noteFiles).reduce<data.NoteContent>((obj, key) => {
-      const file: data.File = noteFiles[key] ?? bug('expected ${key} file for ${tag}');
-      if (key === 'jpeg') return obj;
-      else {
-        return { ...obj, [key]: file.content };
-      }
-    },
-    {});
-
-  return { tag, isIndex, meta, files: noteFiles, content };
+  return { tag, isIndex, meta, files: noteFiles };
 }

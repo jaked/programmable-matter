@@ -203,7 +203,7 @@ export class App {
   private setEditorViewSignal =
     this.compiledNoteSignal.map(compiledNote => {
       return (view: 'mdx' | 'json' | 'table' | 'meta') => {
-        if (compiledNote && typeof compiledNote.content[view] === 'undefined') {
+        if (compiledNote && typeof compiledNote.files[view] === 'undefined') {
           const filename = compiledNote.isIndex ? `${compiledNote.tag}/index.${view}` : `${compiledNote.tag}.${view}`;
           if (!this.filesystem.exists(filename))
             this.filesystem.update(filename, Buffer.from('', 'utf8'));
@@ -223,12 +223,12 @@ export class App {
         const note = notes.get(selected);
         if (note) {
           let viewContent: [data.Types, Signal<string>] | null = null;
-          const editorViewContent = note.content[editorView];
-          if (editorViewContent) viewContent = [editorView, editorViewContent];
-          else if (note.content.mdx) viewContent = ['mdx', note.content.mdx];
-          else if (note.content.json) viewContent = ['json', note.content.json];
-          else if (note.content.table) viewContent = ['table', note.content.table];
-          else if (note.content.meta) viewContent = ['meta', note.content.meta];
+          const editorViewFile = note.files[editorView];
+          if (editorViewFile) viewContent = [editorView, editorViewFile.content];
+          else if (note.files.mdx) viewContent = ['mdx', note.files.mdx.content];
+          else if (note.files.json) viewContent = ['json', note.files.json.content];
+          else if (note.files.table) viewContent = ['table', note.files.table.content];
+          else if (note.files.meta) viewContent = ['meta', note.files.meta.content];
           if (viewContent) {
             const [view, content] = viewContent;
             return content.map(content => [view, content]);
@@ -272,9 +272,8 @@ export class App {
       if (!selected || !view) return noop;
       const note = notes.get(selected);
       if (!note) return noop;
-      const content: Signal<string> = note.content[view];
       const file: data.File = note.files[view];
-      return content.map(content =>
+      return file.content.map(content =>
         (updateContent: string, session: Session) => {
           this.sessionsCell.setOk(sessions.set(selected, session));
           if (updateContent === content) return; // TODO(jaked) still needed?
@@ -311,8 +310,8 @@ export class App {
         function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
           return Signal.label(note.tag,
             Signal.join(
-              note.content.mdx ? note.content.mdx.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-              note.content.json ? note.content.json.map(json => regexp.test(json)) : Signal.ok(false),
+              note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
+              note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
               note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
               Signal.ok(regexp.test(note.tag)),
             ).map(bools => [bools.some(bool => bool), note])

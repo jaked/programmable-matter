@@ -65,19 +65,11 @@ export type NoteFiles = {
   'table'?: File;
 }
 
-export type NoteContent = {
-  'meta'?: Signal<string>;
-  'mdx'?: Signal<string>;
-  'json'?: Signal<string>;
-  'table'?: Signal<string>;
-}
-
 export type Note = {
   tag: string;
   isIndex: boolean;
   meta: Signal<Meta>;
   files: NoteFiles;
-  content: NoteContent;
 };
 
 export type NoteParsed = {
