@@ -348,3 +348,29 @@ describe('mapImmutableMap', () => {
   expect(fmap.get()).toEqual(Immutable.Map({ b: 11, c: 14 }));
   expect(calls).toBe(4);
 });
+
+describe('ref', () => {
+  it('throws exception if unset', () => {
+    const r = Signal.ref();
+    expect(() => r.get()).toThrow();
+  });
+
+  it('passes through to underlying signal once set', () => {
+    const r = Signal.ref();
+    const s = Signal.cellOk('foo');
+    r.set(s);
+    r.reconcile(trace, 1);
+    expect(r.get()).toBe('foo');
+
+    s.setOk('bar');
+    r.reconcile(trace, 2);
+    expect(r.get()).toBe('bar');
+    expect(r.version).toBe(s.version);
+  });
+
+  it('cannot be set more than once', () => {
+    const r = Signal.ref();
+    r.set(Signal.ok('foo'));
+    expect(() => r.set(Signal.ok('bar'))).toThrow();
+  });
+});

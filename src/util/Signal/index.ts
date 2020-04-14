@@ -137,6 +137,35 @@ class CellImpl<T> implements CellIntf<T> {
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
 }
 
+interface RefIntf<T> extends Signal<T> {
+  set(s: Signal<T>): void;
+}
+
+class RefImpl<T> implements Signal<T> {
+  s: Signal<T> | undefined = undefined;
+
+  set(s: Signal<T>) {
+    if (this.s) throw new Error('Signal.ref already set');
+    this.s = s;
+  }
+
+  checkedS() {
+    if (!this.s) throw new Error('Signal.ref not set');
+    else return this.s;
+  }
+
+  get() { return this.checkedS().get(); }
+  map<U>(f: (t: T) => U) { return new Map(this, f); }
+  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
+
+  get value() { return this.checkedS().value; }
+  get version() { return this.checkedS().version; }
+  get level() { return this.checkedS().level; }
+  reconcile(trace: Trace, level: number) {
+    this.checkedS().reconcile(trace, level);
+  }
+}
+
 class Map<T, U> implements Signal<U> {
   s: Signal<T>;
   sVersion: number;
@@ -378,6 +407,12 @@ module Signal {
 
   export function cellErr<T>(err: Error, onChange: () => void): Cell<T> {
     return cell<T>(Try.err(err), onChange);
+  }
+
+  export type Ref<T> = RefIntf<T>;
+
+  export function ref<T>(): Ref<T> {
+    return new RefImpl();
   }
 
   export function mapWithPrev<T, U>(
