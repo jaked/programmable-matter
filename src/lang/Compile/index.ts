@@ -241,7 +241,7 @@ export function compileFiles(
       isIndex: false,
       meta: unimplementedSignal,
       files: { },
-      parsed: { mdx: compiled.flatMap(compiled => compiled.ast) },
+      parsed: { mdx: compiled.map(compiled => compiled.ast) },
       imports: unimplementedSignal,
       compiled: { mdx: compiled },
       problems: compiled.map(compiled => compiled.problems),
