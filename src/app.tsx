@@ -149,7 +149,7 @@ export class App {
     const view = this.view;
     if (!selected || !view) return;
 
-    const note = this.notesSignal.get().get(selected);
+    const note = this.compiledNotesSignal.get().get(selected);
     if (!note) return;
 
     Object.values(note.files).forEach(file => {
@@ -176,12 +176,8 @@ export class App {
   );
   public get session() { return this.sessionSignal.get() }
 
-  private notesSignal =
-    Compile.notesOfFiles(this.__trace, this.filesystem.files);
-  public get notes() { return this.notesSignal.get() }
-
   private compiledNotesSignal =
-    false ?
+    true ?
       Compile.compileFiles(
         this.__trace,
         this.filesystem.files
@@ -189,7 +185,7 @@ export class App {
     :
       Compile.compileNotes(
         this.__trace,
-        this.notesSignal,
+        Compile.notesOfFiles(this.__trace, this.filesystem.files),
         this.filesystem.update,
         this.setSelected
       );
@@ -221,7 +217,7 @@ export class App {
 
   private viewContentSignal: Signal<[data.Types, string] | null> = Signal.label('viewContent',
     Signal.join(
-      this.notesSignal,
+      this.compiledNotesSignal,
       this.selectedCell,
       this.editorViewCell
     ).flatMap(([notes, selected, editorView]) => {
@@ -272,7 +268,7 @@ export class App {
       this.selectedCell,
       this.viewSignal,
       this.sessionsCell,
-      this.notesSignal,
+      this.compiledNotesSignal,
     ).flatMap(([selected, view, sessions, notes]) => {
       const noop = Signal.ok((updateContent: string, session: Session) => {});
       if (!selected || !view) return noop;
@@ -432,7 +428,6 @@ export class App {
       this.contentSignal,
       this.sessionSignal,
       this.setContentAndSessionSignal,
-      this.notesSignal,
       this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
         const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
         return Signal.join(...matchingNotes);

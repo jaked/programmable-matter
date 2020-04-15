@@ -43,7 +43,6 @@ export class Main extends React.Component<Props, {}> {
         onFocusDir={this.props.app.setFocusDir}
         search={this.props.app.search}
         onSearch={this.props.app.setSearch}
-        notes={this.props.app.notes}
         matchingNotes={this.props.app.matchingNotesTree}
         selected={this.props.app.selected}
         onSelect={this.props.app.setSelected}
