@@ -11,7 +11,7 @@ import compileFile from './compileFile';
 import compileNote from './compileNote';
 import findImports from './findImports';
 import groupFilesByTag from './groupFilesByTag';
-import noteTagsOfFiles from './noteTagsOfFiles';
+import groupFilesByTag2 from './groupFilesByTag2';
 import noteOfGroup from './noteOfGroup';
 import parseNote from './parseNote';
 
@@ -215,7 +215,7 @@ export function compileFiles(
   //   - Signal ref can be set after creation, maintain increasing version
   //   - Signal loop breaker to avoid infinite loop
 
-  const noteTags = noteTagsOfFiles(files);
+  const filesByTag = groupFilesByTag2(files);
 
   const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<data.Compiled>>>();
 
@@ -226,29 +226,47 @@ export function compileFiles(
   );
   compiledFilesRef.set(compiledFiles);
 
-  const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(noteTags, (paths, tag) => {
+  const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByTag, (files, tag) => {
     // TODO(jaked) fix temporary hacks
-    if (paths.size !== 1) bug(`expected 1 path for '${tag}'`);
-    const compiled = compiledFiles.flatMap(compiledFiles => {
-      const path = paths.find(path => true);
-      if (!path) bug(`expected path for '${tag}`);
-      const compiled = compiledFiles.get(path);
-      if (!compiled) bug(`expected compiled file for '${path}'`);
-      return compiled;
-    });
-    return {
-      tag,
-      isIndex: false,
-      meta: unimplementedSignal,
-      files: { },
-      parsed: { mdx: compiled.map(compiled => compiled.ast) },
-      imports: unimplementedSignal,
-      compiled: { mdx: compiled },
-      problems: compiled.map(compiled => compiled.problems),
-      rendered: compiled.flatMap(compiled => compiled.rendered),
-      exportType: compiled.map(compiled => compiled.exportType),
-      exportValue: compiled.map(compiled => compiled.exportValue),
-    };
+    if (files.size !== 1) bug(`expected 1 path for '${tag}'`);
+    const file = files.find(path => true);
+    if (!file) bug(`expected path for '${tag}`);
+
+    const compiled = compiledFiles.flatMap(compiledFiles =>
+      compiledFiles.get(file.path) ?? bug(`expected compiled file for '${file}'`)
+    );
+
+    switch (file.type) {
+      case 'mdx':
+        return {
+          tag,
+          isIndex: false,
+          meta: unimplementedSignal,
+          files: { mdx: file },
+          parsed: { mdx: compiled.map(compiled => compiled.ast) },
+          imports: unimplementedSignal,
+          compiled: { mdx: compiled },
+          problems: compiled.map(compiled => compiled.problems),
+          rendered: compiled.flatMap(compiled => compiled.rendered),
+          exportType: compiled.map(compiled => compiled.exportType),
+          exportValue: compiled.map(compiled => compiled.exportValue),
+        };
+      case 'json':
+        return {
+          tag,
+          isIndex: false,
+          meta: unimplementedSignal,
+          files: { json: file },
+          parsed: { json: compiled.map(compiled => compiled.ast) },
+          imports: unimplementedSignal,
+          compiled: { json: compiled },
+          problems: compiled.map(compiled => compiled.problems),
+          rendered: compiled.flatMap(compiled => compiled.rendered),
+          exportType: compiled.map(compiled => compiled.exportType),
+          exportValue: compiled.map(compiled => compiled.exportValue),
+        };
+      default: bug('unimplemented');
+    }
   });
   compiledNotesRef.set(compiledNotes);
 
