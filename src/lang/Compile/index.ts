@@ -233,7 +233,7 @@ export function compileFiles(
     if (!file) bug(`expected path for '${tag}`);
 
     const compiled = compiledFiles.flatMap(compiledFiles =>
-      compiledFiles.get(file.path) ?? bug(`expected compiled file for '${file}'`)
+      compiledFiles.get(file.path) ?? bug(`expected compiled file for '${file.path}'`)
     );
 
     switch (file.type) {

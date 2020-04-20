@@ -102,12 +102,7 @@ export default function compileJson(
 
   // TODO(jaked) handle other JSON types
   if (type.kind !== 'Object') bug(`expected Object type`);
-
-  const fields = type.fields.map(({ field, type }) => ({
-    label: field,
-    accessor: (o: object) => o[field],
-    component: fieldComponent(field, type)
-  }));
+  const typeObject = type;
 
   const exportType = Type.module({
     default: type,
@@ -121,9 +116,15 @@ export default function compileJson(
     mutable: Signal.ok(lens)
   };
 
-  const rendered = Signal.ok(
+  const rendered = Signal.constant(Try.apply(() => {
+    const fields = typeObject.fields.map(({ field, type }) => ({
+      label: field,
+      accessor: (o: object) => o[field],
+      component: fieldComponent(field, type)
+    }));
+
     // TODO(json) handle arrays of records (with Table)
-    React.createElement(Record, { object: lens, fields })
-  );
+    return React.createElement(Record, { object: lens, fields })
+  }));
   return { exportType, exportValue, rendered, astAnnotations, problems: false };
 }
