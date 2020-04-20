@@ -172,8 +172,7 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType, an
         const type = fieldTypes.get(name);
         if (type) return check(prop.value, env, type, annots);
         else {
-          // TODO(jaked) disabled for now
-          // return Throw.extraField(prop.key, name, annots);
+          return Throw.extraField(prop.key, name, annots);
         }
       }).some(x => x);
 

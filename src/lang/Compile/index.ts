@@ -265,7 +265,21 @@ export function compileFiles(
           exportType: compiled.map(compiled => compiled.exportType),
           exportValue: compiled.map(compiled => compiled.exportValue),
         };
-      default: bug('unimplemented');
+      case 'meta':
+        return {
+          tag,
+          isIndex: false,
+          meta: unimplementedSignal,
+          files: { meta: file },
+          parsed: { meta: compiled.map(compiled => compiled.ast) },
+          imports: unimplementedSignal,
+          compiled: { meta: compiled },
+          problems: compiled.map(compiled => compiled.problems),
+          rendered: compiled.flatMap(compiled => compiled.rendered),
+          exportType: compiled.map(compiled => compiled.exportType),
+          exportValue: compiled.map(compiled => compiled.exportValue),
+        };
+        default: bug('unimplemented');
     }
   });
   compiledNotesRef.set(compiledNotes);
