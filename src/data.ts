@@ -19,14 +19,6 @@ export interface Meta {
 
 export type AstAnnotations = Map<unknown, Try<Type>>;
 
-export interface Compiled {
-  exportType: Type.ModuleType;
-  exportValue: { [s: string]: Signal<any> };
-  rendered: Signal<React.ReactNode>;
-  astAnnotations?: AstAnnotations;
-  problems: boolean;
-}
-
 export class File {
   path: string;
   bufferCell: Signal.Cell<Buffer>;
@@ -103,6 +95,18 @@ export type TableField = TableFieldData | TableFieldMeta
 
 export type Table = {
   fields: TableField[];
+}
+
+export interface Compiled {
+  exportType: Type.ModuleType;
+  exportValue: { [s: string]: Signal<any> };
+  rendered: Signal<React.ReactNode>;
+  astAnnotations?: AstAnnotations;
+  problems: boolean;
+}
+
+export type CompiledFile = Compiled & {
+  ast: Try<any>; // TODO(jaked)
 }
 
 export type NoteCompiled = {

@@ -11,9 +11,9 @@ import compileFileMeta from './compileFileMeta';
 export default function compileFile(
   trace: Trace,
   file: data.File,
-  compiledFiles: Signal<Immutable.Map<string, any>>,
+  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
-): Signal<any> {
+): Signal<data.CompiledFile> {
 
   switch (file.type) {
     case 'mdx': return compileFileMdx(trace, file, compiledFiles, compiledNotes);

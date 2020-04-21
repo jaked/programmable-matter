@@ -1,5 +1,7 @@
 import * as React from 'react';
 
+import Try from '../util/Try';
+
 // import { FixedSizeList } from 'react-window';
 import RSCEditor, { Session } from './react-simple-code-editor';
 
@@ -14,6 +16,7 @@ interface Props {
   selected: string;
   view: data.Types;
   content: string;
+  parsed: Try<any>; // TODO(jaked)
   compiledNote: data.CompiledNote;
   session: Session;
 
@@ -227,6 +230,7 @@ function computeSpans(
 function computeHighlight(
   view: data.Types,
   content: string,
+  ast: Try<any>,
   compiledNote: data.CompiledNote
 ) {
   const spans: Array<Span> = [];
@@ -234,34 +238,30 @@ function computeHighlight(
   // parsing should always succeed with some AST
   switch (view) {
     case 'mdx': {
-      const ast = compiledNote.parsed.mdx ?? bug(`expected parsed mdx`);
       const compiled = compiledNote.compiled.mdx ?? bug(`expected compiled mdx`);
       const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
-      ast.value.forEach(ast => computeSpans(ast, annots, spans));
+      ast.forEach(ast => computeSpans(ast, annots, spans));
     }
     break;
 
     case 'json': {
-      const ast = compiledNote.parsed.json ?? bug(`expected parsed json`);
       const compiled = compiledNote.compiled.json ?? bug(`expected compiled json`);
       const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
-      ast.value.forEach(ast => computeJsSpans(ast, annots, spans));
+      ast.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
 
     case 'table': {
-      const table = compiledNote.parsed.table ?? bug(`expected parsed table`);
       const compiled = compiledNote.compiled.table ?? bug(`expected compiled table`);
       const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
-      table.value.forEach(table => computeJsSpans(table, annots, spans));
+      ast.forEach(table => computeJsSpans(table, annots, spans));
     }
     break;
 
     case 'meta': {
-      const ast = compiledNote.parsed.meta ?? bug(`expected parsed meta`);
       const compiled = compiledNote.compiled.meta ?? bug(`expected compiled meta`);
       const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
-      ast.value.forEach(ast => computeJsSpans(ast, annots, spans));
+      ast.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
   }
@@ -393,8 +393,8 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { view, selected, content, compiledNote } = this.props;
-    let highlight = computeHighlight(view, content, compiledNote);
+    const { view, selected, content, parsed, compiledNote } = this.props;
+    let highlight = computeHighlight(view, content, parsed, compiledNote);
     return (
       <div style={{
         fontFamily: 'Monaco, monospace',

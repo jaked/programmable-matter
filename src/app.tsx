@@ -15,6 +15,7 @@ import * as Immutable from 'immutable';
 import { bug } from './util/bug';
 import Signal from './util/Signal';
 import Trace from './util/Trace';
+import Try from './util/Try';
 import * as data from './data';
 import { Filesystem } from './files/Filesystem';
 
@@ -176,19 +177,13 @@ export class App {
   );
   public get session() { return this.sessionSignal.get() }
 
-  private compiledNotesSignal =
-    true ?
-      Compile.compileFiles(
-        this.__trace,
-        this.filesystem.files
-      )
-    :
-      Compile.compileNotes(
-        this.__trace,
-        Compile.notesOfFiles(this.__trace, this.filesystem.files),
-        this.filesystem.update,
-        this.setSelected
-      );
+  private compiledFilesSignalNotesSignal =
+    Compile.compileFiles(
+      this.__trace,
+      this.filesystem.files
+    )
+  private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
+  private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 
   private compiledNoteSignal = Signal.label('compiledNote',
@@ -215,53 +210,40 @@ export class App {
     });
   public get setEditorView() { return this.setEditorViewSignal.get() }
 
-  private viewContentSignal: Signal<[data.Types, string] | null> = Signal.label('viewContent',
+  // TODO(jaked) bundle data we need for editor in CompiledFile
+  private viewContentParsedSignal: Signal<{ view: data.Types, content: string, parsed: Try<any> } | null> = Signal.label('viewContent',
     Signal.join(
-      this.compiledNotesSignal,
+      this.filesystem.files,
+      this.compiledFilesSignal,
       this.selectedCell,
       this.editorViewCell
-    ).flatMap(([notes, selected, editorView]) => {
+    ).flatMap(([files, compiledFiles, selected, view]) => {
       if (selected !== null) {
-        const note = notes.get(selected);
-        if (note) {
-          let viewContent: [data.Types, Signal<string>] | null = null;
-          const editorViewFile = note.files[editorView];
-          if (editorViewFile) viewContent = [editorView, editorViewFile.content];
-          else if (note.files.mdx) viewContent = ['mdx', note.files.mdx.content];
-          else if (note.files.json) viewContent = ['json', note.files.json.content];
-          else if (note.files.table) viewContent = ['table', note.files.table.content];
-          else if (note.files.meta) viewContent = ['meta', note.files.meta.content];
-          if (viewContent) {
-            const [view, content] = viewContent;
-            return content.map(content => [view, content]);
-          }
+        const fn = `${selected}.${view}`; // TODO(jaked)
+        const file = files.get(fn);
+        const compiledFile = compiledFiles.get(fn);
+        if (file && compiledFile) {
+          return Signal.join(
+            file.content,
+            compiledFile.map(compiledFile => compiledFile.ast)
+          ).map(([content, parsed]) => ({ view, content, parsed }));
         }
       }
       return Signal.ok(null);
     })
   );
 
-  private viewSignal = Signal.label('view',
-    this.viewContentSignal.map(viewContent => {
-      if (!viewContent) return null;
-      else {
-        const [view, _] = viewContent;
-        return view;
-      }
-    })
-  );
+  private viewSignal =
+    this.viewContentParsedSignal.map(viewContentParsed => viewContentParsed?.view);
   public get view() { return this.viewSignal.get() }
 
-  private contentSignal = Signal.label('content',
-    this.viewContentSignal.map(viewContent => {
-      if (!viewContent) return null;
-      else {
-        const [_, content] = viewContent;
-        return content;
-      }
-    })
-  );
+  private contentSignal =
+    this.viewContentParsedSignal.map(viewContentParsed => viewContentParsed?.content);
   public get content() { return this.contentSignal.get() }
+
+  private parsedSignal =
+    this.viewContentParsedSignal.map(viewContentParsed => viewContentParsed?.parsed);
+  public get parsed() { return this.parsedSignal.get() }
 
   private setContentAndSessionSignal = Signal.label('setContentAndSession',
     Signal.join(
@@ -426,6 +408,7 @@ export class App {
     Signal.join(
       this.viewSignal,
       this.contentSignal,
+      this.parsedSignal,
       this.sessionSignal,
       this.setContentAndSessionSignal,
       this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {

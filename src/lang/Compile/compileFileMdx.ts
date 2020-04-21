@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
+import Try from '../../util/Try';
 import * as Parse from '../Parse';
 import * as Render from '../Render';
 import * as MDXHAST from '../mdxhast';
@@ -42,9 +43,9 @@ function findImports(ast: MDXHAST.Node) {
 export default function compileFileMdx(
   trace: Trace,
   file: data.File,
-  compiledFiles: Signal<Immutable.Map<string, any>>,
+  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
-): Signal<any> {
+): Signal<data.CompiledFile> {
   const ast = file.content.map(content => Parse.parse(trace, content));
   const imports = ast.map(findImports);
   // TODO(jaked) support layouts
@@ -74,6 +75,6 @@ export default function compileFileMdx(
   // handle .meta file
   return Signal.join(ast, moduleTypeEnv, moduleValueEnv).map(([ast, moduleTypeEnv, moduleValueEnv]) => {
     const compiled = compileMdx(trace, ast, {}, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
-    return { ...compiled, ast }
+    return { ...compiled, ast: Try.ok(ast) }
   });
 }

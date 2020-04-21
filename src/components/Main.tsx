@@ -52,61 +52,56 @@ export class Main extends React.Component<Props, {}> {
       />
     </Flex>
 
-  EditorPane = ({ width }: { width: number }) => {
-    if (this.props.app.selected !== null &&
-        this.props.app.content !== null &&
-        this.props.app.compiledNote !== null &&
-        this.props.app.view) {
-      return (
-        <Flex
-          flexDirection='column'
-          justifyContent='space-between'
-          width={width}
-          borderColor='#cccccc'
-          borderStyle='solid'
-          borderWidth='0px 0px 0px 1px'
-        >
-          <Flex
-            flexDirection='column'
-          >
-            <TabBar
-              editorView={this.props.app.editorView}
-              setEditorView={this.props.app.setEditorView}
+  EditorPane = ({ width }: { width: number }) =>
+    <Flex
+      flexDirection='column'
+      justifyContent='space-between'
+      width={width}
+      borderColor='#cccccc'
+      borderStyle='solid'
+      borderWidth='0px 0px 0px 1px'
+    >
+      <Flex
+        flexDirection='column'
+      >
+        <TabBar
+          editorView={this.props.app.editorView}
+          setEditorView={this.props.app.setEditorView}
+          compiledNote={this.props.app.compiledNote}
+        />
+        <Box
+          padding={1}
+        >{
+          // TODO(jaked) clean this up
+          // several signals can be simultaneously undefined / null
+          // when selected / view don't pick out a valid file;
+          // here we have to check for all of them.
+          (this.props.app.selected !== null &&
+          this.props.app.content !== undefined &&
+          this.props.app.parsed !== undefined &&
+          this.props.app.compiledNote !== null &&
+          this.props.app.view) ?
+            <Editor
+              ref={this.editorRef}
+              selected={this.props.app.selected}
+              view={this.props.app.view}
+              content={this.props.app.content}
+              parsed={this.props.app.parsed}
               compiledNote={this.props.app.compiledNote}
-            />
+              session={this.props.app.session}
+              onChange={this.props.app.setContentAndSession}
+              setStatus={this.props.app.setStatus}
+              setSelected={this.props.app.setSelected}
+            /> :
             <Box
               padding={1}
             >
-              <Editor
-                  ref={this.editorRef}
-                  selected={this.props.app.selected}
-                  view={this.props.app.view}
-                  content={this.props.app.content}
-                  compiledNote={this.props.app.compiledNote}
-                  session={this.props.app.session}
-                  onChange={this.props.app.setContentAndSession}
-                  setStatus={this.props.app.setStatus}
-                  setSelected={this.props.app.setSelected}
-              />
+              no note
             </Box>
-          </Flex>
-          <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>
-        </Flex>
-      );
-    } else {
-      return (
-        <Flex
-          width={width}
-          padding={1}
-          borderColor='#cccccc'
-          borderStyle='solid'
-          borderWidth='0px 0px 0px 1px'
-        >
-          no note
-        </Flex>
-      );
-    }
-  }
+        }</Box>
+      </Flex>
+      <div style={{ backgroundColor: '#ffc0c0' }}>{this.props.app.status}</div>
+    </Flex>
 
   DisplayPane = ({ width }: { width: number }) =>
     <Box

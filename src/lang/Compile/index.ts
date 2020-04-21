@@ -206,7 +206,7 @@ const unimplementedSignal = Signal.err(new Error('unimplemented'));
 export function compileFiles(
   trace: Trace,
   files: Signal<data.Files>
-): Signal<data.CompiledNotes> {
+): { compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>, compiledNotes: Signal<data.CompiledNotes> } {
 
   // TODO(jaked)
   // * map a file compilation function over files
@@ -218,7 +218,7 @@ export function compileFiles(
 
   const filesByTag = groupFilesByTag2(files);
 
-  const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<data.Compiled>>>();
+  const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<data.CompiledFile>>>();
 
   const compiledNotesRef = Signal.ref<data.CompiledNotes>();
 
@@ -250,8 +250,8 @@ export function compileFiles(
       tag,
       isIndex: false,
       meta: unimplementedSignal,
-      files: { [file.type]: file },
-      parsed: { [file.type]: compiled.map(compiled => compiled.ast) },
+      files: { },
+      parsed: { },
       imports: unimplementedSignal,
       compiled: { [file.type]: compiled },
       problems: compiled.map(compiled => compiled.problems),
@@ -262,5 +262,5 @@ export function compileFiles(
   });
   compiledNotesRef.set(compiledNotes);
 
-  return compiledNotes;
+  return { compiledFiles, compiledNotes };
 }

@@ -2,6 +2,7 @@ import * as Path from 'path';
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
+import Try from '../../util/Try';
 import * as Parse from '../Parse';
 import * as data from '../../data';
 
@@ -10,8 +11,8 @@ import compileJson from './compileJson';
 export default function compileFileJson(
   trace: Trace,
   file: data.File,
-  compiledFiles: Signal<Immutable.Map<string, Signal<any>>>,
-) {
+  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
+): Signal<data.CompiledFile> {
   const ast = file.content.map(Parse.parseExpression);
 
   // TODO(jaked) support typechecking from index.table file
@@ -32,6 +33,6 @@ export default function compileFileJson(
   return Signal.join(ast, meta).map(([ast, meta]) => {
     // TODO(jaked) handle updateFile
     const compiled = compileJson(file, ast, meta, (path: string, buffer: Buffer) => {});
-    return { ...compiled, ast };
+    return { ...compiled, ast: Try.ok(ast) };
   })
 }
