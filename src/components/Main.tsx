@@ -78,7 +78,6 @@ export class Main extends React.Component<Props, {}> {
           // here we have to check for all of them.
           (this.props.app.selected !== null &&
           this.props.app.content !== undefined &&
-          this.props.app.parsed !== undefined &&
           this.props.app.compiledFile !== null &&
           this.props.app.view) ?
             <Editor
@@ -86,7 +85,6 @@ export class Main extends React.Component<Props, {}> {
               selected={this.props.app.selected}
               view={this.props.app.view}
               content={this.props.app.content}
-              parsed={this.props.app.parsed}
               compiledFile={this.props.app.compiledFile}
               session={this.props.app.session}
               onChange={this.props.app.setContentAndSession}

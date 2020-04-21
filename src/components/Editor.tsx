@@ -1,7 +1,5 @@
 import * as React from 'react';
 
-import Try from '../util/Try';
-
 // import { FixedSizeList } from 'react-window';
 import RSCEditor, { Session } from './react-simple-code-editor';
 
@@ -16,7 +14,6 @@ interface Props {
   selected: string;
   view: data.Types;
   content: string;
-  parsed: Try<any>; // TODO(jaked)
   compiledFile: data.CompiledFile;
   session: Session;
 
@@ -230,33 +227,23 @@ function computeSpans(
 function computeHighlight(
   view: data.Types,
   content: string,
-  ast: Try<any>,
   compiledFile: data.CompiledFile
 ) {
+  const ast = compiledFile.ast;
+  const annots = compiledFile.astAnnotations;
   const spans: Array<Span> = [];
+
   // TODO(jaked)
   // parsing should always succeed with some AST
   switch (view) {
     case 'mdx': {
-      const annots = compiledFile.astAnnotations;
       ast.forEach(ast => computeSpans(ast, annots, spans));
     }
     break;
 
-    case 'json': {
-      const annots = compiledFile.astAnnotations;
-      ast.forEach(ast => computeJsSpans(ast, annots, spans));
-    }
-    break;
-
-    case 'table': {
-      const annots = compiledFile.astAnnotations;
-      ast.forEach(table => computeJsSpans(table, annots, spans));
-    }
-    break;
-
+    case 'json':
+    case 'table':
     case 'meta': {
-      const annots = compiledFile.astAnnotations;
       ast.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
@@ -389,8 +376,8 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { view, selected, content, parsed, compiledFile } = this.props;
-    let highlight = computeHighlight(view, content, parsed, compiledFile);
+    const { view, selected, content, compiledFile } = this.props;
+    let highlight = computeHighlight(view, content, compiledFile);
     return (
       <div style={{
         fontFamily: 'Monaco, monospace',
