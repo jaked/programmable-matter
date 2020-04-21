@@ -15,7 +15,6 @@ import * as Immutable from 'immutable';
 import { bug } from './util/bug';
 import Signal from './util/Signal';
 import Trace from './util/Trace';
-import Try from './util/Try';
 import * as data from './data';
 import { Filesystem } from './files/Filesystem';
 
@@ -144,6 +143,9 @@ export class App {
 
   private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
   public get editorView() { return this.editorViewCell.get() }
+  public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
+    this.editorViewCell.setOk(view);
+  }
 
   deleteNote = () => {
     const selected = this.selected;
@@ -208,19 +210,6 @@ export class App {
     })
   );
   public get compiledNote() { return this.compiledNoteSignal.get() }
-
-  private setEditorViewSignal =
-    this.compiledNoteSignal.map(compiledNote => {
-      return (view: 'mdx' | 'json' | 'table' | 'meta') => {
-        if (compiledNote && typeof compiledNote.files[view] === 'undefined') {
-          const filename = compiledNote.isIndex ? `${compiledNote.tag}/index.${view}` : `${compiledNote.tag}.${view}`;
-          if (!this.filesystem.exists(filename))
-            this.filesystem.update(filename, Buffer.from('', 'utf8'));
-        }
-        this.editorViewCell.setOk(view);
-      }
-    });
-  public get setEditorView() { return this.setEditorViewSignal.get() }
 
   // TODO(jaked) bundle data we need for editor in CompiledFile
   private viewContentSignal: Signal<{ view: data.Types, content: string } | null> = Signal.label('viewContent',
@@ -437,7 +426,6 @@ export class App {
           return Signal.ok(undefined);
         }
       }),
-      this.setEditorViewSignal,
     )
   );
 
