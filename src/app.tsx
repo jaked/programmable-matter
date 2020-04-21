@@ -250,13 +250,12 @@ export class App {
       this.selectedCell,
       this.viewSignal,
       this.sessionsCell,
-      this.compiledNotesSignal,
-    ).flatMap(([selected, view, sessions, notes]) => {
+      this.filesystem.files,
+    ).flatMap(([selected, view, sessions, files]) => {
       const noop = Signal.ok((updateContent: string, session: Session) => {});
       if (!selected || !view) return noop;
-      const note = notes.get(selected);
-      if (!note) return noop;
-      const file = note.files[view];
+      const fn = `${selected}.${view}`; // TODO(jaked)
+      const file = files.get(fn);
       if (!file) return noop;
       return file.content.map(content =>
         (updateContent: string, session: Session) => {
