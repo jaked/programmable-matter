@@ -79,7 +79,7 @@ export class Main extends React.Component<Props, {}> {
           (this.props.app.selected !== null &&
           this.props.app.content !== undefined &&
           this.props.app.parsed !== undefined &&
-          this.props.app.compiledNote !== null &&
+          this.props.app.compiledFile !== null &&
           this.props.app.view) ?
             <Editor
               ref={this.editorRef}
@@ -87,7 +87,7 @@ export class Main extends React.Component<Props, {}> {
               view={this.props.app.view}
               content={this.props.app.content}
               parsed={this.props.app.parsed}
-              compiledNote={this.props.app.compiledNote}
+              compiledFile={this.props.app.compiledFile}
               session={this.props.app.session}
               onChange={this.props.app.setContentAndSession}
               setStatus={this.props.app.setStatus}

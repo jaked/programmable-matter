@@ -17,7 +17,7 @@ interface Props {
   view: data.Types;
   content: string;
   parsed: Try<any>; // TODO(jaked)
-  compiledNote: data.CompiledNote;
+  compiledFile: data.CompiledFile;
   session: Session;
 
   onChange: (content: string, session: Session) => void;
@@ -231,36 +231,32 @@ function computeHighlight(
   view: data.Types,
   content: string,
   ast: Try<any>,
-  compiledNote: data.CompiledNote
+  compiledFile: data.CompiledFile
 ) {
   const spans: Array<Span> = [];
   // TODO(jaked)
   // parsing should always succeed with some AST
   switch (view) {
     case 'mdx': {
-      const compiled = compiledNote.compiled.mdx ?? bug(`expected compiled mdx`);
-      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      const annots = compiledFile.astAnnotations;
       ast.forEach(ast => computeSpans(ast, annots, spans));
     }
     break;
 
     case 'json': {
-      const compiled = compiledNote.compiled.json ?? bug(`expected compiled json`);
-      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      const annots = compiledFile.astAnnotations;
       ast.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
 
     case 'table': {
-      const compiled = compiledNote.compiled.table ?? bug(`expected compiled table`);
-      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      const annots = compiledFile.astAnnotations;
       ast.forEach(table => computeJsSpans(table, annots, spans));
     }
     break;
 
     case 'meta': {
-      const compiled = compiledNote.compiled.meta ?? bug(`expected compiled meta`);
-      const annots = compiled.value.type === 'ok' ? compiled.get().astAnnotations : undefined;
+      const annots = compiledFile.astAnnotations;
       ast.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
@@ -393,8 +389,8 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { view, selected, content, parsed, compiledNote } = this.props;
-    let highlight = computeHighlight(view, content, parsed, compiledNote);
+    const { view, selected, content, parsed, compiledFile } = this.props;
+    let highlight = computeHighlight(view, content, parsed, compiledFile);
     return (
       <div style={{
         fontFamily: 'Monaco, monospace',

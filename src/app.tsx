@@ -186,6 +186,18 @@ export class App {
   private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 
+  private compiledFileSignal = Signal.label('compiledFile',
+    Signal.join(this.compiledFilesSignal, this.selectedCell, this.editorViewCell).flatMap(([compiledFiles, selected, view]) => {
+      if (selected !== null) {
+        const fn = `${selected}.${view}`; // TODO(jaked)
+        const file = compiledFiles.get(fn);
+        if (file) return file;
+      }
+      return Signal.ok(null);
+    })
+  );
+  public get compiledFile() { return this.compiledFileSignal.get() }
+
   private compiledNoteSignal = Signal.label('compiledNote',
     Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
       if (selected) {
@@ -423,7 +435,14 @@ export class App {
             if (!parsed) bug(`undefined parsed`);
             return parsed;
           })
-          return Signal.join(compiledNote.rendered, ...parseds, compiledNote.rendered);
+          return Signal.join(compiledNote.rendered, ...parseds);
+        } else {
+          return Signal.ok(undefined);
+        }
+      }),
+      this.compiledFileSignal.flatMap(compiledFile => {
+        if (compiledFile) {
+          return Signal.join(compiledFile.rendered);
         } else {
           return Signal.ok(undefined);
         }
