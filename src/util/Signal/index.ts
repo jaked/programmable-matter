@@ -45,7 +45,7 @@ interface Signal<T> {
   /**
    * equivalent to `.value.get()`
    */
-  get: () => T;
+  get(): T;
 
   map<U>(f: (t: T) => U): Signal<U>;
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U>;
@@ -85,8 +85,20 @@ function equal(v1: any, v2: any): boolean {
   }
 }
 
-class Const<T> implements Signal<T> {
+abstract class SignalImpl<T> implements Signal<T> {
+  abstract get(): T;
+  abstract value: Try<T>;
+  abstract version: number;
+  abstract level: number;
+  abstract reconcile(trace: Trace, level: number): void;
+
+  map<U>(f: (t: T) => U) { return new Map(this, f); }
+  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
+}
+
+class Const<T> extends SignalImpl<T> {
   constructor(value: Try<T>) {
+    super();
     this.value = value;
   }
 
@@ -108,16 +120,15 @@ interface CellIntf<T> extends Signal<T> {
   update(fn: (t: T) => T): void;
 }
 
-class CellImpl<T> implements CellIntf<T> {
+class CellImpl<T> extends SignalImpl<T> implements CellIntf<T> {
   constructor(value: Try<T>, onChange?: () => void) {
+    super();
     this.value = value;
     this.onChange = onChange;
     this.version = 1;
   }
 
   get() { return this.value.get(); }
-  map<U>(f: (t: T) => U) { return new Map(this, f); }
-  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   value: Try<T>;
   version: number;
@@ -141,7 +152,7 @@ interface RefIntf<T> extends Signal<T> {
   set(s: Signal<T>): void;
 }
 
-class RefImpl<T> implements Signal<T> {
+class RefImpl<T> extends SignalImpl<T> implements RefIntf<T> {
   s: Signal<T> | undefined = undefined;
 
   set(s: Signal<T>) {
@@ -155,8 +166,6 @@ class RefImpl<T> implements Signal<T> {
   }
 
   get() { return this.checkedS().get(); }
-  map<U>(f: (t: T) => U) { return new Map(this, f); }
-  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   get value() { return this.checkedS().value; }
   get version() { return this.checkedS().version; }
@@ -166,12 +175,13 @@ class RefImpl<T> implements Signal<T> {
   }
 }
 
-class Map<T, U> implements Signal<U> {
+class Map<T, U> extends SignalImpl<U> {
   s: Signal<T>;
   sVersion: number;
   f: (t: T) => U;
 
   constructor(s: Signal<T>, f: (t: T) => U) {
+    super();
     this.value = unreconciled;
     this.level = 0;
     this.version = 0;
@@ -181,8 +191,6 @@ class Map<T, U> implements Signal<U> {
   }
 
   get() { return this.value.get(); }
-  map<V>(f: (t: U) => V) { return new Map(this, f); }
-  flatMap<V>(f: (t: U) => Signal<V>) { return new FlatMap(this, f); }
 
   value: Try<U>;
   version: number;
@@ -200,7 +208,7 @@ class Map<T, U> implements Signal<U> {
   }
 }
 
-class FlatMap<T, U> implements Signal<U> {
+class FlatMap<T, U> extends SignalImpl<U> {
   s: Signal<T>;
   sVersion: number;
   fs: Signal<U> | undefined;
@@ -208,6 +216,7 @@ class FlatMap<T, U> implements Signal<U> {
   f: (t: T) => Signal<U>;
 
   constructor(s: Signal<T>, f: (t: T) => Signal<U>) {
+    super();
     this.value = unreconciled;
     this.level = 0;
     this.version = 0;
@@ -217,8 +226,6 @@ class FlatMap<T, U> implements Signal<U> {
   }
 
   get() { return this.value.get(); }
-  map<V>(f: (t: U) => V) { return new Map(this, f); }
-  flatMap<V>(f: (t: U) => Signal<V>) { return new FlatMap(this, f); }
 
   value: Try<U>;
   version: number;
@@ -257,13 +264,14 @@ class FlatMap<T, U> implements Signal<U> {
   }
 }
 
-class Join<T> implements Signal<T[]> {
+class Join<T> extends SignalImpl<T[]> {
   signals: Signal<T>[];
   versions: number[];
 
   constructor(
     signals: Signal<T>[]
   ) {
+    super();
     this.value = unreconciled;
     this.level = 0;
     this.version = 0;
@@ -272,8 +280,6 @@ class Join<T> implements Signal<T[]> {
   }
 
   get() { return this.value.get(); }
-  map<V>(f: (t: T[]) => V) { return new Map(this, f); }
-  flatMap<V>(f: (t: T[]) => Signal<V>) { return new FlatMap(this, f); }
 
   value: Try<T[]>;
   version: number;
@@ -296,7 +302,7 @@ class Join<T> implements Signal<T[]> {
   }
 }
 
-class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
+class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
   s: Signal<Immutable.Map<K, Signal<V>>>;
   sVersion: number;
   vsSignals: Immutable.Map<K, Signal<V>>;
@@ -305,6 +311,7 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
   constructor(
     s: Signal<Immutable.Map<K, Signal<V>>>
   ) {
+    super();
     this.value = unreconciled;
     this.level = 0;
     this.version = 0;
@@ -315,8 +322,6 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
   }
 
   get() { return this.value.get(); }
-  map<U>(f: (t: Immutable.Map<K, V>) => U) { return new Map(this, f); }
-  flatMap<U>(f: (t: Immutable.Map<K, V>) => Signal<U>) { return new FlatMap(this, f); }
 
   value: Try<Immutable.Map<K, V>>;
   version: number;
@@ -360,15 +365,14 @@ class JoinImmutableMap<K, V> implements Signal<Immutable.Map<K, V>> {
   }
 }
 
-class Label<T> implements Signal<T> {
+class Label<T> extends SignalImpl<T> {
   constructor(label: string, s: Signal<T>) {
+    super();
     this.label = label;
     this.s = s;
   }
 
   get() { return this.s.get(); }
-  map<U>(f: (t: T) => U) { return new Map(this, f); }
-  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   label: string;
   s: Signal<T>;
