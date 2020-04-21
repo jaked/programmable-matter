@@ -149,7 +149,7 @@ export class App {
 
   deleteNote = () => {
     const selected = this.selected;
-    const view = this.view;
+    const view = this.editorView;
     if (!selected || !view) return;
 
     const note = this.compiledNotesSignal.get().get(selected);
@@ -212,7 +212,7 @@ export class App {
   public get compiledNote() { return this.compiledNoteSignal.get() }
 
   // TODO(jaked) bundle data we need for editor in CompiledFile
-  private viewContentSignal: Signal<{ view: data.Types, content: string } | null> = Signal.label('viewContent',
+  private contentSignal: Signal<string | null> =
     Signal.join(
       this.filesystem.files,
       this.selectedCell,
@@ -222,25 +222,17 @@ export class App {
         const fn = `${selected}.${view}`; // TODO(jaked)
         const file = files.get(fn);
         if (file) {
-          return file.content.map(content => ({ view, content }));
+          return file.content;
         }
       }
       return Signal.ok(null);
-    })
-  );
-
-  private viewSignal =
-    this.viewContentSignal.map(viewContent => viewContent?.view);
-  public get view() { return this.viewSignal.get() }
-
-  private contentSignal =
-    this.viewContentSignal.map(viewContent => viewContent?.content);
+    });
   public get content() { return this.contentSignal.get() }
 
   private setContentAndSessionSignal = Signal.label('setContentAndSession',
     Signal.join(
       this.selectedCell,
-      this.viewSignal,
+      this.editorViewCell,
       this.sessionsCell,
       this.filesystem.files,
     ).flatMap(([selected, view, sessions, files]) => {
@@ -397,7 +389,6 @@ export class App {
   // so we don't need to coordinate this manually.
   private mainSignal = Signal.label('main',
     Signal.join(
-      this.viewSignal,
       this.contentSignal,
       this.sessionSignal,
       this.setContentAndSessionSignal,

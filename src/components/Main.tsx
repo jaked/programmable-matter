@@ -77,13 +77,12 @@ export class Main extends React.Component<Props, {}> {
           // when selected / view don't pick out a valid file;
           // here we have to check for all of them.
           (this.props.app.selected !== null &&
-          this.props.app.content !== undefined &&
-          this.props.app.compiledFile !== null &&
-          this.props.app.view) ?
+          this.props.app.content !== null &&
+          this.props.app.compiledFile !== null) ?
             <Editor
               ref={this.editorRef}
               selected={this.props.app.selected}
-              view={this.props.app.view}
+              view={this.props.app.editorView}
               content={this.props.app.content}
               compiledFile={this.props.app.compiledFile}
               session={this.props.app.session}
