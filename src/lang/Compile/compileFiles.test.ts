@@ -52,3 +52,23 @@ it('compiles meta', () => {
   foo.problems.reconcile(trace, 1);
   expect(foo.problems.get()).toBeFalsy();
 });
+
+it('compiles json with meta', () => {
+  const trace = new Trace();
+  const files = Signal.ok(Immutable.Map({
+    'foo.meta': new data.File(
+      'foo.meta',
+      Signal.cellOk(Buffer.from('{ dataType: "{ foo: number }" }'))
+    ),
+    'foo.json': new data.File(
+      'foo.json',
+      Signal.cellOk(Buffer.from('{ foo: 7 }'))
+    ),
+  }));
+  const compiled = compileFiles(trace, files);
+  compiled.reconcile(trace, 1);
+  const foo = compiled.get().get('foo');
+  if (!foo) bug('expected foo');
+  foo.problems.reconcile(trace, 1);
+  expect(foo.problems.get()).toBeFalsy();
+});

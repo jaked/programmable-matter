@@ -2,6 +2,7 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import * as ESTree from '../ESTree';
+import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
@@ -14,6 +15,26 @@ const metaType =
       dataType: Type.undefinedOrString,
     })),
   });
+
+// TODO(jaked)
+// make Type part of the type system and convert?
+function convertMeta(obj: any): data.Meta {
+  let dataType = {}
+  if (typeof obj.dataType === 'string') {
+    try {
+      dataType = { dataType: Parse.parseType(obj.dataType) }
+    } catch (e) {
+      // TODO(jaked) how to surface these?
+      console.log(e)
+    }
+  }
+
+  const dirMeta =
+    typeof obj.dirMeta === 'object' ?
+    { dirMeta: convertMeta(obj.dirMeta) } : {};
+
+  return { ...obj, ...dataType, ...dirMeta };
+}
 
 export default function compileMeta(
   ast: ESTree.Expression
@@ -31,7 +52,7 @@ export default function compileMeta(
   const value =
     problems ?
       Signal.err(error) :
-      Signal.ok(Evaluate.evaluateExpression(ast, Immutable.Map()));
+      Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, Immutable.Map())));
 
   const exportType = Type.module({ default: metaType });
   const exportValue = { default: value }

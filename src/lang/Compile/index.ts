@@ -1,3 +1,4 @@
+import * as Path from 'path';
 import * as Immutable from 'immutable';
 
 import Signal from '../../util/Signal';
@@ -227,60 +228,37 @@ export function compileFiles(
   compiledFilesRef.set(compiledFiles);
 
   const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByTag, (files, tag) => {
-    // TODO(jaked) fix temporary hacks
-    if (files.size !== 1) bug(`expected 1 path for '${tag}'`);
-    const file = files.find(path => true);
-    if (!file) bug(`expected path for '${tag}`);
+    let file;
+    switch (files.size) {
+      case 1:
+        file = files.find(path => true);
+        break;
+      case 2:
+        file = files.find(file => file.type != 'meta');
+        break;
+      default:
+        bug(`expected 1 or 2 files for ${tag}`);
+    }
+
+    if (!file) bug(`expected file for '${tag}`);
 
     const compiled = compiledFiles.flatMap(compiledFiles =>
       compiledFiles.get(file.path) ?? bug(`expected compiled file for '${file.path}'`)
     );
 
-    switch (file.type) {
-      case 'mdx':
-        return {
-          tag,
-          isIndex: false,
-          meta: unimplementedSignal,
-          files: { mdx: file },
-          parsed: { mdx: compiled.map(compiled => compiled.ast) },
-          imports: unimplementedSignal,
-          compiled: { mdx: compiled },
-          problems: compiled.map(compiled => compiled.problems),
-          rendered: compiled.flatMap(compiled => compiled.rendered),
-          exportType: compiled.map(compiled => compiled.exportType),
-          exportValue: compiled.map(compiled => compiled.exportValue),
-        };
-      case 'json':
-        return {
-          tag,
-          isIndex: false,
-          meta: unimplementedSignal,
-          files: { json: file },
-          parsed: { json: compiled.map(compiled => compiled.ast) },
-          imports: unimplementedSignal,
-          compiled: { json: compiled },
-          problems: compiled.map(compiled => compiled.problems),
-          rendered: compiled.flatMap(compiled => compiled.rendered),
-          exportType: compiled.map(compiled => compiled.exportType),
-          exportValue: compiled.map(compiled => compiled.exportValue),
-        };
-      case 'meta':
-        return {
-          tag,
-          isIndex: false,
-          meta: unimplementedSignal,
-          files: { meta: file },
-          parsed: { meta: compiled.map(compiled => compiled.ast) },
-          imports: unimplementedSignal,
-          compiled: { meta: compiled },
-          problems: compiled.map(compiled => compiled.problems),
-          rendered: compiled.flatMap(compiled => compiled.rendered),
-          exportType: compiled.map(compiled => compiled.exportType),
-          exportValue: compiled.map(compiled => compiled.exportValue),
-        };
-        default: bug('unimplemented');
-    }
+    return {
+      tag,
+      isIndex: false,
+      meta: unimplementedSignal,
+      files: { [file.type]: file },
+      parsed: { [file.type]: compiled.map(compiled => compiled.ast) },
+      imports: unimplementedSignal,
+      compiled: { [file.type]: compiled },
+      problems: compiled.map(compiled => compiled.problems),
+      rendered: compiled.flatMap(compiled => compiled.rendered),
+      exportType: compiled.map(compiled => compiled.exportType),
+      exportValue: compiled.map(compiled => compiled.exportValue),
+    };
   });
   compiledNotesRef.set(compiledNotes);
 
