@@ -46,6 +46,7 @@ export default function compileFileMdx(
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
+  setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
   const ast = file.content.map(content => Parse.parse(trace, content));
   const imports = ast.map(findImports);
@@ -70,8 +71,7 @@ export default function compileFileMdx(
 
   // TODO(jaked) pass in these envs from above?
   const typeEnv = Render.initTypeEnv;
-  // TODO(jaked) setSelected
-  const valueEnv = Render.initValueEnv((note: string) => {});
+  const valueEnv = Render.initValueEnv(setSelected);
 
   const meta = metaForFile(file, compiledFiles);
 

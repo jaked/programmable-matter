@@ -13,12 +13,19 @@ export default function compileFile(
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
+  updateFile: (path: string, buffer: Buffer) => void,
+  setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
 
   switch (file.type) {
-    case 'mdx': return compileFileMdx(trace, file, compiledFiles, compiledNotes);
-    case 'json': return compileFileJson(trace, file, compiledFiles);
-    case 'meta': return compileFileMeta(trace, file);
+    case 'mdx':
+      return compileFileMdx(trace, file, compiledFiles, compiledNotes, setSelected);
+
+    case 'json':
+      return compileFileJson(trace, file, compiledFiles, updateFile);
+
+    case 'meta':
+      return compileFileMeta(trace, file);
 
     default: bug('unimplemented');
   }

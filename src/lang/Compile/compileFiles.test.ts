@@ -6,15 +6,18 @@ import { bug } from '../../util/bug';
 import * as data from '../../data';
 import { compileFiles } from './index';
 
+const trace = new Trace();
+const updateFile = (s: string, b: Buffer) => {}
+const setSelected = (s: string) => {}
+
 it('compiles mdx', () => {
-  const trace = new Trace();
   const files = Signal.ok(Immutable.Map({
     'foo.mdx': new data.File(
       'foo.mdx',
       Signal.cellOk(Buffer.from("foo"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -23,14 +26,13 @@ it('compiles mdx', () => {
 });
 
 it('compiles json', () => {
-  const trace = new Trace();
   const files = Signal.ok(Immutable.Map({
     'foo.json': new data.File(
       'foo.json',
       Signal.cellOk(Buffer.from("{ }"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files);
+  const { compiledNotes } = compileFiles(trace, files,  updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -39,14 +41,13 @@ it('compiles json', () => {
 });
 
 it('compiles meta', () => {
-  const trace = new Trace();
   const files = Signal.ok(Immutable.Map({
     'foo.meta': new data.File(
       'foo.meta',
       Signal.cellOk(Buffer.from("{ }"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -63,12 +64,11 @@ it('compiles json with meta', () => {
     'foo.json',
     Signal.cellOk(Buffer.from('{ foo: 7 }'))
   );
-  const trace = new Trace();
   const files = Signal.ok(Immutable.Map({
     'foo.meta': metaFile,
     'foo.json': jsonFile,
   }));
-  const { compiledNotes } = compileFiles(trace, files);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -86,12 +86,11 @@ it('compiles mdx with meta', () => {
     'foo.mdx',
     Signal.cellOk(Buffer.from('foo'))
   );
-  const trace = new Trace();
   const files = Signal.ok(Immutable.Map({
     'foo.meta': metaFile,
     'foo.mdx': mdxFile,
   }));
-  const { compiledNotes } = compileFiles(trace, files);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -107,3 +106,6 @@ it('compiles mdx with meta', () => {
     ]
   );
 });
+
+// TODO(jaked)
+// test updateFile / setSelected

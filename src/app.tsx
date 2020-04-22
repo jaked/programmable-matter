@@ -182,7 +182,9 @@ export class App {
   private compiledFilesSignalNotesSignal =
     Compile.compileFiles(
       this.__trace,
-      this.filesystem.files
+      this.filesystem.files,
+      this.filesystem.update,
+      this.setSelected,
     )
   private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
   private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;

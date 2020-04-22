@@ -12,6 +12,7 @@ export default function compileFileJson(
   trace: Trace,
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
+  updateFile: (path: string, buffer: Buffer) => void,
 ): Signal<data.CompiledFile> {
   const ast = file.content.map(Parse.parseExpression);
 
@@ -20,8 +21,7 @@ export default function compileFileJson(
   const meta = metaForFile(file, compiledFiles);
 
   return Signal.join(ast, meta).map(([ast, meta]) => {
-    // TODO(jaked) handle updateFile
-    const compiled = compileJson(file, ast, meta, (path: string, buffer: Buffer) => {});
+    const compiled = compileJson(file, ast, meta, updateFile);
     return { ...compiled, ast: Try.ok(ast) };
   })
 }

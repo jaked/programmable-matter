@@ -205,7 +205,9 @@ const unimplementedSignal = Signal.err(new Error('unimplemented'));
 
 export function compileFiles(
   trace: Trace,
-  files: Signal<data.Files>
+  files: Signal<data.Files>,
+  updateFile: (path: string, buffer: Buffer) => void,
+  setSelected: (note: string) => void,
 ): { compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>, compiledNotes: Signal<data.CompiledNotes> } {
 
   // TODO(jaked)
@@ -223,7 +225,7 @@ export function compileFiles(
   const compiledNotesRef = Signal.ref<data.CompiledNotes>();
 
   const compiledFiles = Signal.mapImmutableMap(files, file =>
-    compileFile(trace, file, compiledFilesRef, compiledNotesRef)
+    compileFile(trace, file, compiledFilesRef, compiledNotesRef, updateFile, setSelected)
   );
   compiledFilesRef.set(compiledFiles);
 
