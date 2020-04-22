@@ -49,6 +49,7 @@ interface Signal<T> {
 
   map<U>(f: (t: T) => U): Signal<U>;
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U>;
+  liftToTry(): Signal<Try<T>>;
 
   /**
    * value of this signal, up-to-date with respect to `level`.
@@ -92,8 +93,9 @@ abstract class SignalImpl<T> implements Signal<T> {
   abstract level: number;
   abstract reconcile(trace: Trace, level: number): void;
 
-  map<U>(f: (t: T) => U) { return new Map(this, f); }
-  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
+  map<U>(f: (t: T) => U): Signal<U> { return new Map(this, f); }
+  flatMap<U>(f: (t: T) => Signal<U>): Signal<U> { return new FlatMap(this, f); }
+  liftToTry(): Signal<Try<T>> { return new LiftToTry(this); }
 }
 
 class Const<T> extends SignalImpl<T> {
@@ -261,6 +263,24 @@ class FlatMap<T, U> extends SignalImpl<U> {
     if (equal(value, this.value)) return;
     this.value = value;
     this.version++;
+  }
+}
+
+class LiftToTry<T> extends SignalImpl<Try<T>> {
+  s: Signal<T>;
+
+  constructor(s: Signal<T>) {
+    super();
+    this.s = s;
+  }
+
+  get() { return this.s.value; }
+
+  get value(): Try<Try<T>> { return Try.ok(this.s.value); }
+  get version(): number { return this.s.version; }
+  get level(): number { return this.s.level; }
+  reconcile(trace: Trace, level: number) {
+    this.s.reconcile(trace, level);
   }
 }
 

@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import Signal from './index';
 import Trace from '../Trace';
+import Try from '../Try';
 
 const err = new Error('fail');
 const trace = new Trace();
@@ -207,6 +208,23 @@ describe('flatMap', () => {
 
     expect(() => m.reconcile(trace, 1)).not.toThrow();
     expect(() => m.get()).toThrow();
+  });
+});
+
+describe('liftToTry', () => {
+  it('lifts ok', () => {
+    const c = Signal.ok(7);
+    const s = c.liftToTry();
+    s.reconcile(trace, 1);
+    expect(s.get()).toEqual(Try.ok(7));
+  });
+
+  it('lifts err', () => {
+    const err = new Error('error!');
+    const c = Signal.err(err);
+    const s = c.liftToTry();
+    s.reconcile(trace, 1);
+    expect(s.get()).toEqual(Try.err(err));
   });
 });
 
