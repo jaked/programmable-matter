@@ -8,6 +8,7 @@ import * as MDXHAST from '../mdxhast';
 import * as data from '../../data';
 
 import compileMdx from './compileMdx';
+import metaForFile from './metaForFile';
 
 function findImports(ast: MDXHAST.Node) {
   const imports = Immutable.Set<string>().asMutable();
@@ -72,9 +73,10 @@ export default function compileFileMdx(
   // TODO(jaked) setSelected
   const valueEnv = Render.initValueEnv((note: string) => {});
 
-  // handle .meta file
-  return Signal.join(ast, moduleTypeEnv, moduleValueEnv).map(([ast, moduleTypeEnv, moduleValueEnv]) => {
-    const compiled = compileMdx(trace, ast, {}, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
+  const meta = metaForFile(file, compiledFiles);
+
+  return Signal.join(ast, meta, moduleTypeEnv, moduleValueEnv).map(([ast, meta, moduleTypeEnv, moduleValueEnv]) => {
+    const compiled = compileMdx(trace, ast, meta, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
     return { ...compiled, ast: Try.ok(ast) }
   });
 }
