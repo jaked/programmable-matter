@@ -55,18 +55,77 @@ it('compiles meta', () => {
   expect(foo.problems.get()).toBeFalsy();
 });
 
-it('compiles json with meta', () => {
-  const metaFile = new data.File(
-    'foo.meta',
-    Signal.cellOk(Buffer.from('{ dataType: "{ foo: number }" }'))
-  );
-  const jsonFile = new data.File(
-    'foo.json',
-    Signal.cellOk(Buffer.from('{ foo: 7 }'))
-  );
+
+it('compiles table', () => {
   const files = Signal.ok(Immutable.Map({
-    'foo.meta': metaFile,
-    'foo.json': jsonFile,
+    'cats/index.meta': new data.File(
+      'cats/index.meta',
+      Signal.cellOk(Buffer.from(`
+        {
+          dirMeta: {
+            dataType: '{ name: string, breed: string }'
+          }
+        }
+      `))
+    ),
+    'cats/index.table': new data.File(
+      'cats/index.table',
+      Signal.cellOk(Buffer.from(`
+        {
+          fields: [
+            {
+              kind: 'data',
+              name: 'name',
+              label: 'Name',
+              type: 'string'
+            },
+            {
+              kind: 'data',
+              name: 'breed',
+              label: 'Breed',
+              type: 'string'
+            },
+          ]
+        }
+      `))
+    ),
+    'cats/smokey.json': new data.File(
+      'cats/smokey.json',
+      Signal.cellOk(Buffer.from(`
+        {
+          name: 'Smokey',
+          breed: 'Ocicat',
+        }
+      `)),
+    ),
+    'cats/danny.json': new data.File(
+      'cats/danny.json',
+      Signal.cellOk(Buffer.from(`
+        {
+          name: 'Danny',
+          breed: 'American shorthair',
+        }
+      `)),
+    ),
+  }));
+  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
+  compiledNotes.reconcile(trace, 1);
+  const cats = compiledNotes.get().get('cats');
+  if (!cats) bug('expected cats');
+  cats.problems.reconcile(trace, 1);
+  expect(cats.problems.get()).toBeFalsy();
+});
+
+it('compiles json with meta', () => {
+  const files = Signal.ok(Immutable.Map({
+    'foo.meta': new data.File(
+      'foo.meta',
+      Signal.cellOk(Buffer.from('{ dataType: "{ foo: number }" }'))
+    ),
+    'foo.json': new data.File(
+      'foo.json',
+      Signal.cellOk(Buffer.from('{ foo: 7 }'))
+    ),
   }));
   const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);
@@ -78,17 +137,15 @@ it('compiles json with meta', () => {
 });
 
 it('compiles mdx with meta', () => {
-  const metaFile = new data.File(
-    'foo.meta',
-    Signal.cellOk(Buffer.from('{ }'))
-  );
-  const mdxFile = new data.File(
-    'foo.mdx',
-    Signal.cellOk(Buffer.from('foo'))
-  );
   const files = Signal.ok(Immutable.Map({
-    'foo.meta': metaFile,
-    'foo.mdx': mdxFile,
+    'foo.meta': new data.File(
+      'foo.meta',
+      Signal.cellOk(Buffer.from('{ }'))
+    ),
+    'foo.mdx': new data.File(
+      'foo.mdx',
+      Signal.cellOk(Buffer.from('foo'))
+    ),
   }));
   const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
   compiledNotes.reconcile(trace, 1);

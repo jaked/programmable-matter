@@ -4,9 +4,10 @@ import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import * as data from '../../data';
 
+import compileFileMeta from './compileFileMeta';
 import compileFileMdx from './compileFileMdx';
 import compileFileJson from './compileFileJson';
-import compileFileMeta from './compileFileMeta';
+import compileFileTable from './compileFileTable';
 
 export default function compileFile(
   trace: Trace,
@@ -18,14 +19,17 @@ export default function compileFile(
 ): Signal<data.CompiledFile> {
 
   switch (file.type) {
+    case 'meta':
+      return compileFileMeta(trace, file);
+
     case 'mdx':
       return compileFileMdx(trace, file, compiledFiles, compiledNotes, setSelected);
 
     case 'json':
       return compileFileJson(trace, file, compiledFiles, updateFile);
 
-    case 'meta':
-      return compileFileMeta(trace, file);
+    case 'table':
+      return compileFileTable(trace, file, compiledFiles, setSelected);
 
     default: bug('unimplemented');
   }
