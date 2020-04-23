@@ -1,7 +1,7 @@
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
-import Try from '../../util/Try';
 import * as Parse from '../Parse';
+import Type from '../Type';
 import * as data from '../../data';
 
 import compileMeta from './compileMeta';
@@ -11,8 +11,22 @@ export default function compileFileMeta(
   file: data.File,
 ): Signal<data.CompiledFile> {
   const ast = file.content.map(Parse.parseExpression);
-  return ast.map(ast => {
-    const compiled = compileMeta(ast);
-    return { ...compiled, ast: Try.ok(ast) }
+
+  return ast.liftToTry().map(astTry => {
+    switch (astTry.type) {
+      case 'ok': {
+        const compiled = compileMeta(astTry.ok);
+        return { ...compiled, ast: astTry };
+      }
+      case 'err': {
+        return {
+          exportType: Type.module({}),
+          exportValue: {},
+          rendered: Signal.constant(astTry),
+          problems: true,
+          ast: astTry
+        }
+      }
+    }
   });
 }

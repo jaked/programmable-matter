@@ -2,8 +2,8 @@ import * as Path from 'path';
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
-import Try from '../../util/Try';
 import * as Parse from '../Parse';
+import Type from '../Type';
 import * as data from '../../data';
 
 import compileTable from './compileTable';
@@ -64,12 +64,28 @@ export default function compileFileTable(
     return [ importsSet.asImmutable(), noteEnv.asImmutable() ]
   });
 
-  // TODO(jaked) maybe this can be simplified once we inline compileTable
-  return Signal.join(ast, importsNoteEnv).flatMap(([ast, importsNoteEnv]) => {
-    const [ imports, noteEnv] = importsNoteEnv;
-    return Signal.joinImmutableMap(Signal.ok(noteEnv)).flatMap(noteEnv =>
-      compileTable(trace, ast, noteTag, imports, noteEnv, setSelected)
-        .map(compiled => ({ ...compiled, ast: Try.ok(ast) }))
-    );
+  return ast.liftToTry().flatMap(astTry => {
+    const astTryOrig = astTry;
+    switch (astTry.type) {
+      case 'ok':
+        // TODO(jaked) maybe this can be simplified once we inline compileTable
+        return importsNoteEnv.flatMap(importsNoteEnv => {
+          const [ imports, noteEnv] = importsNoteEnv;
+          return Signal.joinImmutableMap(Signal.ok(noteEnv)).flatMap(noteEnv =>
+            compileTable(trace, astTry.ok, noteTag, imports, noteEnv, setSelected)
+              .map(compiled => ({ ...compiled, ast: astTryOrig }))
+          );
+        });
+
+      case 'err': {
+        return Signal.ok({
+          exportType: Type.module({}),
+          exportValue: {},
+          rendered: Signal.constant(astTry),
+          problems: true,
+          ast: astTryOrig
+        })
+      }
+    }
   });
 }

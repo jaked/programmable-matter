@@ -1,8 +1,8 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
-import Try from '../../util/Try';
 import * as Parse from '../Parse';
+import Type from '../Type';
 import * as data from '../../data';
 
 import compileJson from './compileJson';
@@ -20,8 +20,23 @@ export default function compileFileJson(
 
   const meta = metaForFile(file, compiledFiles);
 
-  return Signal.join(ast, meta).map(([ast, meta]) => {
-    const compiled = compileJson(file, ast, meta, updateFile);
-    return { ...compiled, ast: Try.ok(ast) };
-  })
+  return ast.liftToTry().flatMap(astTry => {
+    const astTryOrig = astTry;
+    switch (astTry.type) {
+      case 'ok':
+        return meta.map(meta => {
+          const compiled = compileJson(file, astTry.ok, meta, updateFile);
+          return { ...compiled, ast: astTryOrig };
+        });
+
+      case 'err':
+        return Signal.ok({
+          exportType: Type.module({}),
+          exportValue: {},
+          rendered: Signal.constant(astTry),
+          problems: true,
+          ast: astTryOrig
+        });
+    }
+  });
 }
