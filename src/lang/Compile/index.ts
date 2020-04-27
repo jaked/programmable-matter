@@ -1,10 +1,11 @@
-import * as Path from 'path';
 import * as Immutable from 'immutable';
+import React from 'react';
 
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import { diffMap } from '../../util/immutable/Map';
 import { bug } from '../../util/bug';
+import Type from '../Type';
 import * as Render from '../Render';
 import * as data from '../../data';
 
@@ -230,37 +231,73 @@ export function compileFiles(
   compiledFilesRef.set(compiledFiles);
 
   const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByTag, (files, tag) => {
-    let file;
-    switch (files.size) {
-      case 1:
-        file = files.find(path => true);
-        break;
-      case 2:
-        file = files.find(file => file.type != 'meta');
-        break;
-      default:
-        bug(`expected 1 or 2 files for ${tag}`);
+    function compiledFileForType(type: data.Types): Signal<data.CompiledFile | undefined> {
+      // TODO(jaked) fix tags for index files, then just use tag here instead of files
+      const file = files.find(file => file.type === type);
+      if (file) {
+        return compiledFiles.flatMap(compiledFiles =>
+          compiledFiles.get(file.path) ?? Signal.ok(undefined)
+        );
+      } else {
+        return Signal.ok(undefined);
+      }
     }
 
-    if (!file) bug(`expected file for '${tag}`);
+    // TODO(jaked) Signal.untuple
+    const parts =
+      Signal.join(
+        compiledFileForType('meta'),
+        compiledFileForType('mdx'),
+        compiledFileForType('table'),
+        compiledFileForType('json'),
+      ).map(([meta, mdx, table, json]) => {
+        let rendered: Signal<React.ReactNode>;
+        if (mdx) rendered = mdx.rendered;
+        else if (table) rendered = table.rendered;
+        else if (json) rendered = json.rendered;
+        else if (meta) rendered = meta.rendered;
+        else bug(`expected compiled file for '${tag}'`);
 
-    const compiled = compiledFiles.flatMap(compiledFiles =>
-      compiledFiles.get(file.path) ?? bug(`expected compiled file for '${file.path}'`)
-    );
+        const problems =
+          (mdx ? mdx.problems : false) ||
+          (table ? table.problems : false) ||
+          (json ? json.problems : false) ||
+          (meta ? meta.problems : false);
 
-    return {
-      tag,
-      isIndex: false,
-      meta: unimplementedSignal,
-      files: { },
-      parsed: { },
-      imports: unimplementedSignal,
-      compiled: { [file.type]: compiled },
-      problems: compiled.map(compiled => compiled.problems),
-      rendered: compiled.flatMap(compiled => compiled.rendered),
-      exportType: compiled.map(compiled => compiled.exportType),
-      exportValue: compiled.map(compiled => compiled.exportValue),
-    };
+        // TODO(jaked) merge exportType / exportValue across files
+        let exportType: Type.ModuleType;
+        if (mdx) exportType = mdx.exportType;
+        else if (table) exportType = table.exportType;
+        else if (json) exportType = json.exportType;
+        else if (meta) exportType = meta.exportType;
+        else bug(`expected compiled file for '${tag}'`);
+        let exportValue: { [s: string]: Signal<any> };
+        if (mdx) exportValue = mdx.exportValue;
+        else if (table) exportValue = table.exportValue;
+        else if (json) exportValue = json.exportValue;
+        else if (meta) exportValue = meta.exportValue;
+        else bug(`expected compiled file for '${tag}'`);
+
+        return {
+          problems,
+          rendered,
+          exportType,
+          exportValue,
+        };
+      });
+      return {
+        tag,
+        isIndex: false,
+        meta: unimplementedSignal,
+        files: { },
+        parsed: { },
+        imports: unimplementedSignal,
+        compiled: { },
+        problems: parts.map(parts => parts.problems),
+        rendered: parts.flatMap(parts => parts.rendered),
+        exportType: parts.map(parts => parts.exportType),
+        exportValue: parts.map(parts => parts.exportValue),
+      };
   });
   compiledNotesRef.set(compiledNotes);
 

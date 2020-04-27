@@ -1,5 +1,4 @@
 import * as Immutable from 'immutable';
-import React from 'react';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import { bug } from '../../util/bug';
@@ -113,6 +112,29 @@ it('compiles table', () => {
   if (!cats) bug('expected cats');
   cats.problems.reconcile(trace, 1);
   expect(cats.problems.get()).toBeFalsy();
+});
+
+it('compiles mdx + json + meta', () => {
+  const files = Signal.ok(Immutable.Map({
+    'foo.mdx': new data.File(
+      'foo.mdx',
+      Signal.cellOk(Buffer.from("foo <>data.bar</>"))
+    ),
+    'foo.meta': new data.File(
+      'foo.meta',
+      Signal.cellOk(Buffer.from(`{ dataType: '{ bar: number }' }`))
+    ),
+    'foo.json': new data.File(
+      'foo.json',
+      Signal.cellOk(Buffer.from(`{ bar: 7 }`))
+    )
+  }));
+  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
+  compiledNotes.reconcile(trace, 1);
+  const foo = compiledNotes.get().get('foo');
+  if (!foo) bug('expected foo');
+  foo.problems.reconcile(trace, 1);
+  expect(foo.problems.get()).toBeFalsy();
 });
 
 // TODO(jaked)
