@@ -3,8 +3,6 @@ import Immutable from 'immutable';
 import React from 'react';
 import Signal from './util/Signal';
 import Try from './util/Try';
-import * as MDXHAST from './lang/mdxhast';
-import * as ESTree from './lang/ESTree';
 import Type from './lang/Type';
 
 export type Types = 'meta' | 'mdx' | 'json' | 'jpeg' | 'table';
@@ -57,29 +55,6 @@ export type NoteFiles = {
   'table'?: File;
 }
 
-export type Note = {
-  tag: string;
-  isIndex: boolean;
-  meta: Signal<Meta>;
-  files: NoteFiles;
-};
-
-export type NoteParsed = {
-  'meta'?: Signal<ESTree.Expression>;
-  'mdx'?: Signal<MDXHAST.Root>;
-  'json'?: Signal<ESTree.Expression>;
-  'table'?: Signal<ESTree.Expression>;
-}
-
-export type ParsedNote = Note & {
-  parsed: NoteParsed;
-}
-
-export type ParsedNoteWithImports = ParsedNote & {
-  imports: Signal<Immutable.Set<string>>;
-}
-
-
 export type TableFieldBase = {
   name: string;
   label: string;
@@ -109,7 +84,11 @@ export type CompiledFile = Compiled & {
   ast: Try<any>; // TODO(jaked)
 }
 
-export type CompiledNote = ParsedNoteWithImports & {
+export type CompiledNote = {
+  tag: string;
+  isIndex: boolean;
+  meta: Signal<Meta>;
+  files: NoteFiles;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
   exportType: Signal<Type.ModuleType>;
@@ -120,7 +99,4 @@ export type CompiledNote = ParsedNoteWithImports & {
 export type Files = Immutable.Map<string, File>;
 
 // indexed by tag
-export type Notes = Immutable.Map<string, Note>;
-export type ParsedNotes = Immutable.Map<string, ParsedNote>;
-export type ParsedNotesWithImports = Immutable.Map<string, ParsedNoteWithImports>;
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;

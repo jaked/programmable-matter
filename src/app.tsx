@@ -418,20 +418,7 @@ export class App {
         const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
         return Signal.join(...matchingNotes);
       }),
-      this.compiledNoteSignal.flatMap(compiledNote => {
-        if (compiledNote) {
-          // not all the parsed signals are depended on by compiled signals
-          // so we need to include them in reconciliation
-          // TODO(jaked) fix this ^^
-          const parseds = Object.values(compiledNote.parsed).map(parsed => {
-            if (!parsed) bug(`undefined parsed`);
-            return parsed;
-          })
-          return Signal.join(compiledNote.rendered, ...parseds);
-        } else {
-          return Signal.ok(undefined);
-        }
-      }),
+      this.compiledNoteSignal,
       this.compiledFileSignal.flatMap(compiledFile => {
         if (compiledFile) {
           return Signal.join(compiledFile.rendered);
