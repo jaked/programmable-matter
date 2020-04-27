@@ -202,6 +202,26 @@ export class App {
   );
   public get compiledFile() { return this.compiledFileSignal.get() }
 
+  private selectedNoteProblemsSignal =
+    Signal.join(this.compiledFilesSignal, this.selectedCell).flatMap(([compiledFiles, selected]) => {
+      if (selected !== null) {
+        const meta = compiledFiles.get(`${selected}.meta`) ?? Signal.ok(undefined);
+        const mdx = compiledFiles.get(`${selected}.mdx`) ?? Signal.ok(undefined);
+        const table = compiledFiles.get(`${selected}.table`) ?? Signal.ok(undefined);
+        const json = compiledFiles.get(`${selected}.json`) ?? Signal.ok(undefined);
+        return Signal.join(meta, mdx, table, json).map(([meta, mdx, table, json]) => ({
+          meta: meta?.problems,
+          mdx: mdx?.problems,
+          table: table?.problems,
+          json: json?.problems,
+        }));
+      } else {
+        // TODO(jaked) figure out a way to have signals demanded conditionally
+        return Signal.ok({ meta: false, mdx: false, table: false, json: false });
+      }
+    });
+  public get selectedNoteProblems() { return this.selectedNoteProblemsSignal.get() }
+
   private compiledNoteSignal = Signal.label('compiledNote',
     Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
       if (selected) {
@@ -419,6 +439,7 @@ export class App {
           return Signal.ok(undefined);
         }
       }),
+      this.selectedNoteProblemsSignal,
     )
   );
 
@@ -448,13 +469,10 @@ export class App {
       const index = (nextIndex + i) % matchingNotes.length;
       const matchingNote = matchingNotes[index];
       // TODO(jaked) separate selectable content objects in notes?
-      Object.values(matchingNote.compiled).forEach(compiled => {
-        if (!compiled) return;
-        if (compiled.value.type === 'err') {
-          cont = false;
-          this.setSelected(matchingNote.tag);
-        }
-      });
+      if (matchingNote.problems.get() === true) {
+        cont = false;
+        this.setSelected(matchingNote.tag);
+      }
     }
   }
 
@@ -467,13 +485,10 @@ export class App {
       const index = (previousIndex + i) % matchingNotes.length;
       const matchingNote = matchingNotes[index];
       // TODO(jaked) separate selectable content objects in notes?
-      Object.values(matchingNote.compiled).forEach(compiled => {
-        if (!compiled) return;
-        if (compiled.value.type === 'err') {
-          cont = false;
-          this.setSelected(matchingNote.tag);
-        }
-      });
+      if (matchingNote.problems.get() === true) {
+        cont = false;
+        this.setSelected(matchingNote.tag);
+      }
     }
   }
 

@@ -22,7 +22,7 @@ const TabBox = styled(BoxBase)`
 type Props = {
   editorView: 'mdx' | 'json' | 'table' | 'meta',
   setEditorView: (view: 'mdx' | 'json' | 'table' | 'meta') => void,
-  compiledNote: data.CompiledNote | null,
+  selectedNoteProblems: { meta?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
 }
 
 type TabProps = Props & {
@@ -32,12 +32,7 @@ type TabProps = Props & {
 
 const Tab = (props: TabProps) => {
   const selected = props.editorView === props.view;
-  const compiled = props.compiledNote?.compiled[props.view];
-  let problems: boolean = false;
-  if (compiled) {
-    if (compiled.value.type === 'err') problems = true;
-    else if (compiled.value.ok.problems) problems = true;
-  }
+  const problems = props.selectedNoteProblems && props.selectedNoteProblems[props.view];
 
   const backgroundColor =
     problems ?

@@ -109,16 +109,7 @@ export type CompiledFile = Compiled & {
   ast: Try<any>; // TODO(jaked)
 }
 
-export type NoteCompiled = {
-  'meta'?: Signal<Compiled>;
-  'mdx'?: Signal<Compiled>;
-  'json'?: Signal<Compiled>;
-  'jpeg'?: Signal<Compiled>;
-  'table'?: Signal<Compiled>;
-}
-
 export type CompiledNote = ParsedNoteWithImports & {
-  compiled: NoteCompiled;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
   exportType: Signal<Type.ModuleType>;
