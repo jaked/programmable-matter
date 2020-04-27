@@ -1,3 +1,4 @@
+import Path from 'path';
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
@@ -48,7 +49,9 @@ export default function compileFileMdx(
   compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
+  // TODO(jaked) handle parse errors
   const ast = file.content.map(content => Parse.parse(trace, content));
+
   const imports = ast.map(findImports);
   // TODO(jaked) support layouts
   // TODO(jaked) support refs to data / table parts
@@ -69,14 +72,50 @@ export default function compileFileMdx(
   const moduleValueEnv =
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
 
-  // TODO(jaked) pass in these envs from above?
-  const typeEnv = Render.initTypeEnv;
-  const valueEnv = Render.initValueEnv(setSelected);
-
   const meta = metaForFile(file, compiledFiles);
 
-  return Signal.join(ast, meta, moduleTypeEnv, moduleValueEnv).map(([ast, meta, moduleTypeEnv, moduleValueEnv]) => {
-    const compiled = compileMdx(trace, ast, meta, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
+  const pathParsed = Path.parse(file.path);
+  const jsonPath = Path.format({ ...pathParsed, base: pathParsed.name + '.json' });
+  const tablePath = Path.format({ ...pathParsed, base: pathParsed.name + '.table' });
+  const json = compiledFiles.flatMap(compiledFiles =>
+    compiledFiles.get(jsonPath) ?? Signal.ok(undefined)
+  );
+  const table = compiledFiles.flatMap(compiledFiles =>
+    compiledFiles.get(tablePath) ?? Signal.ok(undefined)
+  );
+
+  return Signal.join(
+    ast,
+    meta,
+    json,
+    table,
+    moduleTypeEnv,
+    moduleValueEnv,
+  ).map(([ast, meta, json, table, moduleTypeEnv, moduleValueEnv]) => {
+    // TODO(jaked) pass in these envs from above?
+    let typeEnv = Render.initTypeEnv;
+    let valueEnv = Render.initValueEnv(setSelected);
+
+    if (json) {
+      const dataType = json.exportType.get('mutable');
+      const dataValue = json.exportValue['mutable'];
+      if (dataType && dataValue) {
+        typeEnv = typeEnv.set('data', dataType);
+        valueEnv = valueEnv.set('data', dataValue);
+      }
+    }
+
+    if (table) {
+      const tableType = table.exportType.get('default');
+      const tableValue = table.exportValue['default'];
+      if (tableType && tableValue) {
+        typeEnv = typeEnv.set('table', tableType);
+        valueEnv = valueEnv.set('table', tableValue);
+      }
+    }
+
+    const compiled =
+      compileMdx(trace, ast, meta, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
     return { ...compiled, ast: Try.ok(ast) }
   });
 }
