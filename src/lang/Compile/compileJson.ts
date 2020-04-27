@@ -90,10 +90,6 @@ export default function compileJson(
       type = Typecheck.synth(ast, Typecheck.env(), astAnnotations);
     }
   } catch (e) {
-    type = Type.never;
-  }
-
-  if (type.kind === 'never') {
     const exportType = Type.module({ });
     const exportValue = { };
     const rendered = Signal.ok(false);

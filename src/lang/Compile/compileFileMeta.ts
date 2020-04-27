@@ -18,10 +18,11 @@ export default function compileFileMeta(
         const compiled = compileMeta(astTry.ok);
         return { ...compiled, ast: astTry };
       }
+      // TODO(jaked) consolidate with compileMeta error case
       case 'err': {
         return {
           exportType: Type.module({}),
-          exportValue: {},
+          exportValue: { default: Signal.ok({}) },
           rendered: Signal.constant(astTry),
           problems: true,
           ast: astTry

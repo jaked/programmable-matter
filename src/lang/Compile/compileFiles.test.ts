@@ -55,7 +55,6 @@ it('compiles meta', () => {
   expect(foo.problems.get()).toBeFalsy();
 });
 
-
 it('compiles table', () => {
   const files = Signal.ok(Immutable.Map({
     'cats/index.meta': new data.File(
@@ -114,26 +113,6 @@ it('compiles table', () => {
   if (!cats) bug('expected cats');
   cats.problems.reconcile(trace, 1);
   expect(cats.problems.get()).toBeFalsy();
-});
-
-it('compiles json with meta', () => {
-  const files = Signal.ok(Immutable.Map({
-    'foo.meta': new data.File(
-      'foo.meta',
-      Signal.cellOk(Buffer.from('{ dataType: "{ foo: number }" }'))
-    ),
-    'foo.json': new data.File(
-      'foo.json',
-      Signal.cellOk(Buffer.from('{ foo: 7 }'))
-    ),
-  }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
-  compiledNotes.reconcile(trace, 1);
-  const foo = compiledNotes.get().get('foo');
-  if (!foo) bug('expected foo');
-
-  foo.problems.reconcile(trace, 1);
-  expect(foo.problems.get()).toBeFalsy();
 });
 
 it('compiles mdx with meta', () => {
