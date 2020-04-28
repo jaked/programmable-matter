@@ -125,19 +125,21 @@ function computeTable(
         const defaultValue =
           note.exportValue.flatMap(exportValue => exportValue['default']);
 
-        const metaValue = note.meta.map(meta =>
-          tableConfig.fields.reduce<object>(
-            (obj, field) => {
-              if (field.kind === 'meta') {
-                switch (field.field) {
-                  case 'title': return { obj, [field.name]: meta.title }
-                }
-              }
-              return obj;
-            },
-            {}
-          ),
-        );
+        // TODO(jaked) expose meta on compiled JSON somehow
+        // const metaValue = note.meta.map(meta =>
+        //   tableConfig.fields.reduce<object>(
+        //     (obj, field) => {
+        //       if (field.kind === 'meta') {
+        //         switch (field.field) {
+        //           case 'title': return { obj, [field.name]: meta.title }
+        //         }
+        //       }
+        //       return obj;
+        //     },
+        //     {}
+        //   ),
+        // );
+        const metaValue = Signal.ok({});
 
         const value = Signal.join(defaultValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
         const relativeTag = Path.relative(Path.dirname(noteTag), tag);
