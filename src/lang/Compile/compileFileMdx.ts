@@ -188,6 +188,9 @@ export default function compileFileMdx(
       }
     }
 
+    // TODO(jaked)
+    // avoid recompiling / rerendering when json / table type has not changed
+
     const compiled =
       compileMdx(trace, ast, meta, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
     return { ...compiled, ast: Try.ok(ast) }

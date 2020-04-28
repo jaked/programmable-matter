@@ -415,28 +415,24 @@ export class App {
   // so we don't need to coordinate this manually.
   private mainSignal = Signal.label('main',
     Signal.join(
-      this.contentSignal,
-      this.sessionSignal,
-      this.setContentAndSessionSignal,
-      this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
-        const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
-        return Signal.join(...matchingNotes);
-      }),
-      this.compiledNoteSignal.flatMap(compiledNote => {
+      Signal.label('rendered', this.compiledNoteSignal.flatMap(compiledNote => {
         if (compiledNote) {
           return compiledNote.rendered;
         } else {
           return Signal.ok(undefined);
         }
-      }),
-      this.compiledFileSignal.flatMap(compiledFile => {
-        if (compiledFile) {
-          return compiledFile.rendered;
-        } else {
-          return Signal.ok(undefined);
-        }
-      }),
-      this.selectedNoteProblemsSignal,
+      })),
+      this.contentSignal,
+      this.sessionSignal,
+      this.setContentAndSessionSignal,
+      this.compiledFileSignal,
+      Signal.label('selectedNoteProblems', this.selectedNoteProblemsSignal),
+      Signal.label('matchingNotes problems',
+        this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
+          const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
+          return Signal.join(...matchingNotes);
+        })
+      ),
     )
   );
 

@@ -27,7 +27,10 @@ export function compileFiles(
   const compiledNotesRef = Signal.ref<data.CompiledNotes>();
 
   const compiledFiles = Signal.mapImmutableMap(files, file =>
-    compileFile(trace, file, compiledFilesRef, compiledNotesRef, updateFile, setSelected)
+    Signal.label(
+      file.path,
+      compileFile(trace, file, compiledFilesRef, compiledNotesRef, updateFile, setSelected)
+    )
   );
   compiledFilesRef.set(compiledFiles);
 
