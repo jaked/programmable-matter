@@ -4,6 +4,7 @@ import * as React from 'react';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import Try from '../../util/Try';
+import * as Tag from '../../util/Tag';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -220,13 +221,6 @@ function compileTable(
   });
 }
 
-// TODO(jaked) method on File?
-function tagOfPath(path: string) {
-  const pathParts = Path.parse(path);
-  if (pathParts.name === 'index') return pathParts.dir;
-  else return Path.join(pathParts.dir, pathParts.name);
-}
-
 const unimplementedSignal = Signal.err(new Error('unimplemented'));
 
 export default function compileFileTable(
@@ -236,7 +230,7 @@ export default function compileFileTable(
   setSelected: (tag: string) => void,
 ): Signal<data.CompiledFile> {
 
-  const noteTag = tagOfPath(file.path);
+  const noteTag = Tag.tagOfPath(file.path);
 
   const ast = file.content.map(Parse.parseExpression);
 
@@ -252,7 +246,7 @@ export default function compileFileTable(
       // TODO(jaked) not sure if we should handle nested dirs in tables
       // TODO(jaked) handle non-json files
       if (!Path.relative(dir, path).startsWith('..') && Path.extname(path) === '.json') {
-        const tag = tagOfPath(path);
+        const tag = Tag.tagOfPath(path);
         importsSet.add(tag);
 
         // TODO(jaked)

@@ -1,3 +1,4 @@
+import * as Path from 'path';
 import * as Immutable from 'immutable';
 import React from 'react';
 
@@ -43,6 +44,9 @@ export function compileFiles(
       }
     }
 
+    const isIndex =
+      files.some(file => Path.parse(file.path).name === 'index');
+
     // TODO(jaked) Signal.untuple
     const parts =
       Signal.join(
@@ -87,7 +91,7 @@ export function compileFiles(
       });
       return {
         tag,
-        isIndex: false,
+        isIndex,
         meta: unimplementedSignal,
         files: { },
         problems: parts.map(parts => parts.problems),

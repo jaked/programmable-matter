@@ -1,16 +1,9 @@
-import * as Path from 'path';
 import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
+import * as Tag from '../../util/Tag';
 import { diffMap } from '../../util/immutable/Map';
 import * as data from '../../data';
-
-// TODO(jaked) method on File?
-function tagOfPath(path: string) {
-  const pathParts = Path.parse(path);
-  if (pathParts.name === 'index') return pathParts.dir;
-  else return Path.join(pathParts.dir, pathParts.name);
-}
 
 function groupFilesByTag(
   files: data.Files,
@@ -22,20 +15,20 @@ function groupFilesByTag(
   let { added, changed, deleted } = diffMap(oldFiles, files);
 
   deleted.forEach(path => {
-    const tag = tagOfPath(path);
+    const tag = Tag.tagOfPath(path);
     const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
     groupedFiles = groupedFiles.set(tag, group.delete(path));
   });
 
   changed.forEach(([prev, curr], path) => {
     // TODO(jaked) can this ever happen for Filesystem?
-    const tag = tagOfPath(path);
+    const tag = Tag.tagOfPath(path);
     const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
     groupedFiles = groupedFiles.set(tag, group.set(path, curr));
   });
 
   added.forEach((file, path) => {
-    const tag = tagOfPath(path);
+    const tag = Tag.tagOfPath(path);
     const group = groupedFiles.get(tag) || Immutable.Map<string, data.File>();
     groupedFiles = groupedFiles.set(tag, group.set(path, file));
   })

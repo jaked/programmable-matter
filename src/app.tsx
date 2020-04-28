@@ -15,6 +15,7 @@ import * as Immutable from 'immutable';
 import { bug } from './util/bug';
 import Signal from './util/Signal';
 import Trace from './util/Trace';
+import * as Tag from './util/Tag';
 import * as data from './data';
 import { Filesystem } from './files/Filesystem';
 
@@ -169,20 +170,6 @@ export class App {
     this.filesystem.update(tag, Buffer.from('', 'utf8'));
   }
 
-  private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
-  private sessionSignal = Signal.label('session',
-    Signal.join(this.sessionsCell, this.selectedCell).map(([sessions, selected]) => {
-      if (selected) {
-        const session = sessions.get(selected);
-        if (session) {
-          return session;
-        }
-      }
-      return emptySession();
-    })
-  );
-  public get session() { return this.sessionSignal.get() }
-
   private compiledFilesSignalNotesSignal =
     Compile.compileFiles(
       this.__trace,
@@ -193,18 +180,6 @@ export class App {
   private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
   private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
   public get compiledNotes() { return this.compiledNotesSignal.get() }
-
-  private compiledFileSignal = Signal.label('compiledFile',
-    Signal.join(this.compiledFilesSignal, this.selectedCell, this.editorViewCell).flatMap(([compiledFiles, selected, view]) => {
-      if (selected !== null) {
-        const fn = `${selected}.${view}`; // TODO(jaked)
-        const file = compiledFiles.get(fn);
-        if (file) return file;
-      }
-      return Signal.ok(null);
-    })
-  );
-  public get compiledFile() { return this.compiledFileSignal.get() }
 
   private selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.selectedCell).flatMap(([compiledFiles, selected]) => {
@@ -237,39 +212,64 @@ export class App {
   );
   public get compiledNote() { return this.compiledNoteSignal.get() }
 
-  // TODO(jaked) bundle data we need for editor in CompiledFile
-  private contentSignal: Signal<string | null> =
+  private selectedFileSignal =
     Signal.join(
+      this.compiledNoteSignal,
+      this.editorViewCell,
       this.filesystem.files,
-      this.selectedCell,
-      this.editorViewCell
-    ).flatMap(([files, selected, view]) => {
-      if (selected !== null) {
-        const fn = `${selected}.${view}`; // TODO(jaked)
-        const file = files.get(fn);
-        if (file) {
-          return file.content;
-        }
+    ).map(([compiledNote, view, files]) => {
+      if (compiledNote) {
+        const path = Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, view);
+        const file = files.get(path);
+        if (file) return file;
+      }
+      return null;
+    });
+
+  private compiledFileSignal = Signal.label('compiledFile',
+    Signal.join(this.selectedFileSignal, this.compiledFilesSignal).flatMap(([file, compiledFiles]) => {
+      if (file) {
+        const compiledFile = compiledFiles.get(file.path) ?? bug(`expected compiled file for ${file.path}`);
+        return compiledFile;
       }
       return Signal.ok(null);
+    })
+  );
+  public get compiledFile() { return this.compiledFileSignal.get() }
+
+  // TODO(jaked) bundle data we need for editor in CompiledFile
+  private contentSignal: Signal<string | null> =
+    this.selectedFileSignal.flatMap(file => {
+      if (file) return file.content;
+      else return Signal.ok(null);
     });
   public get content() { return this.contentSignal.get() }
 
+  private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
+  private sessionSignal = Signal.label('session',
+    Signal.join(this.selectedFileSignal, this.sessionsCell).map(([file, sessions]) => {
+      if (file) {
+        const session = sessions.get(file.path);
+        if (session) {
+          return session;
+        }
+      }
+      return emptySession();
+    })
+  );
+  public get session() { return this.sessionSignal.get() }
+
   private setContentAndSessionSignal = Signal.label('setContentAndSession',
     Signal.join(
-      this.selectedCell,
-      this.editorViewCell,
+      this.selectedFileSignal,
       this.sessionsCell,
       this.filesystem.files,
-    ).flatMap(([selected, view, sessions, files]) => {
+    ).flatMap(([file, sessions, files]) => {
       const noop = Signal.ok((updateContent: string, session: Session) => {});
-      if (!selected || !view) return noop;
-      const fn = `${selected}.${view}`; // TODO(jaked)
-      const file = files.get(fn);
       if (!file) return noop;
       return file.content.map(content =>
         (updateContent: string, session: Session) => {
-          this.sessionsCell.setOk(sessions.set(selected, session));
+          this.sessionsCell.setOk(sessions.set(file.path, session));
           if (updateContent === content) return; // TODO(jaked) still needed?
           this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
         }
