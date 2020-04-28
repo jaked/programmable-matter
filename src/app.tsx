@@ -48,7 +48,11 @@ export class App {
     this.__trace.reset();
     this.level++;
 
-    this.mainSignal.reconcile(this.__trace, this.level);
+    try {
+      this.mainSignal.reconcile(this.__trace, this.level);
+    } catch (e) {
+      console.log(e);
+    }
 
     this.server.update(this.__trace, this.level);
 
@@ -418,10 +422,16 @@ export class App {
         const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
         return Signal.join(...matchingNotes);
       }),
-      this.compiledNoteSignal,
+      this.compiledNoteSignal.flatMap(compiledNote => {
+        if (compiledNote) {
+          return compiledNote.rendered;
+        } else {
+          return Signal.ok(undefined);
+        }
+      }),
       this.compiledFileSignal.flatMap(compiledFile => {
         if (compiledFile) {
-          return Signal.join(compiledFile.rendered);
+          return compiledFile.rendered;
         } else {
           return Signal.ok(undefined);
         }
