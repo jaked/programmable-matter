@@ -53,37 +53,45 @@ export function compileFiles(
     // TODO(jaked) Signal.untuple
     const parts =
       Signal.join(
-        compiledFileForType('meta'),
         compiledFileForType('mdx'),
         compiledFileForType('table'),
         compiledFileForType('json'),
-      ).map(([meta, mdx, table, json]) => {
+        compiledFileForType('jpeg'),
+        compiledFileForType('meta'),
+      ).map(([mdx, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode>;
-        if (mdx) rendered = mdx.rendered;
-        else if (table) rendered = table.rendered;
-        else if (json) rendered = json.rendered;
-        else if (meta) rendered = meta.rendered;
-        else bug(`expected compiled file for '${tag}'`);
+        let exportType: Type.ModuleType;
+        let exportValue: { [s: string]: Signal<any> };
+
+        // TODO(jaked) merge exportType / exportValue across files
+        if (mdx) {
+          rendered = mdx.rendered;
+          exportType = mdx.exportType;
+          exportValue = mdx.exportValue;
+        } else if (table) {
+          rendered = table.rendered;
+          exportType = table.exportType;
+          exportValue = table.exportValue;
+        } else if (json) {
+          rendered = json.rendered;
+          exportType = json.exportType;
+          exportValue = json.exportValue;
+        } else if (jpeg) {
+          rendered = jpeg.rendered;
+          exportType = jpeg.exportType;
+          exportValue = jpeg.exportValue;
+        } else if (meta) {
+          rendered = meta.rendered;
+          exportType = meta.exportType;
+          exportValue = meta.exportValue;
+        } else bug(`expected compiled file for '${tag}'`);
 
         const problems =
           (mdx ? mdx.problems : false) ||
           (table ? table.problems : false) ||
           (json ? json.problems : false) ||
+          (jpeg ? jpeg.problems : false) ||
           (meta ? meta.problems : false);
-
-        // TODO(jaked) merge exportType / exportValue across files
-        let exportType: Type.ModuleType;
-        if (mdx) exportType = mdx.exportType;
-        else if (table) exportType = table.exportType;
-        else if (json) exportType = json.exportType;
-        else if (meta) exportType = meta.exportType;
-        else bug(`expected compiled file for '${tag}'`);
-        let exportValue: { [s: string]: Signal<any> };
-        if (mdx) exportValue = mdx.exportValue;
-        else if (table) exportValue = table.exportValue;
-        else if (json) exportValue = json.exportValue;
-        else if (meta) exportValue = meta.exportValue;
-        else bug(`expected compiled file for '${tag}'`);
 
         return {
           problems,

@@ -436,7 +436,7 @@ export class App {
     )
   );
 
-  private server = new Server(this.compiledNotesSignal);
+  private server = new Server(this.filesystem.files, this.compiledNotesSignal);
 
   private mainRef = React.createRef<Main>();
   private level = 0;

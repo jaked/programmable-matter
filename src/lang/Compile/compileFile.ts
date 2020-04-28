@@ -8,6 +8,7 @@ import compileFileMeta from './compileFileMeta';
 import compileFileMdx from './compileFileMdx';
 import compileFileJson from './compileFileJson';
 import compileFileTable from './compileFileTable';
+import compileFileJpeg from './compileFileJpeg';
 
 export default function compileFile(
   trace: Trace,
@@ -31,6 +32,9 @@ export default function compileFile(
     case 'table':
       return compileFileTable(trace, file, compiledFiles, setSelected);
 
-    default: bug('unimplemented');
+    case 'jpeg':
+      return compileFileJpeg(trace, file);
+
+    default: bug(`unimplemented file type ${file.type}`);
   }
 }

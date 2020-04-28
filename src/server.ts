@@ -10,12 +10,14 @@ import Signal from './util/Signal';
 import Trace from './util/Trace';
 
 export default class Server {
+  files: Signal<data.Files>;
   compiledNotes: Signal<data.CompiledNotes>;
   browserSync: BrowserSync.BrowserSyncInstance;
 
-  constructor(compiledNotes: Signal<data.CompiledNotes>) {
+  constructor(files: Signal<data.Files>, compiledNotes: Signal<data.CompiledNotes>) {
     this.handle = this.handle.bind(this);
 
+    this.files = files;
     this.compiledNotes = compiledNotes;
     this.browserSync = BrowserSync.create();
     this.browserSync.init({
@@ -51,25 +53,34 @@ export default class Server {
     //   - stream them to client?
     //   - you get what you get when you load the page?
     //   - client has separate atom state?
-    const note = this.compiledNotes.get().get(tag);
 
-    if (!note) {
-      res.statusCode = 404;
-      res.end(`no note ${tag}`);
+    if (pathParts.ext === '.jpeg') {
+      // TODO(jaked)
+      // figure out a better way to plumb this
+      // it could go through the note but then we need to make sure it is reconciled
+      const file = this.files.get().get(`${tag}.jpeg`);
+      if (!file) {
+        res.statusCode = 404;
+        res.end(`no file ${tag}.jpeg`);
+      } else {
+        const buffer = file.bufferCell.get();
+        res.setHeader("Content-Type", "image/jpeg");
+        res.end(buffer);
+      }
     } else {
-      // TODO(jaked) handle jpegs
-      // case 'jpeg':
-      //   res.setHeader("Content-Type", "image/jpeg");
-      //   res.end(note.buffer);
-      //   break;
+      const note = this.compiledNotes.get().get(tag);
+      if (!note) {
+        res.statusCode = 404;
+        res.end(`no note ${tag}`);
+      } else {
+        // TODO(jaked) don't blow up on failed notes
+        const node = note.rendered.get();
 
-      // TODO(jaked) don't blow up on failed notes
-      const node = note.rendered.get();
-
-      // TODO(jaked) compute at note compile time?
-      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-      res.setHeader("Content-Type", "text/html; charset=UTF-8")
-      res.end(html);
+        // TODO(jaked) compute at note compile time?
+        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+        res.setHeader("Content-Type", "text/html; charset=UTF-8")
+        res.end(html);
+      }
     }
   }
 }
