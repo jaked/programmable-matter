@@ -9,7 +9,6 @@ import Signal from '../../util/Signal';
 import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
 import * as Evaluate from '../Evaluate';
-import * as Compile from '../Compile';
 
 export { initTypeEnv } from './initTypeEnv';
 export { initValueEnv } from './initValueEnv';

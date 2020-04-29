@@ -17,6 +17,8 @@ const styleType = Type.undefinedOr(Type.object({
   marginLeft: Type.undefinedOrString,
   marginRight: Type.undefinedOrString,
   marginTop: Type.undefinedOrString,
+  maxWidth: Type.undefinedOrString,
+  objectFit: Type.undefinedOr(Type.enumerate('contain')),
   padding: Type.undefinedOrString,
 }));
 
