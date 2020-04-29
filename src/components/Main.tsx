@@ -72,16 +72,10 @@ export class Main extends React.Component<Props, {}> {
         <Box
           padding={1}
         >{
-          // TODO(jaked) clean this up
-          // several signals can be simultaneously undefined / null
-          // when selected / view don't pick out a valid file;
-          // here we have to check for all of them.
-          (this.props.app.selected !== null &&
-          this.props.app.content !== null &&
+          (this.props.app.content !== null &&
           this.props.app.compiledFile !== null) ?
             <Editor
               ref={this.editorRef}
-              selected={this.props.app.selected}
               view={this.props.app.editorView}
               content={this.props.app.content}
               compiledFile={this.props.app.compiledFile}

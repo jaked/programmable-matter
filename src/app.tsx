@@ -96,7 +96,7 @@ export class App {
   public get selected() { return this.selectedCell.get() }
   public setSelected = (selected: string | null) => {
     if (selected === this.selected) return;
-    if (selected != null) {
+    if (selected !== null) {
       this.history = this.history.slice(0, this.historyIndex + 1);
       this.history.push(selected);
       this.historyIndex++;
@@ -155,7 +155,7 @@ export class App {
   deleteNote = () => {
     const selected = this.selected;
     const view = this.editorView;
-    if (!selected || !view) return;
+    if (selected === null || !view) return;
 
     const note = this.compiledNotesSignal.get().get(selected);
     if (!note) return;
@@ -203,7 +203,7 @@ export class App {
 
   private compiledNoteSignal = Signal.label('compiledNote',
     Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
-      if (selected) {
+      if (selected !== null) {
         const note = compiledNotes.get(selected);
         if (note) return note;
       }

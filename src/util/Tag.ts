@@ -13,6 +13,6 @@ export function tagOfPath(path: string) {
 }
 
 export function pathOfTag(tag: string, isIndex: boolean, type: Types) {
-  if (isIndex) return `${tag}/index.${type}`;
+  if (isIndex) return Path.join(tag, `index.${type}`);
   else return `${tag}.${type}`;
 }

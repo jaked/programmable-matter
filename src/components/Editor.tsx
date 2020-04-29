@@ -8,10 +8,8 @@ import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
 
 import * as data from '../data';
-import { bug } from '../util/bug';
 
 interface Props {
-  selected: string;
   view: data.Types;
   content: string;
   compiledFile: data.CompiledFile;
@@ -376,7 +374,7 @@ export class Editor extends React.Component<Props, {}> {
   }
 
   render() {
-    const { view, selected, content, compiledFile } = this.props;
+    const { view, content, compiledFile } = this.props;
     let highlight = computeHighlight(view, content, compiledFile);
     return (
       <div style={{
@@ -386,7 +384,6 @@ export class Editor extends React.Component<Props, {}> {
         <RSCEditor
           ref={this.rscEditorRef}
           preRef={this.preRef}
-          name={selected}
           value={content}
           session={this.props.session}
           onChange={this.props.onChange}
