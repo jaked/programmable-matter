@@ -14,8 +14,11 @@ import * as data from '../../data';
 
 import metaForFile from './metaForFile';
 
-function findImports(ast: MDXHAST.Node) {
+const debug = false;
+
+function findImports(ast: MDXHAST.Node, layout: string | undefined) {
   const imports = Immutable.Set<string>().asMutable();
+  if (layout !== undefined) imports.add(layout);
   function find(ast: MDXHAST.Node) {
     switch (ast.type) {
       case 'root':
@@ -50,7 +53,6 @@ function findImports(ast: MDXHAST.Node) {
 // so we can generate these? like Scala implicits?
 const metaType =
   Type.object({
-    type: Type.singleton('mdx'),
     title: Type.undefinedOr(Type.string),
     tags: Type.undefinedOr(Type.array(Type.string)),
     layout: Type.string
@@ -80,6 +82,7 @@ function compileMdx(
 
   let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
   if (meta.layout) {
+    if (debug) console.log(`meta.layout`);
     const layoutType =
       Type.functionType(
         [ Type.object({
@@ -89,12 +92,16 @@ function compileMdx(
         Type.reactNodeType);
     const layoutModule = moduleTypeEnv.get(meta.layout);
     if (layoutModule) {
+      if (debug) console.log(`layoutModule`);
       const defaultType = layoutModule.get('default');
       if (defaultType) {
+        if (debug) console.log(`defaultType`);
         if (Type.isSubtype(defaultType, layoutType)) {
+          if (debug) console.log(`isSubtype`);
           const layoutModule = moduleValueEnv.get(meta.layout);
           if (layoutModule) {
-            layoutFunction = layoutModule['default'];
+            if (debug) console.log(`layoutModule`);
+            layoutFunction = layoutModule.flatMap(layoutModule => layoutModule['default']);
           }
         }
       }
@@ -107,10 +114,11 @@ function compileMdx(
     trace.time('renderMdx', () => {
       const [_, node] =
         Render.renderMdx(ast, moduleValueEnv, valueEnv, exportValue);
-      if (layoutFunction)
+      if (layoutFunction) {
         return Signal.join(layoutFunction, node).map(([layoutFunction, node]) =>
           layoutFunction({ children: node, meta })
         );
+      }
       else return node;
     });
   return { exportType, exportValue, rendered, astAnnotations, problems: false };
@@ -125,10 +133,9 @@ export default function compileFileMdx(
 ): Signal<data.CompiledFile> {
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content => Parse.parse(trace, content));
-
-  const imports = ast.map(findImports);
-  // TODO(jaked) support layouts
-  // TODO(jaked) support refs to data / table parts
+  const meta = metaForFile(file, compiledFiles);
+  const imports =
+    Signal.join(ast, meta).map(([ast, meta]) => findImports(ast, meta.layout));
 
   // TODO(jaked) push note errors into envs so they're surfaced in editor?
   const noteEnv =
@@ -145,8 +152,6 @@ export default function compileFileMdx(
   );
   const moduleValueEnv =
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
-
-  const meta = metaForFile(file, compiledFiles);
 
   const pathParsed = Path.parse(file.path);
   const jsonPath = Path.format({ ...pathParsed, base: pathParsed.name + '.json' });

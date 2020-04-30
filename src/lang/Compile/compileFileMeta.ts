@@ -11,6 +11,8 @@ import * as data from '../../data';
 
 const metaType =
   Type.object({
+    title: Type.undefinedOrString,
+    layout: Type.undefinedOrString,
     dataType: Type.undefinedOrString,
     dirMeta: Type.undefinedOr(Type.object({
       dataType: Type.undefinedOrString,
