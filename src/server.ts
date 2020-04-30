@@ -10,13 +10,21 @@ import Signal from './util/Signal';
 import Trace from './util/Trace';
 
 export default class Server {
+  level: number;
+  trace: Trace;
   files: Signal<data.Files>;
   compiledNotes: Signal<data.CompiledNotes>;
   browserSync: BrowserSync.BrowserSyncInstance;
 
-  constructor(files: Signal<data.Files>, compiledNotes: Signal<data.CompiledNotes>) {
+  constructor(
+    trace: Trace,
+    files: Signal<data.Files>,
+    compiledNotes: Signal<data.CompiledNotes>
+  ) {
     this.handle = this.handle.bind(this);
 
+    this.level = 0;
+    this.trace = trace;
     this.files = files;
     this.compiledNotes = compiledNotes;
     this.browserSync = BrowserSync.create();
@@ -29,7 +37,11 @@ export default class Server {
     });
   }
 
-  update(trace: Trace, level: number) {
+  reconcile(trace: Trace, level: number) {
+    this.files.reconcile(this.trace, this.level);
+    this.compiledNotes.reconcile(this.trace, this.level)
+    this.level = level;
+
     // TODO(jaked)
     // for now this is always called from app.render() and we always reload
     // we should only reload when something relevant has changed
@@ -43,16 +55,6 @@ export default class Server {
     const decodedPath = decodeURIComponent(path.slice(1, path.length));
     const pathParts = Path.parse(decodedPath);
     const tag = Path.join(pathParts.dir, pathParts.name)
-
-    // TODO(jaked)
-    // what's the update model here?
-    // if we just call Signal.get it may not be up to date
-    // could track latest top-level version and update just in case
-    // how should this interact with atom updates?
-    //   - ignore them?
-    //   - stream them to client?
-    //   - you get what you get when you load the page?
-    //   - client has separate atom state?
 
     if (pathParts.ext === '.jpeg') {
       // TODO(jaked)
@@ -74,6 +76,7 @@ export default class Server {
         res.end(`no note ${tag}`);
       } else {
         // TODO(jaked) don't blow up on failed notes
+        note.rendered.reconcile(this.trace, this.level);
         const node = note.rendered.get();
 
         // TODO(jaked) compute at note compile time?

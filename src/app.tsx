@@ -55,7 +55,7 @@ export class App {
       console.log(e);
     }
 
-    this.server.update(this.__trace, this.level);
+    this.server.reconcile(this.__trace, this.level);
 
     this.reactRender(this.__trace);
     console.log(this.__trace.finish());
@@ -436,7 +436,8 @@ export class App {
     )
   );
 
-  private server = new Server(this.filesystem.files, this.compiledNotesSignal);
+  private server =
+    new Server(this.__trace, this.filesystem.files, this.compiledNotesSignal);
 
   private mainRef = React.createRef<Main>();
   private level = 0;
