@@ -18,6 +18,8 @@ const smartypants =
 
 export type Env = Immutable.Map<string, Signal<any>>;
 
+export const context = React.createContext<'screen' | 'server'>('screen');
+
 function evaluateExpressionSignal(
   ast: ESTree.Expression,
   env: Env

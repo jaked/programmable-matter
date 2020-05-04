@@ -3,6 +3,7 @@ import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import Type from '../Type';
+import * as Render from '../Render';
 import * as data from '../../data';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
@@ -36,7 +37,19 @@ function compileJpeg(
   const objectUrl = URL.createObjectURL(new Blob([buffer.buffer]));
 
   const component = ({ width, height, style }: { width?, height?, style? }) =>
-    React.createElement('img', { src: objectUrl, width, height, style })
+    React.createElement(Render.context.Consumer, {
+      children: context => {
+        switch (context) {
+          case 'screen':
+            return React.createElement('img', { src: objectUrl, width, height, style });
+
+          case 'server': {
+            const src = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+            return React.createElement('img', { src, width, height, style });
+          }
+        }
+      }
+    })
 
   const imgType = componentType({
     width: Type.undefinedOrNumber,

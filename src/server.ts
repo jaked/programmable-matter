@@ -3,11 +3,13 @@ import * as Path from 'path';
 import * as Url from 'url';
 
 import BrowserSync from 'browser-sync';
+import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
 import * as data from './data';
 import Signal from './util/Signal';
 import Trace from './util/Trace';
+import * as Render from './lang/Render';
 
 export default class Server {
   level: number;
@@ -72,8 +74,12 @@ export default class Server {
         note.rendered.reconcile(this.trace, this.level);
         const node = note.rendered.get();
 
+        const nodeWithContext =
+          React.createElement(Render.context.Provider, { value: 'server' }, node)
+
         // TODO(jaked) compute at note compile time?
-        const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
+        const html = ReactDOMServer.renderToStaticMarkup(nodeWithContext);
+
         res.setHeader("Content-Type", "text/html; charset=UTF-8")
         res.end(html);
       }
