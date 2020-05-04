@@ -37,3 +37,26 @@ const reactNodeType_ =
   Type.union(reactElementType, Type.booleanType, Type.number, Type.string, Type.nullType, Type.undefined);
 export const reactNodeType =
   Type.union(reactNodeType_, Type.array(reactNodeType_));
+
+// TODO(jaked)
+// is there a way to internalize Typescript types
+// so we can generate these? like Scala implicits?
+export const metaType =
+  Type.object({
+    title: undefinedOrString,
+    tags: Type.undefinedOr(Type.array(Type.string)),
+    layout: undefinedOrString,
+    dataType: undefinedOrString,
+    dirMeta: Type.undefinedOr(Type.object({
+      dataType: undefinedOrString,
+    })),
+  });
+
+export const layoutFunctionType =
+  Type.functionType(
+    [ Type.object({
+      children: Type.array(reactNodeType),
+      meta: metaType,
+    }) ],
+    reactNodeType
+  );

@@ -48,16 +48,6 @@ function findImports(ast: MDXHAST.Node, layout: string | undefined) {
   return imports.asImmutable();
 }
 
-// TODO(jaked)
-// is there a way to internalize Typescript types
-// so we can generate these? like Scala implicits?
-const metaType =
-  Type.object({
-    title: Type.undefinedOr(Type.string),
-    tags: Type.undefinedOr(Type.array(Type.string)),
-    layout: Type.string
-  })
-
 function compileMdx(
   trace: Trace,
   ast: MDXHAST.Root,
@@ -83,20 +73,13 @@ function compileMdx(
   let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
   if (meta.layout) {
     if (debug) console.log(`meta.layout`);
-    const layoutType =
-      Type.functionType(
-        [ Type.object({
-          children: Type.array(Type.reactNodeType),
-          meta: metaType
-        }) ],
-        Type.reactNodeType);
     const layoutModule = moduleTypeEnv.get(meta.layout);
     if (layoutModule) {
       if (debug) console.log(`layoutModule`);
       const defaultType = layoutModule.get('default');
       if (defaultType) {
         if (debug) console.log(`defaultType`);
-        if (Type.isSubtype(defaultType, layoutType)) {
+        if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
           if (debug) console.log(`isSubtype`);
           const layoutModule = moduleValueEnv.get(meta.layout);
           if (layoutModule) {

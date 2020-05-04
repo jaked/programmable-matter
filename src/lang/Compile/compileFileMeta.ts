@@ -9,16 +9,6 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
 
-const metaType =
-  Type.object({
-    title: Type.undefinedOrString,
-    layout: Type.undefinedOrString,
-    dataType: Type.undefinedOrString,
-    dirMeta: Type.undefinedOr(Type.object({
-      dataType: Type.undefinedOrString,
-    })),
-  });
-
 // TODO(jaked)
 // make Type part of the type system and convert?
 function convertMeta(obj: any): data.Meta {
@@ -46,7 +36,7 @@ function compileMeta(
   let problems = false;
   let error;
   try {
-    Typecheck.check(ast, Typecheck.env(), metaType, astAnnotations);
+    Typecheck.check(ast, Typecheck.env(), Type.metaType, astAnnotations);
   } catch (e) {
     error = e;
     problems = true;
@@ -57,7 +47,7 @@ function compileMeta(
       Signal.err(error) :
       Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, Immutable.Map())));
 
-  const exportType = Type.module({ default: metaType });
+  const exportType = Type.module({ default: Type.metaType });
   const exportValue = { default: value }
   const rendered = Signal.ok(null);
   return { exportType, exportValue, rendered, astAnnotations, problems };

@@ -68,11 +68,14 @@ module Type {
   export const falsy = Predef.falsy;
   export const notFalsy = Predef.notFalsy;
 
-  export const reactElementType = Predef.reactElementType;
-  export const reactNodeType = Predef.reactNodeType;
-
   export const toString = ToString.toString;
   export const ofTSType = OfTSType;
+
+  // TODO(jaked) move somewhere else
+  export const reactElementType = Predef.reactElementType;
+  export const reactNodeType = Predef.reactNodeType;
+  export const metaType = Predef.metaType;
+  export const layoutFunctionType = Predef.layoutFunctionType;
 }
 
 type Type = Type.Type;
