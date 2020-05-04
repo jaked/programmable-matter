@@ -50,7 +50,9 @@ export default class Server {
     let path = url.path || '';
     const decodedPath = decodeURIComponent(path.slice(1, path.length));
     const pathParts = Path.parse(decodedPath);
-    const tag = Path.join(pathParts.dir, pathParts.name)
+    let tag = Path.join(pathParts.dir, pathParts.name)
+    // TODO(jaked) temporary hack for the root index note
+    if (tag === '.') tag = '';
 
     const note = this.compiledNotes.get().get(tag);
       if (!note) {
