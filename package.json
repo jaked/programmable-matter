@@ -31,12 +31,9 @@
     "jest": "^24.9.0",
     "jsx-loader": "^0.13.2",
     "source-map-loader": "^0.2.4",
-    "ts-jest": "^24.1.0",
+    "ts-jest": "^25.4.0",
     "ts-loader": "^5.4.5",
-    "typescript": "^3.7.3",
-    "webpack": "^4.40.2",
-    "webpack-cli": "^3.3.8",
-    "webpack-dev-server": "^3.8.1"
+    "typescript": "^3.7.3"
   },
   "dependencies": {
     "@babel/parser": "^7.6.4",
