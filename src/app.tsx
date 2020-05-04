@@ -21,7 +21,7 @@ import { Filesystem } from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
 
-import Server from './Server';
+import Server from './server';
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
@@ -437,7 +437,7 @@ export class App {
   );
 
   private server =
-    new Server(this.__trace, this.filesystem.files, this.compiledNotesSignal);
+    new Server(this.__trace, this.compiledNotesSignal);
 
   private mainRef = React.createRef<Main>();
   private level = 0;

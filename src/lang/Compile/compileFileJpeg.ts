@@ -38,17 +38,23 @@ function compileJpeg(
   const component = ({ width, height, style }: { width?, height?, style? }) =>
     React.createElement('img', { src: objectUrl, width, height, style })
 
+  const imgType = componentType({
+    width: Type.undefinedOrNumber,
+    height: Type.undefinedOrNumber,
+    style: styleType,
+  });
+
   // TODO(jaked) parse JPEG file and return metadata
   const exportType = Type.module({
+    buffer: Type.abstract('Buffer'),
     objectUrl: Type.string,
-    default: componentType({
-      width: Type.undefinedOrNumber,
-      height: Type.undefinedOrNumber,
-      style: styleType,
-    }),
+    img: imgType,
+    default: imgType,
   });
   const exportValue = {
+    buffer: Signal.ok(buffer),
     objectUrl: Signal.ok(objectUrl),
+    img: Signal.ok(component),
     default: Signal.ok(component),
   };
 
