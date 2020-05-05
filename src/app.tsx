@@ -181,13 +181,24 @@ export class App {
   private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 
-  private selectedNoteProblemsSignal =
-    Signal.join(this.compiledFilesSignal, this.selectedCell).flatMap(([compiledFiles, selected]) => {
+  private compiledNoteSignal = Signal.label('compiledNote',
+    Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
       if (selected !== null) {
-        const meta = compiledFiles.get(`${selected}.meta`) ?? Signal.ok(undefined);
-        const mdx = compiledFiles.get(`${selected}.mdx`) ?? Signal.ok(undefined);
-        const table = compiledFiles.get(`${selected}.table`) ?? Signal.ok(undefined);
-        const json = compiledFiles.get(`${selected}.json`) ?? Signal.ok(undefined);
+        const note = compiledNotes.get(selected);
+        if (note) return note;
+      }
+      return null;
+    })
+  );
+  public get compiledNote() { return this.compiledNoteSignal.get() }
+
+  private selectedNoteProblemsSignal =
+    Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
+      if (compiledNote !== null) {
+        const meta = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'meta')) ?? Signal.ok(undefined);
+        const mdx = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'mdx')) ?? Signal.ok(undefined);
+        const table = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'table')) ?? Signal.ok(undefined);
+        const json = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'json')) ?? Signal.ok(undefined);
         return Signal.join(meta, mdx, table, json).map(([meta, mdx, table, json]) => ({
           meta: meta?.problems,
           mdx: mdx?.problems,
@@ -200,17 +211,6 @@ export class App {
       }
     });
   public get selectedNoteProblems() { return this.selectedNoteProblemsSignal.get() }
-
-  private compiledNoteSignal = Signal.label('compiledNote',
-    Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
-      if (selected !== null) {
-        const note = compiledNotes.get(selected);
-        if (note) return note;
-      }
-      return null;
-    })
-  );
-  public get compiledNote() { return this.compiledNoteSignal.get() }
 
   private selectedFileSignal =
     Signal.join(
