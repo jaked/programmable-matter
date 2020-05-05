@@ -26,11 +26,11 @@ const emptyMeta: Signal<data.CompiledFile> = Signal.ok({
   ast: Try.ok(null),
 })
 
-export default function metaForFile(
-  file: data.File,
+export default function metaForPath(
+  path: string,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
 ): Signal<data.Meta> {
-  const pathParsed = Path.parse(file.path);
+  const pathParsed = Path.parse(path);
   const indexMetaPath = Path.format({ ...pathParsed, base: 'index.meta' });
   const metaPath = Path.format({ ...pathParsed, base: pathParsed.name + '.meta' });
 

@@ -5,13 +5,13 @@ import React from 'react';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import { bug } from '../../util/bug';
+import * as Tag from '../../util/Tag';
 import Type from '../Type';
 import * as data from '../../data';
 
 import compileFile from './compileFile';
 import groupFilesByTag2 from './groupFilesByTag2';
-
-const unimplementedSignal = Signal.err(new Error('unimplemented'));
+import metaForPath from './metaForPath';
 
 export function compileFiles(
   trace: Trace,
@@ -103,7 +103,7 @@ export function compileFiles(
       return {
         tag,
         isIndex,
-        meta: unimplementedSignal,
+        meta: metaForPath(Tag.pathOfTag(tag, isIndex, 'meta'), compiledFiles),
         files: { },
         problems: parts.map(parts => parts.problems),
         rendered: parts.flatMap(parts => parts.rendered),

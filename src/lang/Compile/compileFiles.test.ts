@@ -135,6 +135,8 @@ it('compiles mdx + json + meta', () => {
   if (!foo) bug('expected foo');
   foo.problems.reconcile(trace, 1);
   expect(foo.problems.get()).toBeFalsy();
+  foo.meta.reconcile(trace, 1);
+  expect(foo.meta.get().dataType).toBeTruthy();
 });
 
 // TODO(jaked)

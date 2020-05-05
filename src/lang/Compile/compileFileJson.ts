@@ -16,7 +16,7 @@ import { Record } from '../../components/Record';
 import lensType from './lensType';
 import lensValue from './lensValue';
 
-import metaForFile from './metaForFile';
+import metaForPath from './metaForPath';
 
 const Input = styled.input({
   boxSizing: 'border-box',
@@ -139,7 +139,7 @@ export default function compileFileJson(
 
   // TODO(jaked) support typechecking from index.table file
 
-  const meta = metaForFile(file, compiledFiles);
+  const meta = metaForPath(file.path, compiledFiles);
 
   return ast.liftToTry().flatMap(astTry => {
     const astTryOrig = astTry;

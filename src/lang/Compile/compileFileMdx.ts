@@ -12,7 +12,7 @@ import * as Evaluate from '../Evaluate';
 import sortMdx from './sortMdx';
 import * as data from '../../data';
 
-import metaForFile from './metaForFile';
+import metaForPath from './metaForPath';
 
 const debug = false;
 
@@ -116,7 +116,7 @@ export default function compileFileMdx(
 ): Signal<data.CompiledFile> {
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content => Parse.parse(trace, content));
-  const meta = metaForFile(file, compiledFiles);
+  const meta = metaForPath(file.path, compiledFiles);
   const imports =
     Signal.join(ast, meta).map(([ast, meta]) => findImports(ast, meta.layout));
 
