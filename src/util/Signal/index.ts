@@ -400,8 +400,10 @@ class Label<T> extends SignalImpl<T> {
   get version() { return this.s.version; }
   get level() { return this.s.level; }
   reconcile(trace: Trace, level: number) {
+    const version = this.s.version;
     trace.open(this.label);
     this.s.reconcile(trace, level);
+    trace.record('__changed', version !== this.s.version);
     trace.close();
   }
 }

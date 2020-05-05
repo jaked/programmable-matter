@@ -16,6 +16,12 @@ export default class Trace {
     this.scope = newScope;
   }
 
+  record(label: string, value: any) {
+    if (this.stack.length === 0)
+      throw new Error('scope not open');
+    this.scope[label] = value;
+  }
+
   close() {
     if (this.stack.length === 0)
       throw new Error('scope not open');
