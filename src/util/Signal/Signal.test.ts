@@ -185,7 +185,7 @@ describe('flatMap', () => {
     expect(calls).toBe(2);
   });
 
-  it('does not bump version on equal value', () => {
+  it('does not bump version on outer equal value', () => {
     let calls = 0;
     const c = Signal.cellOk(7);
     const m = c.flatMap(x => { calls++; return Signal.ok(x % 2); })
@@ -199,6 +199,32 @@ describe('flatMap', () => {
     m.reconcile(trace, 2);
     expect(m.get()).toBe(1);
     expect(calls).toBe(2);
+    expect(m.version).toBe(1);
+  });
+
+  it('does not bump version on inner equal value', () => {
+    let outerCalls = 0;
+    let innerCalls = 0;
+    const c = Signal.cellOk(7);
+    const m = Signal.ok(11).flatMap(x => {
+      outerCalls++;
+      return c.map(y => {
+        innerCalls++;
+        return y % 2
+      });
+    })
+    m.reconcile(trace, 1);
+
+    expect(m.get()).toBe(1);
+    expect(outerCalls).toBe(1);
+    expect(innerCalls).toBe(1);
+    expect(m.version).toBe(1);
+
+    c.setOk(9);
+    m.reconcile(trace, 2);
+    expect(m.get()).toBe(1);
+    expect(outerCalls).toBe(1);
+    expect(innerCalls).toBe(2);
     expect(m.version).toBe(1);
   });
 
