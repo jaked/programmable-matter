@@ -8,7 +8,6 @@ import * as Render from '../Render';
 import * as MDXHAST from '../mdxhast';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Evaluate from '../Evaluate';
 import sortMdx from './sortMdx';
 import * as data from '../../data';
 
@@ -48,65 +47,6 @@ function findImports(ast: MDXHAST.Node, layout: string | undefined) {
   return imports.asImmutable();
 }
 
-function compileMdx(
-  trace: Trace,
-  ast: MDXHAST.Root,
-  meta: data.Meta,
-  typeEnv: Typecheck.Env,
-  valueEnv: Evaluate.Env,
-  moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
-  moduleValueEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
-): data.Compiled {
-  ast = trace.time('sortMdx', () => sortMdx(ast));
-
-  const exportTypes: { [s: string]: Type.Type } = {};
-  const astAnnotations = new Map<unknown, Try<Type>>();
-  try {
-    trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
-  } catch (e) {
-    const exportType = Type.module({ });
-    const exportValue = { };
-    const rendered = Signal.ok(false);
-    return { exportType, exportValue, rendered, astAnnotations, problems: true };
-  }
-
-  let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
-  if (meta.layout) {
-    if (debug) console.log(`meta.layout`);
-    const layoutModule = moduleTypeEnv.get(meta.layout);
-    if (layoutModule) {
-      if (debug) console.log(`layoutModule`);
-      const defaultType = layoutModule.get('default');
-      if (defaultType) {
-        if (debug) console.log(`defaultType`);
-        if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
-          if (debug) console.log(`isSubtype`);
-          const layoutModule = moduleValueEnv.get(meta.layout);
-          if (layoutModule) {
-            if (debug) console.log(`layoutModule`);
-            layoutFunction = layoutModule.flatMap(layoutModule => layoutModule['default']);
-          }
-        }
-      }
-    }
-  }
-
-  const exportType = Type.module(exportTypes);
-  const exportValue: { [s: string]: Signal<any> } = {};
-  const rendered =
-    trace.time('renderMdx', () => {
-      const [_, node] =
-        Render.renderMdx(ast, moduleValueEnv, valueEnv, exportValue);
-      if (layoutFunction) {
-        return Signal.join(layoutFunction, node).map(([layoutFunction, node]) =>
-          layoutFunction({ children: node, meta })
-        );
-      }
-      else return node;
-    });
-  return { exportType, exportValue, rendered, astAnnotations, problems: false };
-}
-
 export default function compileFileMdx(
   trace: Trace,
   file: data.File,
@@ -115,7 +55,10 @@ export default function compileFileMdx(
   setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
   // TODO(jaked) handle parse errors
-  const ast = file.content.map(content => Parse.parse(trace, content));
+  const ast = file.content.map(content =>
+    sortMdx(Parse.parse(trace, content))
+  );
+
   const meta = metaForPath(file.path, compiledFiles);
   const imports =
     Signal.join(ast, meta).map(([ast, meta]) => findImports(ast, meta.layout));
@@ -139,48 +82,124 @@ export default function compileFileMdx(
   const pathParsed = Path.parse(file.path);
   const jsonPath = Path.format({ ...pathParsed, base: pathParsed.name + '.json' });
   const tablePath = Path.format({ ...pathParsed, base: pathParsed.name + '.table' });
-  const json = compiledFiles.flatMap(compiledFiles =>
-    compiledFiles.get(jsonPath) ?? Signal.ok(undefined)
-  );
-  const table = compiledFiles.flatMap(compiledFiles =>
-    compiledFiles.get(tablePath) ?? Signal.ok(undefined)
-  );
 
-  return Signal.join(
-    ast,
-    meta,
-    json,
-    table,
-    moduleTypeEnv,
-    moduleValueEnv,
-  ).map(([ast, meta, json, table, moduleTypeEnv, moduleValueEnv]) => {
+  const jsonType = compiledFiles.flatMap(compiledFiles => {
+    const json = compiledFiles.get(jsonPath);
+    if (json) return json.map(json => json.exportType.get('mutable'));
+    else return Signal.ok(undefined);
+  });
+  const jsonValue = compiledFiles.flatMap(compiledFiles => {
+    const json = compiledFiles.get(jsonPath);
+    if (json) return json.map(json => json.exportValue['mutable']);
+    else return Signal.ok(undefined);
+  });
+  const tableType = compiledFiles.flatMap(compiledFiles => {
+    const table = compiledFiles.get(tablePath);
+    if (table) return table.map(table => table.exportType.get('default'));
+    else return Signal.ok(undefined);
+  });
+  const tableValue = compiledFiles.flatMap(compiledFiles => {
+    const table = compiledFiles.get(tablePath);
+    if (table) return table.map(table => table.exportValue['default']);
+    else return Signal.ok(undefined);
+  });
+
+  const typecheck = Signal.label("typecheck", Signal.join(
+    Signal.label("ast", ast),
+    Signal.label("jsonType", jsonType),
+    Signal.label("tableType", tableType),
+    Signal.label("moduleTypeEnv", moduleTypeEnv),
+  ).map(([ast, jsonType, tableType, moduleTypeEnv]) => {
     // TODO(jaked) pass in these envs from above?
     let typeEnv = Render.initTypeEnv;
+
+    if (jsonType) typeEnv = typeEnv.set('data', jsonType);
+    if (tableType) typeEnv = typeEnv.set('table', tableType);
+
+    const exportTypes: { [s: string]: Type.Type } = {};
+    const astAnnotations = new Map<unknown, Try<Type>>();
+    try {
+      trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
+      const exportType = Type.module(exportTypes);
+      return { exportType, astAnnotations, problems: false }
+    } catch (e) {
+      const exportType = Type.module({ });
+      return { exportType, astAnnotations, problems: true };
+    }
+  }));
+
+  const layoutFunction = Signal.label("layoutFunction", Signal.join(
+    Signal.label("meta", meta),
+    Signal.label("moduleTypeEnv", moduleTypeEnv),
+    Signal.label("moduleValueEnv", moduleValueEnv),
+  ).flatMap(([meta, moduleTypeEnv, moduleValueEnv]) => {
+    let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
+    if (meta.layout) {
+      if (debug) console.log(`meta.layout`);
+      const layoutModule = moduleTypeEnv.get(meta.layout);
+      if (layoutModule) {
+        if (debug) console.log(`layoutModule`);
+        const defaultType = layoutModule.get('default');
+        if (defaultType) {
+          if (debug) console.log(`defaultType`);
+          if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
+            if (debug) console.log(`isSubtype`);
+            const layoutModule = moduleValueEnv.get(meta.layout);
+            if (layoutModule) {
+              if (debug) console.log(`layoutModule`);
+              layoutFunction = layoutModule.flatMap(layoutModule => layoutModule['default']);
+            }
+          }
+        }
+      }
+    }
+    return layoutFunction ?? Signal.ok(undefined);
+  }));
+
+  const render = Signal.label("render", Signal.join(
+    Signal.label("ast", ast),
+    Signal.label("meta", meta),
+    Signal.label("jsonValue", jsonValue),
+    Signal.label("tableValue", tableValue),
+    Signal.label("moduleValueEnv", moduleValueEnv),
+    Signal.label("layoutFunction", layoutFunction),
+  ).map(([ast, meta, jsonValue, tableValue, moduleValueEnv, layoutFunction]) => {
+    // TODO(jaked) pass in these envs from above?
     let valueEnv = Render.initValueEnv(setSelected);
 
-    if (json) {
-      const dataType = json.exportType.get('mutable');
-      const dataValue = json.exportValue['mutable'];
-      if (dataType && dataValue) {
-        typeEnv = typeEnv.set('data', dataType);
-        valueEnv = valueEnv.set('data', dataValue);
-      }
+    if (jsonValue) valueEnv = valueEnv.set('data', jsonValue);
+    if (tableValue) valueEnv = valueEnv.set('table', tableValue);
+
+    const exportValue: { [s: string]: Signal<any> } = {};
+    const rendered =
+      trace.time('renderMdx', () => {
+        const [_, node] = Render.renderMdx(ast, moduleValueEnv, valueEnv, exportValue);
+        if (layoutFunction) return node.map(node => layoutFunction({ children: node, meta }));
+        else return node;
+      });
+
+    return { exportValue, rendered };
+  }));
+
+  return Signal.join(ast, typecheck).flatMap(([ast, typecheck]) => {
+    if (typecheck.problems) {
+      return Signal.ok<data.CompiledFile>({
+        exportType: typecheck.exportType,
+        exportValue: {},
+        rendered: Signal.ok(false),
+        astAnnotations: typecheck.astAnnotations,
+        problems: true,
+        ast: Try.ok(ast),
+      });
+    } else {
+      return render.map(render => ({
+        exportType: typecheck.exportType,
+        exportValue: render.exportValue,
+        rendered: render.rendered,
+        astAnnotations: typecheck.astAnnotations,
+        problems: false,
+        ast: Try.ok(ast),
+      }));
     }
-
-    if (table) {
-      const tableType = table.exportType.get('default');
-      const tableValue = table.exportValue['default'];
-      if (tableType && tableValue) {
-        typeEnv = typeEnv.set('table', tableType);
-        valueEnv = valueEnv.set('table', tableValue);
-      }
-    }
-
-    // TODO(jaked)
-    // avoid recompiling / rerendering when json / table type has not changed
-
-    const compiled =
-      compileMdx(trace, ast, meta, typeEnv, valueEnv, moduleTypeEnv, moduleValueEnv)
-    return { ...compiled, ast: Try.ok(ast) }
   });
 }
