@@ -157,11 +157,11 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType, an
         }
         return name;
       }));
-      type.fields.forEach(({ field, type }) => {
-        if (!propNames.has(field) && !Type.isSubtype(Type.undefined, type))
-          return Throw.missingField(ast, field, annots);
+      type.fields.forEach(({ _1: name, _2: type }) => {
+        if (!propNames.has(name) && !Type.isSubtype(Type.undefined, type))
+          return Throw.missingField(ast, name, annots);
       });
-      const fieldTypes = new Map(type.fields.map(({ field, type }) => [field, type]));
+      const fieldTypes = new Map(type.fields.map(({ _1, _2 }) => [_1, _2]));
       return ast.properties.map(prop => {
         let name: string;
         switch (prop.key.type) {

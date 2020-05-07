@@ -25,10 +25,10 @@ export function isSubtype(a: Type, b: Type): boolean {
     return a.elems.size === b.elems.size &&
       a.elems.every((t, i) => isSubtype(t, b.elems.get(i) ?? bug()));
   else if (a.kind === 'Object' && b.kind === 'Object') {
-    const fieldTypes = new Map(a.fields.map(({ field, type }) => [field, type]));
+    const fieldTypes = new Map(a.fields.map(({ _1, _2 }) => [_1, _2]));
     return b.fields.every((ft) => {
-      const a = fieldTypes.get(ft.field) || undefined;
-      return isSubtype(a, ft.type);
+      const a = fieldTypes.get(ft._1) || undefined;
+      return isSubtype(a, ft._2);
     });
   }
   else if (a.kind === 'Function' && b.kind === 'Function') {

@@ -1,4 +1,5 @@
 import deepEqual from 'deep-equal';
+import { Tuple2 } from '../../util/Tuple';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
@@ -40,15 +41,15 @@ export function narrowType(a: Type, b: Type): Type {
 
   if (a.kind === 'Object' && b.kind === 'Object') {
     const type = Type.object(a.fields.map(aFieldType => {
-      const field = aFieldType.field;
-      const bFieldType = b.fields.find(bFieldType => bFieldType.field === field);
+      const name = aFieldType._1;
+      const bFieldType = b.fields.find(bFieldType => bFieldType._1 === name);
       if (bFieldType) {
-        return { field, type: narrowType(aFieldType.type, bFieldType.type) }
+        return new Tuple2(name, narrowType(aFieldType._2, bFieldType._2))
       }
       else return aFieldType;
       // if there are  fields in `b` that are not in `a`, ignore them
     }));
-    if (type.fields.some(({ type }) => type.kind === 'never')) {
+    if (type.fields.some(({ _2: type }) => type.kind === 'never')) {
       return Type.never;
     } else {
       return type;

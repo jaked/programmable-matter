@@ -1,5 +1,6 @@
 import * as Immutable from 'immutable';
 import Record from '../../util/Record';
+import { Tuple2 } from '../../util/Tuple';
 import * as Types from './types';
 import * as Union from './union';
 
@@ -98,40 +99,40 @@ export function functionType(
 
 class ObjectType extends Record<ObjectType> implements Types.ObjectType {
   kind: 'Object' = 'Object';
-  fields: Immutable.List<{ field: string, type: Types.Type }> = Immutable.List();
+  fields: Immutable.List<Tuple2<string, Types.Type>> = Immutable.List();
 
   get(field: string) {
-    const ft = this.fields.find(ft => ft.field === field);
-    if (ft) return ft.type;
+    const ft = this.fields.find(ft => ft._1 === field);
+    if (ft) return ft._2;
   }
 }
 export function object(
   fields:
     { [f: string]: Types.Type } |
-    Array<{ field: string, type: Types.Type }> |
-    Immutable.List<{ field: string, type: Types.Type }>
+    Array<Tuple2<string, Types.Type>> |
+    Immutable.List<Tuple2<string, Types.Type>>
 ): Types.ObjectType {
   if (Immutable.List.isList(fields)) {
     return new ObjectType({ fields });
   } else if (Array.isArray(fields)) {
     return object(Immutable.List(fields));
   } else {
-    return object(Object.entries(fields).map(([ field, type]) => ({ field, type })));
+    return object(Object.entries(fields).map(([ field, type]) => new Tuple2(field, type)));
   }
 }
 
 class ModuleType extends Record<ModuleType> implements Types.ModuleType {
   kind: 'Module' = 'Module';
-  fields: Immutable.List<{ field: string, type: Types.Type }> = Immutable.List();
+  fields: Immutable.List<Tuple2<string, Types.Type>> = Immutable.List();
 
   get(field: string) {
-    const ft = this.fields.find(ft => ft.field === field);
-    if (ft) return ft.type;
+    const ft = this.fields.find(ft => ft._1 === field);
+    if (ft) return ft._2;
   }
 }
 export function module(obj: { [f: string]: Types.Type }): Types.ModuleType {
   return new ModuleType({
-    fields: Immutable.List(Object.entries(obj).map(([ field, type ]) => ({ field, type })))
+    fields: Immutable.List(Object.entries(obj).map(([ field, type ]) => new Tuple2(field, type)))
   });
 }
 

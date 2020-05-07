@@ -241,7 +241,7 @@ function synthMemberExpression(
         // check against union of valid indexes
         const fields = objectType.fields;
         const validIndexes =
-          fields.map(({ field }) => Type.singleton(field));
+          fields.map(({ _1: name }) => Type.singleton(name));
         check(ast.property, env, Type.union(...validIndexes), annots);
 
         // synth to find out which valid indexes are actually present
@@ -259,8 +259,8 @@ function synthMemberExpression(
         // and return union of element types of present indexes
         const presentTypes =
           presentIndexes.map(i => {
-            const fieldType = fields.find(({ field }) => field === i);
-            if (fieldType) return fieldType.type;
+            const fieldType = fields.find(({ _1: name }) => name === i);
+            if (fieldType) return fieldType._2;
             else throw new Error('expected valid index');
           });
         return Type.union(...presentTypes);
@@ -359,10 +359,10 @@ function patTypeEnvObjectPattern(
 ): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
-    const field = t.fields.find(field => field.field === key.name)
+    const field = t.fields.find(field => field._1 === key.name)
     if (!field)
       return Throw.unknownField(key, key.name, annots);
-    env = patTypeEnv(prop.value, field.type, env, annots);
+    env = patTypeEnv(prop.value, field._2, env, annots);
   });
   return env;
 }
@@ -493,9 +493,9 @@ function synthJSXElement(
       if (argType.kind !== 'Object')
         throw new Error('expected object arg');
       propsType = argType;
-      const childrenField = propsType.fields.find(field => field.field === 'children');
+      const childrenField = propsType.fields.find(field => field._1 === 'children');
       if (childrenField) {
-        if (!Type.isSubtype(Type.array(Type.reactNodeType), childrenField.type))
+        if (!Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
           throw new Error('expected children type');
       }
     } else throw new Error('expected 0- or 1-arg function');
@@ -509,14 +509,14 @@ function synthJSXElement(
 
   const attrNames =
     new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
-  propsType.fields.forEach(({ field, type }) => {
-    if (field !== 'children' &&
-        !attrNames.has(field) &&
+  propsType.fields.forEach(({ _1: name, _2: type }) => {
+    if (name !== 'children' &&
+        !attrNames.has(name) &&
         !Type.isSubtype(Type.undefined, type))
-      Throw.missingField(ast, field, annots);
+      Throw.missingField(ast, name, annots);
   });
 
-  const propTypes = new Map(propsType.fields.map(({ field, type }) => [field, type]));
+  const propTypes = new Map(propsType.fields.map(({ _1, _2 }) => [_1, _2]));
   ast.openingElement.attributes.forEach(attr => {
     const type = propTypes.get(attr.name.name);
     if (type) return check(attr.value, env, type, annots);
@@ -613,16 +613,16 @@ function extendEnvWithImport(
         env = env.set(spec.local.name, module);
         break;
       case 'ImportDefaultSpecifier':
-        const defaultField = module.fields.find(ft => ft.field === 'default');
+        const defaultField = module.fields.find(ft => ft._1 === 'default');
         if (!defaultField)
           return Throw.withLocation(decl.source, `no default export on '${decl.source.value}'`, annots);
-        env = env.set(spec.local.name, defaultField.type);
+        env = env.set(spec.local.name, defaultField._2);
         break;
       case 'ImportSpecifier':
-        const importedField = module.fields.find(ft => ft.field === spec.imported.name)
+        const importedField = module.fields.find(ft => ft._1 === spec.imported.name)
         if (!importedField)
           return Throw.withLocation(decl.source, `no exported member '${spec.imported.name}' on '${decl.source.value}'`, annots);
-        env = env.set(spec.local.name, importedField.type);
+        env = env.set(spec.local.name, importedField._2);
         break;
     }
   });

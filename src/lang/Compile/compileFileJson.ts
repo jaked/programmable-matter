@@ -117,10 +117,10 @@ function compileJson(
   };
 
   const rendered = Signal.constant(Try.apply(() => {
-    const fields = typeObject.fields.map(({ field, type }) => ({
-      label: field,
-      accessor: (o: object) => o[field],
-      component: fieldComponent(field, type)
+    const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
+      label: name,
+      accessor: (o: object) => o[name],
+      component: fieldComponent(name, type)
     }));
 
     // TODO(json) handle arrays of records (with Table)

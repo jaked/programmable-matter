@@ -1,6 +1,7 @@
 import * as Path from 'path';
 import * as Immutable from 'immutable';
 import * as React from 'react';
+import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import Try from '../../util/Try';
@@ -173,10 +174,10 @@ function compileTable(
 ): Signal<data.Compiled> {
   const { tableConfig, astAnnotations } = computeTableConfig(ast);
 
-  const tableDataFields: { field: string, type: Type }[] = [];
+  const tableDataFields: Tuple2<string, Type>[] = [];
   tableConfig.fields.forEach(field => {
     if (field.kind === 'data') {
-      tableDataFields.push({ field: field.name, type: field.type });
+      tableDataFields.push(new Tuple2(field.name, field.type));
     }
   });
   const tableDataType = Type.object(tableDataFields);

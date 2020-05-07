@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import { Tuple2 } from '../../util/Tuple';
 
 export type NeverType = { kind: 'never' };
 export type UnknownType = { kind: 'unknown' };
@@ -22,14 +23,14 @@ export type FunctionType = {
 // invariant: no duplicate fields
 export type ObjectType = {
   kind: 'Object',
-  fields: Immutable.List<{ field: string, type: Type }>
+  fields: Immutable.List<Tuple2<string, Type>>
   get(field: string): Type | undefined;
 };
 
 // invariant: no duplicate fields
 export type ModuleType = {
   kind: 'Module',
-  fields: Immutable.List<{ field: string, type: Type }>
+  fields: Immutable.List<Tuple2<string, Type >>
   get(field: string): Type | undefined;
 };
 

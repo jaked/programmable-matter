@@ -21,11 +21,11 @@ export function toString(t: Types.Type): string {
     case 'Function':
       return `(${t.args.map(toString).join(', ')}) => ${toString(t.ret)}`;
     case 'Object': {
-      const fields = t.fields.map(({ field, type }) => `${field}: ${toString(type)}`);
+      const fields = t.fields.map(({ _1: name, _2: type }) => `${name}: ${toString(type)}`);
       return `{ ${fields.join(', ')} }`;
     }
     case 'Module': {
-      const fields = t.fields.map(({ field, type }) => `${field}: ${toString(type)}`);
+      const fields = t.fields.map(({ _1: name, _2: type }) => `${name}: ${toString(type)}`);
       return `{ ${fields.join(', ')} }`;
     }
     case 'Union':
