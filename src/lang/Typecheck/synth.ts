@@ -233,7 +233,7 @@ function synthMemberExpression(
 
         // and return union of element types of present indexes
         const presentTypes =
-          presentIndexes.map(i => elems[i]);
+          presentIndexes.map(i => elems.get(i) ?? bug());
         return Type.union(...presentTypes);
       }
 
@@ -327,10 +327,10 @@ function synthCallExpression(
       return Throw.withLocation(ast, 'no matching function type');
     }
   } else if (calleeType.kind === 'Function') {
-    if (calleeType.args.length !== ast.arguments.length)
+    if (calleeType.args.size !== ast.arguments.length)
       // TODO(jaked) support short arg lists if arg type contains undefined
       // TODO(jaked) check how this works in Typescript
-      Throw.expectedType(ast, `${calleeType.args.length} args`, `${ast.arguments.length}`, annots);
+      Throw.expectedType(ast, `${calleeType.args.size} args`, `${ast.arguments.length}`, annots);
     calleeType.args.forEach((type, i) => check(ast.arguments[i], env, type, annots));
     return calleeType.ret;
   } else {
@@ -486,23 +486,25 @@ function synthJSXElement(
   let retType: Type;
   if (type.kind === 'Function') {
     retType = type.ret;
-    if (type.args.length === 0) {
+    if (type.args.size === 0) {
       propsType = Type.object({});
-    } else if (type.args.length === 1) {
-      if (type.args[0].kind !== 'Object')
+    } else if (type.args.size === 1) {
+      const argType = type.args.get(0) ?? bug();
+      if (argType.kind !== 'Object')
         throw new Error('expected object arg');
-      propsType = type.args[0];
+      propsType = argType;
       const childrenField = propsType.fields.find(field => field.field === 'children');
       if (childrenField) {
         if (!Type.isSubtype(Type.array(Type.reactNodeType), childrenField.type))
           throw new Error('expected children type');
       }
     } else throw new Error('expected 0- or 1-arg function');
-  } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.length === 1) {
-    if (type.params[0].kind !== 'Object')
+  } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.size === 1) {
+    const paramType = type.params.get(0) ?? bug();
+    if (paramType.kind !== 'Object')
       throw new Error('expected object arg');
     retType = Type.reactElementType;
-    propsType = type.params[0];
+    propsType = paramType;
   } else throw new Error('expected component type');
 
   const attrNames =

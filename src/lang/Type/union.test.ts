@@ -58,7 +58,7 @@ describe('union', () => {
         Type.object({ foo: Type.string, bar: Type.boolean }),
         Type.object({ foo: Type.string, bar: Type.boolean, baz: Type.number })
       );
-    expect(actual.kind === 'Union' && actual.types.length === 2).toBe(true);
+    expect(actual.kind === 'Union' && actual.types.size === 2).toBe(true);
   });
 
   it('collapses primitive subtypes', () => {

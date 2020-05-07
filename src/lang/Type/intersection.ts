@@ -1,6 +1,6 @@
 import { Type } from './types';
 import { isPrimitiveSubtype, equiv } from './isSubtype';
-import { unknown, never } from './constructors';
+import * as Constructors from './constructors';
 import { union } from './union';
 
 function collapseRedundant(xs: Array<Type>): Array<Type> {
@@ -66,10 +66,10 @@ export function intersection(...types: Array<Type>): Type {
   if (types.some(t => t.kind === 'Union'))
     return distributeUnion(types);
   if (types.some(t => types.some(u => emptyIntersection(t, u))))
-    return never;
+    return Constructors.never;
   types = collapseRedundant(types);
 
-  if (types.length === 0) return unknown;
+  if (types.length === 0) return Constructors.unknown;
   if (types.length === 1) return types[0];
-  return { kind: 'Intersection', types }
+  return Constructors.intersection(...types);
 }

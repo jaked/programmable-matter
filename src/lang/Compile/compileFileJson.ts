@@ -124,7 +124,7 @@ function compileJson(
     }));
 
     // TODO(json) handle arrays of records (with Table)
-    return React.createElement(Record, { object: lens, fields })
+    return React.createElement(Record, { object: lens, fields: fields.toArray() })
   }));
   return { exportType, exportValue, rendered, astAnnotations, problems: false };
 }

@@ -1,6 +1,6 @@
 import { Type } from './types';
 import { isPrimitiveSubtype, equiv } from './isSubtype';
-import { never} from './constructors';
+import * as Constructors from './constructors';
 
 function collapseRedundant(xs: Array<Type>): Array<Type> {
   let accum: Array<Type> = [];
@@ -28,7 +28,7 @@ export function union(...types: Array<Type>): Type {
   types = flatten(types);
   types = collapseRedundant(types);
 
-  if (types.length === 0) return never;
+  if (types.length === 0) return Constructors.never;
   if (types.length === 1) return types[0];
-  return { kind: 'Union', types }
+  return Constructors.union(...types);
 }

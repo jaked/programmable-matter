@@ -1,3 +1,4 @@
+import * as Immutable from 'immutable';
 import * as Types from './types';
 import * as Union from './union';
 
@@ -14,7 +15,7 @@ export const stringType: Types.StringType = { kind: 'string' };
 export const string = stringType;
 
 export function tuple(...elems: Array<Types.Type>): Types.TupleType {
-  return { kind: 'Tuple', elems };
+  return { kind: 'Tuple', elems: Immutable.List(elems) };
 }
 
 export function array(elem: Types.Type): Types.ArrayType {
@@ -30,21 +31,21 @@ export function map(key: Types.Type, value: Types.Type): Types.MapType {
 }
 
 export function abstract(label: string, ...params: Array<Types.Type>): Types.AbstractType {
-  return { kind: 'Abstract', label, params };
+  return { kind: 'Abstract', label, params: Immutable.List(params) };
 }
 
 export function functionType(
   args: Array<Types.Type>,
   ret: Types.Type
 ): Types.FunctionType {
-  return { kind: 'Function', args, ret };
+  return { kind: 'Function', args: Immutable.List(args), ret };
 }
 
-class ObjectType {
+class ObjectType implements Types.ObjectType {
   kind: 'Object' = 'Object';
-  fields: Array<{ field: string, type: Types.Type }>;
+  fields: Immutable.List<{ field: string, type: Types.Type }>;
 
-  constructor(fields: Array<{ field: string, type: Types.Type }>) {
+  constructor(fields: Immutable.List<{ field: string, type: Types.Type }>) {
     this.fields = fields;
   }
 
@@ -54,20 +55,31 @@ class ObjectType {
   }
 }
 
-export function object(fields: { [f: string]: Types.Type } | Array<{ field: string, type: Types.Type }>): Types.ObjectType {
-  if (Array.isArray(fields)) {
+export function object(
+  fields:
+    { [f: string]: Types.Type } |
+    Array<{ field: string, type: Types.Type }> |
+    Immutable.List<{ field: string, type: Types.Type }>
+): Types.ObjectType {
+  if (Immutable.List.isList(fields)) {
     return new ObjectType(fields);
+  } else if (Array.isArray(fields)) {
+    return new ObjectType(Immutable.List(fields));
   } else {
-    return new ObjectType(Object.entries(fields).map(([ field, type]) => ({ field, type })));
+    return new ObjectType(
+      Immutable.List(
+        Object.entries(fields).map(([ field, type]) => ({ field, type }))
+      )
+    );
   }
 }
 
-class ModuleType {
+class ModuleType implements Types.ModuleType {
   kind: 'Module' = 'Module';
-  fields: Array<{ field: string, type: Types.Type }>;
+  fields: Immutable.List<{ field: string, type: Types.Type }>;
 
   constructor(fields: Array<{ field: string, type: Types.Type }>) {
-    this.fields = fields;
+    this.fields = Immutable.List(fields);
   }
 
   get(field: string) {
@@ -103,12 +115,12 @@ export function not(type: Types.Type): Types.Type {
 
 // assumes that `types` satisfy the union invariants
 export function union(...types: Array<Types.Type>): Types.UnionType {
-  return { kind: 'Union', types };
+  return { kind: 'Union', types: Immutable.List(types) };
 }
 
 // assumes that `types` satisfy the intersection invariants
 export function intersection(...types: Array<Types.Type>): Types.IntersectionType {
-  return { kind: 'Intersection', types };
+  return { kind: 'Intersection', types: Immutable.List(types) };
 }
 
 export function undefinedOr(t: Types.Type): Types.Type {

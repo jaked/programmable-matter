@@ -42,11 +42,11 @@ function checkSubtype(ast: ESTree.Expression, env: Env, type: Type, annots: AstA
 function checkTuple(ast: ESTree.Expression, env: Env, type: Type.TupleType, annots: AstAnnotations) {
   switch (ast.type) {
     case 'ArrayExpression':
-      if (ast.elements.length !== type.elems.length) {
+      if (ast.elements.length !== type.elems.size) {
         return Throw.expectedType(ast, type, undefined, annots);
       } else {
         return ast.elements.forEach((elem, i) =>
-          check(elem, env, type.elems[i], annots)
+          check(elem, env, type.elems.get(i) ?? bug(), annots)
         );
       }
 
@@ -94,12 +94,12 @@ function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType, annots: 
 function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType, annots: AstAnnotations) {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
-      if (type.args.length != ast.params.length)
-        Throw.wrongArgsLength(ast, type.args.length, ast.params.length, annots);
+      if (type.args.size !== ast.params.length)
+        Throw.wrongArgsLength(ast, type.args.size, ast.params.length, annots);
       ast.params.forEach((pat, i) => {
         switch (pat.type) {
           case 'Identifier':
-            env = env.set(pat.name, type.args[i]);
+            env = env.set(pat.name, type.args.get(i) ?? bug());
             break;
 
           default:
@@ -124,8 +124,8 @@ function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType, anno
     (t.kind === 'Array' && ast.type === 'ArrayExpression') ||
     (t.kind === 'Function' && ast.type === 'ArrowFunctionExpression')
   );
-  if (matchingArms.length === 1)
-    return check(ast, env, matchingArms[0], annots);
+  if (matchingArms.size === 1)
+    return check(ast, env, matchingArms.get(0) ?? bug(), annots);
   else
     return checkSubtype(ast, env, type, annots);
 }

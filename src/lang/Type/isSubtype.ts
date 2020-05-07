@@ -1,4 +1,5 @@
 import deepEqual from 'deep-equal';
+import { bug } from '../../util/bug';
 import { Type } from './types';
 import { undefined } from './constructors';
 
@@ -21,8 +22,8 @@ export function isSubtype(a: Type, b: Type): boolean {
   else if (a.kind === 'Map' && b.kind === 'Map')
     return isSubtype(b.key, a.key) && isSubtype(a.value, b.value);
   else if (a.kind === 'Tuple' && b.kind === 'Tuple')
-    return a.elems.length === b.elems.length &&
-      a.elems.every((t, i) => isSubtype(t, b.elems[i]));
+    return a.elems.size === b.elems.size &&
+      a.elems.every((t, i) => isSubtype(t, b.elems.get(i) ?? bug()));
   else if (a.kind === 'Object' && b.kind === 'Object') {
     const fieldTypes = new Map(a.fields.map(({ field, type }) => [field, type]));
     return b.fields.every((ft) => {
@@ -31,8 +32,8 @@ export function isSubtype(a: Type, b: Type): boolean {
     });
   }
   else if (a.kind === 'Function' && b.kind === 'Function') {
-    return a.args.length === b.args.length &&
-      a.args.every((a, i) => isSubtype(b.args[i], a)) &&
+    return a.args.size === b.args.size &&
+      a.args.every((a, i) => isSubtype(b.args.get(i) ?? bug(), a)) &&
       isSubtype(a.ret, b.ret);
   }
   else return false;
