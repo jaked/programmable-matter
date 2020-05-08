@@ -1,4 +1,3 @@
-import deepEqual from 'deep-equal';
 import * as Immutable from 'immutable';
 import Trace from '../Trace';
 import Try from '../Try';
@@ -79,11 +78,7 @@ interface Signal<T> {
 }
 
 function equal(v1: any, v2: any): boolean {
-  if (Immutable.isValueObject(v1) && Immutable.isValueObject(v2)) {
-    return Immutable.is(v1, v2);
-  } else {
-    return deepEqual(v1, v2);
-  }
+  return Immutable.is(v1, v2);
 }
 
 abstract class SignalImpl<T> implements Signal<T> {

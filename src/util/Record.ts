@@ -1,5 +1,5 @@
 // immutable record base class, based on https://github.com/alexeyraspopov/dataclass
-// adapted to work with Typescript + Immutable
+// fixed bugs and adapted to work with Typescript + Immutable
 
 // MIT License
 
@@ -35,6 +35,7 @@ export default class Record<T> {
     if (custom as any === guard) return this;
 
     if (!this.constructor.hasOwnProperty(defaults)) {
+      // call constructor with sentinel value to learn the defaults
       let emptyRecord = new (this as any).constructor(guard);
       Object.defineProperty(this.constructor, defaults, {
         value: emptyRecord,
@@ -66,16 +67,30 @@ export default class Record<T> {
     return new prototype.constructor(custom);
   }
 
-  equals(record: T): boolean {
+  equals(other: any): boolean {
+    if (this.constructor !== other.constructor)
+      return false;
+
     let a = this[values];
-    let b = record[values];
+    let b = other[values];
 
     for (let key in this.constructor[defaults]) {
-      let valueA = a[key];
-      let valueB = b[key];
+      let valueA;
+      let valueB;
+      if (key in a) {
+        valueA = a[key];
+        valueB = (key in b) ? b[key] : other.constructor[defaults][key];
+      } else if (key in b) {
+        valueA = this.constructor[defaults][key];
+        valueB = b[key];
+      } else {
+        // both are default so we need not compare actual values
+        valueA = undefined;
+        valueB = undefined;
+      }
       if (valueA && typeof valueA.equals === 'function') {
         if (!valueA.equals(valueB)) return false;
-      } else if (valueA && typeof valueA.valueOf === 'function') {
+      } else if (valueA && typeof valueA.valueOf === 'function' && valueB && typeof valueB.valueOf === 'function') {
         if (valueA.valueOf() !== valueB.valueOf()) return false;
       } else if (valueA !== valueB) return false;
     }

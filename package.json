@@ -12,7 +12,6 @@
   "author": "Jake Donham",
   "devDependencies": {
     "@types/browser-sync": "^2.26.1",
-    "@types/deep-equal": "^1.0.1",
     "@types/express": "^4.17.1",
     "@types/jest": "^24.0.18",
     "@types/json5": "0.0.30",
@@ -39,7 +38,6 @@
     "@babel/parser": "^7.6.4",
     "@mdx-js/mdx": "^1.4.5",
     "browser-sync": "^2.26.7",
-    "deep-equal": "^1.1.0",
     "electron-reload": "^1.5.0",
     "electron-unhandled": "^2.2.0",
     "gh-pages": "^2.1.1",

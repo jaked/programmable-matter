@@ -1,4 +1,4 @@
-import deepEqual from 'deep-equal';
+import * as Immutable from 'immutable';
 import { Tuple2 } from '../../util/Tuple';
 import { bug } from '../../util/bug';
 import Type from '../Type';
@@ -11,7 +11,7 @@ import { synth } from './synth';
 // 'b' may contain Not-types
 // the return type will not contain Not-types
 export function narrowType(a: Type, b: Type): Type {
-  if (deepEqual(a, b)) return a;
+  if (Immutable.is(a, b)) return a;
   if (a.kind === 'never' || b.kind === 'never') return Type.never;
   if (b.kind === 'unknown') return a;
   if (a.kind === 'Union')

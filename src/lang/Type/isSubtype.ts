@@ -1,10 +1,10 @@
-import deepEqual from 'deep-equal';
+import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import { Type } from './types';
 import { undefined } from './constructors';
 
 export function isSubtype(a: Type, b: Type): boolean {
-  if (deepEqual(a, b)) return true;
+  if (Immutable.is(a, b)) return true;
   else if (a.kind === 'never') return true;
   else if (b.kind === 'unknown') return true;
   else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));

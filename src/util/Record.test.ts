@@ -1,5 +1,5 @@
 // immutable record base class, based on https://github.com/alexeyraspopov/dataclass
-// adapted to work with Typescript + Immutable
+// fixed bugs and adapted to work with Typescript + Immutable
 
 // MIT License
 
@@ -217,6 +217,21 @@ describe('Record', () => {
     expect(a.equals(b)).toBeTruthy();
     expect(b.equals(c)).toBeTruthy();
     expect(a.equals(c)).toBeTruthy();
+  });
+
+  it('equals returns false on non-Record objects', () => {
+    const ent = new Entity({ someBool: false });
+    expect(ent.equals({ })).toBe(false);
+  });
+
+  it('equals distinguishes undefined custom values from defaults', () => {
+    class Ent extends Record<Ent> {
+      s: undefined | string = 'foo'
+    }
+
+    const e1 = new Ent();
+    const e2 = new Ent({ s: undefined });
+    expect(e1.equals(e2)).toBe(false);
   });
 
   it('should be serializable', () => {
