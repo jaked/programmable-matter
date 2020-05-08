@@ -15,9 +15,8 @@ import metaForPath from './metaForPath';
 
 const debug = false;
 
-function findImports(ast: MDXHAST.Node, layout: string | undefined) {
+function findImports(ast: MDXHAST.Node) {
   const imports = Immutable.Set<string>().asMutable();
-  if (layout !== undefined) imports.add(layout);
   function find(ast: MDXHAST.Node) {
     switch (ast.type) {
       case 'root':
@@ -60,8 +59,7 @@ export default function compileFileMdx(
   );
 
   const meta = metaForPath(file.path, compiledFiles);
-  const imports =
-    Signal.join(ast, meta).map(([ast, meta]) => findImports(ast, meta.layout));
+  const imports = ast.map(ast => findImports(ast));
 
   // TODO(jaked) push note errors into envs so they're surfaced in editor?
   const noteEnv =
@@ -130,30 +128,29 @@ export default function compileFileMdx(
 
   const layoutFunction = Signal.label("layoutFunction", Signal.join(
     Signal.label("meta", meta),
-    Signal.label("moduleTypeEnv", moduleTypeEnv),
-    Signal.label("moduleValueEnv", moduleValueEnv),
-  ).flatMap(([meta, moduleTypeEnv, moduleValueEnv]) => {
-    let layoutFunction: undefined | Signal<(props: { children: React.ReactNode, meta: data.Meta }) => React.ReactNode>;
+    Signal.label("compiledNotes", compiledNotes),
+  ).flatMap(([meta, compiledNotes]) => {
     if (meta.layout) {
       if (debug) console.log(`meta.layout`);
-      const layoutModule = moduleTypeEnv.get(meta.layout);
+      const layoutModule = compiledNotes.get(meta.layout);
       if (layoutModule) {
         if (debug) console.log(`layoutModule`);
-        const defaultType = layoutModule.get('default');
-        if (defaultType) {
-          if (debug) console.log(`defaultType`);
-          if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
-            if (debug) console.log(`isSubtype`);
-            const layoutModule = moduleValueEnv.get(meta.layout);
-            if (layoutModule) {
-              if (debug) console.log(`layoutModule`);
-              layoutFunction = layoutModule.flatMap(layoutModule => layoutModule['default']);
+        return layoutModule.exportType.flatMap(exportType => {
+          const defaultType = exportType.get('default');
+          if (defaultType) {
+            if (debug) console.log(`defaultType`);
+            if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
+              if (debug) console.log(`isSubtype`);
+              return layoutModule.exportValue.flatMap(exportValue =>
+                exportValue['default']
+              );
             }
           }
-        }
+          return Signal.ok(undefined);
+        });
       }
     }
-    return layoutFunction ?? Signal.ok(undefined);
+    return Signal.ok(undefined);
   }));
 
   const render = Signal.label("render", Signal.join(
