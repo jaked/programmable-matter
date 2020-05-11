@@ -2,6 +2,7 @@ import * as Type from './constructors';
 
 export const undefinedOrString = Type.union(Type.undefined, Type.string);
 export const undefinedOrNumber = Type.union(Type.undefined, Type.number);
+export const undefinedOrBoolean = Type.union(Type.undefined, Type.boolean);
 export const numberOrString = Type.union(Type.number, Type.string);
 
 export const falsy =
@@ -46,6 +47,7 @@ export const metaType =
     title: undefinedOrString,
     tags: Type.undefinedOr(Type.array(Type.string)),
     layout: undefinedOrString,
+    publish: undefinedOrBoolean,
     dataType: undefinedOrString,
     dirMeta: Type.undefinedOr(Type.object({
       dataType: undefinedOrString,

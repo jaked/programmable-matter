@@ -57,7 +57,8 @@ export default class Server {
     if (tag === '.') tag = '';
 
     const note = this.compiledNotes.get().get(tag);
-      if (!note) {
+    if (note) note.meta.reconcile(this.trace, this.level);
+    if (!note || !note.meta.get().publish) {
       res.statusCode = 404;
       res.end(`no note ${tag}`);
     } else {

@@ -11,6 +11,7 @@ export interface Meta {
   title?: string;
   tags?: Array<string>;
   layout?: string;
+  publish?: boolean;
   dataType?: Type;
   dirMeta?: Meta;
 }

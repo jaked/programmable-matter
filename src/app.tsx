@@ -498,6 +498,8 @@ export class App {
     await Promise.all(this.compiledNotes.map(async note => {
       // TODO(jaked) don't blow up on failed notes
 
+      note.meta.reconcile(this.__trace, this.level);
+      if (!note.meta.get().publish) return
       note.publishedType.reconcile(this.__trace, this.level);
       const publishedType = note.publishedType.get();
 
