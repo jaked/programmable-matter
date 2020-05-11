@@ -20,6 +20,7 @@ import * as data from './data';
 import { Filesystem } from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
+import * as Render from './lang/Render';
 
 import Server from './server';
 
@@ -495,23 +496,36 @@ export class App {
     await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
     await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
     await Promise.all(this.compiledNotes.map(async note => {
-      // TODO(jaked) figure out file extensions
-      // TODO(jaked) handle jpegs
-      // if (note.type === 'jpeg') {
-      //   const notePath = Path.resolve(tempdir, note.path);
-      //   await mkdir(Path.dirname(notePath), { recursive: true });
-      //   await writeFile(notePath, note.buffer);
-      // } else if (note.type === 'table') {
-      //   // ???
-      const notePath = Path.resolve(tempdir, note.tag) + '.html';
-
       // TODO(jaked) don't blow up on failed notes
-      const node = note.rendered.get();
 
-      if (!node) return;
-      const html = ReactDOMServer.renderToStaticMarkup(node as React.ReactElement);
-      await mkdir(Path.dirname(notePath), { recursive: true });
-      await writeFile(notePath, html);
+      note.publishedType.reconcile(this.__trace, this.level);
+      const publishedType = note.publishedType.get();
+
+      if (publishedType === 'jpeg') {
+        const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
+        const path = Path.resolve(tempdir, base) + '.jpeg';
+
+        await mkdir(Path.dirname(path), { recursive: true });
+        note.exportValue.reconcile(this.__trace, this.level);
+        const exportValue = note.exportValue.get();
+        exportValue.buffer.reconcile(this.__trace, this.level);
+        const buffer = exportValue.buffer.get();
+        await writeFile(path, buffer);
+
+      } else if (publishedType === 'html') {
+        const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
+        const path = Path.resolve(tempdir, base) + '.html';
+
+        note.rendered.reconcile(this.__trace, this.level);
+        const rendered = note.rendered.get();
+        if (!rendered) return;
+
+        const renderedWithContext =
+          React.createElement(Render.context.Provider, { value: 'server' }, rendered)
+        const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+        await mkdir(Path.dirname(path), { recursive: true });
+        await writeFile(path, html);
+      }
     }).values());
     if (false) {
       await publish(tempdir, {

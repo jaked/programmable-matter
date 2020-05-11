@@ -62,6 +62,7 @@ export function compileFiles(
         let rendered: Signal<React.ReactNode>;
         let exportType: Type.ModuleType;
         let exportValue: { [s: string]: Signal<any> };
+        let publishedType: 'html' | 'jpeg' = 'html';
 
         // TODO(jaked) merge exportType / exportValue across files
         if (mdx) {
@@ -77,6 +78,7 @@ export function compileFiles(
           exportType = json.exportType;
           exportValue = json.exportValue;
         } else if (jpeg) {
+          publishedType = 'jpeg';
           rendered = jpeg.rendered;
           exportType = jpeg.exportType;
           exportValue = jpeg.exportValue;
@@ -96,12 +98,14 @@ export function compileFiles(
         return {
           problems,
           rendered,
+          publishedType,
           exportType,
           exportValue,
         };
       });
       return {
         tag,
+        publishedType: parts.map(parts => parts.publishedType),
         isIndex,
         meta: metaForPath(Tag.pathOfTag(tag, isIndex, 'meta'), compiledFiles),
         files: { },

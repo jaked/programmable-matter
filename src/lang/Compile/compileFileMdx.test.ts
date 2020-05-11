@@ -98,6 +98,7 @@ it('compiles with layout', () => {
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
+        publishedType: Signal.ok('html' as const),
         exportType: Signal.ok(Type.module({
           default: Type.layoutFunctionType,
         })),

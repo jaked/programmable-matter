@@ -91,6 +91,10 @@ export type CompiledNote = {
   files: NoteFiles;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
+
+  // TODO(jaked) one note can publish multiple types? e.g. html + json
+  publishedType: Signal<'html' | 'jpeg'>;
+
   exportType: Signal<Type.ModuleType>;
   exportValue: Signal<{ [s: string]: Signal<any> }>;
 }

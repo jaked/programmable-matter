@@ -263,6 +263,7 @@ export default function compileFileTable(
           compiled: { },
           problems: Signal.ok(compiledFile.problems),
           rendered: compiledFile.rendered,
+          publishedType: Signal.ok('html'),
           exportType: Signal.ok(compiledFile.exportType),
           exportValue: Signal.ok(compiledFile.exportValue),
         })));
