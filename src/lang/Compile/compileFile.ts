@@ -30,7 +30,7 @@ export default function compileFile(
       return compileFileJson(trace, file, compiledFiles, updateFile);
 
     case 'table':
-      return compileFileTable(trace, file, compiledFiles, setSelected);
+      return compileFileTable(trace, file, compiledFiles, compiledNotes, setSelected);
 
     case 'jpeg':
       return compileFileJpeg(trace, file);

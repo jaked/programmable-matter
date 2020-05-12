@@ -6,6 +6,7 @@ import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import * as Tag from '../../util/Tag';
+import { diffMap } from '../../util/immutable/Map';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -77,16 +78,14 @@ function computeTableConfig(
 }
 
 function computeObjectType(
-  imports: Immutable.Set<string>,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
 ) {
-  const typeUnion = Signal.join(...imports.toArray().map(tag => {
+  const typeUnion = Signal.join(...noteEnv.map((note, tag) => {
     // TODO(jaked) handle partial failures better here
-    const note = noteEnv.get(tag) ?? bug(`expected note for ${tag}`);
     return note.exportType.map(exportType =>
       exportType.get('default') ?? bug(`expected default export for ${tag}`)
     );
-  })).map(types => Type.union(...types));
+  }).values()).map(types => Type.union(...types));
 
   return typeUnion.map(typeUnion => {
     let objectType: Type.ObjectType | undefined = undefined;
@@ -116,32 +115,28 @@ function computeObjectType(
 function computeTable(
   tableConfig: data.Table,
   noteTag: string,
-  imports: Immutable.Set<string>,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
 ) {
   return Signal.joinImmutableMap(Signal.ok(
     Immutable.Map<string, Signal<any>>().withMutations(map =>
-      imports.forEach(tag => {
+      noteEnv.forEach((note, tag) => {
         // TODO(jaked) handle partial failures better here
-        const note = noteEnv.get(tag) ?? bug(`expected note for ${tag}`);
         const defaultValue =
           note.exportValue.flatMap(exportValue => exportValue['default']);
 
-        // TODO(jaked) expose meta on compiled JSON somehow
-        // const metaValue = note.meta.map(meta =>
-        //   tableConfig.fields.reduce<object>(
-        //     (obj, field) => {
-        //       if (field.kind === 'meta') {
-        //         switch (field.field) {
-        //           case 'title': return { obj, [field.name]: meta.title }
-        //         }
-        //       }
-        //       return obj;
-        //     },
-        //     {}
-        //   ),
-        // );
-        const metaValue = Signal.ok({});
+        const metaValue = note.meta.map(meta =>
+          tableConfig.fields.reduce<object>(
+            (obj, field) => {
+              if (field.kind === 'meta') {
+                switch (field.field) {
+                  case 'title': return { obj, [field.name]: meta.title }
+                }
+              }
+              return obj;
+            },
+            {}
+          ),
+        );
 
         const value = Signal.join(defaultValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
         const relativeTag = Path.relative(Path.dirname(noteTag), tag);
@@ -168,7 +163,6 @@ function compileTable(
   trace: Trace,
   ast: ESTree.Expression,
   noteTag: string,
-  imports: Immutable.Set<string>,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
   setSelected: (tag: string) => void,
 ): Signal<data.Compiled> {
@@ -182,9 +176,9 @@ function compileTable(
   });
   const tableDataType = Type.object(tableDataFields);
 
-  const objectType = computeObjectType(imports, noteEnv);
+  const objectType = computeObjectType(noteEnv);
 
-  const table = computeTable(tableConfig, noteTag, imports, noteEnv);
+  const table = computeTable(tableConfig, noteTag, noteEnv);
 
   const fields = computeFields(tableConfig);
 
@@ -222,12 +216,11 @@ function compileTable(
   });
 }
 
-const unimplementedSignal = Signal.err(new Error('unimplemented'));
-
 export default function compileFileTable(
   trace: Trace,
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
+  compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (tag: string) => void,
 ): Signal<data.CompiledFile> {
 
@@ -236,54 +229,35 @@ export default function compileFileTable(
   const ast = file.content.map(Parse.parseExpression);
 
   // TODO(jaked) support non-index foo.table
-  const importsNoteEnv: Signal<[
-    Immutable.Set<string>,
-    Immutable.Map<string, Signal<data.CompiledNote>>
-  ]> = compiledFiles.map(compiledFiles => {
-    const importsSet = Immutable.Set<string>().asMutable();
-    const noteEnv = Immutable.Map<string, Signal<data.CompiledNote>>().asMutable();
-    const dir = Path.parse(file.path).dir;
-    compiledFiles.forEach((compiledFile, path) => {
-      // TODO(jaked) not sure if we should handle nested dirs in tables
-      // TODO(jaked) handle non-json files
-      if (!Path.relative(dir, path).startsWith('..') && Path.extname(path) === '.json') {
-        const tag = Tag.tagOfPath(path);
-        importsSet.add(tag);
-
-        // TODO(jaked)
-        // since compileNotes expectes a CompiledNote environment
-        // we need to fake one up for now.
-        noteEnv.set(tag, compiledFile.map(compiledFile => ({
-          tag,
-          isIndex: false,
-          meta: unimplementedSignal,
-          files: { },
-          parsed: { },
-          imports: unimplementedSignal,
-          compiled: { },
-          problems: Signal.ok(compiledFile.problems),
-          rendered: compiledFile.rendered,
-          publishedType: Signal.ok('html'),
-          exportType: Signal.ok(compiledFile.exportType),
-          exportValue: Signal.ok(compiledFile.exportValue),
-        })));
-      }
-    });
-    return [ importsSet.asImmutable(), noteEnv.asImmutable() ]
-  });
+  // TODO(jaked) Signal.filter
+  const noteEnv = Signal.mapWithPrev<data.CompiledNotes, data.CompiledNotes>(
+    compiledNotes,
+    (compiledNotes, prevCompiledNotes, prevNoteEnv) => {
+      return prevNoteEnv.withMutations(noteEnv => {
+        const dir = Path.parse(file.path).dir;
+        const { added, changed, deleted } = diffMap(prevCompiledNotes, compiledNotes);
+        added.forEach((compiledNote, tag) => {
+          // TODO(jaked) not sure if we should handle nested dirs in tables
+          // TODO(jaked) handle non-json files
+          if (tag !== dir && !Path.relative(dir, tag).startsWith('..'))
+            noteEnv.set(tag, compiledNote);
+        });
+        changed.forEach(([prev, curr], tag) => noteEnv.set(tag, curr));
+        deleted.forEach(tag => noteEnv.delete(tag));
+      });
+    },
+    Immutable.Map(),
+    Immutable.Map()
+  );
 
   return ast.liftToTry().flatMap(astTry => {
     const astTryOrig = astTry;
     switch (astTry.type) {
       case 'ok':
-        // TODO(jaked) maybe this can be simplified once we inline compileTable
-        return importsNoteEnv.flatMap(importsNoteEnv => {
-          const [ imports, noteEnv] = importsNoteEnv;
-          return Signal.joinImmutableMap(Signal.ok(noteEnv)).flatMap(noteEnv =>
-            compileTable(trace, astTry.ok, noteTag, imports, noteEnv, setSelected)
-              .map(compiled => ({ ...compiled, ast: astTryOrig }))
-          );
-        });
+        return noteEnv.flatMap(noteEnv =>
+          compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected)
+            .map(compiled => ({ ...compiled, ast: astTryOrig }))
+        );
 
       case 'err': {
         return Signal.ok({

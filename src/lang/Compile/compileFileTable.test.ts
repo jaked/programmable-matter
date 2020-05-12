@@ -16,6 +16,7 @@ it('succeeds with syntax error', () => {
       Signal.cellOk(Buffer.from(`#Q(*&#$)`)),
     ),
     Signal.ok(Immutable.Map()),
+    Signal.ok(Immutable.Map()),
     setSelected
   );
   compiled.reconcile(trace, 1);
