@@ -1,14 +1,7 @@
 import * as fs from "fs";
 import * as Path from 'path';
 import * as process from 'process';
-import { ipcRenderer as ipc, remote } from 'electron';
-import util from 'util';
-import rimrafCallback from 'rimraf';
-import ghPages from 'gh-pages';
-const rimraf = util.promisify(rimrafCallback);
-const writeFile = util.promisify(fs.writeFile);
-const mkdir = util.promisify(fs.mkdir);
-const publish = util.promisify(ghPages.publish);
+import { ipcRenderer as ipc } from 'electron';
 
 import * as Immutable from 'immutable';
 
@@ -20,18 +13,18 @@ import * as data from './data';
 import { Filesystem } from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
-import * as Render from './lang/Render';
 
 import Server from './server';
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import ReactDOMServer from 'react-dom/server';
 
 import { Main } from './components/Main';
 import { Session, emptySession } from './components/react-simple-code-editor';
 
 import * as GTasks from './integrations/gtasks';
+
+import ghPages from './publish/ghPages';
 
 import Unhandled from 'electron-unhandled';
 
@@ -488,56 +481,7 @@ export class App {
   }
 
   publishSite = async () => {
-    // TODO(jaked) generate random dir name?
-    const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-    // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
-    await rimraf(tempdir, { glob: false })
-    await mkdir(tempdir);
-    await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
-    await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
-    await Promise.all(this.compiledNotes.map(async note => {
-      // TODO(jaked) don't blow up on failed notes
-
-      note.meta.reconcile(this.__trace, this.level);
-      if (!note.meta.get().publish) return
-      note.publishedType.reconcile(this.__trace, this.level);
-      const publishedType = note.publishedType.get();
-
-      if (publishedType === 'jpeg') {
-        const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
-        const path = Path.resolve(tempdir, base) + '.jpeg';
-
-        await mkdir(Path.dirname(path), { recursive: true });
-        note.exportValue.reconcile(this.__trace, this.level);
-        const exportValue = note.exportValue.get();
-        exportValue.buffer.reconcile(this.__trace, this.level);
-        const buffer = exportValue.buffer.get();
-        await writeFile(path, buffer);
-
-      } else if (publishedType === 'html') {
-        const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
-        const path = Path.resolve(tempdir, base) + '.html';
-
-        note.rendered.reconcile(this.__trace, this.level);
-        const rendered = note.rendered.get();
-        if (!rendered) return;
-
-        const renderedWithContext =
-          React.createElement(Render.context.Provider, { value: 'server' }, rendered)
-        const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
-        await mkdir(Path.dirname(path), { recursive: true });
-        await writeFile(path, html);
-      }
-    }).values());
-    await publish(tempdir, {
-      src: '**',
-      dotfiles: true,
-      branch: 'master',
-      repo: 'https://github.com/jaked/jaked.github.io.git',
-      message: 'published from Programmable Matter',
-      name: 'Jake Donham',
-      email: 'jake.donham@gmail.com',
-    });
+    ghPages(this.compiledNotes, this.__trace, this.level);
   }
 
   syncGoogleTasks = () => {
