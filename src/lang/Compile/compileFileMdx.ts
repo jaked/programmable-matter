@@ -155,12 +155,10 @@ export default function compileFileMdx(
 
   const render = Signal.label("render", Signal.join(
     Signal.label("ast", ast),
-    Signal.label("meta", meta),
     Signal.label("jsonValue", jsonValue),
     Signal.label("tableValue", tableValue),
     Signal.label("moduleValueEnv", moduleValueEnv),
-    Signal.label("layoutFunction", layoutFunction),
-  ).map(([ast, meta, jsonValue, tableValue, moduleValueEnv, layoutFunction]) => {
+  ).map(([ast, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass in these envs from above?
     let valueEnv = Render.initValueEnv(setSelected);
 
@@ -171,8 +169,7 @@ export default function compileFileMdx(
     const rendered =
       trace.time('renderMdx', () => {
         const [_, node] = Render.renderMdx(ast, moduleValueEnv, valueEnv, exportValue);
-        if (layoutFunction) return node.map(node => layoutFunction({ children: node, meta }));
-        else return node;
+        return node;
       });
 
     return { exportValue, rendered };
@@ -192,7 +189,10 @@ export default function compileFileMdx(
       return render.map(render => ({
         exportType: typecheck.exportType,
         exportValue: render.exportValue,
-        rendered: render.rendered,
+        rendered:
+          Signal.join(render.rendered, meta, layoutFunction).map(([rendered, meta, layoutFunction]) =>
+            layoutFunction ? layoutFunction({ children: rendered, meta }) : rendered
+          ),
         astAnnotations: typecheck.astAnnotations,
         problems: false,
         ast: Try.ok(ast),
