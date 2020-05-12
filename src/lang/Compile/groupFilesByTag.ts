@@ -17,7 +17,11 @@ function groupFilesByTag(
   deleted.forEach(path => {
     const tag = Tag.tagOfPath(path);
     const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-    groupedFiles = groupedFiles.set(tag, group.delete(path));
+    const updatedGroup = group.delete(path);
+    if (updatedGroup.size === 0)
+      groupedFiles = groupedFiles.delete(tag);
+    else
+      groupedFiles = groupedFiles.set(tag, updatedGroup);
   });
 
   changed.forEach(([prev, curr], path) => {
@@ -36,7 +40,7 @@ function groupFilesByTag(
   return groupedFiles;
 }
 
-export default function groupFilesByTag2(
+export default function groupFilesByTagSignal(
   files: Signal<data.Files>
 ): Signal<Immutable.Map<string, Immutable.Map<string, data.File>>> {
   const tags = Signal.mapWithPrev(

@@ -10,7 +10,7 @@ import Type from '../Type';
 import * as data from '../../data';
 
 import compileFile from './compileFile';
-import groupFilesByTag2 from './groupFilesByTag2';
+import groupFilesByTag2 from './groupFilesByTag';
 import metaForPath from './metaForPath';
 
 export function compileFiles(
