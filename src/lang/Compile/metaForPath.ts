@@ -20,7 +20,7 @@ function extractMeta(meta: Signal<data.CompiledFile>): Signal<data.Meta> {
 
 const emptyMeta: Signal<data.CompiledFile> = Signal.ok({
   exportType: Type.module({ }),
-  exportValue: { default: Signal.ok({}) },
+  exportValue: { default: Signal.ok(new data.Meta({})) },
   rendered: Signal.ok(null),
   problems: false,
   ast: Try.ok(null),
@@ -38,6 +38,13 @@ export default function metaForPath(
     const indexMeta = extractMeta(compiledFiles.get(indexMetaPath) ?? emptyMeta);
     const meta = extractMeta(compiledFiles.get(metaPath) ?? emptyMeta);
     return Signal.join(indexMeta, meta)
-      .map(([indexMeta, meta]) => ({ ...indexMeta.dirMeta, ...meta }));
+      // TODO(jaked) spread interpolation doesn't work on Records, can this be fixed?
+      .map(([indexMeta, meta]) => new data.Meta({
+        title: indexMeta.dirMeta?.title ?? meta.title,
+        tags: indexMeta.dirMeta?.tags ?? meta.tags,
+        layout: indexMeta.dirMeta?.layout ?? meta.layout,
+        publish: indexMeta.dirMeta?.publish ?? meta.publish,
+        dataType: indexMeta.dirMeta?.dataType ?? meta.dataType,
+      }));
   });
 }

@@ -88,7 +88,7 @@ export default function compileFileMdx(
   });
   const jsonValue = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
-    if (json) return json.map(json => json.exportValue['mutable']);
+    if (json) return json.flatMap(json => json.exportValue['mutable']);
     else return Signal.ok(undefined);
   });
   const tableType = compiledFiles.flatMap(compiledFiles => {
@@ -98,7 +98,7 @@ export default function compileFileMdx(
   });
   const tableValue = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
-    if (table) return table.map(table => table.exportValue['default']);
+    if (table) return table.flatMap(table => table.exportValue['default']);
     else return Signal.ok(undefined);
   });
 
@@ -121,6 +121,7 @@ export default function compileFileMdx(
       const exportType = Type.module(exportTypes);
       return { exportType, astAnnotations, problems: false }
     } catch (e) {
+      console.log(e);
       const exportType = Type.module({ });
       return { exportType, astAnnotations, problems: true };
     }
@@ -162,8 +163,8 @@ export default function compileFileMdx(
     // TODO(jaked) pass in these envs from above?
     let valueEnv = Render.initValueEnv(setSelected);
 
-    if (jsonValue) valueEnv = valueEnv.set('data', jsonValue);
-    if (tableValue) valueEnv = valueEnv.set('table', tableValue);
+    if (jsonValue) valueEnv = valueEnv.set('data', Signal.ok(jsonValue));
+    if (tableValue) valueEnv = valueEnv.set('table', Signal.ok(tableValue));
 
     const exportValue: { [s: string]: Signal<any> } = {};
     const rendered =

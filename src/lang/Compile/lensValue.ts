@@ -21,6 +21,7 @@ export default function lensValue(value: any, setValue: (v: any) => void, type: 
       // because `name` is a read-only property on Function
       return new Proxy(f, { get: (target, key, receiver) => {
         if (typeof key !== 'string') return undefined;
+        if (key === 'valueOf' || key === 'equals') return undefined;
         const setFieldValue = (v) => setValue({ ...value, [key]: v });
         const fieldType = type.get(key) || bug(`expected field type for ${key}`);
         return lensValue(value[key], setFieldValue, fieldType);

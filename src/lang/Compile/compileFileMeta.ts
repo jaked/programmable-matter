@@ -26,7 +26,7 @@ function convertMeta(obj: any): data.Meta {
     typeof obj.dirMeta === 'object' ?
     { dirMeta: convertMeta(obj.dirMeta) } : {};
 
-  return { ...obj, ...dataType, ...dirMeta };
+  return new data.Meta({ ...obj, ...dataType, ...dirMeta });
 }
 
 function compileMeta(
@@ -38,6 +38,7 @@ function compileMeta(
   try {
     Typecheck.check(ast, Typecheck.env(), Type.metaType, astAnnotations);
   } catch (e) {
+    console.log(e);
     error = e;
     problems = true;
   }
@@ -69,7 +70,7 @@ export default function compileFileMeta(
       case 'err': {
         return {
           exportType: Type.module({}),
-          exportValue: { default: Signal.ok({}) },
+          exportValue: { default: Signal.ok(new data.Meta({})) },
           rendered: Signal.constant(astTry),
           problems: true,
           ast: astTry

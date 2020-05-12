@@ -1,19 +1,21 @@
 import * as Path from 'path';
 import Immutable from 'immutable';
 import React from 'react';
+import Record from './util/Record';
 import Signal from './util/Signal';
 import Try from './util/Try';
 import Type from './lang/Type';
 
 export type Types = 'meta' | 'mdx' | 'json' | 'jpeg' | 'table';
 
-export interface Meta {
-  title?: string;
-  tags?: Array<string>;
-  layout?: string;
-  publish?: boolean;
-  dataType?: Type;
-  dirMeta?: Meta;
+export class Meta extends Record<Meta> {
+  // TODO(jaked) Record requires we initialize all members, can this be fixed?
+  title?: string = undefined;
+  tags?: Array<string> = undefined;
+  layout?: string = undefined;
+  publish?: boolean = undefined;
+  dataType?: Type = undefined;
+  dirMeta?: Meta = undefined;
 }
 
 export type AstAnnotations = Map<unknown, Try<Type>>;
