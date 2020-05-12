@@ -529,17 +529,15 @@ export class App {
         await writeFile(path, html);
       }
     }).values());
-    if (false) {
-      await publish(tempdir, {
-        src: '**',
-        dotfiles: true,
-        branch: 'master',
-        repo: 'https://github.com/jaked/jaked.github.io.git',
-        message: 'published from Programmable Matter',
-        name: 'Jake Donham',
-        email: 'jake.donham@gmail.com',
-      });
-    }
+    await publish(tempdir, {
+      src: '**',
+      dotfiles: true,
+      branch: 'master',
+      repo: 'https://github.com/jaked/jaked.github.io.git',
+      message: 'published from Programmable Matter',
+      name: 'Jake Donham',
+      email: 'jake.donham@gmail.com',
+    });
   }
 
   syncGoogleTasks = () => {
