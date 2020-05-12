@@ -247,6 +247,10 @@ function computeHighlight(
     break;
   }
 
+  // necessary because we dependency-sort AST bindings in compileFileMdx
+  // TODO(jaked) handle AST dependencies a better way
+  spans.sort((a, b) => a.start - b.start);
+
   // TODO(jaked) this could use some tests
   const lineStartOffsets: Array<number> = [0];
   for (let i = 0; i < content.length; i++) {
