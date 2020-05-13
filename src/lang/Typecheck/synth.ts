@@ -284,13 +284,13 @@ function synthMemberExpression(
           }
 
         case 'Object': {
-          const field = objectType.get(name);
+          const field = objectType.getFieldType(name);
           if (field) return field;
           Throw.unknownField(ast.property, name, annots);
         }
 
         case 'Module': {
-          const field = objectType.get(name);
+          const field = objectType.getFieldType(name);
           if (field) return field;
           Throw.unknownField(ast.property, name, annots);
         }

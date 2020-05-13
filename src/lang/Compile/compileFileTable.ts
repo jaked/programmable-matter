@@ -83,7 +83,7 @@ function computeObjectType(
   const typeUnion = Signal.join(...noteEnv.map((note, tag) => {
     // TODO(jaked) handle partial failures better here
     return note.exportType.map(exportType =>
-      exportType.get('default') ?? bug(`expected default export for ${tag}`)
+      exportType.getFieldType('default') ?? bug(`expected default export for ${tag}`)
     );
   }).values()).map(types => Type.union(...types));
 
@@ -171,7 +171,7 @@ function compileTable(
   const tableDataFields: Tuple2<string, Type>[] = [];
   tableConfig.fields.forEach(field => {
     if (field.kind === 'data') {
-      tableDataFields.push(new Tuple2(field.name, field.type));
+      tableDataFields.push(Tuple2(field.name, field.type));
     }
   });
   const tableDataType = Type.object(tableDataFields);

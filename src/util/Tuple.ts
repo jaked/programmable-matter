@@ -1,14 +1,8 @@
-import Record from './Record';
+import * as Immutable from 'immutable';
 
-export class Tuple2<T1, T2> extends Record<Tuple2<T1, T2>> {
-  _1: T1 = undefined as unknown as T1;
-  _2: T2 = undefined as unknown as T2;
-
-  constructor(_1: T1, _2: T2) {
-    super(
-      arguments.length === 0 ? undefined :
-      arguments.length === 1 && typeof _1 === 'symbol' ? (_1 as unknown as undefined) :
-      { _1, _2 }
-    );
-  }
+type Tuple2Props<T1, T2> = { _1: T1, _2: T2 };
+const Tuple2Record = Immutable.Record<Tuple2Props<any, any>>({ _1: undefined, _2: undefined });
+export function Tuple2<T1, T2>(_1: T1, _2: T2): Immutable.RecordOf<{ _1: T1, _2: T2}> {
+  return Tuple2Record({ _1, _2 });
 }
+export type Tuple2<T1, T2> = Immutable.RecordOf<Tuple2Props<T1, T2>>;

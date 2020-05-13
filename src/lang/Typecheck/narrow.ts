@@ -44,7 +44,7 @@ export function narrowType(a: Type, b: Type): Type {
       const name = aFieldType._1;
       const bFieldType = b.fields.find(bFieldType => bFieldType._1 === name);
       if (bFieldType) {
-        return new Tuple2(name, narrowType(aFieldType._2, bFieldType._2))
+        return Tuple2(name, narrowType(aFieldType._2, bFieldType._2))
       }
       else return aFieldType;
       // if there are  fields in `b` that are not in `a`, ignore them

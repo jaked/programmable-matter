@@ -9,7 +9,7 @@ export default function lensType(type: Type): Type {
         Type.functionType([], type),
         Type.functionType([type], Type.undefined),
         Type.object(type.fields.map(({ _1: name, _2: type }) => {
-          return new Tuple2(name, lensType(type));
+          return Tuple2(name, lensType(type));
         }))
       );
 

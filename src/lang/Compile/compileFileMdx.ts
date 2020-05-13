@@ -83,7 +83,7 @@ export default function compileFileMdx(
 
   const jsonType = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
-    if (json) return json.map(json => json.exportType.get('mutable'));
+    if (json) return json.map(json => json.exportType.getFieldType('mutable'));
     else return Signal.ok(undefined);
   });
   const jsonValue = compiledFiles.flatMap(compiledFiles => {
@@ -93,7 +93,7 @@ export default function compileFileMdx(
   });
   const tableType = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
-    if (table) return table.map(table => table.exportType.get('default'));
+    if (table) return table.map(table => table.exportType.getFieldType('default'));
     else return Signal.ok(undefined);
   });
   const tableValue = compiledFiles.flatMap(compiledFiles => {
@@ -137,7 +137,7 @@ export default function compileFileMdx(
       if (layoutModule) {
         if (debug) console.log(`layoutModule`);
         return layoutModule.exportType.flatMap(exportType => {
-          const defaultType = exportType.get('default');
+          const defaultType = exportType.getFieldType('default');
           if (defaultType) {
             if (debug) console.log(`defaultType`);
             if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
