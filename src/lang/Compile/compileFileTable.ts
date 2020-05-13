@@ -213,7 +213,20 @@ function compileTable(
       return React.createElement(Table, { data, fields, onSelect })
     });
     return { exportType, exportValue, rendered, astAnnotations, problems: false };
-  });
+
+  // TODO(jaked) Signal#handle
+  }).liftToTry().map(tryCompiled => {
+    switch (tryCompiled.type) {
+      case 'ok': return tryCompiled.ok;
+      case 'err': return {
+        exportType: Type.module({ }),
+        exportValue: { },
+        rendered: Signal.constant(tryCompiled),
+        astAnnotations,
+        problems: true,
+      }
+    }
+  })
 }
 
 export default function compileFileTable(

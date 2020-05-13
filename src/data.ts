@@ -82,6 +82,9 @@ export type Table = {
   fields: TableField[];
 }
 
+// TODO(jaked)
+// break this up so it's easier to return partial failure
+// e.g. parse OK, typecheck OK, render OK
 export interface Compiled {
   exportType: Type.ModuleType;
   exportValue: { [s: string]: Signal<any> };

@@ -119,9 +119,9 @@ export class Main extends React.Component<Props, {}> {
     return (
       <>
         <Flex style={{ height: '100vh' }}>
-          { sideBarWidth === 0 ? null : <this.SidebarPane width={sideBarWidth} /> }
-          { editorPaneWidth === 0 ? null : <this.EditorPane width={editorPaneWidth} /> }
-          { displayPaneWidth === 0 ? null : <this.DisplayPane width={displayPaneWidth} /> }
+          { sideBarWidth === 0 ? null : <Catch><this.SidebarPane width={sideBarWidth} /></Catch> }
+          { editorPaneWidth === 0 ? null : <Catch><this.EditorPane width={editorPaneWidth} /></Catch> }
+          { displayPaneWidth === 0 ? null : <Catch><this.DisplayPane width={displayPaneWidth} /></Catch> }
         </Flex>
       </>
     );

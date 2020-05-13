@@ -3,6 +3,7 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import Try from '../../util/Try';
+import { bug } from '../../util/bug';
 import * as Parse from '../Parse';
 import * as Render from '../Render';
 import * as MDXHAST from '../mdxhast';
@@ -88,7 +89,7 @@ export default function compileFileMdx(
   });
   const jsonValue = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
-    if (json) return json.flatMap(json => json.exportValue['mutable']);
+    if (json) return json.flatMap(json => json.exportValue['mutable'] ?? Signal.ok(undefined));
     else return Signal.ok(undefined);
   });
   const tableType = compiledFiles.flatMap(compiledFiles => {
@@ -98,7 +99,7 @@ export default function compileFileMdx(
   });
   const tableValue = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
-    if (table) return table.flatMap(table => table.exportValue['default']);
+    if (table) return table.flatMap(table => table.exportValue['default'] ?? Signal.ok(undefined));
     else return Signal.ok(undefined);
   });
 

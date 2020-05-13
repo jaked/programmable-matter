@@ -243,10 +243,10 @@ class FlatMap<T, U> extends SignalImpl<U> {
       if (this.s.value.type === 'ok') {
         try {
           this.fs = this.f(this.s.value.ok);
-          this.fs.reconcile(trace, level);
         } catch (e) {
           this.fs = Signal.err(e);
         }
+        this.fs.reconcile(trace, level);
         this.fsVersion = this.fs.version;
         value = this.fs.value;
       } else {
@@ -397,7 +397,13 @@ class Label<T> extends SignalImpl<T> {
   reconcile(trace: Trace, level: number) {
     const version = this.s.version;
     trace.open(this.label);
-    this.s.reconcile(trace, level);
+    try {
+      this.s.reconcile(trace, level);
+    } catch (e) {
+      const err = new Error(this.label);
+      err.stack = `${err.stack}\n${e.stack}`;
+      throw err;
+    }
     trace.record('__changed', version !== this.s.version);
     trace.close();
   }

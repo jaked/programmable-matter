@@ -36,7 +36,11 @@ class Err {
   err: Error;
   constructor(err: Error) { this.err = err; }
 
-  get(): never { throw this.err; }
+  get(): never {
+    const err = new Error();
+    err.stack = `${err.stack}\n${this.err.stack}`;
+    throw err;
+  }
   map<U>(f: (t: never) => U): Try<never> { return this; }
   flatMap<U>(f: (t: never) => Try<U>): Try<never> { return this; }
   forEach(f: (t: never) => void) { }
