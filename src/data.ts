@@ -1,14 +1,13 @@
 import * as Path from 'path';
 import Immutable from 'immutable';
 import React from 'react';
-import Record from './util/Record';
 import Signal from './util/Signal';
 import Try from './util/Try';
 import Type from './lang/Type';
 
 export type Types = 'meta' | 'mdx' | 'json' | 'jpeg' | 'table';
 
-export type MetaMembers = {
+export type MetaProps = {
   title?: string,
   tags?: Array<string>,
   layout?: string,
@@ -16,7 +15,7 @@ export type MetaMembers = {
   dataType?: Type,
   dirMeta?: Meta,
 }
-export const Meta = Immutable.Record<MetaMembers>({
+export const Meta = Immutable.Record<MetaProps>({
   title: undefined,
   tags: undefined,
   layout: undefined,
@@ -24,7 +23,7 @@ export const Meta = Immutable.Record<MetaMembers>({
   dataType: undefined,
   dirMeta: undefined,
 }, 'Meta')
-export type Meta = Immutable.RecordOf<MetaMembers>;
+export type Meta = Immutable.RecordOf<MetaProps>;
 
 export type AstAnnotations = Map<unknown, Try<Type>>;
 
