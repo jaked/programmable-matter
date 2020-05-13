@@ -94,7 +94,7 @@ it('compiles with layout', () => {
       'layout': {
         tag: 'layout',
         isIndex: false,
-        meta: Signal.ok(new data.Meta({})),
+        meta: Signal.ok(data.Meta({})),
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),

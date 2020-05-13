@@ -8,15 +8,23 @@ import Type from './lang/Type';
 
 export type Types = 'meta' | 'mdx' | 'json' | 'jpeg' | 'table';
 
-export class Meta extends Record<Meta> {
-  // TODO(jaked) Record requires we initialize all members, can this be fixed?
-  title?: string = undefined;
-  tags?: Array<string> = undefined;
-  layout?: string = undefined;
-  publish?: boolean = undefined;
-  dataType?: Type = undefined;
-  dirMeta?: Meta = undefined;
+export type MetaMembers = {
+  title?: string,
+  tags?: Array<string>,
+  layout?: string,
+  publish?: boolean,
+  dataType?: Type,
+  dirMeta?: Meta,
 }
+export const Meta = Immutable.Record<MetaMembers>({
+  title: undefined,
+  tags: undefined,
+  layout: undefined,
+  publish: undefined,
+  dataType: undefined,
+  dirMeta: undefined,
+}, 'Meta')
+export type Meta = Immutable.RecordOf<MetaMembers>;
 
 export type AstAnnotations = Map<unknown, Try<Type>>;
 

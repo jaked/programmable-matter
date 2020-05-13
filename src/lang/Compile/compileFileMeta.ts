@@ -26,7 +26,7 @@ function convertMeta(obj: any): data.Meta {
     typeof obj.dirMeta === 'object' ?
     { dirMeta: convertMeta(obj.dirMeta) } : {};
 
-  return new data.Meta({ ...obj, ...dataType, ...dirMeta });
+  return data.Meta({ ...obj, ...dataType, ...dirMeta });
 }
 
 function compileMeta(
@@ -70,7 +70,7 @@ export default function compileFileMeta(
       case 'err': {
         return {
           exportType: Type.module({}),
-          exportValue: { default: Signal.ok(new data.Meta({})) },
+          exportValue: { default: Signal.ok(data.Meta({})) },
           rendered: Signal.constant(astTry),
           problems: true,
           ast: astTry
