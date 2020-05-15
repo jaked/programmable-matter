@@ -138,6 +138,7 @@ it('compiles mdx + json + meta', () => {
   expect(foo.problems.get()).toBeFalsy();
   foo.meta.reconcile(trace, 1);
   expect(foo.meta.get().dataType).toBeTruthy();
+  expect(foo.meta.get().title).toBe('foo');
   foo.exportType.reconcile(trace, 1);
   expect(foo.exportType.get().getFieldType('default'))
     .toEqual(Type.object({ bar: Type.number }));
