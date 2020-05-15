@@ -4,7 +4,6 @@ import React from 'react';
 
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
-import { bug } from '../../util/bug';
 import * as Tag from '../../util/Tag';
 import Type from '../Type';
 import * as data from '../../data';
@@ -12,6 +11,23 @@ import * as data from '../../data';
 import compileFile from './compileFile';
 import groupFilesByTag2 from './groupFilesByTag';
 import metaForPath from './metaForPath';
+
+function mergeModuleType(
+  t1: Type.ModuleType,
+  t2: Type.ModuleType,
+): Type.ModuleType {
+  return Type.module({
+    ...t1.fields.reduce((obj, { _1: field, _2: type }) => ({ ...obj, [field]: type }), {}),
+    ...t2.fields.reduce((obj, { _1: field, _2: type }) => ({ ...obj, [field]: type }), {}),
+  });
+}
+
+function mergeModuleValue(
+  v1: { [s: string]: Signal<any> },
+  v2: { [s: string]: Signal<any> },
+): { [s: string]: Signal<any> } {
+  return { ...v1, ...v2 }
+}
 
 export function compileFiles(
   trace: Trace,
@@ -59,34 +75,37 @@ export function compileFiles(
         compiledFileForType('jpeg'),
         compiledFileForType('meta'),
       ).map(([mdx, table, json, jpeg, meta]) => {
-        let rendered: Signal<React.ReactNode>;
-        let exportType: Type.ModuleType;
-        let exportValue: { [s: string]: Signal<any> };
+        let rendered: Signal<React.ReactNode> = Signal.ok(null);
+        let exportType: Type.ModuleType = Type.module({ });
+        let exportValue: { [s: string]: Signal<any> } = {};
         let publishedType: 'html' | 'jpeg' = 'html';
 
-        // TODO(jaked) merge exportType / exportValue across files
-        if (mdx) {
-          rendered = mdx.rendered;
-          exportType = mdx.exportType;
-          exportValue = mdx.exportValue;
-        } else if (table) {
+        if (meta) {
+          rendered = meta.rendered;
+          exportType = mergeModuleType(exportType, meta.exportType);
+          exportValue = mergeModuleValue(exportValue, meta.exportValue);
+        }
+        if (table) {
           rendered = table.rendered;
-          exportType = table.exportType;
-          exportValue = table.exportValue;
-        } else if (json) {
+          exportType = mergeModuleType(exportType, table.exportType);
+          exportValue = mergeModuleValue(exportValue, table.exportValue);
+        }
+        if (json) {
           rendered = json.rendered;
-          exportType = json.exportType;
-          exportValue = json.exportValue;
-        } else if (jpeg) {
+          exportType = mergeModuleType(exportType, json.exportType);
+          exportValue = mergeModuleValue(exportValue, json.exportValue);
+        }
+        if (jpeg) {
           publishedType = 'jpeg';
           rendered = jpeg.rendered;
-          exportType = jpeg.exportType;
-          exportValue = jpeg.exportValue;
-        } else if (meta) {
-          rendered = meta.rendered;
-          exportType = meta.exportType;
-          exportValue = meta.exportValue;
-        } else bug(`expected compiled file for '${tag}'`);
+          exportType = mergeModuleType(exportType, jpeg.exportType);
+          exportValue = mergeModuleValue(exportValue, jpeg.exportValue);
+        }
+        if (mdx) {
+          rendered = mdx.rendered;
+          exportType = mergeModuleType(exportType, mdx.exportType);
+          exportValue = mergeModuleValue(exportValue, mdx.exportValue);
+        }
 
         const problems =
           (mdx ? mdx.problems : false) ||

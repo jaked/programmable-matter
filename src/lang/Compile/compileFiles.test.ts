@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
+import Type from '../Type';
 import { bug } from '../../util/bug';
 import * as data from '../../data';
 import { compileFiles } from './index';
@@ -137,6 +138,9 @@ it('compiles mdx + json + meta', () => {
   expect(foo.problems.get()).toBeFalsy();
   foo.meta.reconcile(trace, 1);
   expect(foo.meta.get().dataType).toBeTruthy();
+  foo.exportType.reconcile(trace, 1);
+  expect(foo.exportType.get().getFieldType('default'))
+    .toEqual(Type.object({ bar: Type.number }));
 });
 
 // TODO(jaked)
