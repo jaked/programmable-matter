@@ -358,11 +358,13 @@ export class App {
   private matchingNotesTreeSignal = Signal.label('matchingNotesTree',
     Signal.join(
       this.matchingNotesSignal,
+      this.searchCell,
       this.dirExpandedCell,
       this.selectedCell,
       this.focusDirCell
-    ).map(([matchingNotes, dirExpanded, selected, focusDir]) => {
+    ).map(([matchingNotes, search, dirExpanded, selected, focusDir]) => {
       const matchingNotesTree: Array<data.CompiledNote & { indent: number, expanded?: boolean }> = [];
+      const expandAll = search.length >= 3;
       matchingNotes.forEach(note => {
         // TODO(jaked) this code is bad
         let tag = note.tag;
@@ -381,7 +383,7 @@ export class App {
             if (focusDir) {
               dir = Path.join(focusDir, dir);
             }
-            if (!dirExpanded.get(dir, false)) showNote = false;
+            if (!expandAll && !dirExpanded.get(dir, false)) showNote = false;
           }
           if (selected && selected.startsWith(note.tag))
             showNote = true;
@@ -390,7 +392,7 @@ export class App {
         if (showNote) {
           let expanded: boolean | undefined = undefined;
           if (note.isIndex) {
-            expanded = dirExpanded.get(note.tag, false);
+            expanded = expandAll ? true : dirExpanded.get(note.tag, false);
           }
           matchingNotesTree.push({ ...note, indent, expanded });
         }
