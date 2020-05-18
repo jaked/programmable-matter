@@ -21,18 +21,18 @@
     "@types/react-table": "^6.8.5",
     "@types/react-virtualized-auto-sizer": "^1.0.0",
     "@types/react-window": "^1.8.1",
-    "@types/styled-components": "^4.1.19",
+    "@types/styled-components": "^5.1.0",
     "@types/styled-system": "^4.2.2",
     "@types/victory": "^31.0.21",
     "electron": "^5.0.10",
     "electron-devtools-installer": "^2.2.4",
     "electron-rebuild": "^1.8.6",
-    "jest": "^24.9.0",
+    "jest": "^26.0.1",
     "jsx-loader": "^0.13.2",
     "source-map-loader": "^0.2.4",
-    "ts-jest": "^25.4.0",
+    "ts-jest": "^26.0.0",
     "ts-loader": "^5.4.5",
-    "typescript": "^3.7.3"
+    "typescript": "^3.9.2"
   },
   "dependencies": {
     "@babel/parser": "^7.6.4",
@@ -64,7 +64,7 @@
     "retext": "^7.0.0",
     "retext-smartypants": "^3.0.3",
     "rimraf": "^3.0.0",
-    "styled-components": "^4.3.2",
+    "styled-components": "^5.1.0",
     "victory": "^32.3.7"
   }
 }
