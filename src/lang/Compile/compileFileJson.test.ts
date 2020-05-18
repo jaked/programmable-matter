@@ -87,6 +87,7 @@ it('succeeds with meta error', () => {
 });
 
 it('succeeds with type error', () => {
+  console.log = jest.fn();
   const compiled = compileFileJson(
     trace,
     new data.File(

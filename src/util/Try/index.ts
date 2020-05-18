@@ -37,7 +37,7 @@ class Err {
   constructor(err: Error) { this.err = err; }
 
   get(): never {
-    const err = new Error();
+    const err = new Error(this.err.message);
     err.stack = `${err.stack}\n${this.err.stack}`;
     throw err;
   }

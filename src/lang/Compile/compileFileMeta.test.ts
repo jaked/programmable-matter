@@ -31,6 +31,7 @@ it('succeeds with syntax error', () => {
 });
 
 it('succeeds with type error', () => {
+  console.log = jest.fn();
   const compiled = compileFileMeta(
     trace,
     new data.File(
