@@ -34,6 +34,29 @@ it('compiles', () => {
   );
 });
 
+it('compiles `a` tag', () => {
+  const compiled = compileFileMdx(
+    trace,
+    new data.File(
+      'foo.mdx',
+      Signal.cellOk(Buffer.from(`<a href='foo'>bar</a>`))
+    ),
+    Signal.ok(Immutable.Map()),
+    Signal.ok(Immutable.Map()),
+    setSelected
+  );
+  compiled.reconcile(trace, 1);
+  expect(compiled.get().problems).toBeFalsy();
+
+  compiled.get().rendered.reconcile(trace, 1);
+  expect(compiled.get().rendered.get()).toEqual(
+    [
+      null, null, null, null, // TODO(jaked) not sure where these come from
+      React.createElement('a', { href: 'foo' }, 'bar')
+    ]
+  );
+});
+
 it('compiles referencing data / table', () => {
   const compiled = compileFileMdx(
     trace,

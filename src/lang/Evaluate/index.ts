@@ -65,10 +65,13 @@ export function evaluateExpression(
         elem = env.get(name);
         if (typeof elem === 'undefined')
           throw new Error(`unbound identifier ${name}`);
-      } else if (name === 'a') {
-        // TODO(jaked) fix hack somehow
-        elem = env.get('Link');
-        attrs['to'] = attrs['href']
+
+      // TODO(jaked) figure out another way to handle internal links
+      // } else if (name === 'a') {
+      //   // TODO(jaked) fix hack somehow
+      //   elem = env.get('Link');
+      //   attrs['to'] = attrs['href']
+
       } else {
         elem = name;
       }
