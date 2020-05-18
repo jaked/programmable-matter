@@ -28,7 +28,16 @@ export const initTypeEnv = Typecheck.env({
   // TODO(jaked)
   // fill out all of HTML, figure out a scheme for common attributes
 
+  'a': componentType({
+    href: Type.undefinedOrString,
+    className: Type.undefinedOrString,
+  }),
+
   'body': componentType({}),
+
+  'button': componentType({
+    className: Type.undefinedOrString,
+  }),
 
   'code': componentType({
     // TODO(jaked) handle className prop
@@ -48,9 +57,22 @@ export const initTypeEnv = Typecheck.env({
     ry: Type.numberOrString,
   }),
 
+  'h1': componentType({
+    style: styleType,
+  }),
+
   'head': componentType({}),
 
+  'header': componentType({
+    className: Type.undefinedOrString,
+    style: styleType
+  }),
+
   'html': componentType({}),
+
+  'footer': componentType({
+    className: Type.undefinedOrString,
+  }),
 
   'img': componentType({
     src: Type.string,
@@ -62,20 +84,45 @@ export const initTypeEnv = Typecheck.env({
   'inlineCode': componentType({}),
 
   'input': componentType({
-    type: Type.enumerate('text', 'range'),
-    min: Type.undefinedOr(Type.string),
-    max: Type.undefinedOr(Type.string),
-    value: Type.unknown,
+    id: Type.undefinedOrString,
+    autoFocus: Type.undefinedOr(Type.boolean), // TODO(jaked) handle flag attributes
+    checked: Type.undefinedOr(Type.boolean),
+    className: Type.undefinedOrString,
+    type: Type.enumerate('text', 'range', 'checkbox'), // TODO(jaked) default to text
+    min: Type.undefinedOrString,
+    max: Type.undefinedOrString,
+    value: Type.undefinedOrString,
     onChange: Type.undefinedOr(Type.functionType(
       [Type.object({
         currentTarget: Type.object({ value: Type.string })
       })],
       Type.undefined // TODO(jaked) Type.void?
     )),
+    placeholder: Type.undefinedOrString,
     bind: Type.undefinedOr(Type.intersection(
       Type.functionType([], Type.string),
       Type.functionType([Type.string], Type.undefined)
     ))
+  }),
+
+  'label': componentType({
+    for: Type.undefinedOrString,
+  }),
+
+  'li': componentType({
+    className: Type.undefinedOrString,
+  }),
+
+  'section': componentType({
+    className: Type.undefinedOrString,
+    style: styleType
+  }),
+
+  'span': componentType({
+    className: Type.undefinedOrString,
+  }),
+
+  'strong': componentType({
   }),
 
   'style': componentType({
@@ -88,6 +135,10 @@ export const initTypeEnv = Typecheck.env({
   }),
 
   'title': componentType({}),
+
+  'ul': componentType({
+    className: Type.undefinedOrString,
+  }),
 
   'Link': componentType({ to: Type.string }),
 
