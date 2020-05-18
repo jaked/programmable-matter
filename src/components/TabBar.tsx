@@ -14,9 +14,9 @@ const BarBox = styled(FlexBase)({
 // must we use CSS style to get props interpolation?
 const TabBox = styled(BoxBase)`
   padding: 4px;
-  border-style: solid
-  border-color: #cccccc
-  border-width: 1px ${props => props.rightmost ? '1px' : '0px'} 0px 1px
+  border-style: solid;
+  border-color: #cccccc;
+  border-width: 1px ${props => props.rightmost ? '1px' : '0px'} 0px 1px;
 `;
 
 type Props = {
