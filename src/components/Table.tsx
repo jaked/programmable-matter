@@ -38,6 +38,16 @@ type Props = {
   onSelect: (tag: string) => void
 }
 
+let measureTextCanvas: any = undefined
+
+function measureText(text: string): number {
+  const canvas = measureTextCanvas || (measureTextCanvas = document.createElement("canvas"));
+  const context = canvas.getContext("2d");
+  context.font = '16px Times';
+  const width = context.measureText(text).width;
+  return width;
+}
+
 export const Table = ({ data, fields, onSelect }: Props) => {
   const tagsByIndex = data.keySeq().toIndexedSeq();
 
@@ -52,13 +62,25 @@ export const Table = ({ data, fields, onSelect }: Props) => {
     return onSelectForTag;
   }
 
+  const widths = data.reduce(
+    (widths, r) =>
+      fields.reduce(
+        (widths, field, i) => {
+          const width = Math.max(widths[i], measureText(field.accessor(r)));
+          return { ...widths, [i]: width }
+        },
+        widths
+      ),
+    fields.reduce((widths, field, i) => ({ ...widths, [i]: 0 }), {})
+  )
+
   return (
     <AutoSizer>
       {({ height, width }) =>
         <VariableSizeGrid
           columnCount={fields.length}
           rowCount={data.size}
-          columnWidth={(col) => fields[col].width}
+          columnWidth={(col) => widths[col] + 14} // 6px padding + 1px margin
           rowHeight={(row) => 30}
           height={height}
           width={width}

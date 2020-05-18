@@ -146,37 +146,14 @@ function computeTable(
   ));
 }
 
-let measureTextCanvas: any = undefined
-
-function measureText(text: string): number {
-  const canvas = measureTextCanvas || (measureTextCanvas = document.createElement("canvas"));
-  const context = canvas.getContext("2d");
-  context.font = '16px Times';
-  const width = context.measureText(text).width;
-  return width;
-}
-
 function computeFields(
   tableConfig: data.Table,
-  table: Immutable.Map<string, any>,
 ) {
-  const widths = table.reduce(
-    (widths, r) =>
-      tableConfig.fields.reduce(
-        (widths, field) => {
-          const width = Math.max(widths[field.name], measureText(r[field.name]));
-          return { ...widths, [field.name]: width }
-        },
-        widths
-      ),
-    tableConfig.fields.reduce((widths, field) => ({ ...widths, [field.name]: 0 }), {})
-  )
-    console.log(widths);
   return tableConfig.fields.map(field => {
     return {
       label: field.label,
       accessor: (o: object) => o[field.name],
-      width: widths[field.name] + 14, // 6px padding + 1px margin
+      width: 100,
       component: ({ data }) => React.createElement(React.Fragment, null, String(data))
     };
   });
@@ -203,7 +180,7 @@ function compileTable(
 
   const table = computeTable(tableConfig, noteTag, noteEnv);
 
-  const fields = table.map(table => computeFields(tableConfig, table));
+  const fields = computeFields(tableConfig);
 
   return objectType.map(objectType => {
     // TODO(jaked)
@@ -232,7 +209,7 @@ function compileTable(
 
     const onSelect = (tag: string) =>
       setSelected(Path.join(Path.dirname(noteTag), tag));
-    const rendered = Signal.join(table, fields).map(([data, fields]) =>
+    const rendered = table.map(data =>
       React.createElement(Table, { data, fields, onSelect })
     );
     return { exportType, exportValue, rendered, astAnnotations, problems: false };
