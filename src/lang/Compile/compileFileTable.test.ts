@@ -22,3 +22,20 @@ it('succeeds with syntax error', () => {
   compiled.reconcile(trace, 1);
   expect(compiled.get().problems).toBeTruthy();
 });
+
+it('succeeds with type error', () => {
+  const compiled = compileFileTable(
+    trace,
+    new data.File(
+      'foo.table',
+      Signal.cellOk(Buffer.from(`{ }`)),
+    ),
+    Signal.ok(Immutable.Map()),
+    Signal.ok(Immutable.Map()),
+    setSelected
+  );
+  compiled.reconcile(trace, 1);
+  expect(compiled.get().problems).toBeTruthy();
+});
+
+// TODO(jaked) test fallback to object type when table config fails

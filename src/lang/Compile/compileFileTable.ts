@@ -38,7 +38,7 @@ const tableFieldDataType = Type.intersection(tableFieldBaseType, Type.object({
 
 const tableFieldMetaType = Type.intersection(tableFieldBaseType, Type.object({
   kind: Type.singleton('meta'),
-  field: Type.enumerate('tag', 'title', 'created', 'upated')
+  field: Type.enumerate('tag', 'title', 'created', 'updated')
 }));
 
 const tableFieldType = Type.union(tableFieldDataType, tableFieldMetaType);
@@ -49,13 +49,10 @@ const tableType =
   });
 
 function computeTableConfig(
-  ast: ESTree.Expression
-) {
-  // TODO(jaked)
-  // this blows up when there's a type error in config
-  // could we admit partial failure here?
-  const astAnnotations = new Map<unknown, Try<Type>>();
-  Typecheck.check(ast, Typecheck.env(), tableType, astAnnotations);
+  ast: ESTree.Expression,
+  annots: Map<unknown, Try<Type>>,
+): data.Table {
+  Typecheck.check(ast, Typecheck.env(), tableType, annots);
 
   // TODO(jaked)
   // blows up if a type string cannot be parsed
@@ -63,7 +60,7 @@ function computeTableConfig(
   // tricky since we have discarded the AST already
   // maybe we could evaluate with respect to a type
   // and do conversion internally to evaluation
-  const tableConfig: data.Table = {
+  return {
     fields: Evaluate.evaluateExpression(ast, Immutable.Map()).fields.map(field => {
       switch (field.kind) {
         case 'data':
@@ -73,13 +70,11 @@ function computeTableConfig(
       return field;
     })
   };
-
-  return { tableConfig, astAnnotations };
 }
 
 function computeObjectType(
   noteEnv: Immutable.Map<string, data.CompiledNote>,
-) {
+): Signal<Type.ObjectType> {
   const typeUnion = Signal.join(...noteEnv.map((note, tag) => {
     // TODO(jaked) handle partial failures better here
     return note.exportType.map(exportType =>
@@ -166,23 +161,28 @@ function compileTable(
   noteEnv: Immutable.Map<string, data.CompiledNote>,
   setSelected: (tag: string) => void,
 ): Signal<data.Compiled> {
-  const { tableConfig, astAnnotations } = computeTableConfig(ast);
-
-  const tableDataFields: Tuple2<string, Type>[] = [];
-  tableConfig.fields.forEach(field => {
-    if (field.kind === 'data') {
-      tableDataFields.push(Tuple2(field.name, field.type));
-    }
-  });
-  const tableDataType = Type.object(tableDataFields);
-
   const objectType = computeObjectType(noteEnv);
 
-  const table = computeTable(tableConfig, noteTag, noteEnv);
+  const astAnnotations = new Map<unknown, Try<Type>>();
+  let problems = false;
+  let tableConfig: Signal<data.Table>;
+  try {
+    tableConfig = Signal.ok(computeTableConfig(ast, astAnnotations));
+  } catch (e) {
+    problems = true;
+    tableConfig = objectType.map(objectType => ({
+      fields: objectType.fields.map<data.TableField>(({ _1: name, _2: type }) => ({
+        name,
+        label: name,
+        kind: 'data',
+        type,
+      })).toArray()
+    }));
+  }
 
-  const fields = computeFields(tableConfig);
+  const table = tableConfig.flatMap(tableConfig => computeTable(tableConfig, noteTag, noteEnv));
 
-  return objectType.map(objectType => {
+  return Signal.join(objectType, tableConfig).map(([objectType, tableConfig]) => {
     // TODO(jaked)
     // we derive a type from the fields in the table description
     // and also from the data files in the directory
@@ -197,10 +197,19 @@ function compileTable(
     //   - make dependencies more fine-grained
     //     e.g. per-file instead of per-note, or finer
     //   - ???
-    if (!Type.equiv(objectType, tableDataType))
+    const tableDataFields: Tuple2<string, Type>[] = [];
+    tableConfig.fields.forEach(field => {
+      if (field.kind === 'data') {
+        tableDataFields.push(Tuple2(field.name, field.type));
+      }
+    });
+    const tableDataType = Type.object(tableDataFields);
+      if (!Type.equiv(objectType, tableDataType))
       throw new Error('table config type and record data type must be the same');
+    const fields = computeFields(tableConfig);
 
     const exportType = Type.module({
+      // TODO(jaked) should include non-data table fields
       default: Type.map(Type.string, objectType)
     });
     const exportValue = {
@@ -212,7 +221,7 @@ function compileTable(
     const rendered = table.map(data =>
       React.createElement(Table, { data, fields, onSelect })
     );
-    return { exportType, exportValue, rendered, astAnnotations, problems: false };
+    return { exportType, exportValue, rendered, astAnnotations, problems };
 
   // TODO(jaked) Signal#handle
   }).liftToTry().map(tryCompiled => {
@@ -267,6 +276,7 @@ export default function compileFileTable(
     const astTryOrig = astTry;
     switch (astTry.type) {
       case 'ok':
+        // TODO(jaked) fall back to object type if parse fails
         return noteEnv.flatMap(noteEnv =>
           compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected)
             .map(compiled => ({ ...compiled, ast: astTryOrig }))
