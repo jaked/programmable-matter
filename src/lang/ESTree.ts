@@ -75,6 +75,7 @@ export interface Literal extends NodeImpl {
 export interface Identifier extends NodeImpl {
   type: 'Identifier';
   name: string;
+  typeAnnotation?: TSTypeAnnotation;
 }
 
 export interface UnaryExpression extends NodeImpl {
@@ -258,12 +259,18 @@ export interface TSIntersectionType extends NodeImpl {
 export interface TSTypeReference extends NodeImpl {
   type: 'TSTypeReference';
   typeName: QualifiedIdentifier;
+  typeParameters?: TSTypeParameterInstantiation;
 }
 
 export interface TSQualifiedName extends NodeImpl {
   type: 'TSQualifiedName';
   left: QualifiedIdentifier;
   right: QualifiedIdentifier;
+}
+
+export interface TSTypeParameterInstantiation extends NodeImpl {
+  type: 'TSTypeParameterInstantiation';
+  params: TypeAnnotation[];
 }
 
 export interface TSFunctionType extends NodeImpl {

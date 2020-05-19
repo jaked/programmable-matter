@@ -33,6 +33,9 @@ export default function ofTSType(tsType: TypeAnnotation): Types.Type {
       return Type.object(props);
     }
 
+    case 'TSTupleType':
+      return Type.tuple(...tsType.elementTypes.map(ofTSType));
+
     case 'TSArrayType':
       return Type.array(ofTSType(tsType.elementType));
 
@@ -58,6 +61,16 @@ export default function ofTSType(tsType: TypeAnnotation): Types.Type {
     case 'TSIntersectionType':
       return intersection(...tsType.types.map(ofTSType));
 
-    default: bug(`unimplemented ${tsType.type}`);
+    case 'TSTypeReference': {
+      const typeName = tsType.typeName;
+      if (typeName.type === 'TSQualifiedName' && typeName.left.type === 'Identifier' && typeName.right.type === 'Identifier') {
+        const label = `${typeName.left.name}.${typeName.right.name}`;
+        const params = tsType.typeParameters ? tsType.typeParameters.params.map(ofTSType) : [];
+        return Type.abstract(label, ...params);
+      }
+      bug(`unimplemented TSTypeReference`);
+    }
+
+    default: bug(`unimplemented ${(tsType as TypeAnnotation).type}`);
   }
 }

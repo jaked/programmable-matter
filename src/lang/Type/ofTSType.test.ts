@@ -29,6 +29,20 @@ it('singleton', () => {
   );
 });
 
+it('tuple', () => {
+  expectOfTSType(
+    '[number, string]',
+    Type.tuple(Type.number, Type.string)
+  );
+})
+
+it('abstract', () => {
+  expectOfTSType(
+    'Foo.Bar<string>',
+    Type.abstract('Foo.Bar', Type.string)
+  )
+});
+
 it('union', () => {
   expectOfTSType(
     '7 | 9',
