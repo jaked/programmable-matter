@@ -153,6 +153,11 @@ describe('check', () => {
     //   );
     //   expectCheckThrows('({ x: z, y: z }) => z + z', type);
     // });
+
+    it('function component', () => {
+      const type = Type.abstract('React.FC', Type.object({ foo: Type.string }));
+      expectCheck('({ children, foo }) => foo', type);
+    })
   });
 
   describe('singletons', () => {

@@ -72,6 +72,16 @@ export function wrongArgsLength(
 ) {
   return withLocation(ast, `expected ${expected} args, function has ${actual} args`, annots);
 }
+
+export function wrongParamsLength(
+  ast: ESTree.Node,
+  expected: number,
+  actual: number,
+  annots?: AstAnnotations
+) {
+  return withLocation(ast, `expected ${expected} type params, got ${actual} params`, annots);
+}
+
 export function duplicateIdentifier(
   ast: ESTree.Node,
   ident: string,

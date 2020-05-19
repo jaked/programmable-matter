@@ -187,6 +187,33 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType, an
   }
 }
 
+function checkAbstract(ast: ESTree.Expression, env: Env, type: Type.AbstractType, annots: AstAnnotations) {
+  switch (type.label) {
+    case 'React.ReactNode': {
+      if (type.params.size !== 0) Throw.wrongParamsLength(ast, 0, type.params.size, annots);
+      return Type.reactNodeType;
+    }
+
+    // TODO(jaked)
+    // this seems to be somewhat deprecated, see
+    // https://github.com/typescript-cheatsheets/react-typescript-cheatsheet#function-components
+    // but it is useful to avoid a separate `type Props = ...`
+    case 'React.FC':
+    case 'React.FunctionComponent': {
+      if (type.params.size !== 1) Throw.wrongParamsLength(ast, 1, type.params.size, annots);
+      const param = type.params.get(0) ?? bug();
+      if (param.kind !== 'Object') Throw.withLocation(ast, `expected object param, got ${param.kind}`);
+      // TODO(jaked) catch multiple definition of `children`
+      const paramWithChildren = Type.object(param.fields.push(Tuple2('children', Type.array(Type.reactNodeType))));
+      const expandedType = Type.functionType([ paramWithChildren ], Type.reactNodeType);
+      return check(ast, env, expandedType, annots);
+    }
+
+    default:
+      return checkSubtype(ast, env, type, annots);
+  }
+}
+
 function checkHelper(ast: ESTree.Expression, env: Env, type: Type, annots: AstAnnotations) {
   switch (type.kind) {
     case 'Tuple':         return checkTuple(ast, env, type, annots);
@@ -198,6 +225,7 @@ function checkHelper(ast: ESTree.Expression, env: Env, type: Type, annots: AstAn
     case 'Union':         return checkUnion(ast, env, type, annots);
     case 'Intersection':  return checkIntersection(ast, env, type, annots);
     case 'Singleton':     return checkSingleton(ast, env, type, annots);
+    case 'Abstract':      return checkAbstract(ast, env, type, annots);
 
     default:              return checkSubtype(ast, env, type, annots);
   }
