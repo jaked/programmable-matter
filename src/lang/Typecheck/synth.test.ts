@@ -352,6 +352,7 @@ describe('synth', () => {
         [ Type.object({ foo: Type.number, bar: Type.undefinedOrNumber }) ],
         Type.string
       ),
+      FC: Type.abstract('React.FC', Type.object({ foo: Type.number })),
       NotFunction: Type.string,
       TooManyParams: Type.functionType([ Type.string, Type.number ], Type.boolean),
       ParamNotObject: Type.functionType([ Type.string ], Type.boolean),
@@ -361,6 +362,10 @@ describe('synth', () => {
     it('ok', () => {
       // bar may be omitted because the type may be undefined
       expectSynth('<Component foo={7} />', Type.string, env);
+    });
+
+    it('ok FC', () => {
+      expectSynth('<FC foo={7} />', Type.reactNodeType, env);
     });
 
     it('throws when prop is missing', () => {

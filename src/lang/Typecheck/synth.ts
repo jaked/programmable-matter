@@ -466,13 +466,25 @@ function synthJSXElement(
           throw new Error('expected children type');
       }
     } else throw new Error('expected 0- or 1-arg function');
+
+  // TODO(jaked) consolidate with type expansions in Check.checkAbstract
+  } else if (type.kind === 'Abstract' && type.label === 'React.FC' && type.params.size === 1) {
+    const paramType = type.params.get(0) ?? bug();
+    if (paramType.kind !== 'Object')
+      throw new Error('expected object arg');
+    retType = Type.reactNodeType;
+    propsType = paramType;
+
   } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.size === 1) {
     const paramType = type.params.get(0) ?? bug();
     if (paramType.kind !== 'Object')
       throw new Error('expected object arg');
     retType = Type.reactElementType;
     propsType = paramType;
-  } else throw new Error('expected component type');
+
+  } else {
+    Throw.expectedType(ast.openingElement.name, 'component type', type, annots);
+  }
 
   const attrNames =
     new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
