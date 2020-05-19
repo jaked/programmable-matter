@@ -128,6 +128,31 @@ describe('check', () => {
     it('wrong body type', () => {
       expectCheckThrows(`x => 'foo'`, type);
     });
+
+    it('object pattern arg', () => {
+      const type = Type.functionType(
+        [ Type.object({ x: Type.number, y: Type.number }) ],
+        Type.number
+      );
+      expectCheck('({ x: xArg, y: yArg }) => xArg + yArg', type);
+    });
+
+    it('shorthand object pattern arg', () => {
+      const type = Type.functionType(
+        [ Type.object({ x: Type.number, y: Type.number }) ],
+        Type.number
+      );
+      expectCheck('({ x, y }) => x + y', type);
+    });
+
+    // Babel parser already checks this
+    // it('duplicate identifiers', () => {
+    //   const type = Type.functionType(
+    //     [ Type.object({ x: Type.number, y: Type.number }) ],
+    //     Type.number
+    //   );
+    //   expectCheckThrows('({ x: z, y: z }) => z + z', type);
+    // });
   });
 
   describe('singletons', () => {

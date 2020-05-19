@@ -72,3 +72,10 @@ export function wrongArgsLength(
 ) {
   return withLocation(ast, `expected ${expected} args, function has ${actual} args`, annots);
 }
+export function duplicateIdentifier(
+  ast: ESTree.Node,
+  ident: string,
+  annots?: AstAnnotations
+): never {
+  return withLocation(ast, `duplicate identifier ${ident}`, annots);
+}

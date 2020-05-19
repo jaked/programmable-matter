@@ -1,5 +1,7 @@
+import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
+import { Tuple2 } from '../../util/Tuple';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';
@@ -91,22 +93,33 @@ function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType, annots: 
   }
 }
 
+function checkPatEnv(pat: ESTree.Pattern, env: Env, type: Type, annots: AstAnnotations): Env {
+  if (pat.type === 'Identifier') {
+    if (env.has(pat.name)) Throw.duplicateIdentifier(pat, pat.name, annots);
+    else return env.set(pat.name, type);
+
+  } else if (pat.type === 'ObjectPattern' && type.kind === 'Object') {
+    pat.properties.forEach(prop => {
+      const propType = type.getFieldType(prop.key.name) ?? Throw.extraField(prop, prop.key.name, annots);
+      env = checkPatEnv(prop.value, env, propType, annots);
+    });
+    return env;
+
+  } else {
+    bug(`unimplemented pattern type ${(pat as ESTree.Pattern).type}`);
+  }
+}
+
 function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType, annots: AstAnnotations) {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
       if (type.args.size !== ast.params.length)
         Throw.wrongArgsLength(ast, type.args.size, ast.params.length, annots);
+      let patEnv: Env = Immutable.Map(); // TODO(jaked) Env.empty();
       ast.params.forEach((pat, i) => {
-        switch (pat.type) {
-          case 'Identifier':
-            env = env.set(pat.name, type.args.get(i) ?? bug());
-            break;
-
-          default:
-            return bug('unexpected AST type ' + (pat as ESTree.Pattern).type);
-        }
+        patEnv = checkPatEnv(pat, patEnv, type.args.get(i) ?? bug(), annots);
       });
-      return check(ast.body, env, type.ret, annots);
+      return check(ast.body, env.merge(patEnv), type.ret, annots);
 
     default:
       return checkSubtype(ast, env, type, annots);
@@ -131,13 +144,6 @@ function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType, anno
 }
 
 function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.IntersectionType, annots: AstAnnotations) {
-  // TODO(jaked)
-  // we check that the expression is an atom for each arm of the intersection
-  // but it should not matter what type we check with
-  // (really we are just piggybacking on the tree traversal here)
-  // need to be careful once we have function types carrying an atom effect
-  // e.g. a type (T =(true)> U & T =(false)> U) is well-formed
-  // but we don't want to union / intersect atom effects
   return type.types.map(type => check(ast, env, type, annots));
 }
 
