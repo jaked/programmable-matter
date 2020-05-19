@@ -280,24 +280,29 @@ function synthMemberExpression(
         case 'Array':
           switch (name) {
             case 'length': return Type.number;
-            default: return Throw.unknownField(ast.property, name, annots);
           }
+          break;
+
+        case 'Map':
+          switch (name) {
+            case 'size': return Type.number;
+          }
+          break;
 
         case 'Object': {
-          const field = objectType.getFieldType(name);
-          if (field) return field;
-          Throw.unknownField(ast.property, name, annots);
+          const type = objectType.getFieldType(name);
+          if (type) return type;
+          break;
         }
 
         case 'Module': {
-          const field = objectType.getFieldType(name);
-          if (field) return field;
-          Throw.unknownField(ast.property, name, annots);
+          const type = objectType.getFieldType(name);
+          if (type) return type;
+          break;
         }
 
-        default:
-          Throw.expectedType(ast.object, 'Array / Object / Module', undefined, annots);
       }
+      Throw.unknownField(ast.property, name, annots);
     } else {
       return bug('expected identifier on non-computed property');
     }

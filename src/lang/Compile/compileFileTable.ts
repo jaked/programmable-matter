@@ -113,7 +113,7 @@ function computeTable(
   noteEnv: Immutable.Map<string, data.CompiledNote>,
 ) {
   return Signal.joinImmutableMap(Signal.ok(
-    Immutable.Map<string, Signal<any>>().withMutations(map =>
+    Immutable.Map<string, Signal<object>>().withMutations(map =>
       noteEnv.forEach((note, tag) => {
         // TODO(jaked) handle partial failures better here
         const defaultValue =
