@@ -636,12 +636,13 @@ function extendEnvWithNamedExport(
   annots: AstAnnotations
 ): Env {
   decl.declaration.declarations.forEach(declarator => {
-    const type = synth(declarator.init, env, annots);
-    // a let binding is always an atom (its initializer is a non-atom)
-    // a const binding is an atom if its initializer is an atom
-    // TODO(jaked)
-    // let bindings of type T should also have type T => void
-    // so they can be set in event handlers
+    let type;
+    if (declarator.id.typeAnnotation) {
+      type = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation);
+      check(declarator.init, env, type, annots);
+    } else {
+      type = synth(declarator.init, env, annots);
+    }
     exportTypes[declarator.id.name] = type;
     env = env.set(declarator.id.name, type);
   });

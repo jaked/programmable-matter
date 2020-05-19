@@ -1,5 +1,8 @@
+import * as Immutable from 'immutable';
+import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import * as ESTree from '../ESTree';
+import * as MDXHAST from '../mdxhast';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from './index';
@@ -464,6 +467,42 @@ describe('synth', () => {
           env
         );
       });
+    });
+  });
+});
+
+describe('synthMdx', () => {
+  function expectSynthMdxThrows(
+    astOrString: MDXHAST.Node | string,
+    env: Typecheck.Env = Typecheck.env()
+  ) {
+    const trace = new Trace();
+    const annots = new Map<unknown, Try<Type>>();
+    const ast =
+      (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
+      : astOrString;
+    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots)).toThrow();
+  }
+
+  function expectSynthMdx(
+    astOrString: MDXHAST.Node | string,
+    env: Typecheck.Env = Typecheck.env()
+  ) {
+    const trace = new Trace();
+    const annots = new Map<unknown, Try<Type>>();
+    const ast =
+      (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
+      : astOrString;
+    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots)).not.toThrow();
+  }
+
+  describe('type annotation on binding', () => {
+    it('ok', () => {
+      expectSynthMdx(`export const foo: string = 'bar'`);
+    });
+
+    it('fails', () => {
+      expectSynthMdxThrows(`export const foo: string = 7`);
     });
   });
 });
