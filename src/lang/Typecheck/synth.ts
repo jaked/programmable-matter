@@ -492,7 +492,9 @@ function synthJSXElement(
     if (name !== 'children' &&
         !attrNames.has(name) &&
         !Type.isSubtype(Type.undefined, type))
-      Throw.missingField(ast, name, annots);
+      // TODO(jaked) it would be better to mark the whole JSXElement as having an error
+      // but for now this get us the right error highlighting in Editor
+      Throw.missingField(ast.openingElement.name, name, annots);
   });
 
   const propTypes = new Map(propsType.fields.map(({ _1, _2 }) => [_1, _2]));
