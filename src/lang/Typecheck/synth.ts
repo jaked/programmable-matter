@@ -381,39 +381,6 @@ function patTypeEnv(
     return Throw.withLocation(ast, `incompatible pattern for type ${Type.toString(t)}`, annots);
 }
 
-function typeOfTypeAnnotation(ann: ESTree.TypeAnnotation): Type {
-  switch (ann.type) {
-    case 'TSBooleanKeyword': return Type.boolean;
-    case 'TSNumberKeyword': return Type.number;
-    case 'TSStringKeyword': return Type.string;
-    case 'TSNullKeyword': return Type.nullType;
-    case 'TSUndefinedKeyword': return Type.undefined;
-    case 'TSArrayType':
-      return Type.array(typeOfTypeAnnotation(ann.elementType));
-    case 'TSTupleType':
-      return Type.tuple(...ann.elementTypes.map(typeOfTypeAnnotation));
-    case 'TSTypeLiteral':
-      // TODO(jaked) handle optional members
-      const members =
-        ann.members.map(mem => ({ [mem.key.name]: typeOfTypeAnnotation(mem.typeAnnotation.typeAnnotation) }));
-      return Type.object(Object.assign({}, ...members));
-    case 'TSLiteralType':
-      return Type.singleton(ann.literal.value);
-    case 'TSUnionType':
-      return Type.union(...ann.types.map(typeOfTypeAnnotation));
-    case 'TSIntersectionType':
-      return Type.intersection(...ann.types.map(typeOfTypeAnnotation));
-    case 'TSTypeReference':
-      if (ann.typeName.type === 'TSQualifiedName' &&
-          ann.typeName.left.type === 'Identifier' && ann.typeName.left.name === 'React' &&
-          ann.typeName.right.type === 'Identifier' && ann.typeName.right.name === 'ReactNode')
-            return Type.reactNodeType;
-      else throw new Error(`unimplemented TSTypeReference`);
-
-    default: throw new Error(`unknown AST ${(ann as ESTree.TypeAnnotation).type}`);
-  }
-}
-
 function synthArrowFunctionExpression(
   ast: ESTree.ArrowFunctionExpression,
   env: Env,
@@ -423,7 +390,7 @@ function synthArrowFunctionExpression(
   const paramTypes = ast.params.map(param => {
     if (!param.typeAnnotation)
       return Throw.withLocation(param, `function parameter must have a type`, annots);
-    const t = typeOfTypeAnnotation(param.typeAnnotation.typeAnnotation);
+    const t = Type.ofTSType(param.typeAnnotation.typeAnnotation);
     patEnv = patTypeEnv(param, t, patEnv, annots);
     return t;
   });
