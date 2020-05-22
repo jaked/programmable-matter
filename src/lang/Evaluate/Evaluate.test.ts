@@ -34,4 +34,19 @@ describe('evaluateExpression', () => {
       expectEval('typeof 7', 'number');
     });
   });
+
+  describe('Map#filter', () => {
+    it('works', () => {
+      expectEval(
+        `foo.filter((v, k) => k === 'bar').size`,
+        1,
+        Immutable.Map({
+          foo: Immutable.Map({
+            bar: 7,
+            baz: 9,
+          })
+        })
+      );
+    });
+  });
 });

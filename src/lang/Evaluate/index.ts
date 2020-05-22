@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as ESTree from '../ESTree';
+import { bug } from '../../util/bug';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
@@ -146,9 +147,22 @@ export function evaluateExpression(
     }
 
     case 'CallExpression': {
-      const callee = evaluateExpression(ast.callee, env);
       const args = ast.arguments.map(arg => evaluateExpression(arg, env));
-      return callee(...args);
+      if (ast.callee.type === 'MemberExpression') {
+        const object = evaluateExpression(ast.callee.object, env);
+        if (ast.callee.computed) {
+          const method = evaluateExpression(ast.callee.property, env);
+          return method.apply(object, args);
+        } else {
+          if (ast.callee.property.type !== 'Identifier')
+            bug('expected identifier on non-computed property');
+          const method = object[ast.callee.property.name];
+          return method.apply(object, args);
+        }
+      } else {
+        const callee = evaluateExpression(ast.callee, env);
+        return callee(...args);
+      }
     }
 
     case 'ObjectExpression': {

@@ -286,6 +286,17 @@ function synthMemberExpression(
         case 'Map':
           switch (name) {
             case 'size': return Type.number;
+
+            case 'filter':
+              return Type.functionType(
+                [
+                  Type.functionType(
+                    [ objectType.value, objectType.key ],
+                    Type.boolean
+                  )
+                ],
+                objectType,
+              );
           }
           break;
 
