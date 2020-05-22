@@ -280,6 +280,28 @@ function synthMemberExpression(
         case 'Array':
           switch (name) {
             case 'length': return Type.number;
+
+            case 'filter':
+              return Type.functionType(
+                [
+                  Type.functionType(
+                    [ objectType.elem, Type.number, objectType ],
+                    Type.boolean
+                  )
+                ],
+                objectType,
+              );
+
+            case 'map':
+              return Type.functionType(
+                [
+                  Type.functionType(
+                    [ objectType.elem, Type.number, objectType ],
+                    Type.reactNodeType // TODO(jaked) temporary
+                  )
+                ],
+                Type.array(Type.reactNodeType),
+              );
           }
           break;
 
@@ -287,15 +309,39 @@ function synthMemberExpression(
           switch (name) {
             case 'size': return Type.number;
 
+            case 'set':
+              return Type.functionType(
+                [ objectType.key, objectType.value ],
+                objectType,
+              );
+
+            case 'delete':
+              return Type.functionType(
+                [ objectType.key ],
+                objectType,
+              );
+
+            case 'clear':
+              return Type.functionType([], Type.undefined);
+
             case 'filter':
               return Type.functionType(
                 [
                   Type.functionType(
-                    [ objectType.value, objectType.key ],
+                    [ objectType.value, objectType.key, objectType ],
                     Type.boolean
                   )
                 ],
                 objectType,
+              );
+
+            case 'valueSeq':
+              return Type.functionType([], Type.array(objectType.value));
+
+            case 'get':
+              return Type.functionType(
+                [ objectType.key ],
+                Type.undefinedOr(objectType.value),
               );
           }
           break;
