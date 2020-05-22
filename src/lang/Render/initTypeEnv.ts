@@ -8,18 +8,32 @@ function componentType(props: { [f: string]: Type }): Type {
 
 // TODO(jaked) need a way to translate TypeScript types
 const styleType = Type.undefinedOr(Type.object({
+  background: Type.undefinedOrString,
   backgroundColor: Type.undefinedOrString,
+  borderTop: Type.undefinedOrString,
+  boxShadow: Type.undefinedOrString,
+  color: Type.undefinedOrString,
   float: Type.undefinedOr(Type.enumerate('left', 'right', 'inherit', 'none')),
+  font: Type.undefinedOrString,
   fontSize: Type.undefinedOrString,
+  fontWeight: Type.undefinedOrString,
   height: Type.undefinedOrString,
+  lineHeight: Type.undefinedOrString,
   margin: Type.undefinedOrString,
   marginBottom: Type.undefinedOrString,
   marginLeft: Type.undefinedOrString,
   marginRight: Type.undefinedOrString,
   marginTop: Type.undefinedOrString,
   maxWidth: Type.undefinedOrString,
+  minWidth: Type.undefinedOrString,
   objectFit: Type.undefinedOr(Type.enumerate('contain')),
   padding: Type.undefinedOrString,
+  position: Type.undefinedOr(Type.enumerate('static', 'relative', 'fixed', 'absolute', 'sticky')),
+  textAlign: Type.undefinedOr(Type.enumerate('left', 'right', 'center', 'justify', 'initial', 'inherit')),
+  textRendering: Type.undefinedOr(Type.enumerate('auto', 'optimizeSpeed', 'optimizeLegibility', 'geometricPrecision')),
+  top: Type.undefinedOrString,
+  width: Type.undefinedOrString,
+  zIndex: Type.undefinedOrString,
 }));
 
 // TODO(jaked) full types for components
@@ -33,7 +47,9 @@ export const initTypeEnv = Typecheck.env({
     className: Type.undefinedOrString,
   }),
 
-  'body': componentType({}),
+  'body': componentType({
+    style: styleType,
+  }),
 
   'button': componentType({
     className: Type.undefinedOrString,
