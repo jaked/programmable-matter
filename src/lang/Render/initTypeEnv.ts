@@ -45,6 +45,10 @@ export const initTypeEnv = Typecheck.env({
   'a': componentType({
     href: Type.undefinedOrString,
     className: Type.undefinedOrString,
+    onClick: Type.undefinedOr(Type.functionType(
+      [Type.unknown],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
   }),
 
   'body': componentType({
@@ -53,6 +57,10 @@ export const initTypeEnv = Typecheck.env({
 
   'button': componentType({
     className: Type.undefinedOrString,
+    onClick: Type.undefinedOr(Type.functionType(
+      [Type.unknown],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
   }),
 
   'code': componentType({
