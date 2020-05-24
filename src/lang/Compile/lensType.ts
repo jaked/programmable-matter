@@ -32,7 +32,7 @@ export default function lensType(type: Type): Type {
         //   () => string | boolean & (string | boolean) => undefined &
         //   ((() => string & string => undefined) | () => boolean & boolean => undefined)
         // maybe we should special case this somehow to avoid blowup.
-        Type.union(...type.types.map(lensType))
+        // Type.union(...type.types.map(lensType))
       );
 
     case 'boolean':
