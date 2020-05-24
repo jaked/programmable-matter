@@ -38,7 +38,17 @@ describe('isSubtype', () => {
       expect(Type.isSubtype(a, b)).toBe(true);
     });
 
-    it('wrong number of args', () => {
+    it('fewer args ok', () => {
+      const a = Type.functionType(
+        [ ],
+        Type.string);
+      const b = Type.functionType(
+        [ Type.never ],
+        Type.unknown);
+      expect(Type.isSubtype(a, b)).toBe(true);
+    });
+
+    it('too many args', () => {
       const a = Type.functionType(
         [ Type.number ],
         Type.string);

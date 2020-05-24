@@ -113,7 +113,7 @@ function checkPatEnv(pat: ESTree.Pattern, env: Env, type: Type, annots: AstAnnot
 function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType, annots: AstAnnotations) {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
-      if (type.args.size !== ast.params.length)
+      if (ast.params.length > type.args.size)
         Throw.wrongArgsLength(ast, type.args.size, ast.params.length, annots);
       let patEnv: Env = Immutable.Map(); // TODO(jaked) Env.empty();
       ast.params.forEach((pat, i) => {

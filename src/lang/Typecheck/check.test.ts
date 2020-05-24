@@ -121,7 +121,11 @@ describe('check', () => {
       expectCheck('x => x + 7', type);
     });
 
-    it('wrong arg count', () => {
+    it('fewer args ok', () => {
+      expectCheck('() => 7', type);
+    });
+
+    it('too many args', () => {
       expectCheckThrows('(x, y) => x + y', type);
     });
 

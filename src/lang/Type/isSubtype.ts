@@ -32,7 +32,7 @@ export function isSubtype(a: Type, b: Type): boolean {
     });
   }
   else if (a.kind === 'Function' && b.kind === 'Function') {
-    return a.args.size === b.args.size &&
+    return a.args.size <= b.args.size &&
       a.args.every((a, i) => isSubtype(b.args.get(i) ?? bug(), a)) &&
       isSubtype(a.ret, b.ret);
   }
