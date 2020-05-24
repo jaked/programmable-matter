@@ -279,7 +279,7 @@ function synthMemberExpression(
       switch (objectType.kind) {
         case 'Array':
           switch (name) {
-            case 'length': return Type.number;
+            case 'size': return Type.number;
 
             case 'filter':
               return Type.functionType(
@@ -335,7 +335,7 @@ function synthMemberExpression(
                 objectType,
               );
 
-            case 'valueSeq':
+            case 'toList':
               return Type.functionType([], Type.array(objectType.value));
 
             case 'get':
