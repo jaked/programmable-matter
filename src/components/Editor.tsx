@@ -104,7 +104,7 @@ function computeJsSpans(
 
       case 'JSXIdentifier':
       case 'Identifier':
-        return span(ast.start, ast.end, components.variable, status);
+        return span(ast.start, ast.start + ast.name.length, components.variable, status);
 
       case 'Property':
         ESTree.visit(ast.key, fn);
@@ -122,6 +122,19 @@ function computeJsSpans(
         span(ast.start, ast.start + 1, components.default, status);
         ESTree.visit(ast.properties, fn);
         span(ast.end - 1, ast.end, components.default, status);
+        return false;
+
+      case 'ObjectPattern':
+        // TODO(jaked) fix status for props
+        span(ast.start, ast.start + 1, components.default, status);
+        ast.properties.forEach(prop => {
+          span(prop.key.start, prop.key.end, components.definition, status);
+          if (!prop.shorthand) {
+            ESTree.visit(prop.value, fn);
+          }
+        });
+        span(ast.end - 1, ast.end, components.default, status);
+        if (ast.typeAnnotation) ESTree.visit(ast.typeAnnotation, fn);
         return false;
 
       case 'ArrayExpression':
@@ -183,6 +196,25 @@ function computeJsSpans(
         span(ast.id.start, ast.id.end, components.definition, status);
         ESTree.visit(ast.init, fn);
         return false;
+
+      case 'TSTypeLiteral':
+        span(ast.start, ast.start + 1, components.default, status);
+        ESTree.visit(ast.members, fn);
+        span(ast.end - 1, ast.end, components.default, status);
+        return false;
+
+      case 'TSPropertySignature':
+        // TODO(jaked) fix status for key
+        span(ast.key.start, ast.key.end, components.definition, status);
+        ESTree.visit(ast.typeAnnotation, fn);
+        return false;
+
+      case 'TSBooleanKeyword':
+      case 'TSNumberKeyword':
+      case 'TSStringKeyword':
+      case 'TSNullKeyword':
+      case 'TSUndefinedKeyword':
+        span(ast.start, ast.end, components.variable, status);
     }
   }
   ESTree.visit(ast, fn);

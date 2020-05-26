@@ -310,6 +310,7 @@ export interface PropertyPattern extends NodeImpl {
 export interface ObjectPattern extends NodeImpl {
   type: 'ObjectPattern';
   properties: Array<PropertyPattern>;
+  typeAnnotation?: TSTypeAnnotation;
 }
 
 export type Pattern =
@@ -369,7 +370,8 @@ export interface ExportDefaultDeclaration extends NodeImpl {
 export type Node =
   Program | ExpressionStatement | Expression | Pattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
-  VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration;
+  VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration |
+  TSTypeAnnotation | TSPropertySignature | TSQualifiedName | TSTypeParameterInstantiation | TypeAnnotation;
 
 // if fn returns false, don't recurse into children
 // (caller must visit children itself if needed)
@@ -422,7 +424,8 @@ export function visit(
       return;
 
     case 'Identifier':
-      return;
+      if (ast.typeAnnotation) return visit(ast.typeAnnotation, fn);
+      else return;
 
     case 'UnaryExpression':
       return visit(ast.argument, fn);
@@ -465,7 +468,9 @@ export function visit(
       return visit(ast.quasis, fn);
 
     case 'ObjectPattern':
-      return visit(ast.properties, fn);
+      visit(ast.properties, fn);
+      if (ast.typeAnnotation) return visit(ast.typeAnnotation, fn);
+      else return;
 
     case 'ImportSpecifier':
       visit(ast.imported, fn);
@@ -494,8 +499,58 @@ export function visit(
     case 'ExportDefaultDeclaration':
       return visit(ast.declaration, fn);
 
+    case 'TSTypeAnnotation':
+      return visit(ast.typeAnnotation, fn);
+
+    case 'TSBooleanKeyword':
+    case 'TSNumberKeyword':
+    case 'TSStringKeyword':
+    case 'TSNullKeyword':
+    case 'TSUndefinedKeyword':
+      return;
+
+    case 'TSArrayType':
+      return visit(ast.elementType, fn);
+
+    case 'TSTupleType':
+      return visit(ast.elementTypes, fn);
+
+    case 'TSTypeLiteral':
+      return visit(ast.members, fn);
+
+    case 'TSLiteralType':
+      return visit(ast.literal, fn);
+
+    case 'TSUnionType':
+      return visit(ast.types, fn);
+
+    case 'TSIntersectionType':
+      return visit(ast.types, fn);
+
+    case 'TSFunctionType':
+      visit(ast.parameters, fn);
+      return visit(ast.typeAnnotation, fn);
+
+    case 'TSTypeReference':
+      visit(ast.typeName, fn);
+      if (ast.typeParameters) return visit(ast.typeParameters, fn);
+      else return;
+
+    case 'TSNeverKeyword':
+    case 'TSUnknownKeyword':
+      return;
+
+    case 'TSParenthesizedType':
+      return visit(ast.typeAnnotation, fn);
+
+    case 'TSPropertySignature':
+      visit(ast.key, fn);
+      return visit(ast.typeAnnotation, fn);
+
     default:
-      throw new Error('unexpected AST ' + (ast as Node).type);
+      const err = new Error('unexpected AST ' + (ast as Node).type);
+      console.log(err);
+      throw err;
   }
 }
 
