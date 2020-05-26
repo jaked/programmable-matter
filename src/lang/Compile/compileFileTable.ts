@@ -15,6 +15,7 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
 import { Table, Field as TableField } from '../../components/Table';
+import lensType from './lensType';
 
 // see Typescript-level types in data.ts
 // TODO(jaked)
@@ -116,8 +117,8 @@ function computeTable(
     Immutable.Map<string, Signal<object>>().withMutations(map =>
       noteEnv.forEach((note, tag) => {
         // TODO(jaked) handle partial failures better here
-        const defaultValue =
-          note.exportValue.flatMap(exportValue => exportValue['default']);
+        const mutableValue =
+          note.exportValue.flatMap(exportValue => exportValue['mutable']);
 
         const metaValue = note.meta.map(meta =>
           tableConfig.fields.reduce<object>(
@@ -133,7 +134,10 @@ function computeTable(
           ),
         );
 
-        const value = Signal.join(defaultValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
+        const value = mutableValue;
+        // TODO(jaked) merge mutable data members and immutable meta members
+        // TODO(jaked) could some meta members be mutable?
+        // const value = Signal.join(mutableValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
         const relativeTag = Path.relative(Path.dirname(noteTag), tag);
         map.set(relativeTag, value);
       })
@@ -210,7 +214,7 @@ function compileTable(
 
     const exportType = Type.module({
       // TODO(jaked) should include non-data table fields
-      default: Type.map(Type.string, objectType)
+      default: Type.map(Type.string, lensType(objectType))
     });
     const exportValue = {
       default: table
