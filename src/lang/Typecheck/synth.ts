@@ -281,6 +281,18 @@ function synthMemberExpression(
           switch (name) {
             case 'size': return Type.number;
 
+            case 'some':
+            case 'every':
+              return Type.functionType(
+                [
+                  Type.functionType(
+                    [ objectType.elem, Type.number, objectType ],
+                    Type.boolean
+                  )
+                ],
+                Type.boolean,
+              );
+
             case 'filter':
               return Type.functionType(
                 [
@@ -290,6 +302,17 @@ function synthMemberExpression(
                   )
                 ],
                 objectType,
+              );
+
+            case 'forEach':
+              return Type.functionType(
+                [
+                  Type.functionType(
+                    [ objectType.elem, Type.number, objectType ],
+                    Type.undefined
+                  )
+                ],
+                Type.undefined,
               );
 
             case 'map':
