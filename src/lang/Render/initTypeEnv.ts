@@ -122,6 +122,10 @@ export const initTypeEnv = Typecheck.env({
       })],
       Type.undefined // TODO(jaked) Type.void?
     )),
+    onClick: Type.undefinedOr(Type.functionType(
+      [Type.unknown],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
     placeholder: Type.undefinedOrString,
     bind: Type.undefinedOr(Type.intersection(
       Type.functionType([], Type.string),
