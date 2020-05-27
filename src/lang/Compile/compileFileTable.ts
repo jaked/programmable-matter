@@ -151,7 +151,7 @@ function computeFields(
   return tableConfig.fields.map(field => {
     return {
       label: field.label,
-      accessor: (o: object) => o[field.name],
+      accessor: (o: object) => o[field.name](),
       width: 100,
       component: ({ data }) => React.createElement(React.Fragment, null, String(data))
     };
