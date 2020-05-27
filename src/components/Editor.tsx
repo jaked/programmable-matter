@@ -6,6 +6,7 @@ import RSCEditor, { Session } from './react-simple-code-editor';
 import styled from 'styled-components';
 import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
+import Type from '../lang/Type';
 
 import * as data from '../data';
 
@@ -87,6 +88,8 @@ function computeJsSpans(
       if (type.type === 'err') {
         components = errComponents;
         status = type.err.message;
+      } else {
+        status = Type.toString(type.ok);
       }
     }
 
