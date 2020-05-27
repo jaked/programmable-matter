@@ -12,11 +12,10 @@ describe('synth', () => {
     exprOrString: ESTree.Expression | string,
     env: Typecheck.Env = Typecheck.env()
   ) {
-    const annots = new Map<unknown, Try<Type>>();
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(() => Typecheck.synth(expr, env, annots)).toThrow();
+    expect(() => Typecheck.synth(expr, env)).toThrow();
   }
 
   function expectSynth(
@@ -24,11 +23,10 @@ describe('synth', () => {
     type: Type,
     env: Typecheck.Env = Typecheck.env()
   ) {
-    const annots = new Map<unknown, Try<Type>>();
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(Typecheck.synth(expr, env, annots)).toEqual(type);
+    expect(Typecheck.synth(expr, env)).toEqual(type);
   }
 
   describe('identifiers', () => {
@@ -482,11 +480,10 @@ describe('synthMdx', () => {
     env: Typecheck.Env = Typecheck.env()
   ) {
     const trace = new Trace();
-    const annots = new Map<unknown, Try<Type>>();
     const ast =
       (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
       : astOrString;
-    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots)).toThrow();
+    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {})).toThrow();
   }
 
   function expectSynthMdx(
@@ -494,11 +491,10 @@ describe('synthMdx', () => {
     env: Typecheck.Env = Typecheck.env()
   ) {
     const trace = new Trace();
-    const annots = new Map<unknown, Try<Type>>();
     const ast =
       (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
       : astOrString;
-    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots)).not.toThrow();
+    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {})).not.toThrow();
   }
 
   describe('type annotation on binding', () => {

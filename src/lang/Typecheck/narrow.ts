@@ -1,5 +1,6 @@
 import * as Immutable from 'immutable';
 import { Tuple2 } from '../../util/Tuple';
+import Trace from '../../util/Trace';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
@@ -144,13 +145,14 @@ export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
   assume: boolean,
-  annots: AstAnnotations,
+  annots?: AstAnnotations,
+  trace?: Trace,
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':
       switch (ast.operator) {
         case '!':
-          return narrowEnvironment(env, ast.argument, !assume, annots);
+          return narrowEnvironment(env, ast.argument, !assume, annots, trace);
         case 'typeof':
           // typeof always returns a truthy value
           return env;
@@ -162,21 +164,21 @@ export function narrowEnvironment(
       switch (ast.operator) {
         case '&&':
           if (assume) {
-            env = narrowEnvironment(env, ast.left, true, annots);
-            return narrowEnvironment(env, ast.right, true, annots);
+            env = narrowEnvironment(env, ast.left, true, annots, trace);
+            return narrowEnvironment(env, ast.right, true, annots, trace);
           } else return env;
         case '||':
           if (!assume) {
-            env = narrowEnvironment(env, ast.left, false, annots);
-            return narrowEnvironment(env, ast.right, false, annots);
+            env = narrowEnvironment(env, ast.left, false, annots, trace);
+            return narrowEnvironment(env, ast.right, false, annots, trace);
           } else return env;
         default:
           return bug(`unexpected AST ${ast.operator}`);
       }
 
     case 'BinaryExpression':
-      const left = synth(ast.left, env, annots);
-      const right = synth(ast.right, env, annots);
+      const left = synth(ast.left, env, annots, trace);
+      const right = synth(ast.right, env, annots, trace);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         env = narrowExpression(env, ast.left, right);
         return narrowExpression(env, ast.right, left);

@@ -1,5 +1,7 @@
 import * as Immutable from 'immutable';
+import Recast from 'recast/main';
 import { bug } from '../../util/bug';
+import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import { Tuple2 } from '../../util/Tuple';
 import Type from '../Type';
@@ -10,90 +12,126 @@ import * as Throw from './throw';
 import { synth } from './synth';
 import { narrowEnvironment } from './narrow';
 
-function checkSubtype(ast: ESTree.Expression, env: Env, type: Type, annots: AstAnnotations) {
+function checkSubtype(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     case 'JSXExpressionContainer':
-      return check(ast.expression, env, type, annots);
+      return check(ast.expression, env, type, annots, trace);
 
     case 'ConditionalExpression': {
-      const testType = synth(ast.test, env, annots);
+      const testType = synth(ast.test, env, annots, trace);
 
       if (testType.kind === 'Singleton') {
         if (testType.value) {
           const envConsequent = narrowEnvironment(env, ast.test, true, annots);
-          return check(ast.consequent, envConsequent, type, annots);
+          return check(ast.consequent, envConsequent, type, annots, trace);
         } else {
           const envAlternate = narrowEnvironment(env, ast.test, false, annots);
-          return check(ast.alternate, envAlternate, type, annots);
+          return check(ast.alternate, envAlternate, type, annots, trace);
         }
       } else {
-        const envConsequent = narrowEnvironment(env, ast.test, true, annots);
-        const envAlternate = narrowEnvironment(env, ast.test, false, annots);
-        check(ast.consequent, envConsequent, type, annots);
-        return check(ast.alternate, envAlternate, type, annots);
+        const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
+        const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+        check(ast.consequent, envConsequent, type, annots, trace);
+        return check(ast.alternate, envAlternate, type, annots, trace);
       }
     }
 
     default:
-      const actual = synth(ast, env, annots);
+      const actual = synth(ast, env, annots, trace);
       if (!Type.isSubtype(actual, type))
         Throw.expectedType(ast, type, actual, annots);
   }
 }
 
-function checkTuple(ast: ESTree.Expression, env: Env, type: Type.TupleType, annots: AstAnnotations) {
+function checkTuple(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.TupleType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     case 'ArrayExpression':
       if (ast.elements.length !== type.elems.size) {
         return Throw.expectedType(ast, type, undefined, annots);
       } else {
         return ast.elements.forEach((elem, i) =>
-          check(elem, env, type.elems.get(i) ?? bug(), annots)
+          check(elem, env, type.elems.get(i) ?? bug(), annots, trace)
         );
       }
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkArray(ast: ESTree.Expression, env: Env, type: Type.ArrayType, annots: AstAnnotations) {
+function checkArray(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.ArrayType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
     case 'JSXFragment':
       return ast.children.forEach(child =>
-        check(child, env, type, annots)
+        check(child, env, type, annots, trace)
       );
 
     case 'ArrayExpression':
       return ast.elements.forEach(elem =>
-        check(elem, env, type.elem, annots)
+        check(elem, env, type.elem, annots, trace)
       );
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkSet(ast: ESTree.Expression, env: Env, type: Type.SetType, annots: AstAnnotations) {
+function checkSet(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.SetType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     // TODO(jaked) Set literals?
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkMap(ast: ESTree.Expression, env: Env, type: Type.MapType, annots: AstAnnotations) {
+function checkMap(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.MapType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     // TODO(jaked) Map literals?
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkPatEnv(pat: ESTree.Pattern, env: Env, type: Type, annots: AstAnnotations): Env {
+function checkPatEnv(
+  pat: ESTree.Pattern,
+  env: Env,
+  type: Type,
+  annots?: AstAnnotations,
+  trace?: Trace,
+): Env {
   if (pat.type === 'Identifier') {
     if (env.has(pat.name)) Throw.duplicateIdentifier(pat, pat.name, annots);
     else return env.set(pat.name, type);
@@ -110,23 +148,35 @@ function checkPatEnv(pat: ESTree.Pattern, env: Env, type: Type, annots: AstAnnot
   }
 }
 
-function checkFunction(ast: ESTree.Expression, env: Env, type: Type.FunctionType, annots: AstAnnotations) {
+function checkFunction(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.FunctionType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
       if (ast.params.length > type.args.size)
         Throw.wrongArgsLength(ast, type.args.size, ast.params.length, annots);
       let patEnv: Env = Immutable.Map(); // TODO(jaked) Env.empty();
       ast.params.forEach((pat, i) => {
-        patEnv = checkPatEnv(pat, patEnv, type.args.get(i) ?? bug(), annots);
+        patEnv = checkPatEnv(pat, patEnv, type.args.get(i) ?? bug(), annots, trace);
       });
-      return check(ast.body, env.merge(patEnv), type.ret, annots);
+      return check(ast.body, env.merge(patEnv), type.ret, annots, trace);
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType, annots: AstAnnotations) {
+function checkUnion(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.UnionType,
+  annots?: AstAnnotations,
+  trace?: Trace
+) {
   // to get a more localized error message we'd like to decompose the type and expression
   // as far as possible, but for unions we don't know which arm to break down.
   // if the outermost AST node corresponds to exactly one arm we'll try that one.
@@ -138,20 +188,38 @@ function checkUnion(ast: ESTree.Expression, env: Env, type: Type.UnionType, anno
     (t.kind === 'Function' && ast.type === 'ArrowFunctionExpression')
   );
   if (matchingArms.size === 1)
-    return check(ast, env, matchingArms.get(0) ?? bug(), annots);
+    return check(ast, env, matchingArms.get(0) ?? bug(), annots, trace);
   else
-    return checkSubtype(ast, env, type, annots);
+    return checkSubtype(ast, env, type, annots, trace);
 }
 
-function checkIntersection(ast: ESTree.Expression, env: Env, type: Type.IntersectionType, annots: AstAnnotations) {
-  return type.types.map(type => check(ast, env, type, annots));
+function checkIntersection(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.IntersectionType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
+  return type.types.map(type => check(ast, env, type, annots, trace));
 }
 
-function checkSingleton(ast: ESTree.Expression, env: Env, type: Type.SingletonType, annots: AstAnnotations) {
-  return checkSubtype(ast, env, type, annots);
+function checkSingleton(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.SingletonType,
+  annots?: AstAnnotations,
+  trace?: Trace
+) {
+  return checkSubtype(ast, env, type, annots, trace);
 }
 
-function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType, annots: AstAnnotations) {
+function checkObject(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.ObjectType,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (ast.type) {
     case 'ObjectExpression':
       const propNames = new Set(ast.properties.map(prop => {
@@ -176,18 +244,24 @@ function checkObject(ast: ESTree.Expression, env: Env, type: Type.ObjectType, an
           default: throw new Error('expected Identifier or Literal prop key name');
         }
         const type = fieldTypes.get(name);
-        if (type) return check(prop.value, env, type, annots);
+        if (type) return check(prop.value, env, type, annots, trace);
         else {
           return Throw.extraField(prop.key, name, annots);
         }
       }).some(x => x);
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkAbstract(ast: ESTree.Expression, env: Env, type: Type.AbstractType, annots: AstAnnotations) {
+function checkAbstract(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.AbstractType,
+  annots?: AstAnnotations,
+  trace?: Trace
+) {
   switch (type.label) {
     case 'React.ReactNode': {
       if (type.params.size !== 0) Throw.wrongParamsLength(ast, 0, type.params.size, annots);
@@ -206,34 +280,47 @@ function checkAbstract(ast: ESTree.Expression, env: Env, type: Type.AbstractType
       // TODO(jaked) catch multiple definition of `children`
       const paramWithChildren = Type.object(param.fields.push(Tuple2('children', Type.array(Type.reactNodeType))));
       const expandedType = Type.functionType([ paramWithChildren ], Type.reactNodeType);
-      return check(ast, env, expandedType, annots);
+      return check(ast, env, expandedType, annots, trace);
     }
 
     default:
-      return checkSubtype(ast, env, type, annots);
+      return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-function checkHelper(ast: ESTree.Expression, env: Env, type: Type, annots: AstAnnotations) {
+function checkHelper(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type,
+  annots?: AstAnnotations,
+  trace?: Trace,
+) {
   switch (type.kind) {
-    case 'Tuple':         return checkTuple(ast, env, type, annots);
-    case 'Array':         return checkArray(ast, env, type, annots);
-    case 'Set':           return checkSet(ast, env, type, annots);
-    case 'Map':           return checkMap(ast, env, type, annots);
-    case 'Object':        return checkObject(ast, env, type, annots);
-    case 'Function':      return checkFunction(ast, env, type, annots);
-    case 'Union':         return checkUnion(ast, env, type, annots);
-    case 'Intersection':  return checkIntersection(ast, env, type, annots);
-    case 'Singleton':     return checkSingleton(ast, env, type, annots);
-    case 'Abstract':      return checkAbstract(ast, env, type, annots);
+    case 'Tuple':         return checkTuple(ast, env, type, annots, trace);
+    case 'Array':         return checkArray(ast, env, type, annots, trace);
+    case 'Set':           return checkSet(ast, env, type, annots, trace);
+    case 'Map':           return checkMap(ast, env, type, annots, trace);
+    case 'Object':        return checkObject(ast, env, type, annots, trace);
+    case 'Function':      return checkFunction(ast, env, type, annots, trace);
+    case 'Union':         return checkUnion(ast, env, type, annots, trace);
+    case 'Intersection':  return checkIntersection(ast, env, type, annots, trace);
+    case 'Singleton':     return checkSingleton(ast, env, type, annots, trace);
+    case 'Abstract':      return checkAbstract(ast, env, type, annots, trace);
 
-    default:              return checkSubtype(ast, env, type, annots);
+    default:              return checkSubtype(ast, env, type, annots, trace);
   }
 }
 
-export function check(ast: ESTree.Expression, env: Env, type: Type, annots: AstAnnotations) {
+export function check(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type,
+  annots?: AstAnnotations,
+  trace?: Trace
+) {
   try {
-    checkHelper(ast, env, type, annots);
+    if (trace) trace.time(Recast.print(ast).code, () => checkHelper(ast, env, type, annots, trace));
+    else checkHelper(ast, env, type, annots, trace);
     if (annots) annots.set(ast, Try.ok(type));
   } catch (e) {
     if (annots) annots.set(ast, Try.err(e));
