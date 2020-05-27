@@ -200,16 +200,20 @@ function synthMemberExpression(
   if (objectType.kind === 'Intersection') {
     const memberTypes =
       objectType.types
-        .filter(type => type.kind === 'Object') // TODO(jaked) handle others
-        .map(type => Try.apply(() => synthMemberExpression(ast, env, annots, trace, type)));
+        // don't annotate AST with possibly spurious errors
+        // TODO(jaked) rethink
+        .map(type => Try.apply(() => synthMemberExpression(ast, env, undefined, trace, type)));
     if (memberTypes.some(tryType => tryType.type === 'ok')) {
       const retTypes =
         memberTypes.filter(tryType => tryType.type === 'ok')
           .map(tryType => tryType.get());
       return Type.intersection(...retTypes);
     } else {
-      // TODO(jaked) better error message
-      return Throw.withLocation(ast.object, 'no matching object type', annots);
+      if (ast.property.type === 'Identifier')
+        Throw.unknownField(ast.property, ast.property.name, annots);
+      else
+        // TODO(jaked)
+        Throw.unknownField(ast.property, '[computed]', annots);
     }
   } else if (objectType.kind === 'Union') {
     const types =
@@ -355,7 +359,7 @@ function synthMemberExpression(
               );
 
             case 'clear':
-              return Type.functionType([], Type.undefined);
+              return Type.functionType([], objectType);
 
             case 'filter':
               return Type.functionType(

@@ -23,7 +23,7 @@ export default function lensValue(value: any, setValue: (v: any) => void, type: 
         if (typeof key !== 'string') return undefined;
         if (key === 'valueOf' || key === 'equals') return undefined;
         const setFieldValue = (v) => setValue({ ...value, [key]: v });
-        const fieldType = type.getFieldType(key) || bug(`expected field type for ${key}`);
+        const fieldType = type.getFieldType(key) ?? bug(`expected field type for ${key}`);
         return lensValue(value[key], setFieldValue, fieldType);
       }});
 

@@ -114,7 +114,7 @@ function computeTable(
   noteEnv: Immutable.Map<string, data.CompiledNote>,
 ) {
   return Signal.joinImmutableMap(Signal.ok(
-    Immutable.Map<string, Signal<object>>().withMutations(map =>
+    Immutable.Map<string, Signal<any>>().withMutations(map =>
       noteEnv.forEach((note, tag) => {
         // TODO(jaked) handle partial failures better here
         const mutableValue =
@@ -138,11 +138,45 @@ function computeTable(
         // TODO(jaked) merge mutable data members and immutable meta members
         // TODO(jaked) could some meta members be mutable?
         // const value = Signal.join(mutableValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
-        const relativeTag = Path.relative(Path.dirname(noteTag), tag);
+        const relativeTag = Path.relative(noteTag, tag);
         map.set(relativeTag, value);
       })
     )
-  ));
+  )).map<any>(table => {
+    const f = function(...v: any[]) {
+      switch (v.length) {
+        case 0: return table;
+
+        case 1: {
+          const table2 = v[0];
+          const { added, changed, deleted } = diffMap(table, table2);
+          added.forEach((value, key) => bug(`unimplemented`));
+          changed.forEach(([prev, curr], key) => {
+            const lens = table.get(key) ?? bug(`expected lens for ${key}`);
+            lens(curr);
+          });
+          deleted.forEach(key => bug(`unimplemented`));
+          return;
+        }
+
+        default: bug(`expected 0- or 1-arg invocation`);
+      }
+    }
+
+    return new Proxy(f, { get: (target, key, receiver) => {
+      switch (key) {
+        case 'size': return table.size;
+        case 'set': return (key, value) => table.set(key, value);
+        case 'delete': return (key) => table.delete(key);
+        case 'clear': return () => table.clear();
+        case 'filter': return (fn) => table.filter(fn);
+        case 'toList': return () => table.toList();
+        case 'get': return (key, nsv) => table.get(key, nsv);
+
+        default: return undefined;
+      }
+    }});
+});
 }
 
 function computeFields(
@@ -214,7 +248,7 @@ function compileTable(
 
     const exportType = Type.module({
       // TODO(jaked) should include non-data table fields
-      default: Type.map(Type.string, lensType(objectType))
+      default: lensType(Type.map(Type.string, objectType))
     });
     const exportValue = {
       default: table
@@ -222,8 +256,8 @@ function compileTable(
 
     const onSelect = (tag: string) =>
       setSelected(Path.join(Path.dirname(noteTag), tag));
-    const rendered = table.map(data =>
-      React.createElement(Table, { data, fields, onSelect })
+    const rendered = table.map(table =>
+      React.createElement(Table, { data: table(), fields, onSelect })
     );
     return { exportType, exportValue, rendered, astAnnotations, problems };
 
