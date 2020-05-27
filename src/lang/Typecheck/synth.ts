@@ -291,6 +291,13 @@ function synthMemberExpression(
     if (ast.property.type === 'Identifier') {
       const name = ast.property.name;
       switch (objectType.kind) {
+        case 'number':
+          switch(name) {
+            case 'toString':
+              return Type.functionType([], Type.string);
+          }
+          break;
+
         case 'Array':
           switch (name) {
             case 'size': return Type.number;

@@ -8,6 +8,7 @@ import { compileFiles } from './index';
 
 const trace = new Trace();
 const updateFile = (s: string, b: Buffer) => {}
+const deleteFile = (s: string) => {}
 const setSelected = (s: string) => {}
 
 it('compiles mdx', () => {
@@ -17,7 +18,7 @@ it('compiles mdx', () => {
       Signal.cellOk(Buffer.from("foo"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -32,7 +33,7 @@ it('compiles json', () => {
       Signal.cellOk(Buffer.from("{ }"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files,  updateFile, setSelected);
+  const { compiledNotes } = compileFiles(trace, files,  updateFile, deleteFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -47,7 +48,7 @@ it('compiles meta', () => {
       Signal.cellOk(Buffer.from("{ }"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
@@ -107,7 +108,7 @@ it('compiles table', () => {
       `)),
     ),
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const cats = compiledNotes.get().get('cats');
   if (!cats) bug('expected cats');
@@ -130,7 +131,7 @@ it('compiles mdx + json + meta', () => {
       Signal.cellOk(Buffer.from(`{ bar: 7 }`))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, setSelected);
+  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile(trace, 1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');

@@ -33,6 +33,7 @@ export function compileFiles(
   trace: Trace,
   files: Signal<data.Files>,
   updateFile: (path: string, buffer: Buffer) => void,
+  deleteFile: (path: string) => void,
   setSelected: (note: string) => void,
 ): { compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>, compiledNotes: Signal<data.CompiledNotes> } {
 
@@ -45,7 +46,7 @@ export function compileFiles(
   const compiledFiles = Signal.mapImmutableMap(files, file =>
     Signal.label(
       file.path,
-      compileFile(trace, file, compiledFilesRef, compiledNotesRef, updateFile, setSelected)
+      compileFile(trace, file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
     )
   );
   compiledFilesRef.set(compiledFiles);

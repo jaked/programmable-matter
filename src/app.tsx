@@ -169,6 +169,7 @@ export class App {
       this.__trace,
       this.filesystem.files,
       this.filesystem.update,
+      this.filesystem.delete,
       this.setSelected,
     )
   private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;

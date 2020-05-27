@@ -7,6 +7,8 @@ import compileFileTable from './compileFileTable';
 
 const trace = new Trace();
 const setSelected = (s: string) => {}
+const updateFile = (s: string, b: Buffer) => {}
+const deleteFile = (s: string) => {}
 
 it('succeeds with syntax error', () => {
   const compiled = compileFileTable(
@@ -17,7 +19,9 @@ it('succeeds with syntax error', () => {
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
-    setSelected
+    setSelected,
+    updateFile,
+    deleteFile,
   );
   compiled.reconcile(trace, 1);
   expect(compiled.get().problems).toBeTruthy();
@@ -32,7 +36,9 @@ it('succeeds with type error', () => {
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
-    setSelected
+    setSelected,
+    updateFile,
+    deleteFile,
   );
   compiled.reconcile(trace, 1);
   expect(compiled.get().problems).toBeTruthy();

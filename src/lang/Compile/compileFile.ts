@@ -16,6 +16,7 @@ export default function compileFile(
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
   updateFile: (path: string, buffer: Buffer) => void,
+  deleteFile: (path: string) => void,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
 
@@ -30,7 +31,7 @@ export default function compileFile(
       return compileFileJson(trace, file, compiledFiles, updateFile);
 
     case 'table':
-      return compileFileTable(trace, file, compiledFiles, compiledNotes, setSelected);
+      return compileFileTable(trace, file, compiledFiles, compiledNotes, setSelected, updateFile, deleteFile);
 
     case 'jpeg':
       return compileFileJpeg(trace, file);

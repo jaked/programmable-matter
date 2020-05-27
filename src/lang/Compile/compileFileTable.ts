@@ -1,5 +1,6 @@
 import * as Path from 'path';
 import * as Immutable from 'immutable';
+import JSON5 from 'json5';
 import * as React from 'react';
 import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
@@ -112,6 +113,8 @@ function computeTable(
   tableConfig: data.Table,
   noteTag: string,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
+  updateFile: (path: string, buffer: Buffer) => void,
+  deleteFile: (path: string) => void,
 ) {
   return Signal.joinImmutableMap(Signal.ok(
     Immutable.Map<string, Signal<any>>().withMutations(map =>
@@ -142,7 +145,9 @@ function computeTable(
         map.set(relativeTag, value);
       })
     )
-  )).map<any>(table => {
+  )).map<any>(lensTable => {
+    const table = lensTable.map(v => v());
+
     const f = function(...v: any[]) {
       switch (v.length) {
         case 0: return table;
@@ -150,12 +155,19 @@ function computeTable(
         case 1: {
           const table2 = v[0];
           const { added, changed, deleted } = diffMap(table, table2);
-          added.forEach((value, key) => bug(`unimplemented`));
+          added.forEach((value, key) => {
+            const path = Path.join(noteTag, key) + '.json';
+            updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
+          });
           changed.forEach(([prev, curr], key) => {
-            const lens = table.get(key) ?? bug(`expected lens for ${key}`);
+            const lens = lensTable.get(key) ?? bug(`expected lens for ${key}`);
             lens(curr);
           });
-          deleted.forEach(key => bug(`unimplemented`));
+          deleted.forEach(key => {
+            // TODO(jaked) delete multi-part notes
+            const path = Path.join(noteTag, key) + '.json';
+            deleteFile(path);
+          });
           return;
         }
 
@@ -165,13 +177,13 @@ function computeTable(
 
     return new Proxy(f, { get: (target, key, receiver) => {
       switch (key) {
-        case 'size': return table.size;
-        case 'set': return (key, value) => table.set(key, value);
-        case 'delete': return (key) => table.delete(key);
-        case 'clear': return () => table.clear();
-        case 'filter': return (fn) => table.filter(fn);
-        case 'toList': return () => table.toList();
-        case 'get': return (key, nsv) => table.get(key, nsv);
+        case 'size': return lensTable.size;
+        case 'set': return (key, value) => lensTable.set(key, value);
+        case 'delete': return (key) => lensTable.delete(key);
+        case 'clear': return () => lensTable.clear();
+        case 'filter': return (fn) => lensTable.filter(fn);
+        case 'toList': return () => lensTable.toList();
+        case 'get': return (key, nsv) => lensTable.get(key, nsv);
 
         default: return undefined;
       }
@@ -198,6 +210,8 @@ function compileTable(
   noteTag: string,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
   setSelected: (tag: string) => void,
+  updateFile: (path: string, buffer: Buffer) => void,
+  deleteFile: (path: string) => void,
 ): Signal<data.Compiled> {
   const objectType = computeObjectType(noteEnv);
 
@@ -218,7 +232,7 @@ function compileTable(
     }));
   }
 
-  const table = tableConfig.flatMap(tableConfig => computeTable(tableConfig, noteTag, noteEnv));
+  const table = tableConfig.flatMap(tableConfig => computeTable(tableConfig, noteTag, noteEnv, updateFile, deleteFile));
 
   return Signal.join(objectType, tableConfig).map(([objectType, tableConfig]) => {
     // TODO(jaked)
@@ -282,6 +296,8 @@ export default function compileFileTable(
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (tag: string) => void,
+  updateFile: (path: string, buffer: Buffer) => void,
+  deleteFile: (path: string) => void,
 ): Signal<data.CompiledFile> {
 
   const noteTag = Tag.tagOfPath(file.path);
@@ -316,7 +332,7 @@ export default function compileFileTable(
       case 'ok':
         // TODO(jaked) fall back to object type if parse fails
         return noteEnv.flatMap(noteEnv =>
-          compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected)
+          compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected, updateFile, deleteFile)
             .map(compiled => ({ ...compiled, ast: astTryOrig }))
         );
 
