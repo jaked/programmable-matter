@@ -137,6 +137,13 @@ export function evaluateExpression(
       }
     }
 
+    case 'SequenceExpression':
+      ast.expressions.forEach((e, i) => {
+        if (i < ast.expressions.length - 1)
+          evaluateExpression(e, env);
+      });
+      return evaluateExpression(ast.expressions[ast.expressions.length - 1], env);
+
     case 'MemberExpression': {
       const object = evaluateExpression(ast.object, env);
       if (ast.computed) {

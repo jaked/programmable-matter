@@ -188,6 +188,19 @@ function synthBinaryExpression(
   }
 }
 
+function synthSequenceExpression(
+  ast: ESTree.SequenceExpression,
+  env: Env,
+  annots?: AstAnnotations,
+  trace?: Trace,
+): Type {
+  ast.expressions.forEach((e, i) => {
+    if (i < ast.expressions.length - 1)
+      check(e, env, Type.undefined, annots, trace);
+  });
+  return synth(ast.expressions[ast.expressions.length - 1], env, annots, trace);
+}
+
 function synthMemberExpression(
   ast: ESTree.MemberExpression,
   env: Env,
@@ -682,6 +695,7 @@ function synthHelper(
     case 'UnaryExpression':         return synthUnaryExpression(ast, env, annots, trace);
     case 'LogicalExpression':       return synthLogicalExpression(ast, env, annots, trace);
     case 'BinaryExpression':        return synthBinaryExpression(ast, env, annots, trace);
+    case 'SequenceExpression':      return synthSequenceExpression(ast, env, annots, trace);
     case 'MemberExpression':        return synthMemberExpression(ast, env, annots, trace);
     case 'CallExpression':          return synthCallExpression(ast, env, annots, trace);
     case 'ConditionalExpression':   return synthConditionalExpression(ast, env, annots, trace);

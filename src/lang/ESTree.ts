@@ -107,6 +107,11 @@ export interface LogicalExpression extends NodeImpl {
   right: Expression;
 }
 
+export interface SequenceExpression extends NodeImpl {
+  type: 'SequenceExpression';
+  expressions: Expression[];
+}
+
 export interface MemberExpression extends NodeImpl {
   type: 'MemberExpression';
   object: Expression;
@@ -186,6 +191,7 @@ export type Expression =
   UnaryExpression |
   LogicalExpression |
   BinaryExpression |
+  SequenceExpression |
   MemberExpression |
   CallExpression |
   ObjectExpression |
@@ -441,6 +447,13 @@ export function visit(
     case 'BinaryExpression':
       visit(ast.left, fn);
       return visit(ast.right, fn);
+
+    case 'LogicalExpression':
+      visit(ast.left, fn);
+      return visit(ast.right, fn);
+
+    case 'SequenceExpression':
+      return visit(ast.expressions, fn);
 
     case 'MemberExpression':
       visit(ast.object, fn);

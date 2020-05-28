@@ -42,6 +42,14 @@ function checkSubtype(
       }
     }
 
+    case 'SequenceExpression': {
+      ast.expressions.forEach((e, i) => {
+        if (i < ast.expressions.length - 1)
+          check(e, env, Type.undefined, annots, trace);
+      });
+      return check(ast.expressions[ast.expressions.length - 1], env, type, annots, trace);
+    }
+
     default:
       const actual = synth(ast, env, annots, trace);
       if (!Type.isSubtype(actual, type))
