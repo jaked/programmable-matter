@@ -81,7 +81,17 @@ export function evaluateExpression(
       }
 
       const children = ast.children.map(child => evaluateExpression(child, env));
-      return React.createElement(elem, attrs, ...children)
+      if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
+        // TODO(jaked)
+        // components defined in user code are recreated on rerenders
+        // causing them to be remounted when inserted into the React tree
+        // which loses focus on input elements
+        // for now, apply the components so their results go in the React tree
+        // maybe we can find a way to avoid recreating them so this isn't necessary
+        return elem({ ...attrs, children });
+      } else {
+        return React.createElement(elem, attrs, ...children);
+      }
     }
 
     case 'JSXFragment':
