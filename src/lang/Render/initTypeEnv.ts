@@ -122,6 +122,16 @@ export const initTypeEnv = Typecheck.env({
       })],
       Type.undefined // TODO(jaked) Type.void?
     )),
+    onInput: Type.undefinedOr(Type.functionType(
+      [Type.object({
+        currentTarget: Type.object({ value: Type.string })
+      })],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
+    onKeyUp: Type.undefinedOr(Type.functionType(
+      [Type.object({ keyCode: Type.number })],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
     onClick: Type.undefinedOr(Type.functionType(
       [Type.unknown],
       Type.undefined // TODO(jaked) Type.void?
