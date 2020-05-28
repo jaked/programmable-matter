@@ -211,4 +211,7 @@ export const initTypeEnv = Typecheck.env({
 
   'parseInt':
     Type.functionType([ Type.string ], Type.number),
+
+  'undefined':
+    Type.undefined,
 });

@@ -87,6 +87,8 @@ export function initValueEnv(
     Gist: Gist,
     HighlightedCode: HighlightedCode,
 
-    parseInt: (s: string) => parseInt(s)
+    parseInt: (s: string) => parseInt(s),
+
+    undefined: undefined,
   }).map(Signal.ok);
 }
