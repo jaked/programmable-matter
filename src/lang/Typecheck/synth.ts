@@ -658,6 +658,15 @@ function synthJSXText(
   return Type.string;
 }
 
+function synthJSXEmptyExpression(
+  ast: ESTree.JSXEmptyExpression,
+  env: Env,
+  annots?: AstAnnotations,
+  trace?: Trace,
+): Type {
+  return Type.undefined;
+}
+
 function synthHelper(
   ast: ESTree.Expression,
   env: Env,
@@ -682,6 +691,7 @@ function synthHelper(
     case 'JSXFragment':             return synthJSXFragment(ast, env, annots, trace);
     case 'JSXExpressionContainer':  return synthJSXExpressionContainer(ast, env, annots, trace);
     case 'JSXText':                 return synthJSXText(ast, env, annots, trace);
+    case 'JSXEmptyExpression':      return synthJSXEmptyExpression(ast, env, annots, trace);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);

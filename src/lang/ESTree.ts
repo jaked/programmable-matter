@@ -67,6 +67,10 @@ export interface JSXExpressionContainer extends NodeImpl {
   expression: Expression;
 }
 
+export interface JSXEmptyExpression extends NodeImpl {
+  type: 'JSXEmptyExpression';
+}
+
 export interface Literal extends NodeImpl {
   type: 'Literal';
   value: any;
@@ -173,6 +177,7 @@ export type Expression =
   JSXIdentifier |
   JSXText |
   JSXExpressionContainer |
+  JSXEmptyExpression |
   JSXFragment |
   JSXElement |
   JSXOpeningElement |
@@ -391,6 +396,9 @@ export function visit(
 
     case 'ExpressionStatement':
       return visit(ast.expression, fn);
+
+    case 'JSXEmptyExpression':
+      return;
 
     case 'JSXFragment':
       return visit(ast.children, fn);

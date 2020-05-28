@@ -42,6 +42,9 @@ export function evaluateExpression(
     case 'JSXExpressionContainer':
       return evaluateExpression(ast.expression, env);
 
+    case 'JSXEmptyExpression':
+      return undefined;
+
     case 'JSXText': {
       const value = ast.value.trim();
       if (value === '') return null;
