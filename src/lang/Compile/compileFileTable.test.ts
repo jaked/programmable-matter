@@ -11,6 +11,7 @@ const updateFile = (s: string, b: Buffer) => {}
 const deleteFile = (s: string) => {}
 
 it('succeeds with syntax error', () => {
+  console.log = jest.fn();
   const compiled = compileFileTable(
     trace,
     new data.File(
@@ -28,6 +29,7 @@ it('succeeds with syntax error', () => {
 });
 
 it('succeeds with type error', () => {
+  console.log = jest.fn();
   const compiled = compileFileTable(
     trace,
     new data.File(
@@ -44,4 +46,29 @@ it('succeeds with type error', () => {
   expect(compiled.get().problems).toBeTruthy();
 });
 
-// TODO(jaked) test fallback to object type when table config fails
+it('empty table', () => {
+  const compiled = compileFileTable(
+    trace,
+    new data.File(
+      'foo.table',
+      Signal.cellOk(Buffer.from(`{
+        fields: [
+          {
+            name: 'foo',
+            label: 'Foo',
+            kind: 'data',
+            type: 'string',
+          }
+        ]
+      }`)),
+    ),
+    Signal.ok(Immutable.Map()),
+    Signal.ok(Immutable.Map()),
+    setSelected,
+    updateFile,
+    deleteFile,
+  );
+  compiled.reconcile(trace, 1);
+  compiled.get().rendered.reconcile(trace, 1);
+  expect(() => compiled.get().rendered.get()).not.toThrow();
+});

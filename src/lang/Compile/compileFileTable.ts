@@ -74,43 +74,21 @@ function computeTableConfig(
   };
 }
 
-function computeObjectType(
-  noteEnv: Immutable.Map<string, data.CompiledNote>,
-): Signal<Type.ObjectType> {
-  const typeUnion = Signal.join(...noteEnv.map((note, tag) => {
-    // TODO(jaked) handle partial failures better here
-    return note.exportType.map(exportType =>
-      exportType.getFieldType('default') ?? bug(`expected default export for ${tag}`)
-    );
-  }).values()).map(types => Type.union(...types));
-
-  return typeUnion.map(typeUnion => {
-    let objectType: Type.ObjectType | undefined = undefined;
-    switch (typeUnion.kind) {
-      case 'Object':
-        objectType = typeUnion;
-        break;
-
-      case 'Intersection':
-        // TODO(jaked) tighten up
-        typeUnion.types.filter(type => type.kind === 'Object').forEach(type => {
-          if (type.kind !== 'Object') bug(`expected Object type, got ${type.kind}`);
-          objectType = type;
-        });
-        break;
-
-      default:
-        // TODO(jaked)
-        // maybe we can display nonuniform / non-Object types a different way?
-        bug(`unhandled table value type ${typeUnion.kind}`)
+function computeTableDataType(
+  tableConfig: data.Table
+): Type.ObjectType {
+  const tableDataFields: Tuple2<string, Type>[] = [];
+  tableConfig.fields.forEach(field => {
+    if (field.kind === 'data') {
+      tableDataFields.push(Tuple2(field.name, field.type));
     }
-    if (!objectType) bug(`expected objectType to be set`);
-    return objectType;
   });
+  return Type.object(tableDataFields);
 }
 
 function computeTable(
   tableConfig: data.Table,
+  tableDataType: Type.ObjectType,
   noteTag: string,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
   updateFile: (path: string, buffer: Buffer) => void,
@@ -120,6 +98,18 @@ function computeTable(
     Immutable.Map<string, Signal<any>>().withMutations(map =>
       noteEnv.forEach((note, tag) => {
         // TODO(jaked) handle partial failures better here
+
+        const defaultType = note.exportType.map(exportType => {
+          const defaultType = exportType.getFieldType('default') ?? bug(`expected type for default field`);
+          // TODO(jaked)
+          // check data files directly against table config
+          // instead of checking after the fact
+          // that their types agree with the table config type
+          if (!Type.isSubtype(defaultType, tableDataType))
+            throw new Error('record data type must match table config type');
+          return defaultType;
+        });
+
         const mutableValue =
           note.exportValue.flatMap(exportValue => exportValue['mutable']);
 
@@ -137,10 +127,11 @@ function computeTable(
           ),
         );
 
-        const value = mutableValue;
-        // TODO(jaked) merge mutable data members and immutable meta members
-        // TODO(jaked) could some meta members be mutable?
-        // const value = Signal.join(mutableValue, metaValue).map(([defaultValue, metaValue]) => ({ ...defaultValue, ...metaValue }));
+        const value = Signal.join(defaultType, mutableValue, metaValue).map(([defaultType, mutableValue, metaValue]) => {
+          // TODO(jaked) merge mutable data members and immutable meta members
+          // TODO(jaked) could some meta members be mutable?
+          return mutableValue;
+        });
         const relativeTag = Path.relative(noteTag, tag);
         map.set(relativeTag, value);
       })
@@ -188,7 +179,7 @@ function computeTable(
         default: return undefined;
       }
     }});
-});
+  });
 }
 
 function computeFields(
@@ -212,82 +203,43 @@ function compileTable(
   setSelected: (tag: string) => void,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
-): Signal<data.Compiled> {
-  const objectType = computeObjectType(noteEnv);
-
+): data.Compiled {
   const astAnnotations = new Map<unknown, Try<Type>>();
   let problems = false;
-  let tableConfig: Signal<data.Table>;
+  let tableConfig: data.Table;
   try {
-    tableConfig = Signal.ok(computeTableConfig(ast, astAnnotations));
+    tableConfig = computeTableConfig(ast, astAnnotations);
   } catch (e) {
-    problems = true;
-    tableConfig = objectType.map(objectType => ({
-      fields: objectType.fields.map<data.TableField>(({ _1: name, _2: type }) => ({
-        name,
-        label: name,
-        kind: 'data',
-        type,
-      })).toArray()
-    }));
+    console.log(e);
+    return {
+      exportType: Type.module({ }),
+      exportValue: { },
+      rendered: Signal.ok(false),
+      astAnnotations,
+      problems: true,
+    };
   }
 
-  const table = tableConfig.flatMap(tableConfig => computeTable(tableConfig, noteTag, noteEnv, updateFile, deleteFile));
+  const tableDataType = computeTableDataType(tableConfig);
 
-  return Signal.join(objectType, tableConfig).map(([objectType, tableConfig]) => {
-    // TODO(jaked)
-    // we derive a type from the fields in the table description
-    // and also from the data files in the directory
-    // then check that they agree
-    // it would be better to directly check the data files
-    // against the fields in the table description
-    // but dependencies make this hairy; we could
-    //   - make data files depend on table for type,
-    //     and table depend on data files for values; or
-    //   - handle table descriptions earlier in compilation
-    //     as we do with index.meta
-    //   - make dependencies more fine-grained
-    //     e.g. per-file instead of per-note, or finer
-    //   - ???
-    const tableDataFields: Tuple2<string, Type>[] = [];
-    tableConfig.fields.forEach(field => {
-      if (field.kind === 'data') {
-        tableDataFields.push(Tuple2(field.name, field.type));
-      }
-    });
-    const tableDataType = Type.object(tableDataFields);
-      if (!Type.equiv(objectType, tableDataType))
-      throw new Error('table config type and record data type must be the same');
-    const fields = computeFields(tableConfig);
+  const table = computeTable(tableConfig, tableDataType, noteTag, noteEnv, updateFile, deleteFile);
 
-    const exportType = Type.module({
-      // TODO(jaked) should include non-data table fields
-      default: lensType(Type.map(Type.string, objectType))
-    });
-    const exportValue = {
-      default: table
-    }
+  const fields = computeFields(tableConfig);
 
-    const onSelect = (tag: string) =>
-      setSelected(Path.join(Path.dirname(noteTag), tag));
-    const rendered = table.map(table =>
-      React.createElement(Table, { data: table(), fields, onSelect })
-    );
-    return { exportType, exportValue, rendered, astAnnotations, problems };
+  const exportType = Type.module({
+    // TODO(jaked) should include non-data table fields
+    default: lensType(Type.map(Type.string, tableDataType))
+  });
+  const exportValue = {
+    default: table
+  }
 
-  // TODO(jaked) Signal#handle
-  }).liftToTry().map(tryCompiled => {
-    switch (tryCompiled.type) {
-      case 'ok': return tryCompiled.ok;
-      case 'err': return {
-        exportType: Type.module({ }),
-        exportValue: { },
-        rendered: Signal.constant(tryCompiled),
-        astAnnotations,
-        problems: true,
-      }
-    }
-  })
+  const onSelect = (tag: string) =>
+    setSelected(Path.join(Path.dirname(noteTag), tag));
+  const rendered = table.map(table =>
+    React.createElement(Table, { data: table(), fields, onSelect })
+  );
+  return { exportType, exportValue, rendered, astAnnotations, problems };
 }
 
 export default function compileFileTable(
@@ -330,11 +282,10 @@ export default function compileFileTable(
     const astTryOrig = astTry;
     switch (astTry.type) {
       case 'ok':
-        // TODO(jaked) fall back to object type if parse fails
-        return noteEnv.flatMap(noteEnv =>
-          compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected, updateFile, deleteFile)
-            .map(compiled => ({ ...compiled, ast: astTryOrig }))
-        );
+        return noteEnv.map(noteEnv => {
+          const compiled = compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected, updateFile, deleteFile);
+          return { ...compiled, ast: astTryOrig };
+        });
 
       case 'err': {
         return Signal.ok({
