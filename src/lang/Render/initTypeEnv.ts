@@ -145,6 +145,14 @@ export const initTypeEnv = Typecheck.env({
 
   'label': componentType({
     for: Type.undefinedOrString,
+    onClick: Type.undefinedOr(Type.functionType(
+      [Type.unknown],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
+    onDoubleClick: Type.undefinedOr(Type.functionType(
+      [Type.unknown],
+      Type.undefined // TODO(jaked) Type.void?
+    )),
   }),
 
   'li': componentType({
@@ -224,4 +232,7 @@ export const initTypeEnv = Typecheck.env({
 
   'undefined':
     Type.undefined,
+
+  'console':
+    Type.object({ log: Type.functionType([Type.string], Type.undefined) }),
 });

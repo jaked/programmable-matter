@@ -90,5 +90,6 @@ export function initValueEnv(
     parseInt: (s: string) => parseInt(s),
 
     undefined: undefined,
+    console: console,
   }).map(Signal.ok);
 }
