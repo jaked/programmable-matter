@@ -174,6 +174,7 @@ function computeTable(
         case 'clear': return () => lensTable.clear();
         case 'filter': return (fn) => lensTable.filter(fn);
         case 'toList': return () => lensTable.toList();
+        case 'update': return (key, fn) => lensTable.update(key, fn);
         case 'get': return (key, nsv) => lensTable.get(key, nsv);
 
         default: return undefined;

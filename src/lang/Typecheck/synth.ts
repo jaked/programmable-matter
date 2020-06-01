@@ -402,6 +402,12 @@ function synthMemberExpression(
             case 'toList':
               return Type.functionType([], Type.array(objectType.value));
 
+            case 'update':
+              return Type.functionType(
+                [ objectType.key, Type.functionType([ objectType.value ], objectType.value) ],
+                objectType
+              )
+
             case 'get':
               return Type.functionType(
                 [ objectType.key ],
