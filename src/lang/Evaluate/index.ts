@@ -107,12 +107,9 @@ export function evaluateExpression(
     }
 
     case 'LogicalExpression': {
-      // TODO(jaked) short-circuit booleans
-      const lv = evaluateExpression(ast.left, env);
-      const rv = evaluateExpression(ast.right, env);
       switch (ast.operator) {
-        case '||': return lv || rv;
-        case '&&': return lv && rv;
+        case '||': return evaluateExpression(ast.left, env) || evaluateExpression(ast.right, env);
+        case '&&': return evaluateExpression(ast.left, env) && evaluateExpression(ast.right, env);
         default:
           throw new Error(`unexpected binary operator ${ast.operator}`)
       }

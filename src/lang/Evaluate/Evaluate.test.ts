@@ -35,6 +35,16 @@ describe('evaluateExpression', () => {
     });
   });
 
+  describe('short-circult Booleans', () => {
+    it('&&', () => {
+      expectEval('false && (1 / 0)', false);
+    });
+
+    it('||', () => {
+      expectEval('true || (1 / 0)', true);
+    });
+  });
+
   describe('Map#filter', () => {
     it('works', () => {
       expectEval(
