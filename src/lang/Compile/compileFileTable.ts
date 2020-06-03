@@ -63,7 +63,7 @@ function computeTableConfig(
   // maybe we could evaluate with respect to a type
   // and do conversion internally to evaluation
   return {
-    fields: Evaluate.evaluateExpression(ast, Immutable.Map()).fields.map(field => {
+    fields: Evaluate.evaluateExpression(ast, annots, Immutable.Map()).fields.map(field => {
       switch (field.kind) {
         case 'data':
           const type = Parse.parseType(field.type);

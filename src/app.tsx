@@ -190,6 +190,7 @@ export class App {
   private selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
       if (compiledNote !== null) {
+        // TODO(jaked) pass these on note instead of reconstructing
         const meta = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'meta')) ?? Signal.ok(undefined);
         const mdx = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'mdx')) ?? Signal.ok(undefined);
         const table = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'table')) ?? Signal.ok(undefined);

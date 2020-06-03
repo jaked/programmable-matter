@@ -74,8 +74,7 @@ function narrowExpression(
         const type = narrowType(identType, otherType);
         return env.set(ast.name, type);
       }
-      else if (ast.name === 'undefined') return env;
-      else return bug('expected bound identifier');
+      else return env;
     }
 
     case 'MemberExpression': {

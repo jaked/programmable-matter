@@ -9,6 +9,7 @@ import Signal from '../../util/Signal';
 import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
 import * as Evaluate from '../Evaluate';
+import { AstAnnotations } from '../../data';
 
 export { initTypeEnv } from './initTypeEnv';
 export { initValueEnv } from './initValueEnv';
@@ -22,54 +23,67 @@ export const context = React.createContext<'screen' | 'server'>('screen');
 
 function evaluateExpressionSignal(
   ast: ESTree.Expression,
+  annots: AstAnnotations,
   env: Env
 ): Signal<any> {
   const idents = ESTree.freeIdentifiers(ast);
   const signals = idents.map(id => {
     const signal = env.get(id);
     if (signal) return signal;
-    else throw new Error(`unbound identifier ${id}`);
+    else return Signal.ok(Error(`unbound identifier ${id}`));
   });
   return Signal.join(...signals).map(values => {
     const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
-    return Evaluate.evaluateExpression(ast, env);
+    return Evaluate.evaluateExpression(ast, annots, env);
   });
 }
 
 function extendEnvWithImport(
   decl: ESTree.ImportDeclaration,
+  annots: AstAnnotations,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
 ): Env {
-  // TODO(jaked) handle partial failures better here
-  const module = moduleEnv.get(decl.source.value) ?? bug(`expected module '${decl.source.value}'`);
-  decl.specifiers.forEach(spec => {
-    switch (spec.type) {
-      case 'ImportNamespaceSpecifier': {
-        env = env.set(spec.local.name, module.flatMap(module => Signal.joinObject(module)));
+  const type = annots.get(decl.source);
+  if (type && type.kind === 'Error') {
+    decl.specifiers.forEach(spec => {
+      env = env.set(spec.local.name, Signal.ok(type.err));
+    });
+  } else {
+    const module = moduleEnv.get(decl.source.value) ?? bug(`expected module '${decl.source.value}'`);
+    decl.specifiers.forEach(spec => {
+      switch (spec.type) {
+        case 'ImportNamespaceSpecifier': {
+          env = env.set(spec.local.name, module.flatMap(module => Signal.joinObject(module)));
+          break;
+        }
+
+        case 'ImportDefaultSpecifier': {
+          // TODO(jaked) missing member vs. undefined value
+          const defaultField = module.flatMap(module =>
+            module['default'] ?? bug(`expected default export on '${decl.source.value}'`)
+          );
+          env = env.set(spec.local.name, defaultField);
+        }
+        break;
+
+        case 'ImportSpecifier': {
+          // TODO(jaked) missing member vs. undefined value
+          const importedField = module.flatMap(module =>
+            module[spec.imported.name] ?? bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`)
+          );
+          env = env.set(spec.local.name, importedField);
+        }
         break;
       }
-      case 'ImportDefaultSpecifier':
-        // TODO(jaked) missing memeber vs. undefined value
-        const defaultField = module.flatMap(module =>
-          module['default'] ?? bug(`expected default export on '${decl.source.value}'`)
-        );
-        env = env.set(spec.local.name, defaultField);
-        break;
-      case 'ImportSpecifier':
-        // TODO(jaked) missing memeber vs. undefined value
-        const importedField = module.flatMap(module =>
-          module[spec.imported.name] ?? bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`)
-        );
-        env = env.set(spec.local.name, importedField);
-        break;
-    }
-  });
+    });
+  }
   return env;
 }
 
 function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
+  annots: AstAnnotations,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
 ): Env {
@@ -78,7 +92,7 @@ function extendEnvWithNamedExport(
     case 'const': {
       declaration.declarations.forEach(declarator => {
         let name = declarator.id.name;
-        let value = evaluateExpressionSignal(declarator.init, env);
+        let value = evaluateExpressionSignal(declarator.init, annots, env);
         exportValue[name] = value;
         env = env.set(name, value);
       });
@@ -92,16 +106,18 @@ function extendEnvWithNamedExport(
 
 function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
+  annots: AstAnnotations,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
 ): Env {
-  const value = evaluateExpressionSignal(decl.declaration, env);
+  const value = evaluateExpressionSignal(decl.declaration, annots, env);
   exportValue['default'] = value;
   return env;
 }
 
 export function renderMdx(
   ast: MDXHAST.Node,
+  annots: AstAnnotations,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
@@ -113,7 +129,7 @@ export function renderMdx(
     case 'root': {
       const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, moduleEnv, env, exportValue);
+        const [env2, childNode] = renderMdx(child, annots, moduleEnv, env, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -155,7 +171,7 @@ export function renderMdx(
         case 'a': {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -174,7 +190,7 @@ export function renderMdx(
         default: {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -198,7 +214,9 @@ export function renderMdx(
       switch (ast.jsxElement.type) {
         case 'ok': {
           const jsx = ast.jsxElement.ok;
-          return [env, evaluateExpressionSignal(jsx, env)];
+          const type = annots.get(ast.jsxElement.ok) ?? bug(`expected type`);
+          if (type.kind === 'Error') return [env, Signal.ok(null)];
+          else return [env, evaluateExpressionSignal(jsx, annots, env)];
         }
         case 'err':
           return [env, Signal.ok(null)];
@@ -213,15 +231,15 @@ export function renderMdx(
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
-            env = extendEnvWithImport(decl, moduleEnv, env);
+            env = extendEnvWithImport(decl, annots, moduleEnv, env);
             break;
 
           case 'ExportNamedDeclaration':
-            env = extendEnvWithNamedExport(decl, env, exportValue);
+            env = extendEnvWithNamedExport(decl, annots, env, exportValue);
             break;
 
           case 'ExportDefaultDeclaration':
-            env = extendEnvWithDefaultExport(decl, env, exportValue);
+            env = extendEnvWithDefaultExport(decl, annots, env, exportValue);
             break;
         }
       }));

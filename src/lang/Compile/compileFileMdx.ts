@@ -157,24 +157,30 @@ export default function compileFileMdx(
 
   const render = Signal.label("render", Signal.join(
     Signal.label("ast", ast),
+    Signal.label("typecheck", typecheck),
     Signal.label("jsonValue", jsonValue),
     Signal.label("tableValue", tableValue),
     Signal.label("moduleValueEnv", moduleValueEnv),
-  ).map(([ast, jsonValue, tableValue, moduleValueEnv]) => {
+  ).map(([ast, typecheck, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass in these envs from above?
     let valueEnv = Render.initValueEnv(setSelected);
 
     if (jsonValue) valueEnv = valueEnv.set('data', Signal.ok(jsonValue));
     if (tableValue) valueEnv = valueEnv.set('table', Signal.ok(tableValue));
 
-    const exportValue: { [s: string]: Signal<any> } = {};
-    const rendered =
-      trace.time('renderMdx', () => {
-        const [_, node] = Render.renderMdx(ast, moduleValueEnv, valueEnv, exportValue);
-        return node;
-      });
+    // TODO(jaked) clean up mess with errors
+    try {
+      const exportValue: { [s: string]: Signal<any> } = {};
+      const rendered =
+        trace.time('renderMdx', () => {
+          const [_, node] = Render.renderMdx(ast, typecheck.astAnnotations, moduleValueEnv, valueEnv, exportValue);
+          return node;
+        });
 
-    return { exportValue, rendered };
+      return { exportValue, rendered };
+    } catch (e) {
+      return { exportValue: {}, rendered: Signal.err(e) };
+    }
   }));
 
   return Signal.join(ast, typecheck).flatMap(([ast, typecheck]) => {

@@ -84,21 +84,21 @@ function compileJson(
   meta: data.Meta,
   updateFile: (path: string, buffer: Buffer) => void
 ): data.Compiled {
-  const astAnnotations = new Map<unknown, Type>();
+  const annots = new Map<unknown, Type>();
   let type: Type;
   try {
     if (meta.dataType) {
-      Typecheck.check(ast, Typecheck.env(), meta.dataType, astAnnotations);
+      Typecheck.check(ast, Typecheck.env(), meta.dataType, annots);
       type = meta.dataType;
     } else {
-      type = Typecheck.synth(ast, Typecheck.env(), astAnnotations);
+      type = Typecheck.synth(ast, Typecheck.env(), annots);
     }
   } catch (e) {
     console.log(e);
     const exportType = Type.module({ });
     const exportValue = { };
     const rendered = Signal.ok(false);
-    return { exportType, exportValue, rendered, astAnnotations, problems: true };
+    return { exportType, exportValue, rendered, astAnnotations: annots, problems: true };
   }
 
   // TODO(jaked) handle other JSON types
@@ -109,7 +109,7 @@ function compileJson(
     default: type,
     mutable: lensType(type),
   });
-  const value = Evaluate.evaluateExpression(ast, Immutable.Map());
+  const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
   const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
   const lens = lensValue(value, setValue, type);
   const exportValue = {
@@ -127,7 +127,7 @@ function compileJson(
     // TODO(json) handle arrays of records (with Table)
     return React.createElement(Record, { object: lens, fields: fields.toArray() })
   }));
-  return { exportType, exportValue, rendered, astAnnotations, problems: false };
+  return { exportType, exportValue, rendered, astAnnotations: annots, problems: false };
 }
 
 export default function compileFileJson(

@@ -8,7 +8,7 @@ import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';
 import { Env } from './env';
-import * as Throw from './throw';
+import * as Error from './error';
 import { check } from './check';
 import { narrowType, narrowEnvironment } from './narrow';
 
@@ -21,7 +21,7 @@ function synthIdentifier(
   const type = env.get(ast.name);
   if (type) return type;
   else if (ast.name === 'undefined') return Type.undefined;
-  else return Throw.withLocation(ast, `unbound identifier ${ast.name}`, annots);
+  else return Error.withLocation(ast, `unbound identifier ${ast.name}`, annots);
 }
 
 function synthLiteral(
@@ -51,19 +51,18 @@ function synthObjectExpression(
   trace?: Trace,
 ): Type {
   const seen = new Set();
-  const fields: Array<[string, Type]> =
+  const fieldTypes: Array<{ [n: string]: Type }> =
     ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
         case 'Identifier': name = prop.key.name; break;
         case 'Literal': name = prop.key.value; break;
-        default: throw new Error('expected Identifier or Literal prop key name');
+        default: bug('expected Identifier or Literal prop key name');
       }
-      if (seen.has(name)) throw new Error('duplicate field name ' + name);
+      if (seen.has(name)) Error.withLocation(prop, 'duplicate field name ' + name, annots);
       else seen.add(name);
-      return [ name, synth(prop.value, env, annots, trace) ];
+      return { [name]: synth(prop.value, env, annots, trace) };
     });
-  const fieldTypes = fields.map(([name, type]) => ({ [name]: type }));
   return Type.object(Object.assign({}, ...fieldTypes));
 }
 
@@ -78,23 +77,35 @@ function synthUnaryExpression(
 ): Type {
   const type = synth(ast.argument, env, annots, trace);
 
-  if (type.kind === 'Singleton') {
-    switch (ast.operator) {
-      case '!':
-        return Type.singleton(!type.value);
-      case 'typeof':
-        return Type.singleton(typeof type.value);
-      default:
-        return bug(`unhandled ast ${ast.operator}`);
-    }
-  } else {
-    switch (ast.operator) {
-      case '!':
-        return Type.boolean;
-      case 'typeof':
-        return typeofType;
-      default:
-        return bug(`unhandled ast ${ast.operator}`);
+  switch (type.kind) {
+    case 'Error':
+      switch (ast.operator) {
+        case '!':
+          return Type.singleton(true);
+        case 'typeof':
+          return Type.singleton('error');
+        default:
+          bug(`unhandled ast ${ast.operator}`);
+      }
+
+    case 'Singleton':
+      switch (ast.operator) {
+        case '!':
+          return Type.singleton(!type.value);
+        case 'typeof':
+          return Type.singleton(typeof type.value);
+        default:
+          bug(`unhandled ast ${ast.operator}`);
+      }
+
+    default:
+      switch (ast.operator) {
+        case '!':
+          return Type.boolean;
+        case 'typeof':
+          return typeofType;
+        default:
+          bug(`unhandled ast ${ast.operator}`);
       }
   }
 }
@@ -108,31 +119,50 @@ function synthLogicalExpression(
   switch (ast.operator) {
     case '&&': {
       const left = synth(ast.left, env, annots, trace);
-      if (left.kind === 'Singleton') {
-        const right = synth(ast.right, env, annots, trace); // synth even when !left.value
-        return !left.value ? left : right;
-      } else {
-        const rightEnv = narrowEnvironment(env, ast.left, true, annots, trace);
-        const right = synth(ast.right, rightEnv, annots, trace);
-        return Type.union(narrowType(left, Type.falsy), right);
+
+      switch (left.kind) {
+        case 'Error': {
+          const right = synth(ast.right, env, annots, trace);
+          return Type.singleton(false);
+        }
+
+        case 'Singleton': {
+          const right = synth(ast.right, env, annots, trace); // synth even when !left.value
+          return !left.value ? left : right;
+        }
+
+        default: {
+          const rightEnv = narrowEnvironment(env, ast.left, true, annots, trace);
+          const right = synth(ast.right, rightEnv, annots, trace);
+          return Type.union(narrowType(left, Type.falsy), right);
+        }
       }
     }
 
     case '||': {
       const left = synth(ast.left, env, annots, trace);
-      if (left.kind === 'Singleton') {
-        const right = synth(ast.right, env, annots, trace); // synth even when left.value
-        return left.value ? left : right;
-      } else {
-        const rightEnv = narrowEnvironment(env, ast.left, false, annots, trace);
-        const right = synth(ast.right, rightEnv, annots, trace);
-        // TODO(jaked) Type.union(Type.intersection(left, Type.notFalsy), right) ?
-        return Type.union(left, right);
+
+      switch (left.kind) {
+        case 'Error': {
+          return synth(ast.right, env, annots, trace);
+        }
+
+        case 'Singleton': {
+          const right = synth(ast.right, env, annots, trace); // synth even when left.value
+          return left.value ? left : right;
+        }
+
+        default: {
+          const rightEnv = narrowEnvironment(env, ast.left, false, annots, trace);
+          const right = synth(ast.right, rightEnv, annots, trace);
+          // TODO(jaked) Type.union(Type.intersection(left, Type.notFalsy), right) ?
+          return Type.union(left, right);
+        }
       }
     }
 
     default:
-        return bug(`unexpected operator ${ast.operator}`);
+      bug(`unexpected operator ${ast.operator}`);
   }
 }
 
@@ -145,7 +175,10 @@ function synthBinaryExpression(
   let left = synth(ast.left, env, annots, trace);
   let right = synth(ast.right, env, annots, trace);
 
-  if (left.kind === 'Singleton' && right.kind === 'Singleton') {
+  if (left.kind === 'Error') return left;
+  else if (right.kind === 'Error') return right;
+
+  else if (left.kind === 'Singleton' && right.kind === 'Singleton') {
     // TODO(jaked) handle other operators
     switch (ast.operator) {
       case '===':
@@ -158,11 +191,11 @@ function synthBinaryExpression(
           return Type.singleton(left.value + right.value);
         else if (left.base.kind === 'string' && right.base.kind === 'string')
           return Type.singleton(left.value + right.value);
-        else return Throw.withLocation(ast, 'incompatible operands to +', annots);
+        else return Error.withLocation(ast, 'incompatible operands to +', annots);
       }
 
       default:
-        return Throw.withLocation(ast, 'unimplemented', annots);
+        bug(`unimplemented operator ${ast.operator}`);
     }
   } else {
     if (left.kind === 'Singleton') left = left.base;
@@ -179,11 +212,11 @@ function synthBinaryExpression(
           return Type.number;
         else if (left.kind === 'string' && right.kind === 'string')
           return Type.string;
-        else return Throw.withLocation(ast, 'incompatible operands to +', annots);
+        else return Error.withLocation(ast, 'incompatible operands to +', annots);
       }
 
       default:
-        return Throw.withLocation(ast, 'unimplemented', annots);
+        bug(`unimplemented operator ${ast.operator}`);
     }
   }
 }
@@ -196,6 +229,7 @@ function synthSequenceExpression(
 ): Type {
   ast.expressions.forEach((e, i) => {
     if (i < ast.expressions.length - 1)
+      // TODO(jaked) undefined or error
       check(e, env, Type.undefined, annots, trace);
   });
   return synth(ast.expressions[ast.expressions.length - 1], env, annots, trace);
@@ -215,19 +249,18 @@ function synthMemberExpression(
       objectType.types
         // don't annotate AST with possibly spurious errors
         // TODO(jaked) rethink
-        .map(type => Try.apply(() => synthMemberExpression(ast, env, undefined, trace, type)));
-    if (memberTypes.some(tryType => tryType.type === 'ok')) {
-      const retTypes =
-        memberTypes.filter(tryType => tryType.type === 'ok')
-          .map(tryType => tryType.get());
-      return Type.intersection(...retTypes);
-    } else {
+        .map(type => synthMemberExpression(ast, env, undefined, trace, type));
+    if (memberTypes.every(type => type.kind === 'Error')) {
       if (ast.property.type === 'Identifier')
-        Throw.unknownField(ast.property, ast.property.name, annots);
+        return Error.unknownField(ast.property, ast.property.name, annots);
       else
-        // TODO(jaked)
-        Throw.unknownField(ast.property, '[computed]', annots);
+        // TODO(jaked) could result from error in computed property
+        return Error.unknownField(ast.property, '[computed]', annots);
+    } else {
+      const retTypes = memberTypes.filter(type => type.kind !== 'Error');
+      return Type.intersection(...retTypes);
     }
+
   } else if (objectType.kind === 'Union') {
     const types =
       objectType.types.map(type => synthMemberExpression(ast, env, annots, trace, type));
@@ -279,16 +312,16 @@ function synthMemberExpression(
         } else if (propertyType.kind === 'Union') {
           propertyType.types.forEach(type => {
             if (type.kind === 'Singleton') presentIndexes.push(type.value);
-            else throw new Error('expected Singleton');
+            else bug('expected Singleton');
           });
-        } else throw new Error('expected Singleton or Union')
+        } else bug('expected Singleton or Union')
 
         // and return union of element types of present indexes
         const presentTypes =
           presentIndexes.map(i => {
             const fieldType = fields.find(({ _1: name }) => name === i);
             if (fieldType) return fieldType._2;
-            else throw new Error('expected valid index');
+            else bug('expected valid index');
           });
         return Type.union(...presentTypes);
       }
@@ -301,138 +334,137 @@ function synthMemberExpression(
         return bug('unimplemented synthMemberExpression ' + objectType.kind);
     }
   } else {
-    if (ast.property.type === 'Identifier') {
-      const name = ast.property.name;
-      switch (objectType.kind) {
-        case 'string':
-          switch (name) {
-            case 'startsWith':
-              return Type.functionType([Type.string], Type.boolean);
-          }
-          break;
+    if (ast.property.type !== 'Identifier')
+      bug('expected identifier on non-computed property');
 
-        case 'number':
-          switch (name) {
-            case 'toString':
-              return Type.functionType([], Type.string);
-          }
-          break;
-
-        case 'Array':
-          switch (name) {
-            case 'size': return Type.number;
-
-            case 'some':
-            case 'every':
-              return Type.functionType(
-                [
-                  Type.functionType(
-                    [ objectType.elem, Type.number, objectType ],
-                    Type.boolean
-                  )
-                ],
-                Type.boolean,
-              );
-
-            case 'filter':
-              return Type.functionType(
-                [
-                  Type.functionType(
-                    [ objectType.elem, Type.number, objectType ],
-                    Type.boolean
-                  )
-                ],
-                objectType,
-              );
-
-            case 'forEach':
-              return Type.functionType(
-                [
-                  Type.functionType(
-                    [ objectType.elem, Type.number, objectType ],
-                    Type.undefined
-                  )
-                ],
-                Type.undefined,
-              );
-
-            case 'map':
-              return Type.functionType(
-                [
-                  Type.functionType(
-                    [ objectType.elem, Type.number, objectType ],
-                    Type.reactNodeType // TODO(jaked) temporary
-                  )
-                ],
-                Type.array(Type.reactNodeType),
-              );
-          }
-          break;
-
-        case 'Map':
-          switch (name) {
-            case 'size': return Type.number;
-
-            case 'set':
-              return Type.functionType(
-                [ objectType.key, objectType.value ],
-                objectType,
-              );
-
-            case 'delete':
-              return Type.functionType(
-                [ objectType.key ],
-                objectType,
-              );
-
-            case 'clear':
-              return Type.functionType([], objectType);
-
-            case 'filter':
-              return Type.functionType(
-                [
-                  Type.functionType(
-                    [ objectType.value, objectType.key, objectType ],
-                    Type.boolean
-                  )
-                ],
-                objectType,
-              );
-
-            case 'toList':
-              return Type.functionType([], Type.array(objectType.value));
-
-            case 'update':
-              return Type.functionType(
-                [ objectType.key, Type.functionType([ objectType.value ], objectType.value) ],
-                objectType
-              )
-
-            case 'get':
-              return Type.functionType(
-                [ objectType.key ],
-                Type.undefinedOr(objectType.value),
-              );
-          }
-          break;
-
-        case 'Object': {
-          const type = objectType.getFieldType(name);
-          if (type) return type;
-          break;
+    const name = ast.property.name;
+    switch (objectType.kind) {
+      case 'string':
+        switch (name) {
+          case 'startsWith':
+            return Type.functionType([Type.string], Type.boolean);
         }
+        break;
 
-        case 'Module': {
-          const type = objectType.getFieldType(name);
-          if (type) return type;
-          break;
+      case 'number':
+        switch (name) {
+          case 'toString':
+            return Type.functionType([], Type.string);
         }
+        break;
 
+      case 'Array':
+        switch (name) {
+          case 'size': return Type.number;
+
+          case 'some':
+          case 'every':
+            return Type.functionType(
+              [
+                Type.functionType(
+                  [ objectType.elem, Type.number, objectType ],
+                  Type.boolean
+                )
+              ],
+              Type.boolean,
+            );
+
+          case 'filter':
+            return Type.functionType(
+              [
+                Type.functionType(
+                  [ objectType.elem, Type.number, objectType ],
+                  Type.boolean
+                )
+              ],
+              objectType,
+            );
+
+          case 'forEach':
+            return Type.functionType(
+              [
+                Type.functionType(
+                  [ objectType.elem, Type.number, objectType ],
+                  Type.undefined
+                )
+              ],
+              Type.undefined,
+            );
+
+          case 'map':
+            return Type.functionType(
+              [
+                Type.functionType(
+                  [ objectType.elem, Type.number, objectType ],
+                  Type.reactNodeType // TODO(jaked) temporary
+                )
+              ],
+              Type.array(Type.reactNodeType),
+            );
+        }
+        break;
+
+      case 'Map':
+        switch (name) {
+          case 'size': return Type.number;
+
+          case 'set':
+            return Type.functionType(
+              [ objectType.key, objectType.value ],
+              objectType,
+            );
+
+          case 'delete':
+            return Type.functionType(
+              [ objectType.key ],
+              objectType,
+            );
+
+          case 'clear':
+            return Type.functionType([], objectType);
+
+          case 'filter':
+            return Type.functionType(
+              [
+                Type.functionType(
+                  [ objectType.value, objectType.key, objectType ],
+                  Type.boolean
+                )
+              ],
+              objectType,
+            );
+
+          case 'toList':
+            return Type.functionType([], Type.array(objectType.value));
+
+          case 'update':
+            return Type.functionType(
+              [ objectType.key, Type.functionType([ objectType.value ], objectType.value) ],
+              objectType
+            )
+
+          case 'get':
+            return Type.functionType(
+              [ objectType.key ],
+              Type.undefinedOr(objectType.value),
+            );
+        }
+        break;
+
+      case 'Object': {
+        const type = objectType.getFieldType(name);
+        if (type) return type;
+        break;
       }
-      Throw.unknownField(ast.property, name, annots);
-    } else {
-      return bug('expected identifier on non-computed property');
+
+      case 'Module': {
+        const type = objectType.getFieldType(name);
+        if (type) return type;
+        break;
+      }
+
     }
+    return Error.unknownField(ast.property, name, annots);
   }
 }
 
@@ -449,25 +481,24 @@ function synthCallExpression(
     const callTypes =
       calleeType.types
         .filter(type => type.kind === 'Function')
-        .map(type => Try.apply(() => synthCallExpression(ast, env, annots, trace, type)));
-    if (callTypes.some(tryType => tryType.type === 'ok')) {
-      const retTypes =
-        callTypes.filter(tryType => tryType.type === 'ok')
-          .map(tryType => tryType.get());
-      return Type.intersection(...retTypes);
-    } else {
+        .map(type => synthCallExpression(ast, env, annots, trace, type));
+    if (callTypes.every(type => type.kind === 'Error')) {
       // TODO(jaked) better error message
-      return Throw.withLocation(ast, 'no matching function type');
+      return Error.withLocation(ast, 'no matching function type');
+    } else {
+      const retTypes = callTypes.filter(type => type.kind !== 'Error')
+      return Type.intersection(...retTypes);
     }
   } else if (calleeType.kind === 'Function') {
     if (calleeType.args.size !== ast.arguments.length)
       // TODO(jaked) support short arg lists if arg type contains undefined
       // TODO(jaked) check how this works in Typescript
-      Throw.expectedType(ast, `${calleeType.args.size} args`, `${ast.arguments.length}`, annots);
+      return Error.expectedType(ast, `${calleeType.args.size} args`, `${ast.arguments.length}`, annots);
     calleeType.args.forEach((type, i) => check(ast.arguments[i], env, type, annots, trace));
+    // TODO(jaked) if args has error, return is error
     return calleeType.ret;
   } else {
-    return Throw.expectedType(ast.callee, 'function', calleeType, annots)
+    return Error.expectedType(ast.callee, 'function', calleeType, annots)
   }
 }
 
@@ -477,11 +508,12 @@ function patTypeEnvIdentifier(
   env: Env,
   annots?: AstAnnotations,
 ): Env {
-  if (ast.type !== 'Identifier')
-    return Throw.withLocation(ast, `incompatible pattern for type ${Type.toString(type)}`, annots);
-  if (env.has(ast.name))
-    return Throw.withLocation(ast, `identifier ${ast.name} already bound in pattern`, annots);
-  return env.set(ast.name, type);
+  if (env.has(ast.name)) {
+    Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, annots);
+    return env;
+  } else {
+    return env.set(ast.name, type);
+  }
 }
 
 function patTypeEnvObjectPattern(
@@ -493,9 +525,11 @@ function patTypeEnvObjectPattern(
   ast.properties.forEach(prop => {
     const key = prop.key;
     const field = t.fields.find(field => field._1 === key.name)
-    if (!field)
-      return Throw.unknownField(key, key.name, annots);
-    env = patTypeEnv(prop.value, field._2, env, annots);
+    if (!field) {
+      Error.unknownField(key, key.name, annots);
+    } else {
+      env = patTypeEnv(prop.value, field._2, env, annots);
+    }
   });
   return env;
 }
@@ -510,8 +544,10 @@ function patTypeEnv(
     return patTypeEnvObjectPattern(ast, t, env, annots);
   else if (ast.type === 'Identifier')
     return patTypeEnvIdentifier(ast, t, env, annots);
-  else
-    return Throw.withLocation(ast, `incompatible pattern for type ${Type.toString(t)}`, annots);
+  else {
+    Error.withLocation(ast, `incompatible pattern for type ${Type.toString(t)}`, annots);
+    return env;
+  }
 }
 
 function synthArrowFunctionExpression(
@@ -523,7 +559,7 @@ function synthArrowFunctionExpression(
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
     if (!param.typeAnnotation)
-      return Throw.withLocation(param, `function parameter must have a type`, annots);
+      return Error.withLocation(param, `function parameter must have a type`, annots);
     const t = Type.ofTSType(param.typeAnnotation.typeAnnotation);
     patEnv = patTypeEnv(param, t, patEnv, annots);
     return t;
@@ -541,20 +577,24 @@ function synthConditionalExpression(
 ): Type {
   const testType = synth(ast.test, env, annots, trace);
 
-  if (testType.kind === 'Singleton') {
-    if (testType.value) {
-      const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-      return synth(ast.consequent, envConsequent, annots, trace);
-    } else {
-      const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-      return synth(ast.alternate, envAlternate, annots, trace);
-    }
-  } else {
-    const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-    const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-    const consequent = synth(ast.consequent, envConsequent, annots, trace);
-    const alternate = synth(ast.alternate, envAlternate, annots, trace);
-    return Type.union(consequent, alternate);
+  const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
+  const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+  const consequent = synth(ast.consequent, envConsequent, annots, trace);
+  const alternate = synth(ast.alternate, envAlternate, annots, trace);
+
+  switch (testType.kind) {
+    case 'Error':
+      return alternate;
+
+    case 'Singleton':
+      if (testType.value) {
+        return consequent;
+      } else {
+        return alternate;
+      }
+
+    default:
+      return Type.union(consequent, alternate);
   }
 }
 
@@ -576,7 +616,7 @@ function synthJSXIdentifier(
 ): Type {
   const type = env.get(ast.name);
   if (type) return type;
-  else throw new Error('unbound identifier ' + ast.name);
+  else return Error.withLocation(ast, 'unbound identifier ' + ast.name, annots);
 }
 
 function synthJSXElement(
@@ -587,42 +627,48 @@ function synthJSXElement(
 ): Type {
   const type = synth(ast.openingElement.name, env, annots, trace);
 
-  let propsType: Type.ObjectType;
-  let retType: Type;
-  if (type.kind === 'Function') {
-    retType = type.ret;
-    if (type.args.size === 0) {
-      propsType = Type.object({});
-    } else if (type.args.size === 1) {
-      const argType = type.args.get(0) ?? bug();
-      if (argType.kind !== 'Object')
-        throw new Error('expected object arg');
-      propsType = argType;
-      const childrenField = propsType.fields.find(field => field._1 === 'children');
-      if (childrenField) {
-        if (!Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
-          throw new Error('expected children type');
-      }
-    } else throw new Error('expected 0- or 1-arg function');
+  const [ propsType, retType ] = ((): [ Type.ObjectType, Type.Type ] => {
+    switch (type.kind) {
+      case 'Error':
+        return [ Type.object({}), type ]
 
-  // TODO(jaked) consolidate with type expansions in Check.checkAbstract
-  } else if (type.kind === 'Abstract' && type.label === 'React.FC' && type.params.size === 1) {
-    const paramType = type.params.get(0) ?? bug();
-    if (paramType.kind !== 'Object')
-      throw new Error('expected object arg');
-    retType = Type.reactNodeType;
-    propsType = paramType;
+      case 'Function':
+        if (type.args.size === 0) {
+          return [ Type.object({}), type.ret ];
+        } else if (type.args.size === 1) {
+          const argType = type.args.get(0) ?? bug();
+          if (argType.kind === 'Object') {
+            const childrenField = argType.fields.find(field => field._1 === 'children');
+            if (!childrenField || Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
+              return [ argType, type.ret ];
+          }
+        }
+        break;
 
-  } else if (type.kind === 'Abstract' && type.label === 'React.Component' && type.params.size === 1) {
-    const paramType = type.params.get(0) ?? bug();
-    if (paramType.kind !== 'Object')
-      throw new Error('expected object arg');
-    retType = Type.reactElementType;
-    propsType = paramType;
+      // TODO(jaked) consolidate with type expansions in Check.checkAbstract
+      case 'Abstract':
+        switch (type.label) {
+          case 'React.FC':
+          case 'React.FunctionComponent':
+            if (type.params.size === 1) {
+              const paramType = type.params.get(0) ?? bug();
+              if (paramType.kind === 'Object')
+                return [ paramType, Type.reactNodeType ]
+            }
+            break;
 
-  } else {
-    Throw.expectedType(ast.openingElement.name, 'component type', type, annots);
-  }
+          case 'React.Component':
+            if (type.params.size === 1) {
+              const paramType = type.params.get(0) ?? bug();
+              if (paramType.kind === 'Object')
+                return [ paramType, Type.reactElementType ]
+            }
+            break;
+        }
+        break;
+    }
+    return [ Type.object({}), Error.expectedType(ast.openingElement.name, 'component type', type, annots) ];
+  })();
 
   const attrNames =
     new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
@@ -632,16 +678,14 @@ function synthJSXElement(
         !Type.isSubtype(Type.undefined, type))
       // TODO(jaked) it would be better to mark the whole JSXElement as having an error
       // but for now this get us the right error highlighting in Editor
-      Throw.missingField(ast.openingElement.name, name, annots);
+      Error.missingField(ast.openingElement.name, name, annots);
   });
 
   const propTypes = new Map(propsType.fields.map(({ _1, _2 }) => [_1, _2]));
   ast.openingElement.attributes.forEach(attr => {
     const type = propTypes.get(attr.name.name);
-    if (type) return check(attr.value, env, type, annots, trace);
-    else {
-      return Throw.extraField(attr, attr.name.name, annots);
-    }
+    if (type) check(attr.value, env, type, annots, trace);
+    else Error.extraField(attr, attr.name.name, annots);
   });
 
   ast.children.map(child =>
@@ -649,6 +693,7 @@ function synthJSXElement(
     check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
   );
 
+  // TODO(jaked) if args has error, return is error
   return retType;
 }
 
@@ -750,27 +795,43 @@ function extendEnvWithImport(
   annots?: AstAnnotations,
 ): Env {
   const module = moduleEnv.get(decl.source.value);
-  if (!module)
-    return Throw.withLocation(decl.source, `no module '${decl.source.value}'`, annots);
-  decl.specifiers.forEach(spec => {
-    switch (spec.type) {
-      case 'ImportNamespaceSpecifier':
-        env = env.set(spec.local.name, module);
+  if (!module) {
+    const error = Error.withLocation(decl.source, `no module '${decl.source.value}'`, annots);
+    decl.specifiers.forEach(spec => {
+      env = env.set(spec.local.name, error);
+    });
+  } else {
+    decl.specifiers.forEach(spec => {
+      switch (spec.type) {
+        case 'ImportNamespaceSpecifier': {
+          env = env.set(spec.local.name, module);
+        }
         break;
-      case 'ImportDefaultSpecifier':
-        const defaultField = module.fields.find(ft => ft._1 === 'default');
-        if (!defaultField)
-          return Throw.withLocation(decl.source, `no default export on '${decl.source.value}'`, annots);
-        env = env.set(spec.local.name, defaultField._2);
+
+        case 'ImportDefaultSpecifier': {
+          const defaultField = module.fields.find(ft => ft._1 === 'default');
+          if (defaultField) {
+            env = env.set(spec.local.name, defaultField._2);
+          } else {
+            const error = Error.withLocation(spec.local, `no default export on '${decl.source.value}'`, annots);
+            env = env.set(spec.local.name, error);
+          }
+        }
         break;
-      case 'ImportSpecifier':
-        const importedField = module.fields.find(ft => ft._1 === spec.imported.name)
-        if (!importedField)
-          return Throw.withLocation(decl.source, `no exported member '${spec.imported.name}' on '${decl.source.value}'`, annots);
-        env = env.set(spec.local.name, importedField._2);
+
+        case 'ImportSpecifier': {
+          const importedField = module.fields.find(ft => ft._1 === spec.imported.name)
+          if (importedField) {
+            env = env.set(spec.local.name, importedField._2);
+          } else {
+            const error = Error.withLocation(spec.imported, `no exported member '${spec.imported.name}' on '${decl.source.value}'`, annots);
+            env = env.set(spec.local.name, error);
+          }
+        }
         break;
-    }
-  });
+      }
+    });
+  }
   return env;
 }
 
@@ -827,13 +888,13 @@ export function synthMdx(
       return env;
 
     case 'jsx':
-      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
+      if (!ast.jsxElement) bug('expected JSX node to be parsed');
       ast.jsxElement.forEach(elem => check(elem, env, Type.reactNodeType, annots, trace));
       return env;
 
     case 'import':
     case 'export': {
-      if (!ast.declarations) throw new Error('expected import/export node to be parsed');
+      if (!ast.declarations) bug('expected import/export node to be parsed');
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
@@ -852,6 +913,6 @@ export function synthMdx(
       return env;
     }
 
-    default: throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
+    default: bug('unexpected AST ' + (ast as MDXHAST.Node).type);
   }
 }

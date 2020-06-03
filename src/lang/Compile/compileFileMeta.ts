@@ -32,11 +32,11 @@ function convertMeta(obj: any): data.Meta {
 function compileMeta(
   ast: ESTree.Expression
 ): data.Compiled {
-  const astAnnotations = new Map<unknown, Type>();
+  const annots = new Map<unknown, Type>();
   let problems = false;
   let error;
   try {
-    Typecheck.check(ast, Typecheck.env(), Type.metaType, astAnnotations);
+    Typecheck.check(ast, Typecheck.env(), Type.metaType, annots);
   } catch (e) {
     console.log(e);
     error = e;
@@ -46,12 +46,12 @@ function compileMeta(
   const value =
     problems ?
       Signal.err(error) :
-      Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, Immutable.Map())));
+      Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
 
   const exportType = Type.module({ default: Type.metaType });
   const exportValue = { default: value }
   const rendered = Signal.ok(null);
-  return { exportType, exportValue, rendered, astAnnotations, problems };
+  return { exportType, exportValue, rendered, astAnnotations: annots, problems };
 }
 
 export default function compileFileMeta(
