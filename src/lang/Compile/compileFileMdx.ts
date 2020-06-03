@@ -116,7 +116,7 @@ export default function compileFileMdx(
     if (tableType) typeEnv = typeEnv.set('table', tableType);
 
     const exportTypes: { [s: string]: Type.Type } = {};
-    const astAnnotations = new Map<unknown, Try<Type>>();
+    const astAnnotations = new Map<unknown, Type>();
     try {
       trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
       const exportType = Type.module(exportTypes);

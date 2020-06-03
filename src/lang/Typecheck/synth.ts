@@ -735,10 +735,10 @@ export function synth(
     const type = trace ?
       trace.time(Recast.print(ast).code, () => synthHelper(ast, env, annots, trace)) :
       synthHelper(ast, env, annots, trace);
-    if (annots) annots.set(ast, Try.ok(type));
+    if (annots) annots.set(ast, type);
     return type;
   } catch (e) {
-    if (annots) annots.set(ast, Try.err(e));
+    if (annots) annots.set(ast, Type.error(e));
     throw e;
   }
 }

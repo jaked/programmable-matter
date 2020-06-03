@@ -84,7 +84,7 @@ function compileJson(
   meta: data.Meta,
   updateFile: (path: string, buffer: Buffer) => void
 ): data.Compiled {
-  const astAnnotations = new Map<unknown, Try<Type>>();
+  const astAnnotations = new Map<unknown, Type>();
   let type: Type;
   try {
     if (meta.dataType) {

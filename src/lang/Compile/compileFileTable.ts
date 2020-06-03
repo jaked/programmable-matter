@@ -52,7 +52,7 @@ const tableType =
 
 function computeTableConfig(
   ast: ESTree.Expression,
-  annots: Map<unknown, Try<Type>>,
+  annots: data.AstAnnotations,
 ): data.Table {
   Typecheck.check(ast, Typecheck.env(), tableType, annots);
 
@@ -205,7 +205,7 @@ function compileTable(
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ): data.Compiled {
-  const astAnnotations = new Map<unknown, Try<Type>>();
+  const astAnnotations = new Map<unknown, Type>();
   let problems = false;
   let tableConfig: data.Table;
   try {

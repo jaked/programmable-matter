@@ -329,9 +329,9 @@ export function check(
   try {
     if (trace) trace.time(Recast.print(ast).code, () => checkHelper(ast, env, type, annots, trace));
     else checkHelper(ast, env, type, annots, trace);
-    if (annots) annots.set(ast, Try.ok(type));
+    if (annots) annots.set(ast, type);
   } catch (e) {
-    if (annots) annots.set(ast, Try.err(e));
+    if (annots) annots.set(ast, Type.error(e));
     throw e;
   }
 }

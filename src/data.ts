@@ -25,7 +25,7 @@ export const Meta = Immutable.Record<MetaProps>({
 }, 'Meta')
 export type Meta = Immutable.RecordOf<MetaProps>;
 
-export type AstAnnotations = Map<unknown, Try<Type>>;
+export type AstAnnotations = Map<unknown, Type>;
 
 export class File {
   path: string;

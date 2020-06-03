@@ -84,13 +84,9 @@ function computeJsSpans(
     let components = okComponents;
     let status: string | undefined = undefined;
     const type = annots && annots.get(ast);
-    if (type) {
-      if (type.type === 'err') {
-        components = errComponents;
-        status = type.err.message;
-      } else {
-        status = Type.toString(type.ok);
-      }
+    if (type && type.kind === 'Error') {
+      components = errComponents;
+      status = type.err.message;
     }
 
     switch (ast.type) {
@@ -155,7 +151,7 @@ function computeJsSpans(
           let components = okComponents;
           let status: string | undefined = undefined;
           let type = annots && annots.get(ast.source);
-          if (type && type.type === 'err') {
+          if (type && type.kind === 'Error') {
             components = errComponents;
             status = type.err.message;
           }

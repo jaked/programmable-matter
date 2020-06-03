@@ -32,7 +32,7 @@ function convertMeta(obj: any): data.Meta {
 function compileMeta(
   ast: ESTree.Expression
 ): data.Compiled {
-  const astAnnotations = new Map<unknown, Try<Type>>();
+  const astAnnotations = new Map<unknown, Type>();
   let problems = false;
   let error;
   try {

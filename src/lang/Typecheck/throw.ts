@@ -20,7 +20,7 @@ class LocatedError extends Error {
 
 export function withLocation(ast: ESTree.Node, msg, annots?: AstAnnotations): never {
   const err = new LocatedError(msg, ast);
-  if (annots) annots.set(ast, Try.err(err));
+  if (annots) annots.set(ast, Type.error(err));
   throw err;
 }
 
