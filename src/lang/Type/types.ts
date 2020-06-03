@@ -67,6 +67,9 @@ export type SingletonType = Immutable.RecordOf<SingletonProps>;
 export type NotProps = { kind: 'Not', type: Type }
 export type NotType = Immutable.RecordOf<NotProps>;
 
+export type ErrorProps = { kind: 'Error', err: Error }
+export type ErrorType = Immutable.RecordOf<ErrorProps>;
+
 export type Type =
   NeverType |
   UnknownType |
@@ -86,4 +89,5 @@ export type Type =
   UnionType |
   IntersectionType |
   SingletonType |
-  NotType;
+  NotType |
+  ErrorType;

@@ -151,6 +151,14 @@ export function not(type: Types.Type) {
   else return new NotType({ type });
 }
 
+const ErrorType = Immutable.Record<Types.ErrorProps>({
+  kind: 'Error',
+  err: new Error(),
+});
+export function error(err: Error) {
+  return new ErrorType({ err });
+}
+
 const UnionType = Immutable.Record<Types.UnionProps>({
   kind: 'Union',
   types: Immutable.List(),

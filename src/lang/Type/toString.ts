@@ -38,6 +38,7 @@ export function toString(t: Types.Type): string {
       else
         return `${t.value}`;
     case 'Not': return `not(${toString(t.type)})`;
+    case 'Error': return `error(${t.err.message})`;
     default:
       throw new Error(`unexpected type ${(t as Types.Type).kind}`);
   }

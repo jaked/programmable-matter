@@ -31,6 +31,7 @@ module Type {
   export type IntersectionType = Types.IntersectionType;
   export type SingletonType = Types.SingletonType;
   export type NotType = Types.NotType;
+  export type ErrorType = Types.ErrorType;
   export type Type = Types.Type;
 
   export const isSubtype = IsSubtype.isSubtype;
@@ -55,6 +56,7 @@ module Type {
   export const union = Union.union;
   export const intersection = Intersection.intersection;
   export const not = Constructors.not;
+  export const error = Constructors.error;
 
   export const undefinedOr = Constructors.undefinedOr;
   export const enumerate = Constructors.enumerate;
