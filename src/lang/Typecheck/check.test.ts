@@ -97,22 +97,23 @@ describe('check', () => {
   });
 
   describe('objects', () => {
-    const type = Type.object({ bar: Type.undefinedOrNumber });
+    const type = Type.object({ foo: Type.number, bar: Type.undefinedOrNumber });
 
     it('undefined properties may be omitted', () => {
-      expectCheck('({ })', type);
+      expectCheck('({ foo: 7 })', type);
     });
 
-    // TODO(jaked) disabled for now
-    /*
-    it('throws on excess properties in literals', () => {
-      expectCheckThrows('({ foo: 7 })', type);
+    it('throws on missing properties', () => {
+      expectCheckError('({ })', type);
     });
-    */
+
+    it('throws on excess properties in literals', () => {
+      expectCheckError('({ foo: 7, baz: 9 })', type);
+    });
 
     it('permits excess properties in non-literal', () => {
       const env = Typecheck.env({
-        foo: Type.object({ baz: Type.number }),
+        foo: Type.object({ foo: Type.number, baz: Type.number }),
       });
       expectCheck('foo', type, env);
     });

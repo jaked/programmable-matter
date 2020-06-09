@@ -360,6 +360,7 @@ describe('synth', () => {
         Type.string
       ),
       FC: Type.abstract('React.FC', Type.object({ foo: Type.number })),
+      Component2: Type.functionType([ Type.object({ baz: Type.undefinedOrBoolean })], Type.string),
       NotFunction: Type.string,
       TooManyParams: Type.functionType([ Type.string, Type.number ], Type.boolean),
       ParamNotObject: Type.functionType([ Type.string ], Type.boolean),
@@ -373,6 +374,14 @@ describe('synth', () => {
 
     it('ok FC', () => {
       expectSynth('<FC foo={7} />', Type.reactNodeType, env);
+    });
+
+    it('ok no attr value', () => {
+      expectSynth('<Component2 baz />', Type.string, env);
+    });
+
+    it('throws with no attr value of wrong type', () => {
+      expectSynthError('<Component2 baz={7} />', env);
     });
 
     it('throws when prop is missing', () => {

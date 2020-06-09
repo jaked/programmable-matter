@@ -54,7 +54,7 @@ export interface JSXClosingElement extends NodeImpl {
 export interface JSXAttribute extends NodeImpl {
   type: 'JSXAttribute';
   name: JSXIdentifier;
-  value: JSXExpressionContainer | Literal;
+  value: null | JSXExpressionContainer | Literal;
 }
 
 export interface JSXIdentifier extends NodeImpl {
@@ -426,7 +426,8 @@ export function visit(
 
     case 'JSXAttribute':
       visit(ast.name, fn);
-      return visit(ast.value, fn);
+      if (ast.value) visit(ast.value, fn);
+      return;
 
     case 'JSXIdentifier':
       return;
@@ -610,7 +611,7 @@ export function freeIdentifiers(expr: Expression): Array<string> {
           fn(node.name, bound);
           node.attributes.forEach(attr =>  {
             // keys are not identifier references, skip them
-            fn(attr.value, bound);
+            if (attr.value) fn(attr.value, bound);
           });
           return false;
         }

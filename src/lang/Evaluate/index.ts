@@ -58,7 +58,7 @@ export function evaluateExpression(
 
     case 'JSXElement': {
       const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
-        return { [name.name]: evaluateExpression(value, annots, env) };
+        return { [name.name]: value ? evaluateExpression(value, annots, env) : true };
       });
       const attrs = Object.assign({}, ...attrObjs);
       // TODO(jaked) what if both bind and value/onChange are given?

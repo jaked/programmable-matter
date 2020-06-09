@@ -656,7 +656,7 @@ function synthJSXElement(
 ): Type {
   const type = synth(ast.openingElement.name, env, annots, trace);
 
-  const [ propsType, retType ] = ((): [ Type.ObjectType, Type.Type ] => {
+  const [ attrsType, retType ] = ((): [ Type.ObjectType, Type.Type ] => {
     switch (type.kind) {
       case 'Error':
         return [ Type.object({}), type ]
@@ -699,30 +699,52 @@ function synthJSXElement(
     return [ Type.object({}), Error.expectedType(ast.openingElement.name, 'component type', type, annots) ];
   })();
 
+  const attrTypes = ast.openingElement.attributes.map(attr => {
+    const type = attrsType.getFieldType(attr.name.name);
+    if (type) {
+      if (attr.value) {
+        return check(attr.value, env, type, annots, trace);
+      } else {
+        const actual = Type.singleton(true);
+        if (!Type.isSubtype(actual, type)) {
+          return Error.expectedType(attr.name, type, actual, annots);
+        } else {
+          return actual;
+        }
+      }
+    }
+    else {
+      Error.extraField(attr.name, attr.name.name, annots);
+      if (attr.value) {
+        return synth(attr.value, env, annots, trace);
+      } else {
+        return Type.singleton(true);
+      }
+    }
+  });
+
   const attrNames =
     new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
-  propsType.fields.forEach(({ _1: name, _2: type }) => {
+  let missingField: undefined | Type.ErrorType = undefined;
+  attrsType.fields.forEach(({ _1: name, _2: type }) => {
     if (name !== 'children' &&
         !attrNames.has(name) &&
         !Type.isSubtype(Type.undefined, type))
       // TODO(jaked) it would be better to mark the whole JSXElement as having an error
       // but for now this get us the right error highlighting in Editor
-      Error.missingField(ast.openingElement.name, name, annots);
+      missingField = Error.missingField(ast.openingElement.name, name, annots);
   });
 
-  const propTypes = new Map(propsType.fields.map(({ _1, _2 }) => [_1, _2]));
-  ast.openingElement.attributes.forEach(attr => {
-    const type = propTypes.get(attr.name.name);
-    if (type) check(attr.value, env, type, annots, trace);
-    else Error.extraField(attr, attr.name.name, annots);
-  });
-
-  ast.children.map(child =>
+  const childrenTypes = ast.children.map(child =>
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
     check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
   );
 
-  // TODO(jaked) if args has error, return is error
+  if (missingField) return missingField;
+  const attrError = attrTypes.find(type => type.kind === 'Error');
+  if (attrError) return attrError;
+  const childError = childrenTypes.find(type => type.kind === 'Error');
+  if (childError) return childError;
   return retType;
 }
 

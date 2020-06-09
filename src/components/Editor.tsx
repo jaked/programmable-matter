@@ -113,7 +113,17 @@ function computeJsSpans(
         return false;
 
       case 'JSXAttribute':
-        span(ast.name.start, ast.name.end, components.property, status);
+        {
+          // TODO(jaked) clean up duplication
+          let components = okComponents;
+          let status: string | undefined = undefined;
+          let type = annots && annots.get(ast.name);
+          if (type && type.kind === 'Error') {
+            components = errComponents;
+            status = type.err.message;
+          }
+          span(ast.name.start, ast.name.end, components.property, status);
+        }
         ESTree.visit(ast.value, fn);
         return false;
 

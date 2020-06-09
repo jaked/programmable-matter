@@ -57,6 +57,20 @@ describe('evaluateExpression', () => {
     });
   });
 
+  describe('JSX', () => {
+    const tenv = Typecheck.env({
+      Foo: Type.functionType([ Type.object({ bar: Type.boolean })], Type.boolean)
+    });
+    const env = Immutable.Map({
+      Foo: ({ bar }) => bar
+    });
+
+    it('attr with no value', () => {
+      expectEval('<Foo bar={false} />', false, tenv, env);
+      expectEval('<Foo bar />', true, tenv, env);
+    });
+  });
+
   describe('Map#filter', () => {
     it('works', () => {
       expectEval(

@@ -293,20 +293,6 @@ function checkObject(
   trace?: Trace,
 ): Type {
   if (ast.type === 'ObjectExpression') {
-    const propNames = new Set(ast.properties.map(prop => {
-      let name: string;
-      switch (prop.key.type) {
-        case 'Identifier': name = prop.key.name; break;
-        case 'Literal': name = prop.key.value; break;
-        default: bug('expected Identifier or Literal prop key name');
-      }
-      return name;
-    }));
-    type.fields.forEach(({ _1: name, _2: type }) => {
-      if (!propNames.has(name) && !Type.isSubtype(Type.undefined, type))
-        // TODO(jaked) stop after first one? aggregate all?
-        Error.missingField(ast, name, annots);
-    });
     const types = ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
@@ -321,9 +307,27 @@ function checkObject(
         return synth(prop.value, env, annots, trace);
       }
     });
+
+    const propNames = new Set(ast.properties.map(prop => {
+      let name: string;
+      switch (prop.key.type) {
+        case 'Identifier': name = prop.key.name; break;
+        case 'Literal': name = prop.key.value; break;
+        default: bug('expected Identifier or Literal prop key name');
+      }
+      return name;
+    }));
+    let missingField: undefined | Type.ErrorType = undefined;
+    type.fields.forEach(({ _1: name, _2: type }) => {
+      if (!propNames.has(name) && !Type.isSubtype(Type.undefined, type))
+        // TODO(jaked) stop after first one? aggregate all?
+        missingField = Error.missingField(ast, name, annots);
+    });
+
+    if (missingField) return missingField;
     const error = types.find(type => type.kind === 'Error');
     if (error) return error;
-    else return type;
+    return type;
   }
 
   else return checkSubtype(ast, env, type, annots, trace);

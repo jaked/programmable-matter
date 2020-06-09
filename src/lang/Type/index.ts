@@ -61,6 +61,7 @@ module Type {
   export const undefinedOr = Constructors.undefinedOr;
   export const enumerate = Constructors.enumerate;
 
+  export const undefinedOrBoolean = Predef.undefinedOrBoolean;
   export const undefinedOrString = Predef.undefinedOrString;
   export const undefinedOrNumber = Predef.undefinedOrNumber;
   export const numberOrString = Predef.numberOrString;
