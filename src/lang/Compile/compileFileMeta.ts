@@ -33,19 +33,12 @@ function compileMeta(
   ast: ESTree.Expression
 ): data.Compiled {
   const annots = new Map<unknown, Type>();
-  let problems = false;
-  let error;
-  try {
-    Typecheck.check(ast, Typecheck.env(), Type.metaType, annots);
-  } catch (e) {
-    console.log(e);
-    error = e;
-    problems = true;
-  }
+  const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, annots);
+  const problems = [...annots.values()].some(t => t.kind === 'Error');
 
   const value =
-    problems ?
-      Signal.err(error) :
+    error.kind === 'Error' ?
+      Signal.err(error.err) :
       Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
 
   const exportType = Type.module({ default: Type.metaType });

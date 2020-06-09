@@ -1,6 +1,5 @@
 import * as Immutable from 'immutable';
 import Trace from '../../util/Trace';
-import Try from '../../util/Try';
 import * as ESTree from '../ESTree';
 import * as MDXHAST from '../mdxhast';
 import * as Parse from '../Parse';
@@ -8,25 +7,35 @@ import Type from '../Type';
 import Typecheck from './index';
 
 describe('synth', () => {
-  function expectSynthThrows(
+  function synth(
     exprOrString: ESTree.Expression | string,
     env: Typecheck.Env = Typecheck.env()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(() => Typecheck.synth(expr, env)).toThrow();
+    const annots = new Map<unknown, Type>();
+    const type = Typecheck.synth(expr, env, annots);
+    const hasError = [...annots.values()].some(t => t.kind === 'Error');
+    return { type, hasError };
+  }
+
+  function expectSynthError(
+    exprOrString: ESTree.Expression | string,
+    env: Typecheck.Env = Typecheck.env()
+  ) {
+    const { type, hasError } = synth(exprOrString, env);
+    expect(hasError).toBe(true);
   }
 
   function expectSynth(
     exprOrString: ESTree.Expression | string,
-    type: Type,
+    expectedType: Type,
     env: Typecheck.Env = Typecheck.env()
   ) {
-    const expr =
-      (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
-      : exprOrString;
-    expect(Typecheck.synth(expr, env)).toEqual(type);
+    const { type, hasError } = synth(exprOrString, env);
+    expect(hasError).toBe(false);
+    expect(type).toEqual(expectedType);
   }
 
   describe('identifiers', () => {
@@ -36,7 +45,7 @@ describe('synth', () => {
     });
 
     it('throws', () => {
-      expectSynthThrows('foo');
+      expectSynthError('foo');
     });
   });
 
@@ -85,7 +94,7 @@ describe('synth', () => {
 
     it('throws', () => {
       // object with duplicate field names is invalid
-      expectSynthThrows('({ foo: 7, foo: 9 })');
+      expectSynthError('({ foo: 7, foo: 9 })');
     });
   });
 
@@ -274,19 +283,19 @@ describe('synth', () => {
     });
 
     it('throws on string index to array', () => {
-      expectSynthThrows('array["xyzzy"]');
+      expectSynthError('array["xyzzy"]');
     });
 
     it('throws on tuple index out of range', () => {
-      expectSynthThrows('tuple[2]');
+      expectSynthError('tuple[2]');
     });
 
     it('throws on unknown object index', () => {
-      expectSynthThrows('object["quux"]');
+      expectSynthError('object["quux"]');
     });
 
     it('throws on unknown object property', () => {
-      expectSynthThrows('object.quux');
+      expectSynthError('object.quux');
     });
   });
 
@@ -328,19 +337,19 @@ describe('synth', () => {
     });
 
     it('throws when callee is not a function', () => {
-      expectSynthThrows('7(9)');
+      expectSynthError('7(9)');
     });
 
     it('throws when not enough args', () => {
-      expectSynthThrows('f()');
+      expectSynthError('f()');
     });
 
     it('throws when too many args', () => {
-      expectSynthThrows('f(7, 9)');
+      expectSynthError('f(7, 9)');
     });
 
     it('throws when arg is wrong type', () => {
-      expectSynthThrows('f("seven")');
+      expectSynthError('f("seven")');
     });
   });
 
@@ -367,27 +376,27 @@ describe('synth', () => {
     });
 
     it('throws when prop is missing', () => {
-      expectSynthThrows('<Component />', env);
+      expectSynthError('<Component />', env);
     });
 
     it('throws when prop has wrong type', () => {
-      expectSynthThrows('<Component foo={"bar"} />', env);
+      expectSynthError('<Component foo={"bar"} />', env);
     });
 
     it('throws when not a function', () => {
-      expectSynthThrows('<NotFunction />', env);
+      expectSynthError('<NotFunction />', env);
     });
 
     it('throws when too many params', () => {
-      expectSynthThrows('<TooManyParams />', env);
+      expectSynthError('<TooManyParams />', env);
     });
 
     it('throws when param is not an object', () => {
-      expectSynthThrows('<ParamNotObject />', env);
+      expectSynthError('<ParamNotObject />', env);
     });
 
     it('throws when wrong children type', () => {
-      expectSynthThrows('<WrongChildrenType />', env);
+      expectSynthError('<WrongChildrenType />', env);
     });
   });
 
@@ -475,7 +484,7 @@ describe('synth', () => {
 });
 
 describe('synthMdx', () => {
-  function expectSynthMdxThrows(
+  function expectSynthMdxError(
     astOrString: MDXHAST.Node | string,
     env: Typecheck.Env = Typecheck.env()
   ) {
@@ -483,7 +492,10 @@ describe('synthMdx', () => {
     const ast =
       (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
       : astOrString;
-    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {})).toThrow();
+    const annots = new Map<unknown, Type>();
+    Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots);
+    const hasError = [...annots.values()].some(t => t.kind === 'Error');
+    expect(hasError).toBe(true);
   }
 
   function expectSynthMdx(
@@ -494,7 +506,10 @@ describe('synthMdx', () => {
     const ast =
       (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
       : astOrString;
-    expect(() => Typecheck.synthMdx(ast, Immutable.Map(), env, {})).not.toThrow();
+    const annots = new Map<unknown, Type>();
+    Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots);
+    const hasError = [...annots.values()].some(t => t.kind === 'Error');
+    expect(hasError).toBe(false);
   }
 
   describe('type annotation on binding', () => {
@@ -503,7 +518,7 @@ describe('synthMdx', () => {
     });
 
     it('fails', () => {
-      expectSynthMdxThrows(`export const foo: string = 7`);
+      expectSynthMdxError(`export const foo: string = 7`);
     });
   });
 });

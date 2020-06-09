@@ -1,18 +1,23 @@
 import * as Immutable from 'immutable';
 import * as ESTree from '../ESTree';
+import Type from '../Type';
 import * as Parse from '../Parse';
+import Typecheck from '../Typecheck';
 import * as Evaluate from './index';
 
 describe('evaluateExpression', () => {
   function expectEval(
     exprOrString: ESTree.Expression | string,
     value: any,
+    tenv: Typecheck.Env = Typecheck.env(),
     env: Evaluate.Env = Immutable.Map()
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
       : exprOrString;
-    expect(Evaluate.evaluateExpression(expr, env)).toEqual(value)
+    const annots = new Map<unknown, Type>();
+    Typecheck.synth(expr, tenv, annots);
+    expect(Evaluate.evaluateExpression(expr, annots, env)).toEqual(value)
   }
 
   describe('conditional expressions', () => {
@@ -36,12 +41,19 @@ describe('evaluateExpression', () => {
   });
 
   describe('short-circult Booleans', () => {
+    const tenv = Typecheck.env({
+      bug: Type.functionType([], Type.never)
+    });
+    const env = Immutable.Map({
+      bug: () => { throw 'bug' }
+    });
+
     it('&&', () => {
-      expectEval('false && (1 / 0)', false);
+      expectEval('false && bug()', false, tenv, env);
     });
 
     it('||', () => {
-      expectEval('true || (1 / 0)', true);
+      expectEval('true || bug()', true, tenv, env);
     });
   });
 
@@ -50,6 +62,9 @@ describe('evaluateExpression', () => {
       expectEval(
         `foo.filter((v, k) => k === 'bar').size`,
         1,
+        Typecheck.env({
+          foo: Type.map(Type.string, Type.number),
+        }),
         Immutable.Map({
           foo: Immutable.Map({
             bar: 7,

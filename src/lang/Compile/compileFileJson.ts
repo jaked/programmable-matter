@@ -85,20 +85,25 @@ function compileJson(
   updateFile: (path: string, buffer: Buffer) => void
 ): data.Compiled {
   const annots = new Map<unknown, Type>();
-  let type: Type;
-  try {
-    if (meta.dataType) {
-      Typecheck.check(ast, Typecheck.env(), meta.dataType, annots);
-      type = meta.dataType;
-    } else {
-      type = Typecheck.synth(ast, Typecheck.env(), annots);
-    }
-  } catch (e) {
-    console.log(e);
-    const exportType = Type.module({ });
-    const exportValue = { };
+  let type =
+    meta.dataType ?
+      Typecheck.check(ast, Typecheck.env(), meta.dataType, annots) :
+      Typecheck.synth(ast, Typecheck.env(), annots);
+  const problems = [...annots.values()].some(t => t.kind === 'Error');
+
+  if (type.kind === 'Error') {
+    const exportType = Type.module({
+      default: type,
+      mutable: type,
+    });
+    const exportValue = {
+      default: Signal.ok(type.err),
+      mutable: Signal.ok(type.err),
+    };
     const rendered = Signal.ok(false);
-    return { exportType, exportValue, rendered, astAnnotations: annots, problems: true };
+    return { exportType, exportValue, rendered, astAnnotations: annots, problems };
+  } else {
+    type = meta.dataType ? meta.dataType : type;
   }
 
   // TODO(jaked) handle other JSON types

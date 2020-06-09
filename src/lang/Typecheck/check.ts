@@ -25,24 +25,32 @@ function checkSubtype(
 
     case 'ConditionalExpression': {
       const testType = synth(ast.test, env, annots, trace);
-      const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-      const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-      const consequent = check(ast.consequent, envConsequent, type, annots, trace);
-      const alternate = check(ast.alternate, envAlternate, type, annots, trace);
 
+      // when the test has a static value we don't check the untaken branch
+      // this is a little weird but consistent with typechecking
+      // only as much as needed to run the program
       switch (testType.kind) {
-        case 'Error':
-          return alternate;
+        case 'Error': {
+          const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+          return check(ast.alternate, envAlternate, type, annots, trace);
+        }
 
         case 'Singleton':
           if (testType.value) {
-            return consequent;
+            const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
+            return check(ast.consequent, envConsequent, type, annots, trace);
           } else {
-            return alternate;
+            const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+            return check(ast.alternate, envAlternate, type, annots, trace);
           }
 
-        default:
+        default: {
+          const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
+          const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+          const consequent = check(ast.consequent, envConsequent, type, annots, trace);
+          const alternate = check(ast.alternate, envAlternate, type, annots, trace);
           return Type.union(consequent, alternate);
+        }
       }
     }
 

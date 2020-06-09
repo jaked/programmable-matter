@@ -244,7 +244,9 @@ function synthMemberExpression(
 ): Type {
   objectType = objectType || synth(ast.object, env, annots, trace);
 
-  if (objectType.kind === 'Intersection') {
+  if (objectType.kind === 'Error') {
+    return objectType;
+  } else if (objectType.kind === 'Intersection') {
     const memberTypes =
       objectType.types
         // don't annotate AST with possibly spurious errors
@@ -481,22 +483,42 @@ function synthCallExpression(
     const callTypes =
       calleeType.types
         .filter(type => type.kind === 'Function')
-        .map(type => synthCallExpression(ast, env, annots, trace, type));
-    if (callTypes.every(type => type.kind === 'Error')) {
-      // TODO(jaked) better error message
-      return Error.withLocation(ast, 'no matching function type');
-    } else {
-      const retTypes = callTypes.filter(type => type.kind !== 'Error')
-      return Type.intersection(...retTypes);
+        .map(type => synthCallExpression(ast, env, undefined, trace, type));
+    const okTypes = callTypes.filter(type => type.kind !== 'Error');
+    switch (okTypes.size) {
+      case 0:
+        // TODO(jaked) better error message
+        return Error.withLocation(ast, 'no matching function type');
+      case 1: {
+        const okCalleeType =
+          calleeType.types.get(callTypes.findIndex(type => type.kind !== 'Error'));
+        // redo for annots. TODO(jaked) immutable update for annots
+        return synthCallExpression(ast, env, annots, trace, okCalleeType);
+      }
+      default:
+        // TODO(jaked)
+        // we don't want to annotate arg ASTs with multiple types
+        // for different branches of intersection.
+        // for evaluation, dynamic semantics depend on types
+        //   so we need concrete types
+        //   or could elaborate to dynamic type tests
+        //     with concrete types in each branch
+        // for editor, it's just confusing, what else could we do?
+        // TODO(jaked) better error message
+        return Error.withLocation(ast, 'too many matching function types');
     }
   } else if (calleeType.kind === 'Function') {
     if (calleeType.args.size !== ast.arguments.length)
       // TODO(jaked) support short arg lists if arg type contains undefined
       // TODO(jaked) check how this works in Typescript
       return Error.expectedType(ast, `${calleeType.args.size} args`, `${ast.arguments.length}`, annots);
-    calleeType.args.forEach((type, i) => check(ast.arguments[i], env, type, annots, trace));
-    // TODO(jaked) if args has error, return is error
-    return calleeType.ret;
+    const types = calleeType.args.map((type, i) =>
+    check(ast.arguments[i], env, type, annots, trace)
+    );
+    // TODO(jaked) error ok where undefined ok
+    const error = types.find(type => type.kind === 'Error');
+    if (error) return error;
+    else return calleeType.ret;
   } else {
     return Error.expectedType(ast.callee, 'function', calleeType, annots)
   }
@@ -577,24 +599,31 @@ function synthConditionalExpression(
 ): Type {
   const testType = synth(ast.test, env, annots, trace);
 
-  const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-  const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-  const consequent = synth(ast.consequent, envConsequent, annots, trace);
-  const alternate = synth(ast.alternate, envAlternate, annots, trace);
-
+  // when the test has a static value we don't synth the untaken branch
+  // this is a little weird but consistent with typechecking
+  // only as much as needed to run the program
   switch (testType.kind) {
-    case 'Error':
-      return alternate;
+    case 'Error': {
+      const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+      return synth(ast.alternate, envAlternate, annots, trace);
+    }
 
     case 'Singleton':
       if (testType.value) {
-        return consequent;
+        const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
+        return synth(ast.consequent, envConsequent, annots, trace);
       } else {
-        return alternate;
+        const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+        return synth(ast.alternate, envAlternate, annots, trace);
       }
 
-    default:
+    default: {
+      const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
+      const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
+      const consequent = synth(ast.consequent, envConsequent, annots, trace);
+      const alternate = synth(ast.alternate, envAlternate, annots, trace);
       return Type.union(consequent, alternate);
+    }
   }
 }
 
