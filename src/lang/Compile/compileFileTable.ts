@@ -54,8 +54,6 @@ function computeTableConfig(
   ast: ESTree.Expression,
   annots: data.AstAnnotations,
 ): data.Table {
-  Typecheck.check(ast, Typecheck.env(), tableType, annots);
-
   // TODO(jaked)
   // blows up if a type string cannot be parsed
   // but we don't annotate the expression to indicate the problem
@@ -205,22 +203,21 @@ function compileTable(
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ): data.Compiled {
-  const astAnnotations = new Map<unknown, Type>();
-  let problems = false;
-  let tableConfig: data.Table;
-  try {
-    tableConfig = computeTableConfig(ast, astAnnotations);
-  } catch (e) {
-    console.log(e);
+  const annots = new Map<unknown, Type>();
+  Typecheck.check(ast, Typecheck.env(), tableType, annots);
+  const problems = [...annots.values()].some(t => t.kind === 'Error');
+
+  if (problems) {
     return {
       exportType: Type.module({ }),
       exportValue: { },
-      rendered: Signal.ok(false),
-      astAnnotations,
-      problems: true,
-    };
+      rendered: Signal.ok(null),
+      astAnnotations: annots,
+      problems,
+    }
   }
 
+  const tableConfig = computeTableConfig(ast, annots);
   const tableDataType = computeTableDataType(tableConfig);
 
   const table = computeTable(tableConfig, tableDataType, noteTag, noteEnv, updateFile, deleteFile);
@@ -240,7 +237,7 @@ function compileTable(
   const rendered = table.map(table =>
     React.createElement(Table, { data: table(), fields, onSelect })
   );
-  return { exportType, exportValue, rendered, astAnnotations, problems };
+  return { exportType, exportValue, rendered, astAnnotations: annots, problems };
 }
 
 export default function compileFileTable(

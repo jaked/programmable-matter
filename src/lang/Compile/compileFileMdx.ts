@@ -3,7 +3,6 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Trace from '../../util/Trace';
 import Try from '../../util/Try';
-import { bug } from '../../util/bug';
 import * as Parse from '../Parse';
 import * as Render from '../Render';
 import * as MDXHAST from '../mdxhast';
@@ -117,15 +116,10 @@ export default function compileFileMdx(
 
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
-    try {
-      trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
-      const exportType = Type.module(exportTypes);
-      return { exportType, astAnnotations, problems: false }
-    } catch (e) {
-      console.log(e);
-      const exportType = Type.module({ });
-      return { exportType, astAnnotations, problems: true };
-    }
+    trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
+    const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
+    const exportType = Type.module(exportTypes);
+    return { exportType, astAnnotations, problems }
   }));
 
   const layoutFunction = Signal.label("layoutFunction", Signal.join(
@@ -183,18 +177,8 @@ export default function compileFileMdx(
     }
   }));
 
-  return Signal.join(ast, typecheck).flatMap(([ast, typecheck]) => {
-    if (typecheck.problems) {
-      return Signal.ok<data.CompiledFile>({
-        exportType: typecheck.exportType,
-        exportValue: {},
-        rendered: Signal.ok(false),
-        astAnnotations: typecheck.astAnnotations,
-        problems: true,
-        ast: Try.ok(ast),
-      });
-    } else {
-      return render.map(render => ({
+  return Signal.join(ast, typecheck).flatMap(([ast, typecheck]) =>
+      render.map(render => ({
         exportType: typecheck.exportType,
         exportValue: render.exportValue,
         rendered:
@@ -202,9 +186,8 @@ export default function compileFileMdx(
             layoutFunction ? layoutFunction({ children: rendered, meta }) : rendered
           ),
         astAnnotations: typecheck.astAnnotations,
-        problems: false,
+        problems: typecheck.problems,
         ast: Try.ok(ast),
-      }));
-    }
-  });
+      }))
+  );
 }
