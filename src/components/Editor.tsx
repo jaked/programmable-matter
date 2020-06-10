@@ -133,7 +133,7 @@ function computeJsSpans(
         span(ast.end - 1, ast.end, components.default, status);
         return false;
 
-      case 'ObjectPattern':
+      case 'ObjectPattern': {
         // TODO(jaked) fix status for props
         span(ast.start, ast.start + 1, components.default, status);
         ast.properties.forEach(prop => {
@@ -142,9 +142,11 @@ function computeJsSpans(
             ESTree.visit(prop.value, fn);
           }
         });
-        span(ast.end - 1, ast.end, components.default, status);
+        const end = ast.typeAnnotation ? ast.typeAnnotation.start : ast.end;
+        span(end - 1, end, components.default, status);
         if (ast.typeAnnotation) ESTree.visit(ast.typeAnnotation, fn);
         return false;
+      }
 
       case 'ArrayExpression':
         span(ast.start, ast.start + 1, components.default, status);
