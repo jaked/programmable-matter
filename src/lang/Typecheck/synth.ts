@@ -895,11 +895,25 @@ function extendEnvWithNamedExport(
 ): Env {
   decl.declaration.declarations.forEach(declarator => {
     let type;
+    let typeAnnotation: Type | undefined = undefined;
     if (declarator.id.typeAnnotation) {
-      type = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation);
-      check(declarator.init, env, type, annots, trace);
+      // TODO(jaked) fine-grained errors in ofTSType
+      try {
+        typeAnnotation = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation);
+      } catch (e) {
+        // TODO(jaked)
+        // could check with incomplete type instead of giving up completely
+        Error.withLocation(declarator.id.typeAnnotation, e, annots);
+      }
+    }
+    if (declarator.init) {
+      if (typeAnnotation) {
+        type = check(declarator.init, env, typeAnnotation, annots, trace);
+      } else {
+        type = synth(declarator.init, env, annots, trace);
+      }
     } else {
-      type = synth(declarator.init, env, annots, trace);
+      type = Error.withLocation(declarator.id, `expected initializer`, annots);
     }
     exportTypes[declarator.id.name] = type;
     env = env.set(declarator.id.name, type);

@@ -493,31 +493,33 @@ describe('synth', () => {
 });
 
 describe('synthMdx', () => {
-  function expectSynthMdxError(
+  function synthMdx(
     astOrString: MDXHAST.Node | string,
-    env: Typecheck.Env = Typecheck.env()
+    initEnv: Typecheck.Env = Typecheck.env()
   ) {
     const trace = new Trace();
     const ast =
       (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
       : astOrString;
     const annots = new Map<unknown, Type>();
-    Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots);
+    const env = Typecheck.synthMdx(ast, Immutable.Map(), initEnv, {}, annots);
     const hasError = [...annots.values()].some(t => t.kind === 'Error');
+    return { env, hasError };
+  }
+
+  function expectSynthMdxError(
+    astOrString: MDXHAST.Node | string,
+    initEnv: Typecheck.Env = Typecheck.env()
+  ) {
+    const { env, hasError } = synthMdx(astOrString, initEnv);
     expect(hasError).toBe(true);
   }
 
   function expectSynthMdx(
     astOrString: MDXHAST.Node | string,
-    env: Typecheck.Env = Typecheck.env()
+    initEnv: Typecheck.Env = Typecheck.env()
   ) {
-    const trace = new Trace();
-    const ast =
-      (typeof astOrString === 'string') ? Parse.parse(trace, astOrString)
-      : astOrString;
-    const annots = new Map<unknown, Type>();
-    Typecheck.synthMdx(ast, Immutable.Map(), env, {}, annots);
-    const hasError = [...annots.values()].some(t => t.kind === 'Error');
+    const { env, hasError } = synthMdx(astOrString, initEnv);
     expect(hasError).toBe(false);
   }
 
@@ -528,6 +530,20 @@ describe('synthMdx', () => {
 
     it('fails', () => {
       expectSynthMdxError(`export const foo: string = 7`);
+    });
+
+    it('fails with bad annotation', () => {
+      expectSynthMdxError(`export const foo: bar = 7`);
+    });
+  });
+
+  describe('binding without initializer', () => {
+    it('fails with type annotation', () => {
+      expectSynthMdxError(`export const foo: number`);
+    });
+
+    it('fails without type annotation', () => {
+      expectSynthMdxError(`export const foo`);
     });
   });
 });

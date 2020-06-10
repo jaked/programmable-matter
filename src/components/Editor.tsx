@@ -202,7 +202,17 @@ function computeJsSpans(
         return span(ast.start, ast.start + ast.kind.length, components.keyword, status);
 
       case 'VariableDeclarator':
-        span(ast.id.start, ast.id.end, components.definition, status);
+        {
+          // TODO(jaked) clean up duplication
+          let components = okComponents;
+          let status: string | undefined = undefined;
+          let type = annots && annots.get(ast.id);
+          if (type && type.kind === 'Error') {
+            components = errComponents;
+            status = type.err.message;
+          }
+          span(ast.id.start, ast.id.end, components.definition, status);
+        }
         ESTree.visit(ast.init, fn);
         return false;
 
