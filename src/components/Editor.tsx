@@ -211,7 +211,8 @@ function computeJsSpans(
             components = errComponents;
             status = type.err.message;
           }
-          span(ast.id.start, ast.id.end, components.definition, status);
+          span(ast.id.start, ast.id.start + ast.id.name.length, components.definition, status);
+          if (ast.id.typeAnnotation) ESTree.visit(ast.id.typeAnnotation, fn);
         }
         ESTree.visit(ast.init, fn);
         return false;
