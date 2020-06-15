@@ -128,7 +128,7 @@ function checkArray(
       else return type;
     }
 
-      default:
+    default:
       return checkSubtype(ast, env, type, annots, trace);
   }
 }

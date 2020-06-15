@@ -44,6 +44,8 @@ function extendEnvWithImport(
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
 ): Env {
+  // TODO(jaked) finding errors in the AST is delicate.
+  // need to separate error semantics from error highlighting.
   const type = annots.get(decl.source);
   if (type && type.kind === 'Error') {
     decl.specifiers.forEach(spec => {
@@ -59,20 +61,30 @@ function extendEnvWithImport(
         }
 
         case 'ImportDefaultSpecifier': {
-          // TODO(jaked) missing member vs. undefined value
-          const defaultField = module.flatMap(module =>
-            module['default'] ?? bug(`expected default export on '${decl.source.value}'`)
-          );
-          env = env.set(spec.local.name, defaultField);
+          const type = annots.get(spec.local);
+          if (type && type.kind === 'Error') {
+            env = env.set(spec.local.name, Signal.ok(type.err))
+          } else {
+            const defaultField = module.flatMap(module => {
+              if ('default' in module) return module.default;
+              else bug(`expected default export on '${decl.source.value}'`)
+            });
+            env = env.set(spec.local.name, defaultField);
+          }
         }
         break;
 
         case 'ImportSpecifier': {
-          // TODO(jaked) missing member vs. undefined value
-          const importedField = module.flatMap(module =>
-            module[spec.imported.name] ?? bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`)
-          );
-          env = env.set(spec.local.name, importedField);
+          const type = annots.get(spec.imported);
+          if (type && type.kind === 'Error') {
+            env = env.set(spec.local.name, Signal.ok(type.err))
+          } else {
+            const importedField = module.flatMap(module => {
+              if (spec.imported.name in module) return module[spec.imported.name];
+              else bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`);
+            });
+            env = env.set(spec.local.name, importedField);
+          }
         }
         break;
       }
