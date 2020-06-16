@@ -61,8 +61,12 @@ export function evaluateExpression(
       return undefined;
 
     case 'JSXText': {
-      // TODO(jaked) not sure the trim here is right
-      const value = ast.value.trim();
+      // whitespace trimming is not specified in JSX
+      // but it is necessary for components (e.g. Victory) that process their children
+      // we follow Babel, see
+      // https://github.com/calebmer/node_modules/tree/master/babel-plugin-transform-jsx#trimming
+      // TODO(jaked) should do this in parsing insted of eval
+      const value = ast.value.replace(/\n\s*/g, '')
       if (value === '') return null;
       else return value;
     }
