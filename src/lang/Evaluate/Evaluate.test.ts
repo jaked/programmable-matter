@@ -66,6 +66,8 @@ describe('evaluateExpression', () => {
     });
 
     it('attr with no value', () => {
+      // TODO(jaked)
+      // this depends on Evaluate hack that applies Foo
       expectEval('<Foo bar={false} />', false, tenv, env);
       expectEval('<Foo bar />', true, tenv, env);
     });
