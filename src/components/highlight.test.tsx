@@ -86,11 +86,11 @@ describe('highlight', () => {
           [
             <ok.default>{'{'}</ok.default>,
             ' ',
-            <ok.variable>foo</ok.variable>,
+            <ok.definition>foo</ok.definition>,
             ': ',
             <ok.number>7</ok.number>,
             ', ',
-            <err.variable data-status="duplicate property name 'foo'">foo</err.variable>,
+            <err.definition data-status="duplicate property name 'foo'">foo</err.definition>,
             ': ',
             <ok.number>9</ok.number>,
             ' ',
@@ -108,7 +108,7 @@ describe('highlight', () => {
           [
             <ok.default>{'{'}</ok.default>,
             ' ',
-            <err.variable data-status="unbound identifier 'foo'">foo</err.variable>,
+            <err.definition data-status="unbound identifier 'foo'">foo</err.definition>,
             ' ',
             <ok.default>{'}'}</ok.default>,
           ],
@@ -155,7 +155,7 @@ describe('highlight', () => {
       );
     });
 
-    it('highlights imported name for missing named import', () => {
+    it('highlights local name for missing named import without `as`', () => {
       expectHighlightMdx(
         `import { Foo } from 'foo'`,
         Immutable.Map({

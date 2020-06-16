@@ -21,7 +21,7 @@ export type components = {
 type Span = {
   start: number,
   end: number,
-  component: component,
+  component: keyof components,
   status?: string,
   link?: string,
 };
@@ -34,58 +34,49 @@ function computeJsSpans(
   spans: Array<Span>
 ) {
   function span(
-    start: number,
-    end: number,
-    component: component,
+    ast: ESTree.Node,
+    component: keyof components,
     status?: string,
     link?: string,
+    start?: number,
+    end?: number,
   ) {
+    const type = annots && annots.get(ast);
+    if (type && type.kind === 'Error') {
+      status = type.err.message;
+    }
+    start = start || ast.start;
+    end = end || ast.end;
     spans.push({ start, end, component, status, link });
   }
 
   function fn(ast: ESTree.Node) {
-    let components = okComponents;
-    let status: string | undefined = undefined;
-    const type = annots && annots.get(ast);
-    if (type && type.kind === 'Error') {
-      components = errComponents;
-      status = type.err.message;
-    }
-
     switch (ast.type) {
       case 'Literal': {
-        let component = components.default;
+        let component;
         switch (typeof ast.value) {
-          case 'string': component = components.string; break;
-          case 'number': component = components.number; break;
-          case 'boolean': component = components.atom; break;
-          case 'object': component = components.atom; break;
+          case 'string': component = 'string'; break;
+          case 'number': component = 'number'; break;
+          case 'boolean': component = 'atom'; break;
+          case 'object': component = 'atom'; break;
         }
-        return span(ast.start, ast.end, component, status);
+        return span(ast, component);
       }
 
       case 'JSXIdentifier':
       case 'Identifier':
-        return span(ast.start, ast.start + ast.name.length, components.variable, status);
+        return span(ast, 'variable');
 
       case 'Property':
-        {
-          // TODO(jaked) clean up duplication
-          let components = okComponents;
-          let status: string | undefined = undefined;
-          let type = annots && annots.get(ast.key);
-          if (type && type.kind === 'Error') {
-            components = errComponents;
-            status = type.err.message;
-          }
+      {
+        let status: string | undefined = undefined;
           if (ast.shorthand) {
             let type = annots && annots.get(ast.value);
             if (type && type.kind === 'Error') {
-              components = errComponents;
               status = type.err.message;
             }
           }
-          span(ast.key.start, ast.key.end, components.variable, status);
+          span(ast.key, 'definition', status);
         }
         if (!ast.shorthand) {
           ESTree.visit(ast.value, fn);
@@ -93,113 +84,82 @@ function computeJsSpans(
         return false;
 
       case 'JSXAttribute':
-        {
-          // TODO(jaked) clean up duplication
-          let components = okComponents;
-          let status: string | undefined = undefined;
-          let type = annots && annots.get(ast.name);
-          if (type && type.kind === 'Error') {
-            components = errComponents;
-            status = type.err.message;
-          }
-          span(ast.name.start, ast.name.end, components.property, status);
-        }
+        span(ast.name, 'property');
         ESTree.visit(ast.value, fn);
         return false;
 
       case 'ObjectExpression':
-        span(ast.start, ast.start + 1, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
         ESTree.visit(ast.properties, fn);
-        span(ast.end - 1, ast.end, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.end -1, ast.end);
         return false;
 
       case 'ObjectPattern': {
-        // TODO(jaked) fix status for props
-        span(ast.start, ast.start + 1, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
         ast.properties.forEach(prop => {
-          span(prop.key.start, prop.key.end, components.definition, status);
+          span(prop.key, 'definition');
           if (!prop.shorthand) {
             ESTree.visit(prop.value, fn);
           }
         });
         const end = ast.typeAnnotation ? ast.typeAnnotation.start : ast.end;
-        span(end - 1, end, components.default, status);
-        if (ast.typeAnnotation) ESTree.visit(ast.typeAnnotation, fn);
+        span(ast, 'default', undefined, undefined, end -1, end);
+        ESTree.visit(ast.typeAnnotation, fn);
         return false;
       }
 
       case 'ArrayExpression':
-        span(ast.start, ast.start + 1, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
         ESTree.visit(ast.elements, fn);
-        span(ast.end - 1, ast.end, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.end -1, ast.end);
         return false;
 
       case 'ImportDeclaration':
         // TODO(jaked) handle `from`
-        span(ast.start, ast.start + 6, components.keyword, status); // import
+        span(ast, 'keyword', undefined, undefined, ast.start, ast.start + 6); // import
         ESTree.visit(ast.specifiers, fn);
-        {
-          // TODO(jaked) clean up duplication
-          let components = okComponents;
-          let status: string | undefined = undefined;
-          let type = annots && annots.get(ast.source);
-          if (type && type.kind === 'Error') {
-            components = errComponents;
-            status = type.err.message;
-          }
-          // TODO(jaked) maybe a link doesn't make sense for a nonexistent note
-          const link = ast.source.value;
-          span(ast.source.start, ast.source.end, components.link, status, link);
-        }
+        // TODO(jaked) maybe a link doesn't make sense for a nonexistent note
+        span(ast.source, 'link', undefined, ast.source.value);
         return false;
 
       case 'ImportSpecifier': {
-        // TODO(jaked) clean up duplication
-        let components = okComponents;
-        let status: string | undefined = undefined;
-        let type = annots && annots.get(ast.imported);
-        if (type && type.kind === 'Error') {
-          components = errComponents;
-          status = type.err.message;
-        }
         // TODO(jaked) handle `as`
-        span(ast.local.start, ast.local.end, components.definition, status);
+        {
+          let status: string | undefined = undefined;
+          let type = annots && annots.get(ast.imported);
+          if (type && type.kind === 'Error') {
+            status = type.err.message;
+          }
+          span(ast.local, 'definition', status);
+        }
         if (ast.imported.start !== ast.local.start) {
-          span(ast.imported.start, ast.imported.end, components.variable, status);
+          span(ast.imported, 'variable');
         }
         return false;
       }
 
       case 'ImportNamespaceSpecifier':
         // TODO(jaked) handle `as`
-        span(ast.start, ast.start + 1, components.variable, status); // *
-        span(ast.local.start, ast.local.end, components.definition, status);
+        span(ast, 'variable', undefined, undefined, ast.start, ast.start + 1); // *
+        span(ast.local, 'definition');
         return false;
 
       case 'ImportDefaultSpecifier': {
-        // TODO(jaked) clean up duplication
-        let components = okComponents;
-        let status: string | undefined = undefined;
-        let type = annots && annots.get(ast.local);
-        if (type && type.kind === 'Error') {
-          components = errComponents;
-          status = type.err.message;
-        }
-        span(ast.local.start, ast.local.end, components.definition, status);
+        span(ast.local, 'definition');
         return false;
       }
 
       case 'ExportNamedDeclaration':
-        return span(ast.start, ast.start + 6, components.keyword, status); // export
+        return span(ast, 'keyword', undefined, undefined, ast.start, ast.start + 6); // export
 
       case 'ExportDefaultDeclaration':
         // TODO(jaked)
         // if you stick a comment between `export` and `default`
         // the whole thing is rendered as a keyword
-        return span(ast.start, ast.declaration.start, components.keyword, status);
+        return span(ast, 'keyword', undefined, undefined, ast.start, ast.declaration.start);
 
       case 'VariableDeclaration':
-        return span(ast.start, ast.start + ast.kind.length, components.keyword, status);
+        return span(ast, 'keyword', undefined, undefined, ast.start, ast.start + ast.kind.length);
 
       case 'VariableDeclarator':
         {
@@ -211,21 +171,20 @@ function computeJsSpans(
             components = errComponents;
             status = type.err.message;
           }
-          span(ast.id.start, ast.id.start + ast.id.name.length, components.definition, status);
-          if (ast.id.typeAnnotation) ESTree.visit(ast.id.typeAnnotation, fn);
+          span(ast.id, 'definition', undefined, undefined, ast.id.start, ast.id.start + ast.id.name.length);
+          ESTree.visit(ast.id.typeAnnotation, fn);
         }
         ESTree.visit(ast.init, fn);
         return false;
 
       case 'TSTypeLiteral':
-        span(ast.start, ast.start + 1, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
         ESTree.visit(ast.members, fn);
-        span(ast.end - 1, ast.end, components.default, status);
+        span(ast, 'default', undefined, undefined, ast.end - 1, ast.end);
         return false;
 
       case 'TSPropertySignature':
-        // TODO(jaked) fix status for key
-        span(ast.key.start, ast.key.end, components.definition, status);
+        span(ast.key, 'definition');
         ESTree.visit(ast.typeAnnotation, fn);
         return false;
 
@@ -234,7 +193,7 @@ function computeJsSpans(
       case 'TSStringKeyword':
       case 'TSNullKeyword':
       case 'TSUndefinedKeyword':
-        span(ast.start, ast.end, components.variable, status);
+        span(ast, 'variable');
     }
   }
   ESTree.visit(ast, fn);
@@ -341,8 +300,9 @@ export default function computeHighlight(
       }
     }
     const chunk = content.slice(span.start, span.end);
+    const component = span.status ? errComponents[span.component] : okComponents[span.component];
     lineNodes.push(
-      React.createElement(span.component as any, { 'data-status': span.status, 'data-link': span.link }, chunk)
+      React.createElement(component as any, { 'data-status': span.status, 'data-link': span.link }, chunk)
     );
     lastOffset = span.end;
   }
