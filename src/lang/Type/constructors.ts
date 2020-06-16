@@ -1,7 +1,6 @@
 import * as Immutable from 'immutable';
 import { Tuple2 } from '../../util/Tuple';
 import * as Types from './types';
-import * as Union from './union';
 
 const NeverType = Immutable.Record<Types.NeverProps>({ kind: 'never' });
 export const never = NeverType();
@@ -175,10 +174,6 @@ const IntersectionType = Immutable.Record<Types.IntersectionProps>({
 // assumes that `types` satisfy the intersection invariants
 export function intersection(...types: Array<Types.Type>) {
   return IntersectionType({ types: Immutable.List(types) });
-}
-
-export function undefinedOr(t: Types.Type): Types.Type {
-  return Union.union(undefinedType, t);
 }
 
 export function enumerate(...values: any[]): Types.Type {

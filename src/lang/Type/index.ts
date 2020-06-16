@@ -6,6 +6,7 @@ import * as Intersection from './intersection';
 import * as ToString from './toString';
 import * as Predef from './predef';
 import OfTSType from './ofTSType';
+import Expand from './expand';
 
 module Type {
   // there is syntax to re-export a whole module
@@ -36,6 +37,7 @@ module Type {
 
   export const isSubtype = IsSubtype.isSubtype;
   export const equiv = IsSubtype.equiv;
+  export const expand = Expand;
 
   export const never = Constructors.never;
   export const unknown = Constructors.unknown;
@@ -58,7 +60,10 @@ module Type {
   export const not = Constructors.not;
   export const error = Constructors.error;
 
-  export const undefinedOr = Constructors.undefinedOr;
+  export function undefinedOr(t: Types.Type): Types.Type {
+    return Union.union(undefined, t);
+  }
+
   export const enumerate = Constructors.enumerate;
 
   export const undefinedOrBoolean = Predef.undefinedOrBoolean;

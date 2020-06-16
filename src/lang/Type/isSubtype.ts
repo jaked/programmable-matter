@@ -2,8 +2,11 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import { Type } from './types';
 import { undefined } from './constructors';
+import expand from './expand';
 
-export function isSubtype(a: Type, b: Type): boolean {
+export function isSubtype(at: Type, bt: Type): boolean {
+  const a = expand(at);
+  const b = expand(bt);
   if (Immutable.is(a, b)) return true;
   else if (a.kind === 'never') return true;
   else if (b.kind === 'unknown') return true;

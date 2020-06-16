@@ -2,7 +2,6 @@ import * as Immutable from 'immutable';
 import Recast from 'recast/main';
 import { bug } from '../../util/bug';
 import Trace from '../../util/Trace';
-import Try from '../../util/Try';
 import { Tuple2 } from '../../util/Tuple';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
@@ -340,34 +339,7 @@ function checkAbstract(
   annots?: AstAnnotations,
   trace?: Trace
 ): Type {
-  switch (type.label) {
-    case 'React.ReactNode': {
-      if (type.params.size !== 0)
-        // TODO(jaked) should assume valid types here, check it at construction
-        return Error.wrongParamsLength(ast, 0, type.params.size, annots);
-      return Type.reactNodeType;
-    }
-
-    // TODO(jaked)
-    // this seems to be somewhat deprecated, see
-    // https://github.com/typescript-cheatsheets/react-typescript-cheatsheet#function-components
-    // but it is useful to avoid a separate `type Props = ...`
-    case 'React.FC':
-    case 'React.FunctionComponent': {
-      if (type.params.size !== 1)
-        return Error.wrongParamsLength(ast, 1, type.params.size, annots);
-      const param = type.params.get(0) ?? bug();
-      if (param.kind !== 'Object')
-        return Error.withLocation(ast, `expected object param, got ${param.kind}`);
-      // TODO(jaked) catch multiple definition of `children`
-      const paramWithChildren = Type.object(param.fields.push(Tuple2('children', Type.array(Type.reactNodeType))));
-      const expandedType = Type.functionType([ paramWithChildren ], Type.reactNodeType);
-      return check(ast, env, expandedType, annots, trace);
-    }
-
-    default:
-      return checkSubtype(ast, env, type, annots, trace);
-  }
+  return check(ast, env, Type.expand(type), annots, trace);
 }
 
 function checkHelper(

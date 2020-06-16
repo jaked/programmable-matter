@@ -653,7 +653,7 @@ function synthJSXElement(
   annots?: AstAnnotations,
   trace?: Trace,
 ): Type {
-  const type = synth(ast.openingElement.name, env, annots, trace);
+  const type = Type.expand(synth(ast.openingElement.name, env, annots, trace));
 
   const [ attrsType, retType ] = ((): [ Type.ObjectType, Type.Type ] => {
     switch (type.kind) {
@@ -670,28 +670,6 @@ function synthJSXElement(
             if (!childrenField || Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
               return [ argType, type.ret ];
           }
-        }
-        break;
-
-      // TODO(jaked) consolidate with type expansions in Check.checkAbstract
-      case 'Abstract':
-        switch (type.label) {
-          case 'React.FC':
-          case 'React.FunctionComponent':
-            if (type.params.size === 1) {
-              const paramType = type.params.get(0) ?? bug();
-              if (paramType.kind === 'Object')
-                return [ paramType, Type.reactNodeType ]
-            }
-            break;
-
-          case 'React.Component':
-            if (type.params.size === 1) {
-              const paramType = type.params.get(0) ?? bug();
-              if (paramType.kind === 'Object')
-                return [ paramType, Type.reactElementType ]
-            }
-            break;
         }
         break;
     }

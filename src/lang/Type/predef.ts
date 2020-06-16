@@ -45,11 +45,11 @@ export const reactNodeType =
 export const metaType =
   Type.object({
     title: undefinedOrString,
-    tags: Type.undefinedOr(Type.array(Type.string)),
+    tags: Type.union(Type.undefined, Type.array(Type.string)),
     layout: undefinedOrString,
     publish: undefinedOrBoolean,
     dataType: undefinedOrString,
-    dirMeta: Type.undefinedOr(Type.object({
+    dirMeta: Type.union(Type.undefined, Type.object({
       dataType: undefinedOrString,
     })),
   });
