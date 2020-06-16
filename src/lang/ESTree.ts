@@ -387,11 +387,10 @@ export type Node =
 // if fn returns false, don't recurse into children
 // (caller must visit children itself if needed)
 export function visit(
-  ast: Node | Array<Node> | null,
+  ast: Node | Array<Node> | null | undefined,
   fn: (n: Node) => (void | false)
 ) {
-  // wheee Javascript
-  if (ast === null) return;
+  if (ast === null || ast === undefined) return;
   if (Array.isArray(ast)) {
     return ast.forEach(node => visit(node, fn));
   }
@@ -555,8 +554,14 @@ export function visit(
 
     case 'TSTypeReference':
       visit(ast.typeName, fn);
-      if (ast.typeParameters) return visit(ast.typeParameters, fn);
-      else return;
+      return visit(ast.typeParameters, fn);
+
+    case 'TSQualifiedName':
+      visit(ast.left, fn);
+      return visit(ast.right, fn);
+
+      case 'TSTypeParameterInstantiation':
+      return visit(ast.params, fn);
 
     case 'TSNeverKeyword':
     case 'TSUnknownKeyword':
