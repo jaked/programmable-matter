@@ -20,7 +20,7 @@ function synthIdentifier(
   const type = env.get(ast.name);
   if (type) return type;
   else if (ast.name === 'undefined') return Type.undefined;
-  else return Error.withLocation(ast, `unbound identifier ${ast.name}`, annots);
+  else return Error.withLocation(ast, `unbound identifier '${ast.name}'`, annots);
 }
 
 function synthLiteral(
@@ -56,9 +56,9 @@ function synthObjectExpression(
       switch (prop.key.type) {
         case 'Identifier': name = prop.key.name; break;
         case 'Literal': name = prop.key.value; break;
-        default: bug('expected Identifier or Literal prop key name');
+        default: bug('expected Identifier or Literal property name');
       }
-      if (seen.has(name)) Error.withLocation(prop, 'duplicate field name ' + name, annots);
+      if (seen.has(name)) Error.withLocation(prop.key, `duplicate property name '${name}'`, annots);
       else seen.add(name);
       return { [name]: synth(prop.value, env, annots, trace) };
     });

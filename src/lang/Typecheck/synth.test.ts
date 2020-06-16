@@ -92,8 +92,11 @@ describe('synth', () => {
       expectSynth('({ foo: 7, bar: true })', type);
     });
 
-    it('throws', () => {
-      // object with duplicate field names is invalid
+    it('throws on unbound shorthand property', () => {
+      expectSynthError('({ foo })');
+    });
+
+    it('throws on duplicate field name', () => {
       expectSynthError('({ foo: 7, foo: 9 })');
     });
   });

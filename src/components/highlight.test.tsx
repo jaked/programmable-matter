@@ -62,6 +62,62 @@ describe('highlight', () => {
     expect(highlighted).toEqual(expected);
   }
 
+  function expectHighlightExpr(
+    expr: string,
+    expected: React.ReactNode,
+  ) {
+    // TODO(jaked) this is a lot of setup
+    const trace = new Trace();
+    const ast = Parse.parseExpression(expr);
+    const typeEnv = Immutable.Map<string, Type>();
+    const annots = new Map<unknown, Type>();
+    Typecheck.synth(ast, typeEnv, annots, trace);
+
+    const highlighted =
+      highlight(ok, err, 'json', expr, Try.ok(ast), annots);
+    expect(highlighted).toEqual(expected);
+  }
+
+  describe('objects', () => {
+    it('highlights duplicate property name', () => {
+      expectHighlightExpr(
+        `{ foo: 7, foo: 9 }`,
+        [
+          [
+            <ok.default>{'{'}</ok.default>,
+            ' ',
+            <ok.variable>foo</ok.variable>,
+            ': ',
+            <ok.number>7</ok.number>,
+            ', ',
+            <err.variable data-status="duplicate property name 'foo'">foo</err.variable>,
+            ': ',
+            <ok.number>9</ok.number>,
+            ' ',
+            <ok.default>{'}'}</ok.default>,
+          ],
+          <br />
+        ]
+      );
+    });
+
+    it('highlights shorthand property on error', () => {
+      expectHighlightExpr(
+        `{ foo }`,
+        [
+          [
+            <ok.default>{'{'}</ok.default>,
+            ' ',
+            <err.variable data-status="unbound identifier 'foo'">foo</err.variable>,
+            ' ',
+            <ok.default>{'}'}</ok.default>,
+          ],
+          <br />
+        ]
+      );
+    });
+  });
+
   describe('imports', () => {
     it('highlights module for missing module', () => {
       expectHighlightMdx(

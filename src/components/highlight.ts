@@ -69,7 +69,24 @@ function computeJsSpans(
         return span(ast.start, ast.start + ast.name.length, components.variable, status);
 
       case 'Property':
-        ESTree.visit(ast.key, fn);
+        {
+          // TODO(jaked) clean up duplication
+          let components = okComponents;
+          let status: string | undefined = undefined;
+          let type = annots && annots.get(ast.key);
+          if (type && type.kind === 'Error') {
+            components = errComponents;
+            status = type.err.message;
+          }
+          if (ast.shorthand) {
+            let type = annots && annots.get(ast.value);
+            if (type && type.kind === 'Error') {
+              components = errComponents;
+              status = type.err.message;
+            }
+          }
+          span(ast.key.start, ast.key.end, components.variable, status);
+        }
         if (!ast.shorthand) {
           ESTree.visit(ast.value, fn);
         }
