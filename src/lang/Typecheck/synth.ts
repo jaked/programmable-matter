@@ -2,7 +2,6 @@ import * as Immutable from 'immutable';
 import Recast from 'recast/main';
 import { bug } from '../../util/bug';
 import Trace from '../../util/Trace';
-import Try from '../../util/Try';
 import Type from '../Type';
 import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Try from '../util/Try';
 import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
 import * as data from '../data';
@@ -135,13 +136,22 @@ function computeJsSpans(
         }
         return false;
 
-      case 'ImportSpecifier':
+      case 'ImportSpecifier': {
+        // TODO(jaked) clean up duplication
+        let components = okComponents;
+        let status: string | undefined = undefined;
+        let type = annots && annots.get(ast.imported);
+        if (type && type.kind === 'Error') {
+          components = errComponents;
+          status = type.err.message;
+        }
         // TODO(jaked) handle `as`
         span(ast.local.start, ast.local.end, components.definition, status);
         if (ast.imported.start !== ast.local.start) {
           span(ast.imported.start, ast.imported.end, components.variable, status);
         }
         return false;
+      }
 
       case 'ImportNamespaceSpecifier':
         // TODO(jaked) handle `as`
@@ -149,9 +159,18 @@ function computeJsSpans(
         span(ast.local.start, ast.local.end, components.definition, status);
         return false;
 
-      case 'ImportDefaultSpecifier':
+      case 'ImportDefaultSpecifier': {
+        // TODO(jaked) clean up duplication
+        let components = okComponents;
+        let status: string | undefined = undefined;
+        let type = annots && annots.get(ast.local);
+        if (type && type.kind === 'Error') {
+          components = errComponents;
+          status = type.err.message;
+        }
         span(ast.local.start, ast.local.end, components.definition, status);
         return false;
+      }
 
       case 'ExportNamedDeclaration':
         return span(ast.start, ast.start + 6, components.keyword, status); // export
@@ -247,10 +266,9 @@ export default function computeHighlight(
   errComponents: components,
   view: data.Types,
   content: string,
-  compiledFile: data.CompiledFile
+  ast: Try<any>,
+  annots?: data.AstAnnotations,
 ) {
-  const ast = compiledFile.ast;
-  const annots = compiledFile.astAnnotations;
   const spans: Array<Span> = [];
 
   // TODO(jaked)

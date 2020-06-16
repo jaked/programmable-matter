@@ -51,6 +51,7 @@ export function evaluateExpression(
       return undefined;
 
     case 'JSXText': {
+      // TODO(jaked) not sure the trim here is right
       const value = ast.value.trim();
       if (value === '') return null;
       else return value;

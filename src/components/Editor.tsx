@@ -99,7 +99,8 @@ export class Editor extends React.Component<Props, {}> {
 
   render() {
     const { view, content, compiledFile } = this.props;
-    const highlighted = highlight(okComponents, errComponents, view, content, compiledFile);
+    const highlighted =
+      highlight(okComponents, errComponents, view, content, compiledFile.ast, compiledFile.astAnnotations);
     return (
       <div style={{
         fontFamily: 'Monaco, monospace',
