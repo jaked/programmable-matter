@@ -115,18 +115,29 @@ export function evaluateExpression(
       return ast.children.map(child => evaluateExpression(child, annots, env));
 
     case 'UnaryExpression': {
+      const argType = annots.get(ast.argument) ?? bug(`expected type`);
       const v = evaluateExpression(ast.argument, annots, env);
       switch (ast.operator) {
-        case '!': return !v;
-        case 'typeof': return typeof v;
+        case '!': return (argType.kind === 'Error') ? true : !v;
+        case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
         default: throw new Error(`unhandled ast ${ast.operator}`);
       }
     }
 
     case 'LogicalExpression': {
+      const leftType = annots.get(ast.left) ?? bug(`expected type`);
+      const left = evaluateExpression(ast.left, annots, env);
       switch (ast.operator) {
-        case '||': return evaluateExpression(ast.left, annots, env) || evaluateExpression(ast.right, annots, env);
-        case '&&': return evaluateExpression(ast.left, annots, env) && evaluateExpression(ast.right, annots, env);
+        case '||': {
+          return (leftType.kind === 'Error') ?
+            evaluateExpression(ast.right, annots, env) :
+            left || evaluateExpression(ast.right, annots, env);
+        }
+        case '&&': {
+          return (leftType.kind === 'Error') ?
+            left :
+            left && evaluateExpression(ast.right, annots, env);
+        }
         default:
           throw new Error(`unexpected binary operator ${ast.operator}`)
       }
@@ -135,27 +146,30 @@ export function evaluateExpression(
     case 'BinaryExpression': {
       const lv = evaluateExpression(ast.left, annots, env);
       const rv = evaluateExpression(ast.right, annots, env);
+      const leftType = annots.get(ast.left) ?? bug(`expected type`);
+      const rightType = annots.get(ast.right) ?? bug(`expected type`);
+
       switch (ast.operator) {
-        case '+': return lv + rv;
-        case '-': return lv - rv;
-        case '*': return lv * rv;
-        case '/': return lv / rv;
-        case '**': return lv ** rv;
-        case '%': return lv % rv;
-        case '==': return lv == rv;
-        case '!=': return lv != rv;
-        case '===': return lv === rv;
-        case '!==': return lv !== rv;
-        case '<': return lv < rv;
-        case '<=': return lv <= rv;
-        case '>': return lv > rv;
-        case '>=': return lv >= rv;
-        case '|': return lv | rv;
-        case '&': return lv & rv;
-        case '^': return lv ^ rv;
-        case '<<': return lv << rv;
-        case '>>': return lv >> rv;
-        case '>>>': return lv >>> rv;
+        case '+':
+          if (leftType.kind === 'Error')
+            return rv;
+          else if (rightType.kind === 'Error')
+            return lv;
+          else
+            return lv + rv;
+
+        case '===':
+          if (leftType.kind === 'Error' || rightType.kind === 'Error')
+            return false;
+          else
+            return lv === rv;
+
+        case '!==':
+          if (leftType.kind === 'Error' || rightType.kind === 'Error')
+            return true;
+          else
+            return lv !== rv;
+
         default:
           throw new Error(`unexpected binary operator ${ast.operator}`)
       }

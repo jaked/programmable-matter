@@ -36,6 +36,7 @@ module Type {
   export type Type = Types.Type;
 
   export const isSubtype = IsSubtype.isSubtype;
+  export const isPrimitiveSubtype = IsSubtype.isPrimitiveSubtype;
   export const equiv = IsSubtype.equiv;
   export const expand = Expand;
 

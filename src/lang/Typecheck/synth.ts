@@ -50,23 +50,29 @@ function synthObjectExpression(
   trace?: Trace,
 ): Type {
   const seen = new Set();
-  const fieldTypes: Array<{ [n: string]: Type }> =
-    ast.properties.map(prop => {
+  const fieldTypes = ast.properties.reduce<{ [n: string]: Type }>(
+    (obj, prop) => {
       let name: string;
       switch (prop.key.type) {
         case 'Identifier': name = prop.key.name; break;
         case 'Literal': name = prop.key.value; break;
         default: bug('expected Identifier or Literal property name');
       }
-      if (seen.has(name)) Error.withLocation(prop.key, `duplicate property name '${name}'`, annots);
-      else seen.add(name);
-      return { [name]: synth(prop.value, env, annots, trace) };
-    });
-  return Type.object(Object.assign({}, ...fieldTypes));
+      if (seen.has(name)) {
+        Error.withLocation(prop.key, `duplicate property name '${name}'`, annots);
+        return obj;
+      } else {
+        seen.add(name);
+        return { ...obj, [name]: synth(prop.value, env, annots, trace) };
+      }
+    },
+    {}
+  );
+  return Type.object(fieldTypes);
 }
 
 const typeofType =
-  Type.enumerate('undefined', 'boolean', 'number', 'string', 'function', 'object')
+  Type.enumerate('undefined', 'boolean', 'number', 'string', 'function', 'object', 'error')
 
 function synthUnaryExpression(
   ast: ESTree.UnaryExpression,
@@ -122,7 +128,7 @@ function synthLogicalExpression(
       switch (left.kind) {
         case 'Error': {
           const right = synth(ast.right, env, annots, trace);
-          return Type.singleton(false);
+          return left;
         }
 
         case 'Singleton': {
@@ -174,49 +180,44 @@ function synthBinaryExpression(
   let left = synth(ast.left, env, annots, trace);
   let right = synth(ast.right, env, annots, trace);
 
-  if (left.kind === 'Error') return left;
-  else if (right.kind === 'Error') return right;
-
-  else if (left.kind === 'Singleton' && right.kind === 'Singleton') {
-    // TODO(jaked) handle other operators
-    switch (ast.operator) {
-      case '===':
+  // TODO(jaked) handle other operators
+  switch (ast.operator) {
+    case '===':
+      if (left.kind === 'Error' || right.kind === 'Error')
+        return Type.singleton(false);
+      else if (left.kind === 'Singleton' && right.kind === 'Singleton')
         return Type.singleton(left.value === right.value);
-      case '!==':
-        return Type.singleton(left.value !== right.value);
-
-      case '+': {
-        if (left.base.kind === 'number' && right.base.kind === 'number')
-          return Type.singleton(left.value + right.value);
-        else if (left.base.kind === 'string' && right.base.kind === 'string')
-          return Type.singleton(left.value + right.value);
-        else return Error.withLocation(ast, 'incompatible operands to +', annots);
-      }
-
-      default:
-        bug(`unimplemented operator ${ast.operator}`);
-    }
-  } else {
-    if (left.kind === 'Singleton') left = left.base;
-    if (right.kind === 'Singleton') right = right.base;
-
-    // TODO(jaked) handle other operators
-    switch (ast.operator) {
-      case '===':
-      case '!==':
+      else
         return Type.boolean;
 
-      case '+': {
-        if (left.kind === 'number' && right.kind === 'number')
-          return Type.number;
-        else if (left.kind === 'string' && right.kind === 'string')
-          return Type.string;
-        else return Error.withLocation(ast, 'incompatible operands to +', annots);
-      }
+    case '!==':
+      if (left.kind === 'Error' || right.kind === 'Error')
+        return Type.singleton(true);
+      else if (left.kind === 'Singleton' && right.kind === 'Singleton')
+        return Type.singleton(left.value !== right.value);
+      else
+        return Type.boolean;
 
-      default:
-        bug(`unimplemented operator ${ast.operator}`);
-    }
+    case '+':
+      if (left.kind === 'Error')
+        return right;
+      else if (right.kind === 'Error')
+        return left;
+      else if (left.kind === 'Singleton' && left.base.kind === 'number' &&
+          right.kind === 'Singleton' && right.base.kind === 'number')
+        return Type.singleton(left.value + right.value);
+      else if (left.kind === 'Singleton' && left.base.kind === 'string' &&
+          right.kind === 'Singleton' && right.base.kind === 'string')
+        return Type.singleton(left.value + right.value);
+      else if (Type.isPrimitiveSubtype(left, Type.number) && Type.isPrimitiveSubtype(right, Type.number))
+        return Type.number;
+      else if (Type.isPrimitiveSubtype(left, Type.string) && Type.isPrimitiveSubtype(right, Type.string))
+        return Type.string;
+      else
+        return Error.withLocation(ast, 'incompatible operands to +', annots);
+
+    default:
+      bug(`unimplemented operator ${ast.operator}`);
   }
 }
 

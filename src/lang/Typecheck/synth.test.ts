@@ -7,9 +7,11 @@ import Type from '../Type';
 import Typecheck from './index';
 
 describe('synth', () => {
-  function synth(
+  function expectSynth(
     exprOrString: ESTree.Expression | string,
-    env: Typecheck.Env = Typecheck.env()
+    env: Typecheck.Env = Typecheck.env(),
+    expectedType?: Type,
+    expectedError: boolean = false,
   ) {
     const expr =
       (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
@@ -17,49 +19,32 @@ describe('synth', () => {
     const annots = new Map<unknown, Type>();
     const type = Typecheck.synth(expr, env, annots);
     const hasError = [...annots.values()].some(t => t.kind === 'Error');
-    return { type, hasError };
-  }
-
-  function expectSynthError(
-    exprOrString: ESTree.Expression | string,
-    env: Typecheck.Env = Typecheck.env()
-  ) {
-    const { type, hasError } = synth(exprOrString, env);
-    expect(hasError).toBe(true);
-  }
-
-  function expectSynth(
-    exprOrString: ESTree.Expression | string,
-    expectedType: Type,
-    env: Typecheck.Env = Typecheck.env()
-  ) {
-    const { type, hasError } = synth(exprOrString, env);
-    expect(hasError).toBe(false);
-    expect(type).toEqual(expectedType);
+    if (expectedError) expect(hasError).toBe(expectedError);
+    if (expectedType) expect(type).toEqual(expectedType);
   }
 
   describe('identifiers', () => {
     it('succeeds', () => {
       const env = Typecheck.env({ foo: Type.boolean });
-      expectSynth('foo', Type.boolean, env);
+      expectSynth('foo', env, Type.boolean);
     });
 
-    it('throws', () => {
-      expectSynthError('foo');
+    it('error', () => {
+      expectSynth('foo', undefined, undefined, true);
     });
   });
 
   describe('literals', () => {
     it('boolean', () => {
-      expectSynth('true', Type.singleton(true));
+      expectSynth('true', undefined, Type.singleton(true));
     });
 
     it('string', () => {
-      expectSynth('"foo"', Type.singleton("foo"));
+      expectSynth('"foo"', undefined, Type.singleton("foo"));
     });
 
     it('null', () => {
-      expectSynth('null', Type.nullType);
+      expectSynth('null', undefined, Type.nullType);
     });
   });
 
@@ -70,7 +55,7 @@ describe('synth', () => {
         Type.singleton(7),
         Type.singleton(9)
       ));
-      expectSynth('[ 7, 9 ]', type);
+      expectSynth('[ 7, 9 ]', undefined, type);
     });
 
     it('non-uniform', () => {
@@ -79,7 +64,7 @@ describe('synth', () => {
         Type.singleton(7),
         Type.singleton(true)
       ));
-      expectSynth('[ 7, true ]', type);
+      expectSynth('[ 7, true ]', undefined, type);
     });
   });
 
@@ -89,71 +74,95 @@ describe('synth', () => {
         foo: Type.singleton(7),
         bar: Type.singleton(true)
       });
-      expectSynth('({ foo: 7, bar: true })', type);
+      expectSynth('({ foo: 7, bar: true })', undefined, type);
     });
 
-    it('throws on unbound shorthand property', () => {
-      expectSynthError('({ foo })');
+    it('error on unbound shorthand property', () => {
+      expectSynth('({ foo })', undefined, undefined, true);
     });
 
-    it('throws on duplicate field name', () => {
-      expectSynthError('({ foo: 7, foo: 9 })');
+    it('error on duplicate property name, drops property', () => {
+      expectSynth(
+        `({ foo: 7, foo: 'bar' })`,
+        undefined,
+        Type.object({ foo: Type.singleton(7) }),
+        true
+      );
     });
   });
 
   describe('unary expressions', () => {
-    it('!', () => {
-      expectSynth('!7', Type.singleton(false));
+    const env = Typecheck.env({ error: Type.error(new Error('error')) });
+
+    describe('!', () => {
+      it('ok', () => {
+        expectSynth('!7', undefined, Type.singleton(false));
+      });
+
+      it('error is falsy', () => {
+        expectSynth('!error', env, Type.singleton(true));
+      });
     });
 
-    it('typeof', () => {
-      expectSynth('typeof 7', Type.singleton('number'));
+    describe('typeof', () => {
+      it('ok', () => {
+        expectSynth('typeof 7', undefined, Type.singleton('number'));
+      });
+
+      it(`returns 'error' on error`, () => {
+        expectSynth('typeof error', env, Type.singleton('error'));
+      });
     });
   });
 
   describe('logical expressions', () => {
-    describe('statically evaluated', () => {
-      const env = Typecheck.env({
-        number: Type.number,
-        string: Type.string,
+    const error = new Error('error');
+    const env = Typecheck.env({
+      number: Type.number,
+      string: Type.string,
+      error: Type.error(error),
+    });
+
+    describe('&&', () => {
+      it('truthy && unknown', () => {
+        expectSynth('"foo" && number', env, Type.number);
       });
 
-      it('&& truthy', () => {
-        expectSynth('"foo" && number', Type.number, env);
+      it('falsy && unknown', () => {
+        expectSynth('0 && string', env, Type.singleton(0));
       });
 
-      it('&& falsy', () => {
-        expectSynth('0 && string', Type.singleton(0), env);
+      it('error && unknown', () => {
+        expectSynth('error && string', env, Type.error(error));
       });
 
-      it('|| truthy', () => {
-        expectSynth('"foo" || number', Type.singleton("foo"), env);
-      });
-
-      it('|| falsy', () => {
-        expectSynth('0 || string', Type.string, env);
+      it('unknown && unknown', () => {
+        expectSynth(
+          'number && string',
+          env,
+          Type.union(Type.singleton(0), Type.string),
+        );
       });
     });
 
-    describe('not statically evaluated', () => {
-      const env = Typecheck.env({
-        number: Type.number,
-        string: Type.string,
+    describe('||', () => {
+      it('truthy || unknown', () => {
+        expectSynth('"foo" || number', env, Type.singleton("foo"));
       });
 
-      it('&&', () => {
-        expectSynth(
-          'number && string',
-          Type.union(Type.singleton(0), Type.string),
-          env
-        );
+      it('falsy || unknown', () => {
+        expectSynth('0 || string', env, Type.string);
       });
 
-      it('||', () => {
+      it('error || unknown', () => {
+        expectSynth('error || string', env, Type.string);
+      });
+
+      it('unknown || unknown', () => {
         expectSynth(
           'number || string',
+          env,
           Type.union(Type.number, Type.string),
-          env
         );
       });
     });
@@ -165,8 +174,8 @@ describe('synth', () => {
         });
         expectSynth(
           's && s.length',
+          env,
           Type.union(Type.undefined, Type.number),
-          env
         );
       });
 
@@ -176,9 +185,9 @@ describe('synth', () => {
         });
         expectSynth(
           's === null || s.length',
+          env,
           // TODO(jaked) boolean & not(false) === true
           Type.union(Type.boolean, Type.number),
-          env
         );
       });
 
@@ -196,52 +205,77 @@ describe('synth', () => {
         });
         expectSynth(
           'foo && foo.bar && foo.bar.baz',
+          env,
           Type.union(Type.undefined, Type.number),
-          env
         );
       });
     });
   });
 
   describe('binary expressions', () => {
-    describe('statically evaluated', () => {
-      it('+ numbers', () => {
-        expectSynth('1 + 2', Type.singleton(3));
+    const env = Typecheck.env({
+      error: Type.error(new Error('error')),
+      number: Type.number,
+      string: Type.string,
+    });
+
+    describe('+', () => {
+      it('literal number + literal number', () => {
+        expectSynth('1 + 2', undefined, Type.singleton(3));
       });
 
-      it('+ strings', () => {
-        expectSynth('"foo" + "bar"', Type.singleton('foobar'));
+      it('error + literal number', () => {
+        expectSynth('error + 2', undefined, Type.singleton(2));
       });
 
-      it('===', () => {
-        expectSynth('"foo" === "bar"', Type.singleton(false));
+      it('literal number + error', () => {
+        expectSynth('1 + error', undefined, Type.singleton(1));
       });
 
-      it('!==', () => {
-        expectSynth('"foo" !== "bar"', Type.singleton(true));
+      it('literal string + literal string', () => {
+        expectSynth('"foo" + "bar"', undefined, Type.singleton('foobar'));
+      });
+
+      it('number + number', () => {
+        expectSynth('number + number', env, Type.number);
+      });
+
+      it('error + number', () => {
+        expectSynth('error + number', env, Type.number);
+      });
+
+      it('number + error', () => {
+        expectSynth('error + number', env, Type.number);
+      });
+
+      it('string + string', () => {
+        expectSynth('string + string', env, Type.string);
       });
     });
 
-    describe('not statically evaluated', () => {
-      const env = Typecheck.env({
-        number: Type.number,
-        string: Type.string,
+    describe('=== / !==', () => {
+      it('literal string === literal string', () => {
+        expectSynth('"foo" === "bar"', undefined, Type.singleton(false));
       });
 
-      it('+ numbers', () => {
-        expectSynth('number + number', Type.number, env);
+      it('literal string !== literal string', () => {
+        expectSynth('"foo" !== "bar"', undefined, Type.singleton(true));
       });
 
-      it('+ strings', () => {
-        expectSynth('string + string', Type.string, env);
+      it('string === string', () => {
+        expectSynth('string === string', env, Type.boolean);
       });
 
-      it('===', () => {
-        expectSynth('string === string', Type.boolean, env);
+      it('string !== string', () => {
+        expectSynth('string !== string', env, Type.boolean);
       });
 
-      it('!==', () => {
-        expectSynth('string !== string', Type.boolean, env);
+      it('error === string', () => {
+        expectSynth('error === string', undefined, Type.singleton(false));
+      });
+
+      it('error !== string', () => {
+        expectSynth('error !== string', undefined, Type.singleton(true));
       });
     });
   });
@@ -262,43 +296,43 @@ describe('synth', () => {
     });
 
     it('property names', () => {
-      expectSynth('object.foo', Type.boolean, env);
+      expectSynth('object.foo', env, Type.boolean);
     });
 
     it('string index', () => {
-      expectSynth('object["foo"]', Type.boolean, env);
+      expectSynth('object["foo"]', env, Type.boolean);
     });
 
     it('number index in array', () => {
-      expectSynth('array[0]', Type.number, env);
+      expectSynth('array[0]', env, Type.number);
     });
 
     it('number index in tuple', () => {
-      expectSynth('tuple[0]', Type.boolean, env);
+      expectSynth('tuple[0]', env, Type.boolean);
     });
 
     it('multiple number indexes in tuple', () => {
-      expectSynth('tuple[numberUnion]', Type.union(Type.boolean, Type.number), env);
+      expectSynth('tuple[numberUnion]', env, Type.union(Type.boolean, Type.number));
     });
 
     it('multiple string indexes in object', () => {
-      expectSynth('object[stringUnion]', Type.union(Type.boolean, Type.number), env);
+      expectSynth('object[stringUnion]', env, Type.union(Type.boolean, Type.number));
     });
 
-    it('throws on string index to array', () => {
-      expectSynthError('array["xyzzy"]');
+    it('error on string index to array', () => {
+      expectSynth('array["xyzzy"]', undefined, undefined, true);
     });
 
-    it('throws on tuple index out of range', () => {
-      expectSynthError('tuple[2]');
+    it('error on tuple index out of range', () => {
+      expectSynth('tuple[2]', undefined, undefined, true);
     });
 
-    it('throws on unknown object index', () => {
-      expectSynthError('object["quux"]');
+    it('error on unknown object index', () => {
+      expectSynth('object["quux"]', undefined, undefined, true);
     });
 
-    it('throws on unknown object property', () => {
-      expectSynthError('object.quux');
+    it('error on unknown object property', () => {
+      expectSynth('object.quux', undefined, undefined, true);
     });
   });
 
@@ -306,6 +340,7 @@ describe('synth', () => {
     it('ok', () => {
       expectSynth(
         '() => 7',
+        undefined,
         Type.functionType([], Type.singleton(7))
       );
     });
@@ -313,6 +348,7 @@ describe('synth', () => {
     it('ok with params', () => {
       expectSynth(
         '(x: number, y: 7) => x + y',
+        undefined,
         Type.functionType(
           [ Type.number, Type.singleton(7) ],
           Type.number
@@ -331,28 +367,28 @@ describe('synth', () => {
     });
 
     it('ok', () => {
-      expectSynth('f(7)', Type.string, env);
+      expectSynth('f(7)', env, Type.string);
     });
 
     it('ok intersection', () => {
-      expectSynth(`intf(7)`, Type.number, env);
-      expectSynth(`intf('nine')`, Type.string, env);
+      expectSynth(`intf(7)`, env, Type.number);
+      expectSynth(`intf('nine')`, env, Type.string);
     });
 
-    it('throws when callee is not a function', () => {
-      expectSynthError('7(9)');
+    it('error when callee is not a function', () => {
+      expectSynth('7(9)', undefined, undefined, true);
     });
 
-    it('throws when not enough args', () => {
-      expectSynthError('f()');
+    it('error when not enough args', () => {
+      expectSynth('f()', undefined, undefined, true);
     });
 
-    it('throws when too many args', () => {
-      expectSynthError('f(7, 9)');
+    it('error when too many args', () => {
+      expectSynth('f(7, 9)', undefined, undefined, true);
     });
 
-    it('throws when arg is wrong type', () => {
-      expectSynthError('f("seven")');
+    it('error when arg is wrong type', () => {
+      expectSynth('f("seven")', undefined, undefined, true);
     });
   });
 
@@ -372,71 +408,71 @@ describe('synth', () => {
 
     it('ok', () => {
       // bar may be omitted because the type may be undefined
-      expectSynth('<Component foo={7} />', Type.string, env);
+      expectSynth('<Component foo={7} />', env, Type.string);
     });
 
     it('ok FC', () => {
-      expectSynth('<FC foo={7} />', Type.reactNodeType, env);
+      expectSynth('<FC foo={7} />', env, Type.reactNodeType);
     });
 
     it('ok no attr value', () => {
-      expectSynth('<Component2 baz />', Type.string, env);
+      expectSynth('<Component2 baz />', env, Type.string);
     });
 
-    it('throws with no attr value of wrong type', () => {
-      expectSynthError('<Component2 baz={7} />', env);
+    it('error with no attr value of wrong type', () => {
+      expectSynth('<Component2 baz={7} />', env, undefined, true);
     });
 
-    it('throws when prop is missing', () => {
-      expectSynthError('<Component />', env);
+    it('error when prop is missing', () => {
+      expectSynth('<Component />', env, undefined, true);
     });
 
-    it('throws when prop has wrong type', () => {
-      expectSynthError('<Component foo={"bar"} />', env);
+    it('error when prop has wrong type', () => {
+      expectSynth('<Component foo={"bar"} />', env, undefined, true);
     });
 
-    it('throws when not a function', () => {
-      expectSynthError('<NotFunction />', env);
+    it('error when not a function', () => {
+      expectSynth('<NotFunction />', env, undefined, true);
     });
 
-    it('throws when too many params', () => {
-      expectSynthError('<TooManyParams />', env);
+    it('error when too many params', () => {
+      expectSynth('<TooManyParams />', env, undefined, true);
     });
 
-    it('throws when param is not an object', () => {
-      expectSynthError('<ParamNotObject />', env);
+    it('error when param is not an object', () => {
+      expectSynth('<ParamNotObject />', env, undefined, true);
     });
 
-    it('throws when wrong children type', () => {
-      expectSynthError('<WrongChildrenType />', env);
+    it('error when wrong children type', () => {
+      expectSynth('<WrongChildrenType />', env, undefined, true);
     });
   });
 
   describe('conditional expressions', () => {
     it('ok', () => {
       const env = Typecheck.env({ b: Type.boolean });
-      expectSynth('b ? 1 : 2', Type.enumerate(1, 2), env);
+      expectSynth('b ? 1 : 2', env, Type.enumerate(1, 2));
     });
 
     it('ok with statically evaluable test', () => {
-      expectSynth('true ? 1 : 2', Type.singleton(1));
+      expectSynth('true ? 1 : 2', undefined, Type.singleton(1));
     });
 
     it('ok with statically evaluable test 2', () => {
       const env = Typecheck.env({ x: Type.singleton('foo') });
-      expectSynth(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
+      expectSynth(`x === 'foo' ? 1 : 2`, env, Type.singleton(1));
     });
 
     describe('narrowing', () => {
       describe('equality tests', () => {
         it('true branch', () => {
           const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
-          expectSynth(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
+          expectSynth(`s === 'foo' ? s : 'foo'`, env, Type.singleton('foo'));
         });
 
         it('false branch', () => {
           const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
-          expectSynth(`s === 'foo' ? 'bar' : s`, Type.singleton('bar'), env);
+          expectSynth(`s === 'foo' ? 'bar' : s`, env, Type.singleton('bar'));
         });
       });
 
@@ -447,25 +483,25 @@ describe('synth', () => {
             Type.object({ type: Type.singleton('bar'), bar: Type.number }),
           )
         });
-        expectSynth(`s.type === 'foo' ? s.foo : s.bar`, Type.number, env);
+        expectSynth(`s.type === 'foo' ? s.foo : s.bar`, env, Type.number);
       });
 
       describe('typeof expressions', () => {
         it('true branch', () => {
           const env = Typecheck.env({ s: Type.union(Type.number, Type.string) });
-          expectSynth(`typeof(s) === 'string' ? s : 'foo'`, Type.string, env)
+          expectSynth(`typeof(s) === 'string' ? s : 'foo'`, env, Type.string)
         });
 
         it('false branch', () => {
           const env = Typecheck.env({ s: Type.union(Type.number, Type.string) });
-          expectSynth(`typeof(s) === 'string' ? 7 : s`, Type.number, env)
+          expectSynth(`typeof(s) === 'string' ? 7 : s`, env, Type.number)
         });
 
         describe('objects', () => {
           it('true branch', () => {
             const env =
               Typecheck.env({ s: Type.undefinedOr(Type.object({ foo: Type.string })) });
-            expectSynth(`typeof(s) === 'object' ? s.foo : 'foo'`, Type.string, env)
+            expectSynth(`typeof(s) === 'object' ? s.foo : 'foo'`, env, Type.string)
           });
         });
       });
@@ -473,12 +509,12 @@ describe('synth', () => {
       describe('truthiness tests', () => {
         it('truthiness', () => {
           const env = Typecheck.env({ s: Type.union(Type.number, Type.undefined) });
-          expectSynth(`s ? s : 7`, Type.number, env);
+          expectSynth(`s ? s : 7`, env, Type.number);
         });
 
         it('falsiness', () => {
           const env = Typecheck.env({ s: Type.union(Type.number, Type.singleton(true)) });
-          expectSynth(`!s ? s : 7`, Type.number, env);
+          expectSynth(`!s ? s : 7`, env, Type.number);
         });
       });
 
@@ -487,8 +523,8 @@ describe('synth', () => {
           Typecheck.env({ s: Type.union(Type.number, Type.string, Type.boolean) });
         expectSynth(
           `typeof(s) === 'boolean' ? 'foo' : typeof(s) === 'number' ? 'bar' : s`,
+          env,
           Type.string,
-          env
         );
       });
     });
@@ -496,9 +532,10 @@ describe('synth', () => {
 });
 
 describe('synthMdx', () => {
-  function synthMdx(
+  function expectSynthMdx(
     astOrString: MDXHAST.Node | string,
-    initEnv: Typecheck.Env = Typecheck.env()
+    initEnv: Typecheck.Env = Typecheck.env(),
+    expectedError: boolean = false,
   ) {
     const trace = new Trace();
     const ast =
@@ -507,23 +544,7 @@ describe('synthMdx', () => {
     const annots = new Map<unknown, Type>();
     const env = Typecheck.synthMdx(ast, Immutable.Map(), initEnv, {}, annots);
     const hasError = [...annots.values()].some(t => t.kind === 'Error');
-    return { env, hasError };
-  }
-
-  function expectSynthMdxError(
-    astOrString: MDXHAST.Node | string,
-    initEnv: Typecheck.Env = Typecheck.env()
-  ) {
-    const { env, hasError } = synthMdx(astOrString, initEnv);
-    expect(hasError).toBe(true);
-  }
-
-  function expectSynthMdx(
-    astOrString: MDXHAST.Node | string,
-    initEnv: Typecheck.Env = Typecheck.env()
-  ) {
-    const { env, hasError } = synthMdx(astOrString, initEnv);
-    expect(hasError).toBe(false);
+    if (expectedError) expect(hasError).toBe(expectedError);
   }
 
   describe('type annotation on binding', () => {
@@ -532,21 +553,21 @@ describe('synthMdx', () => {
     });
 
     it('fails', () => {
-      expectSynthMdxError(`export const foo: string = 7`);
+      expectSynthMdx(`export const foo: string = 7`, undefined, true);
     });
 
     it('fails with bad annotation', () => {
-      expectSynthMdxError(`export const foo: bar = 7`);
+      expectSynthMdx(`export const foo: bar = 7`, undefined, true);
     });
   });
 
   describe('binding without initializer', () => {
     it('fails with type annotation', () => {
-      expectSynthMdxError(`export const foo: number`);
+      expectSynthMdx(`export const foo: number`, undefined, true);
     });
 
     it('fails without type annotation', () => {
-      expectSynthMdxError(`export const foo`);
+      expectSynthMdx(`export const foo`, undefined, true);
     });
   });
 });
