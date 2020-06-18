@@ -229,8 +229,7 @@ function synthSequenceExpression(
 ): Type {
   ast.expressions.forEach((e, i) => {
     if (i < ast.expressions.length - 1)
-      // TODO(jaked) undefined or error
-      check(e, env, Type.undefined, annots, trace);
+      synth(e, env, annots, trace);
   });
   return synth(ast.expressions[ast.expressions.length - 1], env, annots, trace);
 }
@@ -246,6 +245,7 @@ function synthMemberExpression(
 
   if (objectType.kind === 'Error') {
     return objectType;
+
   } else if (objectType.kind === 'Intersection') {
     const memberTypes =
       objectType.types
@@ -270,9 +270,13 @@ function synthMemberExpression(
 
   } else if (ast.computed) {
     switch (objectType.kind) {
-      case 'Array':
-        check(ast.property, env, Type.number, annots, trace);
-        return objectType.elem;
+      case 'Array': {
+        const propertyType = check(ast.property, env, Type.number, annots, trace);
+        if (propertyType.kind === 'Error')
+          return Type.undefined;
+        else
+          return objectType.elem;
+      }
 
       case 'Tuple': {
         // check against union of valid indexes
@@ -284,13 +288,19 @@ function synthMemberExpression(
         // synth to find out which valid indexes are actually present
         const propertyType = synth(ast.property, env, annots, trace);
         const presentIndexes: Array<number> = [];
-        if (propertyType.kind === 'Singleton') {
+
+        if (propertyType.kind === 'Error') {
+          return propertyType;
+
+        } else if (propertyType.kind === 'Singleton') {
           presentIndexes.push(propertyType.value);
+
         } else if (propertyType.kind === 'Union') {
           propertyType.types.forEach(type => {
             if (type.kind === 'Singleton') presentIndexes.push(type.value);
             else bug('expected Singleton');
           });
+
         } else bug('expected Singleton or Union')
 
         // and return union of element types of present indexes
@@ -309,13 +319,19 @@ function synthMemberExpression(
         // synth to find out which valid indexes are actually present
         const propertyType = synth(ast.property, env, annots, trace);
         const presentIndexes: Array<string> = [];
-        if (propertyType.kind === 'Singleton') {
+
+        if (propertyType.kind === 'Error') {
+          return propertyType;
+
+        } else if (propertyType.kind === 'Singleton') {
           presentIndexes.push(propertyType.value);
+
         } else if (propertyType.kind === 'Union') {
           propertyType.types.forEach(type => {
             if (type.kind === 'Singleton') presentIndexes.push(type.value);
             else bug('expected Singleton');
           });
+
         } else bug('expected Singleton or Union')
 
         // and return union of element types of present indexes

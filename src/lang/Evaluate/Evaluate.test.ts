@@ -85,6 +85,31 @@ describe('evaluateExpression', () => {
     });
   });
 
+  describe('member expressions', () => {
+    const tenv = Typecheck.env({
+      error: Type.error(error),
+      object: Type.object({ foo: Type.boolean }),
+      array: Type.array(Type.number),
+    });
+    const env = Immutable.Map({
+      error: error,
+      object: { foo: true },
+      array: [ 1, 2, 3 ],
+    });
+
+    it('error in target propagates', () => {
+      expectEval(`error.foo`, error, tenv, env);
+    });
+
+    it('error in object property propagates', () => {
+      expectEval(`object[error]`, error, tenv, env);
+    });
+
+    it('error in array property is undefined', () => {
+      expectEval(`array[error]`, undefined, tenv, env);
+    });
+  });
+
   describe('conditional expressions', () => {
     it('true', () => {
       expectEval(`true ? 1 : 2`, 1);

@@ -56,8 +56,7 @@ function checkSubtype(
     case 'SequenceExpression': {
       ast.expressions.forEach((e, i) => {
         if (i < ast.expressions.length - 1)
-          // TODO(jaked) undefined or error
-          check(e, env, Type.undefined, annots, trace);
+          synth(e, env, annots, trace);
       });
       return check(ast.expressions[ast.expressions.length - 1], env, type, annots, trace);
     }

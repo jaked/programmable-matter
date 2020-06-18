@@ -23,6 +23,13 @@ describe('synth', () => {
     if (expectedType) expect(type).toEqual(expectedType);
   }
 
+  const error = new Error('error');
+  const env = Typecheck.env({
+    error: Type.error(error),
+    number: Type.number,
+    string: Type.string,
+  });
+
   describe('identifiers', () => {
     it('succeeds', () => {
       const env = Typecheck.env({ foo: Type.boolean });
@@ -92,8 +99,6 @@ describe('synth', () => {
   });
 
   describe('unary expressions', () => {
-    const env = Typecheck.env({ error: Type.error(new Error('error')) });
-
     describe('!', () => {
       it('ok', () => {
         expectSynth('!7', undefined, Type.singleton(false));
@@ -116,13 +121,6 @@ describe('synth', () => {
   });
 
   describe('logical expressions', () => {
-    const error = new Error('error');
-    const env = Typecheck.env({
-      number: Type.number,
-      string: Type.string,
-      error: Type.error(error),
-    });
-
     describe('&&', () => {
       it('truthy && unknown', () => {
         expectSynth('"foo" && number', env, Type.number);
@@ -213,12 +211,6 @@ describe('synth', () => {
   });
 
   describe('binary expressions', () => {
-    const env = Typecheck.env({
-      error: Type.error(new Error('error')),
-      number: Type.number,
-      string: Type.string,
-    });
-
     describe('+', () => {
       it('literal number + literal number', () => {
         expectSynth('1 + 2', undefined, Type.singleton(3));
@@ -280,8 +272,19 @@ describe('synth', () => {
     });
   });
 
+  describe('sequence expressions', () => {
+    it('returns type of last expression', () => {
+      expectSynth(`1, true, 'foo'`, undefined, Type.singleton('foo'));
+    });
+
+    it('survives errors', () => {
+      expectSynth(`1, error, 'foo'`, undefined, Type.singleton('foo'));
+    });
+  });
+
   describe('member expressions', () => {
     const env = Typecheck.env({
+      error: Type.error(error),
       object: Type.object({ foo: Type.boolean, bar: Type.number }),
       array: Type.array(Type.number),
       tuple: Type.tuple(Type.boolean, Type.number),
@@ -297,6 +300,18 @@ describe('synth', () => {
 
     it('property names', () => {
       expectSynth('object.foo', env, Type.boolean);
+    });
+
+    it('error in target propagates', () => {
+      expectSynth('error.foo', env, Type.error(error));
+    });
+
+    it('error in object property propagates', () => {
+      expectSynth('object[error]', env, Type.error(error));
+    });
+
+    it('error in array property is undefined', () => {
+      expectSynth('array[error]', env, Type.undefined);
     });
 
     it('string index', () => {
