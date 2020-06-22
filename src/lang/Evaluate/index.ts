@@ -72,18 +72,12 @@ export function evaluateExpression(
     }
 
     case 'JSXElement': {
-      const attrObjs = ast.openingElement.attributes
-        .filter(({ name, value }) => {
-          if (!value) return true;
-          const type = annots.get(value) ?? bug(`expected type`);
-          // ok to skip without checking if undefined is allowed
-          // because if not the whole element would be in error
-          return !(type.kind === 'Error');
-        })
-        .map(({ name, value }) => {
-          const evaled = value ? evaluateExpression(value, annots, env) : true;
-          return { [name.name]: evaled };
-        });
+      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
+        if (!value) return { [name.name]: true }
+        const type = annots.get(value) ?? bug(`expected type`);
+        if (type.kind === 'Error') return { [name.name]: undefined };
+        return { [name.name]: evaluateExpression(value, annots, env) };
+      });
       const attrs = Object.assign({}, ...attrObjs);
 
       // TODO(jaked) maybe support bind in component lib instead of built-in
@@ -111,12 +105,13 @@ export function evaluateExpression(
         elem = name;
       }
 
-      const children = ast.children
-        .filter(child => {
-          const type = annots.get(child) ?? bug(`expected type`);
-          return (type.kind !== 'Error');
-        })
-        .map(child => evaluateExpression(child, annots, env))
+      const children = ast.children.map(child => {
+        const type = annots.get(child) ?? bug(`expected type`);
+        // TODO(jaked) undefined seems to be an acceptable ReactNode
+        // in some contexts but not others; maybe we need `null` here
+        if (type.kind === 'Error') return undefined;
+        return evaluateExpression(child, annots, env);
+      });
       if (typeof elem === 'function' && !isConstructor(elem))
         // TODO(jaked)
         // components defined in user code are recreated on rerenders
@@ -211,7 +206,11 @@ export function evaluateExpression(
     }
 
     case 'CallExpression': {
-      const args = ast.arguments.map(arg => evaluateExpression(arg, annots, env));
+      const args = ast.arguments.map(arg => {
+        const type = annots.get(arg) ?? bug(`expected type`);
+        if (type.kind === 'Error') return undefined;
+        return evaluateExpression(arg, annots, env)
+      });
       if (ast.callee.type === 'MemberExpression') {
         const object = evaluateExpression(ast.callee.object, annots, env);
         if (ast.callee.computed) {

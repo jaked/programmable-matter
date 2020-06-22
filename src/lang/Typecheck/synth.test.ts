@@ -379,6 +379,10 @@ describe('synth', () => {
         Type.functionType([ Type.number ], Type.number),
         Type.functionType([ Type.string ], Type.string),
       ),
+      g: Type.functionType(
+        [ Type.undefinedOrBoolean, Type.boolean, Type.undefinedOrBoolean ],
+        Type.boolean
+      ),
     });
 
     it('ok', () => {
@@ -395,15 +399,27 @@ describe('synth', () => {
     });
 
     it('error when not enough args', () => {
-      expectSynth('f()', undefined, undefined, true);
+      expectSynth('f()', env, undefined, true);
     });
 
     it('error when too many args', () => {
-      expectSynth('f(7, 9)', undefined, undefined, true);
+      expectSynth('f(7, 9)', env, undefined, true);
     });
 
     it('error when arg is wrong type', () => {
-      expectSynth('f("seven")', undefined, undefined, true);
+      expectSynth('f("seven")', env, undefined, true);
+    });
+
+    it('non-trailing undefined arguments are not optional', () => {
+      expectSynth(`g()`, env, undefined, true);
+    });
+
+    it('trailing undefined arguments are optional', () => {
+      expectSynth(`g(true, false)`, env, Type.boolean, false);
+    });
+
+    it('survives erroneous args when arg can be undefined', () => {
+      expectSynth(`g(x, false, y)`, env, Type.boolean, true);
     });
   });
 

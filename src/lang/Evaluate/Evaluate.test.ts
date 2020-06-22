@@ -124,6 +124,38 @@ describe('evaluateExpression', () => {
     });
   });
 
+  describe('call expressions', () => {
+    const tenv = Typecheck.env({
+      error: Type.error(error),
+      g: Type.functionType(
+        [ Type.undefinedOrBoolean, Type.boolean, Type.undefinedOrBoolean ],
+        Type.boolean
+      ),
+    });
+    const env = Immutable.Map({
+      error: error,
+      g: (a, b, c) => a || b || c
+    });
+
+    it('survives missing trailing args when arg can be undefined', () => {
+      expectEval(
+        `g(false, true)`,
+        true,
+        tenv,
+        env
+      );
+    });
+
+    it('survives erroneous args when arg can be undefined', () => {
+      expectEval(
+        `g(error, false, false)`,
+        false,
+        tenv,
+        env
+      );
+    });
+  });
+
   describe('JSX', () => {
     const tenv = Typecheck.env({
       Foo: Type.functionType([ Type.object({ bar: Type.boolean })], Type.boolean),
@@ -145,7 +177,7 @@ describe('evaluateExpression', () => {
     it('survives children with type errors', () => {
       expectEval(
         `<Bar>this<Baz quux={7} />that</Bar>`,
-        ['this', 'that'],
+        ['this', undefined, 'that'],
         tenv,
         env
       );

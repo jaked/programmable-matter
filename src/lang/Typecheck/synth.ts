@@ -524,14 +524,21 @@ function synthCallExpression(
         return Error.withLocation(ast, 'too many matching function types');
     }
   } else if (calleeType.kind === 'Function') {
-    if (calleeType.args.size !== ast.arguments.length)
-      // TODO(jaked) support short arg lists if arg type contains undefined
-      // TODO(jaked) check how this works in Typescript
-      return Error.expectedType(ast, `${calleeType.args.size} args`, `${ast.arguments.length}`, annots);
-    const types = calleeType.args.map((type, i) =>
-    check(ast.arguments[i], env, type, annots, trace)
-    );
-    // TODO(jaked) error ok where undefined ok
+    if (ast.arguments.length > calleeType.args.size)
+      return Error.wrongArgsLength(ast, calleeType.args.size, ast.arguments.length);
+    const calleeType2 = calleeType; // preserve type inside closure
+    const types = calleeType.args.map((expectedType, i) => {
+      if (i < ast.arguments.length) {
+        const type = check(ast.arguments[i], env, expectedType, annots, trace);
+        if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+          return Type.undefined;
+        else
+          return type;
+      } else if (Type.isSubtype(Type.undefined, expectedType)) {
+        return Type.undefined;
+      } else
+        return Error.wrongArgsLength(ast, calleeType2.args.size, ast.arguments.length, annots);
+    });
     const error = types.find(type => type.kind === 'Error');
     if (error) return error;
     else return calleeType.ret;
