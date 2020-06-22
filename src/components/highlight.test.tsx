@@ -46,7 +46,7 @@ const err =
 describe('highlight', () => {
   function expectHighlightMdx(
     mdx: string,
-    moduleTypeEnv: Immutable.Map<string, Type.ModuleType>,
+    moduleTypeEnv: Immutable.Map<string, Type.ModuleType> = Immutable.Map(),
     expected: React.ReactNode,
   ) {
     // TODO(jaked) this is a lot of setup
@@ -170,6 +170,31 @@ describe('highlight', () => {
             <ok.link data-link='foo'>'foo'</ok.link>,
           ],
           <br />,
+        ]
+      );
+    });
+  });
+
+  describe('functions', () => {
+    it(`highlights types in funtion definitions`, () => {
+      expectHighlightMdx(
+        `export const f = (x: boolean) => x`,
+        undefined,
+        [
+          [
+            <ok.keyword>export</ok.keyword>,
+            ' ',
+            <ok.keyword>const</ok.keyword>,
+            ' ',
+            <ok.definition>f</ok.definition>,
+            ' = (',
+            <ok.definition>x</ok.definition>,
+            ': ',
+            <ok.variable>boolean</ok.variable>,
+            ') => ',
+            <ok.variable>x</ok.variable>,
+          ],
+          <br />
         ]
       );
     });

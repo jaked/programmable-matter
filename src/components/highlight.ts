@@ -114,6 +114,23 @@ function computeJsSpans(
         span(ast, 'default', undefined, undefined, ast.end -1, ast.end);
         return false;
 
+      case 'ArrowFunctionExpression':
+        ast.params.forEach(param => {
+          if (param.type === 'Identifier') {
+            if (param.typeAnnotation) {
+              const end = param.typeAnnotation.start;
+              span(param, 'definition', undefined, undefined, param.start, end);
+              ESTree.visit(param.typeAnnotation, fn);
+            } else {
+              span(param, 'definition');
+            }
+          } else {
+            ESTree.visit(param, fn);
+          }
+        });
+        ESTree.visit(ast.body, fn);
+        return false;
+
       case 'ImportDeclaration':
         // TODO(jaked) handle `from`
         span(ast, 'keyword', undefined, undefined, ast.start, ast.start + 6); // import
