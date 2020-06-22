@@ -72,10 +72,21 @@ export function evaluateExpression(
     }
 
     case 'JSXElement': {
-      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
-        return { [name.name]: value ? evaluateExpression(value, annots, env) : true };
-      });
+      const attrObjs = ast.openingElement.attributes
+        .filter(({ name, value }) => {
+          if (!value) return true;
+          const type = annots.get(value) ?? bug(`expected type`);
+          // ok to skip without checking if undefined is allowed
+          // because if not the whole element would be in error
+          return !(type.kind === 'Error');
+        })
+        .map(({ name, value }) => {
+          const evaled = value ? evaluateExpression(value, annots, env) : true;
+          return { [name.name]: evaled };
+        });
       const attrs = Object.assign({}, ...attrObjs);
+
+      // TODO(jaked) maybe support bind in component lib instead of built-in
       // TODO(jaked) what if both bind and value/onChange are given?
       if (attrs['bind']) {
         const bind = attrs['bind'];
@@ -100,7 +111,12 @@ export function evaluateExpression(
         elem = name;
       }
 
-      const children = ast.children.map(child => evaluateExpression(child, annots, env));
+      const children = ast.children
+        .filter(child => {
+          const type = annots.get(child) ?? bug(`expected type`);
+          return (type.kind !== 'Error');
+        })
+        .map(child => evaluateExpression(child, annots, env))
       if (typeof elem === 'function' && !isConstructor(elem))
         // TODO(jaked)
         // components defined in user code are recreated on rerenders

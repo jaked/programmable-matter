@@ -717,6 +717,11 @@ function synthJSXElement(
     }
   });
 
+  ast.children.forEach(child =>
+    // TODO(jaked) see comment about recursive types on Type.reactNodeType
+    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
+  );
+
   const attrNames =
     new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
   let missingField: undefined | Type.ErrorType = undefined;
@@ -728,17 +733,15 @@ function synthJSXElement(
       // but for now this get us the right error highlighting in Editor
       missingField = Error.missingField(ast.openingElement.name, name, annots);
   });
-
-  const childrenTypes = ast.children.map(child =>
-    // TODO(jaked) see comment about recursive types on Type.reactNodeType
-    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
-  );
-
   if (missingField) return missingField;
-  const attrError = attrTypes.find(type => type.kind === 'Error');
+
+  const attrError = attrTypes.find((type, i) => {
+    const field = attrsType.fields.get(i) || bug('');
+    const expectedType = field._2;
+    return type.kind === 'Error' && !Type.isSubtype(Type.undefined, expectedType);
+  });
   if (attrError) return attrError;
-  const childError = childrenTypes.find(type => type.kind === 'Error');
-  if (childError) return childError;
+
   return retType;
 }
 

@@ -126,10 +126,13 @@ describe('evaluateExpression', () => {
 
   describe('JSX', () => {
     const tenv = Typecheck.env({
-      Foo: Type.functionType([ Type.object({ bar: Type.boolean })], Type.boolean)
+      Foo: Type.functionType([ Type.object({ bar: Type.boolean })], Type.boolean),
+      Bar: Type.abstract('React.FC', Type.object({ baz: Type.undefinedOrString })),
+      Baz: Type.abstract('React.FC', Type.object({ quux: Type.string })),
     });
     const env = Immutable.Map({
-      Foo: ({ bar }) => bar
+      Foo: ({ bar }) => bar,
+      Bar: ({ children, baz }) => baz ? [ baz, ...children] : children,
     });
 
     it('attr with no value', () => {
@@ -137,6 +140,24 @@ describe('evaluateExpression', () => {
       // this depends on Evaluate hack that applies Foo
       expectEval('<Foo bar={false} />', false, tenv, env);
       expectEval('<Foo bar />', true, tenv, env);
+    });
+
+    it('survives children with type errors', () => {
+      expectEval(
+        `<Bar>this<Baz quux={7} />that</Bar>`,
+        ['this', 'that'],
+        tenv,
+        env
+      );
+    });
+
+    it('survives attrs with type errors if attr can be undefined', () => {
+      expectEval(
+        `<Bar>this<Bar baz={7} />that</Bar>`,
+        ['this', [], 'that'],
+        tenv,
+        env
+      );
     });
   });
 

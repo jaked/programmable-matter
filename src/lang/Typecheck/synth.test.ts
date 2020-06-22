@@ -461,6 +461,24 @@ describe('synth', () => {
     it('error when wrong children type', () => {
       expectSynth('<WrongChildrenType />', env, undefined, true);
     });
+
+    it('survives attrs with type errors if attr can be undefined', () => {
+      expectSynth(
+        `<Component foo={7} bar={'baz'} />`,
+        env,
+        Type.string,
+        true
+      );
+    });
+
+    it('survives children with type errors', () => {
+      expectSynth(
+        `<FC foo={7}><FC foo={'bar'} /></FC>`,
+        env,
+        Type.reactNodeType,
+        true
+      );
+    });
   });
 
   describe('conditional expressions', () => {
