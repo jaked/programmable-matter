@@ -326,8 +326,7 @@ export interface ObjectPattern extends NodeImpl {
 
 export type Pattern =
   Identifier |
-  ObjectPattern |
-  PropertyPattern;
+  ObjectPattern;
 
 // import { Foo as Bar }
 export interface ImportSpecifier extends NodeImpl {
@@ -379,7 +378,7 @@ export interface ExportDefaultDeclaration extends NodeImpl {
 }
 
 export type Node =
-  Program | ExpressionStatement | Expression | Pattern |
+  Program | ExpressionStatement | Expression | Pattern | PropertyPattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
   VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration |
   TSTypeAnnotation | TSPropertySignature | TSQualifiedName | TSTypeParameterInstantiation | TypeAnnotation;

@@ -506,6 +506,36 @@ describe('synth', () => {
         type: '(n: number, s: 7) => number',
       });
     });
+
+    it('erroneous return', () => {
+      expectSynth({
+        expr: '(x: number) => error',
+        env,
+        type: Type.functionType([ Type.number ], Type.error(error)),
+      })
+    })
+
+    it('missing param type', () => {
+      expectSynth({
+        expr: '(x) => x',
+        env,
+        type: Type.functionType(
+          [ Type.unknown ],
+          Type.error(new Error('function parameter must have a type'))
+        ),
+      })
+    })
+
+    it('missing param type with pattern', () => {
+      expectSynth({
+        expr: '({ x }) => x',
+        env,
+        type: Type.functionType(
+          [ Type.object({ x: Type.unknown }) ],
+          Type.error(new Error('function parameter must have a type'))
+        ),
+      })
+    })
   });
 
   describe('function calls', () => {

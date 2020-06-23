@@ -595,6 +595,24 @@ function patTypeEnv(
   }
 }
 
+function genPatType(
+  ast: ESTree.Pattern,
+  t: Type,
+): Type {
+  if (ast.type === 'ObjectPattern') {
+    return Type.object(
+      ast.properties.reduce((obj, prop) =>
+        ({ ...obj, [prop.key.name]: prop.shorthand ? t : genPatType(prop.value, t) }),
+        {}
+      )
+    );
+  } else if (ast.type === 'Identifier') {
+    return t;
+  } else {
+    bug(`unexpected ast type '${(ast as ESTree.Pattern).type}'`);
+  }
+}
+
 function synthArrowFunctionExpression(
   ast: ESTree.ArrowFunctionExpression,
   env: Env,
@@ -603,8 +621,11 @@ function synthArrowFunctionExpression(
 ): Type {
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
-    if (!param.typeAnnotation)
-      return Error.withLocation(param, `function parameter must have a type`, annots);
+    if (!param.typeAnnotation) {
+      const t = Error.withLocation(param, `function parameter must have a type`, annots);
+      patEnv = patTypeEnv(param, genPatType(param, t), patEnv, annots);
+      return genPatType(param, Type.unknown);
+    }
     const t = Type.ofTSType(param.typeAnnotation.typeAnnotation);
     patEnv = patTypeEnv(param, t, patEnv, annots);
     return t;
