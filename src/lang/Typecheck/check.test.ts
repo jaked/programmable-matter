@@ -1,161 +1,211 @@
-import Try from '../../util/Try';
+import * as Immutable from 'immutable';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from './index';
 
+// TODO(jaked)
+// seems like TS should be able to figure it out from the instanceof
+function isEnv(env: any): env is Typecheck.Env {
+  return env instanceof Immutable.Map;
+}
+
 describe('check', () => {
-  function check(
-    exprOrString: ESTree.Expression | string,
-    expectedType: Type,
-    env: Typecheck.Env = Typecheck.env()
-  ) {
-    const expr =
-      (typeof exprOrString === 'string') ? Parse.parseExpression(exprOrString)
-      : exprOrString;
+  function expectCheck({ expr, env, type, actualType, error }: {
+    expr: ESTree.Expression | string,
+    env?: Typecheck.Env | { [s: string]: string | Type },
+    type: Type | string,
+    actualType?: Type,
+    error?: boolean,
+  }) {
+    expr = (typeof expr === 'string') ? Parse.parseExpression(expr) : expr;
+    env = env ?
+      (isEnv(env) ?
+        env :
+        Typecheck.env(env as any)) :
+      Typecheck.env();
+    type = (typeof type === 'string') ? Parse.parseType(type) : type;
+    error = (error !== undefined) ? error : false;
     const annots = new Map<unknown, Type>();
-    const type = Typecheck.check(expr, env, expectedType, annots);
-    const hasError = [...annots.values()].some(t => t.kind === 'Error');
-    return { type, hasError };
-  }
-
-  function expectCheckError(
-    exprOrString: ESTree.Expression | string,
-    expectedType: Type,
-    env: Typecheck.Env = Typecheck.env()
-  ) {
-    const { type, hasError } = check(exprOrString, expectedType, env);
-    expect(hasError).toBe(true);
-  }
-
-  function expectCheck(
-    exprOrString: ESTree.Expression | string,
-    expectedType: Type,
-    env: Typecheck.Env = Typecheck.env()
-  ) {
-    const { type, hasError } = check(exprOrString, expectedType, env);
-    expect(hasError).toBe(false);
+    const actualTypeValue = Typecheck.check(expr, env, type, annots);
+    const errorValue = [...annots.values()].some(t => t.kind === 'Error');
+    if (error !== undefined) expect(errorValue).toBe(error);
+    if (actualType) expect(actualTypeValue).toEqual(actualType);
   }
 
   describe('primitives', () => {
     describe('literals', () => {
       it('succeeds', () => {
-        expectCheck('7', Type.number);
+        expectCheck({
+          expr: '7',
+          type: 'number',
+        })
       });
 
       it('throws', () => {
-        expectCheckError('7', Type.string);
+        expectCheck({
+          expr: '7',
+          type: 'string',
+          error: true,
+        });
       });
     });
 
     it('identifiers', () => {
-      const env = Typecheck.env({ foo: Type.boolean });
-      expectCheck('foo', Type.boolean, env);
+      expectCheck({
+        expr: 'foo',
+        env: { foo: 'boolean' },
+        type: 'boolean',
+      });
     });
   });
 
   describe('tuples', () => {
-    const type = Type.tuple(Type.number, Type.boolean, Type.nullType);
+    const type = '[ number, boolean, null ]';
 
     describe('literals', () => {
       it('succeeds', () => {
-        expectCheck('[1, true, null]', type);
+        expectCheck({
+          expr: '[1, true, null]',
+          type,
+        });
       });
 
-      it ('throws', () => {
-        expectCheckError('[1, "foo", null]', type)
+      it('throws', () => {
+        expectCheck({
+          expr: '[1, "foo", null]',
+          type,
+          error: true,
+        });
       });
     });
 
     it('identifiers', () => {
-      const env = Typecheck.env({ foo: type });
-      expectCheck('foo', type, env)
+      expectCheck({
+        expr: 'foo',
+        env: { foo: type },
+        type,
+      });
     });
 
-    it ('throws on long tuples', () => {
-      expectCheckError('[1, "foo", null, 1]', type)
+    it('throws on long tuples', () => {
+      expectCheck({
+        expr: '[1, "foo", null, 1]',
+        type,
+        error: true,
+      });
     });
   });
 
   describe('arrays', () => {
-    const type = Type.array(Type.number);
+    const type = 'number[]';
 
     describe('literals', () => {
       it('succeeds', () => {
-        expectCheck('[1, 2, 3]', type);
+        expectCheck({
+          expr: '[1, 2, 3]',
+          type,
+        });
       });
 
       it('throws', () => {
-        expectCheckError('[1, true]', type);
+        expectCheck({
+          expr: '[1, true]',
+          type,
+          error: true,
+        });
       });
     });
 
     it('identifiers', () => {
-      const env = Typecheck.env({ foo: type });
-      expectCheck('foo', type, env);
+      expectCheck({
+        expr: 'foo',
+        env: { foo: type },
+        type,
+      });
     });
   });
 
   describe('objects', () => {
-    const type = Type.object({ foo: Type.number, bar: Type.undefinedOrNumber });
+    const type = '{ foo: number, bar: undefined | number }';
 
     it('undefined properties may be omitted', () => {
-      expectCheck('({ foo: 7 })', type);
+      expectCheck({
+        expr: '({ foo: 7 })',
+        type,
+      });
     });
 
     it('throws on missing properties', () => {
-      expectCheckError('({ })', type);
+      expectCheck({
+        expr: '({ })',
+        type,
+        error: true,
+      });
     });
 
     it('throws on excess properties in literals', () => {
-      expectCheckError('({ foo: 7, baz: 9 })', type);
+      expectCheck({
+        expr: '({ foo: 7, baz: 9 })',
+        type,
+        error: true,
+      });
     });
 
     it('permits excess properties in non-literal', () => {
-      const env = Typecheck.env({
-        foo: Type.object({ foo: Type.number, baz: Type.number }),
+      expectCheck({
+        expr: 'foo',
+        env: { foo: '{ foo: number, baz: number }' },
+        type,
       });
-      expectCheck('foo', type, env);
     });
   });
 
   describe('function expressions', () => {
-    const type =
-      Type.functionType(
-        [ Type.number ],
-        Type.number
-      );
+    const type = '(n: number) => number';
 
     it('ok', () => {
-      expectCheck('x => x + 7', type);
+      expectCheck({
+        expr: 'x => x + 7',
+        type,
+      });
     });
 
     it('fewer args ok', () => {
-      expectCheck('() => 7', type);
+      expectCheck({
+        expr: '() => 7',
+        type,
+      });
     });
 
     it('too many args', () => {
-      expectCheckError('(x, y) => x + y', type);
+      expectCheck({
+        expr: '(x, y) => x + y',
+        type,
+        error: true,
+      });
     });
 
     it('wrong body type', () => {
-      expectCheckError(`x => 'foo'`, type);
+      expectCheck({
+        expr: `x => 'foo'`,
+        type,
+        error: true
+      });
     });
 
     it('object pattern arg', () => {
-      const type = Type.functionType(
-        [ Type.object({ x: Type.number, y: Type.number }) ],
-        Type.number
-      );
-      expectCheck('({ x: xArg, y: yArg }) => xArg + yArg', type);
+      expectCheck({
+        expr: '({ x: xArg, y: yArg }) => xArg + yArg',
+        type: '(o: { x: number, y: number }) => number',
+      });
     });
 
     it('shorthand object pattern arg', () => {
-      const type = Type.functionType(
-        [ Type.object({ x: Type.number, y: Type.number }) ],
-        Type.number
-      );
-      expectCheck('({ x, y }) => x + y', type);
+      expectCheck({
+        expr: '({ x, y }) => x + y',
+        type: '(o: { x: number, y: number }) => number',
+      });
     });
 
     // Babel parser already checks this
@@ -168,91 +218,136 @@ describe('check', () => {
     // });
 
     it('function component', () => {
-      const type = Type.abstract('React.FC', Type.object({ foo: Type.string }));
-      expectCheck('({ children, foo }) => foo', type);
+      expectCheck({
+        expr: '({ children, foo }) => foo',
+        type: 'React.FC<{ foo: string }>',
+      });
     })
   });
 
   describe('singletons', () => {
-    const type = Type.singleton(7);
-
     it('succeeds', () => {
-      expectCheck('7', type);
+      expectCheck({
+        expr: '7',
+        type: '7',
+      });
     });
 
     it('throws', () => {
-      expectCheckError('8', type);
+      expectCheck({
+        expr: '8',
+        type: '7',
+        error: true,
+      });
     });
   });
 
   describe('unions', () => {
-    const type = Type.union(Type.boolean, Type.number);
+    const type = 'boolean | number'
 
     it('succeeds', () => {
-      expectCheck('true', type);
-      expectCheck('7', type);
+      expectCheck({
+        expr: 'true',
+        type,
+      });
+      expectCheck({
+        expr: '7',
+        type,
+      });
     });
 
     it('throws', () => {
-      expectCheckError('"foo"', type);
+      expectCheck({
+        expr: '"foo"',
+        type,
+        error: true,
+      });
     });
 
     it('union inside array', () => {
-      const type = Type.array(Type.union(Type.boolean, Type.number));
-      expectCheck('[ false, 7 ]', type);
+      expectCheck({
+        expr: '[ false, 7 ]',
+        type: '(boolean | number)[]',
+      });
     });
   });
 
   describe('intersections', () => {
-    const type = Type.intersection(
-      Type.array(Type.number),
-      Type.array(Type.singleton(7))
-    );
+    const type = 'number[] & 7[]';
 
     it('succeeds', () => {
-      expectCheck('[ 7 ]', type);
+      expectCheck({
+        expr: '[ 7 ]',
+        type,
+      });
     });
 
     it('throws', () => {
-      expectCheckError('[ 9 ]', type);
+      expectCheck({
+        expr: '[ 9 ]',
+        type,
+        error: true,
+      });
     });
 
     it('succeeds for a uniform function', () => {
-      const type = Type.intersection(
-        Type.functionType([ Type.number ], Type.number),
-        Type.functionType([ Type.string ], Type.string),
-      );
-      expectCheck('x => x', type);
+      expectCheck({
+        expr: 'x => x',
+        type: '((n: number) => number) & ((s: string) => string)',
+      });
     });
 
     it('succeeds for a non-uniform function', () => {
-      // const type = Type.intersection(
-      //   Type.functionType([ Type.singleton('number') ], Type.number),
-      //   Type.functionType([ Type.singleton('string') ], Type.string),
-      // );
-      const type = Type.functionType([ Type.singleton('number') ], Type.number);
-      expectCheck(`x => x === 'number' ? 7 : 'nine'`, type);
+      expectCheck({
+        expr: `x => x === 'number' ? 7 : 'nine'`,
+        type: `((s: 'number') => number) & ((s: 'string') => string)`,
+      });
     });
   });
 
   describe('conditional expressions', () => {
     it('ok', () => {
-      const env = Typecheck.env({ b: Type.boolean });
-      expectCheck('b ? 1 : 2', Type.enumerate(1, 2), env);
+      expectCheck({
+        expr: 'b ? 1 : 2',
+        env: { b: 'boolean' },
+        type: '1 | 2',
+      });
     });
 
     it('ok with statically evaluable test', () => {
-      expectCheck('true ? 1 : 2', Type.singleton(1));
+      expectCheck({
+        expr: 'true ? 1 : 2',
+        type: '1',
+      });
     });
 
     it('ok with statically evaluable test 2', () => {
-      const env = Typecheck.env({ x: Type.singleton('foo') });
-      expectCheck(`x === 'foo' ? 1 : 2`, Type.singleton(1), env);
+      expectCheck({
+        expr: `x === 'foo' ? 1 : 2`,
+        env: { x: `'foo'` },
+        type: '1',
+      });
     });
 
     it('narrows type for equality tests', () => {
-      const env = Typecheck.env({ s: Type.enumerate('foo', 'bar') });
-      expectCheck(`s === 'foo' ? s : 'foo'`, Type.singleton('foo'), env);
+      expectCheck({
+        expr: `s === 'foo' ? s : 'foo'`,
+        env: { s: `'foo' | 'bar'` },
+        type: `'foo'`,
+      });
     });
+  });
+
+  describe('errors', () => {
+    it('checking an error returns that error, not subtype error', () => {
+      const error = Type.error(new Error('error'));
+      expectCheck({
+        expr: `error`,
+        env: { error: error },
+        type: 'string',
+        error: true,
+        actualType: error,
+      });
+    })
   });
 });

@@ -63,6 +63,8 @@ function checkSubtype(
 
     default:
       const actual = synth(ast, env, annots, trace);
+      if (actual.kind === 'Error')
+        return actual;
       if (Type.isSubtype(actual, type))
         return actual;
       else

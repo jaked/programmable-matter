@@ -176,7 +176,7 @@ describe('highlight', () => {
   });
 
   describe('functions', () => {
-    it(`highlights types in funtion definitions`, () => {
+    it(`highlights types in function definitions`, () => {
       expectHighlightMdx(
         `export const f = (x: boolean) => x`,
         undefined,
