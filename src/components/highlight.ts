@@ -205,6 +205,11 @@ function computeJsSpans(
         ESTree.visit(ast.typeAnnotation, fn);
         return false;
 
+      case 'TSTypeReference':
+        span(ast.typeName, 'variable');
+        ESTree.visit(ast.typeParameters, fn);
+        return false;
+
       case 'TSBooleanKeyword':
       case 'TSNumberKeyword':
       case 'TSStringKeyword':

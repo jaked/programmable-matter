@@ -2,7 +2,6 @@ import * as Immutable from 'immutable';
 import Recast from 'recast/main';
 import { bug } from '../../util/bug';
 import Trace from '../../util/Trace';
-import { Tuple2 } from '../../util/Tuple';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';

@@ -36,11 +36,48 @@ it('tuple', () => {
   );
 })
 
-it('abstract', () => {
-  expectOfTSType(
-    'Foo.Bar<string>',
-    Type.abstract('Foo.Bar', Type.string)
-  )
+describe('abstract', () => {
+  it('React.ReactNode', () => {
+    expectOfTSType(
+      'React.ReactNode',
+      Type.abstract('React.ReactNode'),
+    )
+  });
+
+  it('React.ReactNode extra param', () => {
+    expectOfTSType(
+      'React.ReactNode<number>',
+      Type.abstract('React.ReactNode'),
+    )
+  });
+
+  it('React.FC', () => {
+    expectOfTSType(
+      'React.FC<{ foo: string }>',
+      Type.abstract('React.FC', Type.object({ foo: Type.string })),
+    )
+  });
+
+  it('React.FC missing param', () => {
+    expectOfTSType(
+      'React.FC',
+      Type.abstract('React.FC', Type.object({ })),
+    )
+  });
+
+  it('React.FC non-object param', () => {
+    expectOfTSType(
+      'React.FC<number>',
+      Type.abstract('React.FC', Type.object({ })),
+    )
+  });
+
+  it('unknown type', () => {
+    expectOfTSType(
+      'Foo.Bar',
+      Type.unknown,
+    )
+  });
 });
 
 it('union', () => {

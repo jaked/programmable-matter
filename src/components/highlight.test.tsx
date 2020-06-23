@@ -219,5 +219,28 @@ describe('highlight', () => {
         ]
       );
     });
+
+    it(`highlights unknown types in function definitions`, () => {
+      expectHighlightMdx(
+        `export const f = (x: xyzzy) => x`,
+        undefined,
+        [
+          [
+            <ok.keyword>export</ok.keyword>,
+            ' ',
+            <ok.keyword>const</ok.keyword>,
+            ' ',
+            <ok.definition>f</ok.definition>,
+            ' = (',
+            <ok.definition>x</ok.definition>,
+            ': ',
+            <err.variable data-status="unknown type">xyzzy</err.variable>,
+            ') => ',
+            <ok.variable>x</ok.variable>,
+          ],
+          <br />
+        ]
+      );
+    });
   });
 });

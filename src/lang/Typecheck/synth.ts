@@ -626,7 +626,7 @@ function synthArrowFunctionExpression(
       patEnv = patTypeEnv(param, genPatType(param, t), patEnv, annots);
       return genPatType(param, Type.unknown);
     }
-    const t = Type.ofTSType(param.typeAnnotation.typeAnnotation);
+    const t = Type.ofTSType(param.typeAnnotation.typeAnnotation, annots);
     patEnv = patTypeEnv(param, t, patEnv, annots);
     return t;
   });
@@ -920,17 +920,9 @@ function extendEnvWithNamedExport(
 ): Env {
   decl.declaration.declarations.forEach(declarator => {
     let type;
-    let typeAnnotation: Type | undefined = undefined;
-    if (declarator.id.typeAnnotation) {
-      // TODO(jaked) fine-grained errors in ofTSType
-      try {
-        typeAnnotation = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation);
-      } catch (e) {
-        // TODO(jaked)
-        // could check with incomplete type instead of giving up completely
-        Error.withLocation(declarator.id.typeAnnotation, e, annots);
-      }
-    }
+    const typeAnnotation = declarator.id.typeAnnotation ?
+      Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, annots) :
+      undefined;
     if (declarator.init) {
       if (typeAnnotation) {
         type = check(declarator.init, env, typeAnnotation, annots, trace);
