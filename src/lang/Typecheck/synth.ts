@@ -940,6 +940,14 @@ function extendEnvWithNamedExport(
     } else {
       type = Error.withLocation(declarator.id, `expected initializer`, annots);
     }
+    if (annots) {
+      if (type.kind === 'Error')
+        annots.set(declarator.id, type);
+      else if (typeAnnotation)
+        annots.set(declarator.id, typeAnnotation);
+      else
+        annots.set(declarator.id, type);
+    }
     exportTypes[declarator.id.name] = type;
     env = env.set(declarator.id.name, type);
   });

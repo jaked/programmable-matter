@@ -175,6 +175,27 @@ describe('highlight', () => {
     });
   });
 
+  describe('imports', () => {
+    it('highlights identifier with erroneous initializer', () => {
+      expectHighlightMdx(
+        `export const f = g`,
+        undefined,
+        [
+          [
+            <ok.keyword>export</ok.keyword>,
+            ' ',
+            <ok.keyword>const</ok.keyword>,
+            ' ',
+            <err.definition data-status="unbound identifier 'g'">f</err.definition>,
+            ' = ',
+            <err.variable data-status="unbound identifier 'g'">g</err.variable>,
+          ],
+          <br />
+        ]
+      )
+    });
+  })
+
   describe('functions', () => {
     it(`highlights types in function definitions`, () => {
       expectHighlightMdx(
