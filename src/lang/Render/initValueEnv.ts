@@ -52,6 +52,7 @@ export function initValueEnv(
 ): Env {
   return Immutable.Map({
     a: 'a',
+    br: 'br',
     body: 'body',
     button: 'button',
     code: 'pre',
@@ -67,6 +68,7 @@ export function initValueEnv(
     input: 'input',
     label: 'label',
     li: 'li',
+    p: 'p',
     section: 'section',
     span: 'span',
     strong: 'strong',

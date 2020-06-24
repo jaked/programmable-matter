@@ -55,6 +55,9 @@ export const initTypeEnv = Typecheck.env({
     style: styleType,
   }),
 
+  'br': componentType({
+  }),
+
   'button': componentType({
     className: Type.undefinedOrString,
     onClick: Type.undefinedOr(Type.functionType(
@@ -156,6 +159,10 @@ export const initTypeEnv = Typecheck.env({
   }),
 
   'li': componentType({
+    className: Type.undefinedOrString,
+  }),
+
+  'p': componentType({
     className: Type.undefinedOrString,
   }),
 
