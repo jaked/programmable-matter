@@ -758,6 +758,14 @@ describe('synth', () => {
       });
     });
 
+    it('errors are falsy', () => {
+      expectSynth({
+        expr: `error ? 1 : 2`,
+        env,
+        type: '2',
+      });
+    });
+
     describe('narrowing', () => {
       describe('equality tests', () => {
         it('true branch', () => {

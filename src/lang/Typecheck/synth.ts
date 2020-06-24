@@ -643,23 +643,21 @@ function synthConditionalExpression(
 ): Type {
   const testType = synth(ast.test, env, annots, trace);
 
-  // when the test has a static value we don't synth the untaken branch
-  // this is a little weird but consistent with typechecking
-  // only as much as needed to run the program
   switch (testType.kind) {
+    // conjecture: we can't learn anything new from narrowing
+    // when test is error / singleton
+    // (would be nice to prove this, but no harm in not narrowing)
+
     case 'Error': {
-      const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-      return synth(ast.alternate, envAlternate, annots, trace);
+      synth(ast.consequent, env, annots, trace);
+      return synth(ast.alternate, env, annots, trace);
     }
 
-    case 'Singleton':
-      if (testType.value) {
-        const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-        return synth(ast.consequent, envConsequent, annots, trace);
-      } else {
-        const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-        return synth(ast.alternate, envAlternate, annots, trace);
-      }
+    case 'Singleton': {
+      const consequent = synth(ast.consequent, env, annots, trace);
+      const alternate = synth(ast.alternate, env, annots, trace);
+      return testType.value ? consequent : alternate;
+    }
 
     default: {
       const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
@@ -689,7 +687,7 @@ function synthJSXIdentifier(
 ): Type {
   const type = env.get(ast.name);
   if (type) return type;
-  else return Error.withLocation(ast, 'unbound identifier ' + ast.name, annots);
+  else return Error.withLocation(ast, `unbound identifier '${ast.name}'`, annots);
 }
 
 function synthJSXElement(
@@ -779,12 +777,11 @@ function synthJSXFragment(
   annots?: AstAnnotations,
   trace?: Trace,
 ): Type {
-  const types = ast.children.map(e => synth(e, env, annots, trace));
-  const elem = Type.union(...types);
-  return Type.array(elem);
-  // TODO(jaked) we know children should satisfy `reactNodeType`
-  // we could check that explicitly (as above in synthJSXElement)
-  // see also comments on checkArray and checkUnion
+  ast.children.forEach(child =>
+    // TODO(jaked) see comment about recursive types on Type.reactNodeType
+    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
+  );
+  return Type.reactNodeType;
 }
 
 function synthJSXExpressionContainer(
