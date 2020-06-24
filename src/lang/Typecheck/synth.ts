@@ -539,9 +539,7 @@ function synthCallExpression(
       } else
         return Error.wrongArgsLength(ast, calleeType2.args.size, ast.arguments.length, annots);
     });
-    const error = types.find(type => type.kind === 'Error');
-    if (error) return error;
-    else return calleeType.ret;
+    return types.find(type => type.kind === 'Error') ?? calleeType.ret;
   } else {
     return Error.expectedType(ast.callee, 'function', calleeType, annots)
   }
@@ -648,16 +646,19 @@ function synthConditionalExpression(
     // when test is error / singleton
     // (would be nice to prove this, but no harm in not narrowing)
 
+    // when the test has a static value we don't check the untaken branch
+    // this is a little weird but consistent with typechecking
+    // only as much as needed to run the program
+
     case 'Error': {
-      synth(ast.consequent, env, annots, trace);
       return synth(ast.alternate, env, annots, trace);
     }
 
-    case 'Singleton': {
-      const consequent = synth(ast.consequent, env, annots, trace);
-      const alternate = synth(ast.alternate, env, annots, trace);
-      return testType.value ? consequent : alternate;
-    }
+    case 'Singleton':
+      if (testType.value)
+        return synth(ast.consequent, env, annots, trace);
+      else
+        return synth(ast.alternate, env, annots, trace);
 
     default: {
       const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
@@ -720,20 +721,24 @@ function synthJSXElement(
   })();
 
   const attrTypes = ast.openingElement.attributes.map(attr => {
-    const type = attrsType.getFieldType(attr.name.name);
-    if (type) {
+    const expectedType = attrsType.getFieldType(attr.name.name);
+    if (expectedType) {
       if (attr.value) {
-        return check(attr.value, env, type, annots, trace);
+        const type = check(attr.value, env, expectedType, annots, trace);
+        if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+          return Type.undefined;
+        else
+          return type;
       } else {
         const actual = Type.singleton(true);
-        if (!Type.isSubtype(actual, type)) {
-          return Error.expectedType(attr.name, type, actual, annots);
-        } else {
+        if (Type.isSubtype(actual, expectedType))
           return actual;
-        }
+        else if (Type.isSubtype(Type.undefined, expectedType))
+          return Type.undefined;
+        else
+          return Error.expectedType(attr.name, expectedType, actual, annots);
       }
-    }
-    else {
+    } else {
       Error.extraField(attr.name, attr.name.name, annots);
       if (attr.value) {
         return synth(attr.value, env, annots, trace);
@@ -761,14 +766,7 @@ function synthJSXElement(
   });
   if (missingField) return missingField;
 
-  const attrError = attrTypes.find((type, i) => {
-    const field = attrsType.fields.get(i) || bug('');
-    const expectedType = field._2;
-    return type.kind === 'Error' && !Type.isSubtype(Type.undefined, expectedType);
-  });
-  if (attrError) return attrError;
-
-  return retType;
+  return attrTypes.find(type => type.kind === 'Error') ?? retType;
 }
 
 function synthJSXFragment(

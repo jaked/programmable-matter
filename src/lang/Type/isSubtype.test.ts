@@ -146,4 +146,10 @@ describe('isSubtype', () => {
       expect(Type.isSubtype(actual, styleType)).toBe(true);
     });
   });
+
+  describe('Error', () => {
+    it('is a subtype of undefined', () => {
+      expect(Type.isSubtype(Type.error(new Error('error')), Type.undefined)).toBe(true);
+    })
+  });
 });

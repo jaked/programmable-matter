@@ -24,23 +24,24 @@ function checkSubtype(
     case 'ConditionalExpression': {
       const testType = synth(ast.test, env, annots, trace);
 
-      // when the test has a static value we don't check the untaken branch
-      // this is a little weird but consistent with typechecking
-      // only as much as needed to run the program
       switch (testType.kind) {
+        // conjecture: we can't learn anything new from narrowing
+        // when test is error / singleton
+        // (would be nice to prove this, but no harm in not narrowing)
+
+        // when the test has a static value we don't check the untaken branch
+        // this is a little weird but consistent with typechecking
+        // only as much as needed to run the program
+
         case 'Error': {
-          const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-          return check(ast.alternate, envAlternate, type, annots, trace);
+          return check(ast.alternate, env, type, annots, trace);
         }
 
         case 'Singleton':
-          if (testType.value) {
-            const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-            return check(ast.consequent, envConsequent, type, annots, trace);
-          } else {
-            const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-            return check(ast.alternate, envAlternate, type, annots, trace);
-          }
+          if (testType.value)
+            return check(ast.consequent, env, type, annots, trace);
+          else
+            return check(ast.alternate, env, type, annots, trace);
 
         default: {
           const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
@@ -62,9 +63,9 @@ function checkSubtype(
 
     default:
       const actual = synth(ast, env, annots, trace);
-      if (actual.kind === 'Error')
-        return actual;
       if (Type.isSubtype(actual, type))
+        return actual;
+      else if (actual.kind === 'Error')
         return actual;
       else
         return Error.expectedType(ast, type, actual, annots);
@@ -79,19 +80,21 @@ function checkTuple(
   trace?: Trace,
 ): Type {
   switch (ast.type) {
-    case 'ArrayExpression':
-      // TODO(jaked) long array acceptable
-      if (ast.elements.length !== type.elems.size) {
-        return Error.expectedType(ast, type, undefined, annots);
-      } else {
-        const types = ast.elements.map((elem, i) =>
-          check(elem, env, type.elems.get(i) ?? bug(), annots, trace)
-        );
-        // TODO(jaked) error ok where undefined ok
-        const error = types.find(type => type.kind === 'Error');
-        if (error) return error;
-        else return type;
-      }
+    case 'ArrayExpression': {
+      const types = type.elems.map((expectedType, i) => {
+        if (i < ast.elements.length) {
+          const type = check(ast.elements[i], env, expectedType, annots, trace);
+          if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+            return Type.undefined;
+          else
+            return type;
+        } else if (Type.isSubtype(Type.undefined, expectedType)) {
+          return Type.undefined;
+        } else
+          return Error.withLocation(ast, 'expected ${type.elems.size} elements');
+      });
+      return types.find(type => type.kind === 'Error') ?? type;
+    }
 
     default:
       return checkSubtype(ast, env, type, annots, trace);
@@ -108,23 +111,27 @@ function checkArray(
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
     case 'JSXFragment': {
-      const types = ast.children.map(child =>
-        check(child, env, type, annots, trace)
-      );
-      // TODO(jaked) error ok where undefined ok
-      const error = types.find(type => type.kind === 'Error');
-      if (error) return error;
-      else return type;
+      const expectedType = type.elem;
+      const types = ast.children.map(child => {
+        const type = check(child, env, expectedType, annots, trace);
+        if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+          return Type.undefined;
+        else
+          return type;
+      });
+      return types.find(type => type.kind === 'Error') ?? type;
     }
 
     case 'ArrayExpression': {
-      const types = ast.elements.map(elem =>
-        check(elem, env, type.elem, annots, trace)
-      );
-      // TODO(jaked) error ok where undefined ok
-      const error = types.find(type => type.kind === 'Error');
-      if (error) return error;
-      else return type;
+      const expectedType = type.elem;
+      const types = ast.elements.map(child => {
+        const type = check(child, env, expectedType, annots, trace);
+        if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+          return Type.undefined;
+        else
+          return type;
+      });
+      return types.find(type => type.kind === 'Error') ?? type;
     }
 
     default:
@@ -269,9 +276,7 @@ function checkIntersection(
   // how should we return / display errors here?
   // we don't have a way to show alternatives in editor
   const types = type.types.map(type => check(ast, env, type, annots, trace));
-  const error = types.find(type => type.kind === 'Error');
-  if (error) return error;
-  else return type;
+  return types.find(type => type.kind === 'Error') ?? type;
 }
 
 function checkSingleton(
@@ -324,9 +329,7 @@ function checkObject(
     });
 
     if (missingField) return missingField;
-    const error = types.find(type => type.kind === 'Error');
-    if (error) return error;
-    return type;
+    return types.find(type => type.kind === 'Error') ?? type;
   }
 
   else return checkSubtype(ast, env, type, annots, trace);

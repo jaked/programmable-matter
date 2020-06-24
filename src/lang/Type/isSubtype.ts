@@ -18,6 +18,8 @@ export function isSubtype(at: Type, bt: Type): boolean {
     return isSubtype(a.base, b.base) && a.value === b.value;
   else if (a.kind === 'Singleton')
     return isSubtype(a.base, b);
+  else if (a.kind === 'Error' && b.kind === 'undefined')
+    return true;
   else if (a.kind === 'Array' && b.kind === 'Array')
     return isSubtype(a.elem, b.elem);
   else if (a.kind === 'Set' && b.kind === 'Set')

@@ -63,20 +63,10 @@ describe('check', () => {
   describe('tuples', () => {
     const type = '[ number, boolean, null ]';
 
-    describe('literals', () => {
-      it('succeeds', () => {
-        expectCheck({
-          expr: '[1, true, null]',
-          type,
-        });
-      });
-
-      it('throws', () => {
-        expectCheck({
-          expr: '[1, "foo", null]',
-          type,
-          error: true,
-        });
+    it('succeeds', () => {
+      expectCheck({
+        expr: '[1, true, null]',
+        type,
       });
     });
 
@@ -88,11 +78,39 @@ describe('check', () => {
       });
     });
 
+    it('throws', () => {
+      expectCheck({
+        expr: '[1, "foo", null]',
+        type,
+        error: true,
+      });
+    });
+
     it('throws on long tuples', () => {
       expectCheck({
         expr: '[1, "foo", null, 1]',
         type,
         error: true,
+      });
+    });
+
+    it('trailing missing elements ok if can be undefined', () => {
+      const type = Type.tuple(Type.boolean, Type.undefinedOrString);
+      expectCheck({
+        expr: `[ true ]`,
+        type,
+        error: false,
+        actualType: type,
+      });
+    });
+
+    it('erroneous elements ok if can be undefined', () => {
+      const type = Type.tuple(Type.undefinedOrNumber, Type.boolean, Type.undefinedOrString);
+      expectCheck({
+        expr: `[ x, true, y ]`,
+        type,
+        error: true,
+        actualType: type,
       });
     });
   });
@@ -123,6 +141,16 @@ describe('check', () => {
         env: { foo: type },
         type,
       });
+    });
+
+    it('erroneous elements ok if can be undefined', () => {
+      const type = Type.array(Type.undefinedOrNumber);
+      expectCheck({
+        expr: '[ 1, z ]',
+        type,
+        error: true,
+        actualType: type,
+      })
     });
   });
 
