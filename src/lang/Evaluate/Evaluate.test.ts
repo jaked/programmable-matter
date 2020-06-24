@@ -103,7 +103,7 @@ describe('evaluateExpression', () => {
     it('short-circuit error &&', () => {
       expectEval({
         expr: 'error && bug()',
-        value: error,
+        value: undefined,
         tenv,
         venv,
       });
@@ -165,7 +165,7 @@ describe('evaluateExpression', () => {
     it('error in target propagates', () => {
       expectEval({
         expr: `error.foo`,
-        value: error,
+        value: undefined,
         tenv,
         venv,
       });
@@ -174,7 +174,7 @@ describe('evaluateExpression', () => {
     it('error in object property propagates', () => {
       expectEval({
         expr: `object[error]`,
-        value: error,
+        value: undefined,
         tenv,
         venv,
       });

@@ -44,7 +44,7 @@ export function evaluateExpression(
 ): any {
   const type = annots.get(ast) ?? bug(`expected type`);
   if (type.kind === 'Error')
-    return type.err;
+    return undefined;
 
   switch (ast.type) {
     case 'Literal':
@@ -74,9 +74,7 @@ export function evaluateExpression(
     case 'JSXElement': {
       const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
         if (!value) return { [name.name]: true }
-        const type = annots.get(value) ?? bug(`expected type`);
-        if (type.kind === 'Error') return { [name.name]: undefined };
-        return { [name.name]: evaluateExpression(value, annots, env) };
+        else return { [name.name]: evaluateExpression(value, annots, env) };
       });
       const attrs = Object.assign({}, ...attrObjs);
 
@@ -109,7 +107,6 @@ export function evaluateExpression(
         const type = annots.get(child) ?? bug(`expected type`);
         // TODO(jaked) undefined seems to be an acceptable ReactNode
         // in some contexts but not others; maybe we need `null` here
-        if (type.kind === 'Error') return undefined;
         return evaluateExpression(child, annots, env);
       });
       if (typeof elem === 'function' && !isConstructor(elem))
@@ -129,26 +126,18 @@ export function evaluateExpression(
       const argType = annots.get(ast.argument) ?? bug(`expected type`);
       const v = evaluateExpression(ast.argument, annots, env);
       switch (ast.operator) {
-        case '!': return (argType.kind === 'Error') ? true : !v;
+        case '!': return !v;
         case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
         default: throw new Error(`unhandled ast ${ast.operator}`);
       }
     }
 
     case 'LogicalExpression': {
-      const leftType = annots.get(ast.left) ?? bug(`expected type`);
-      const left = evaluateExpression(ast.left, annots, env);
       switch (ast.operator) {
-        case '||': {
-          return (leftType.kind === 'Error') ?
-            evaluateExpression(ast.right, annots, env) :
-            left || evaluateExpression(ast.right, annots, env);
-        }
-        case '&&': {
-          return (leftType.kind === 'Error') ?
-            left :
-            left && evaluateExpression(ast.right, annots, env);
-        }
+        case '||':
+          return evaluateExpression(ast.left, annots, env) || evaluateExpression(ast.right, annots, env);
+        case '&&':
+          return evaluateExpression(ast.left, annots, env) && evaluateExpression(ast.right, annots, env);
         default:
           throw new Error(`unexpected binary operator ${ast.operator}`)
       }
@@ -206,11 +195,7 @@ export function evaluateExpression(
     }
 
     case 'CallExpression': {
-      const args = ast.arguments.map(arg => {
-        const type = annots.get(arg) ?? bug(`expected type`);
-        if (type.kind === 'Error') return undefined;
-        return evaluateExpression(arg, annots, env)
-      });
+      const args = ast.arguments.map(arg => evaluateExpression(arg, annots, env));
       if (ast.callee.type === 'MemberExpression') {
         const object = evaluateExpression(ast.callee.object, annots, env);
         if (ast.callee.computed) {
@@ -256,8 +241,7 @@ export function evaluateExpression(
       };
 
     case 'ConditionalExpression': {
-      const testType = annots.get(ast.test) ?? bug(`expected type`);
-      if (testType.kind !== 'Error' && evaluateExpression(ast.test, annots, env)) {
+      if (evaluateExpression(ast.test, annots, env)) {
         return evaluateExpression(ast.consequent, annots, env);
       } else {
         return evaluateExpression(ast.alternate, annots, env)
