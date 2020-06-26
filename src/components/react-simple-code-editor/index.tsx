@@ -660,6 +660,7 @@ const textarea: React.CSSProperties = {
 const highlight: React.CSSProperties = {
   position: 'relative',
   pointerEvents: 'none',
+  zIndex: -1,
 }
 const editor: React.CSSProperties = {
   margin: 0,
