@@ -5,7 +5,7 @@
   "description": "Text files that do stuff",
   "main": "./build/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "NODE_ENV=production electron .",
     "compile": "tsc --watch",
     "test": "jest --watch"
   },
