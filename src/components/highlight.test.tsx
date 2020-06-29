@@ -58,7 +58,7 @@ describe('highlight', () => {
     Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, annots);
 
     const highlighted =
-      highlight(ok, err, 'mdx', mdx, Try.ok(ast), annots);
+      highlight('mdx', mdx, Try.ok(ast), annots, ok, err);
     expect(highlighted).toEqual(expected);
   }
 
@@ -74,7 +74,7 @@ describe('highlight', () => {
     Typecheck.synth(ast, typeEnv, annots, trace);
 
     const highlighted =
-      highlight(ok, err, 'json', expr, Try.ok(ast), annots);
+      highlight('json', expr, Try.ok(ast), annots, ok, err);
     expect(highlighted).toEqual(expected);
   }
 

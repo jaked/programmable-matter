@@ -1,20 +1,23 @@
 import * as React from 'react';
 
-import { Catch } from './Catch';
-import * as data from './../data';
+import Signal from '../util/Signal';
+import AppContext from '../appContext';
 
 interface Props {
-  compiledNote: data.CompiledNote | null;
+  signal: Signal<React.ReactNode>,
+  log?: boolean,
 }
 
-export function Display({ compiledNote: note }: Props) {
-  try {
-    if (note) {
-      const rendered = note.rendered.get();
-      return (<Catch>{rendered}</Catch>);
-    }
-    throw new Error('no note');
-  } catch (e) {
-    return <pre>{e.stack}</pre>
-  }
-}
+export default React.memo(({ signal, log }: Props) => {
+  if (log) console.log('outer render');
+  const { level, trace } = React.useContext(AppContext);
+  signal.reconcile(trace, level);
+  return React.useMemo(() => {
+    if (log) console.log('inner render');
+    return <>{
+      signal.value.type === 'ok' ?
+        signal.value.ok :
+        <pre>{signal.value.err}</pre>
+    }</>;
+  }, [ signal.version ]);
+});

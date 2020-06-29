@@ -3,11 +3,13 @@ import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
 
+import { bug } from '../util/bug';
+
 import { App } from '../app';
 
 import { Catch } from './Catch';
-import { Display } from './Display';
-import { Editor } from './Editor';
+import Display from './Display';
+import Editor from './Editor';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 
@@ -26,6 +28,11 @@ const Flex = styled(FlexBase)({
 export class Main extends React.Component<Props, {}> {
   sidebarRef = React.createRef<Sidebar>();
   editorRef = React.createRef<Editor>();
+
+  // TODO(jaked) better way to handle discharging null case
+  compiledFileSignal = this.props.app.compiledFileSignal.map(compiledFile =>
+    compiledFile ?? bug('')
+  );
 
   focusSearchBox = () => {
     this.sidebarRef.current && this.sidebarRef.current.focusSearchBox();
@@ -73,12 +80,12 @@ export class Main extends React.Component<Props, {}> {
           padding={1}
         >{
           (this.props.app.content !== null &&
-          this.props.app.compiledFile !== null) ?
+           this.props.app.compiledFile !== null) ?
             <Editor
               ref={this.editorRef}
               view={this.props.app.editorView}
               content={this.props.app.content}
-              compiledFile={this.props.app.compiledFile}
+              compiledFile={this.compiledFileSignal}
               session={this.props.app.session}
               onChange={this.props.app.setContentAndSession}
               setStatus={this.props.app.setStatus}
@@ -101,11 +108,11 @@ export class Main extends React.Component<Props, {}> {
       borderColor='#cccccc'
       borderStyle='solid'
       borderWidth='0px 0px 0px 1px'
-    >
-      <Catch>
-        <Display compiledNote={this.props.app.compiledNote} />
-      </Catch>
-    </Box>
+    >{
+      this.props.app.compiledNote ?
+        <Display signal={this.props.app.compiledNote.rendered} /> :
+        'no note'
+    }</Box>
 
   render() {
     const [sideBarWidth, mainPaneWidth] =
@@ -117,13 +124,11 @@ export class Main extends React.Component<Props, {}> {
     ).map(w => w * mainPaneWidth);
 
     return (
-      <>
-        <Flex style={{ height: '100vh' }}>
-          { sideBarWidth === 0 ? null : <Catch><this.SidebarPane width={sideBarWidth} /></Catch> }
-          { editorPaneWidth === 0 ? null : <Catch><this.EditorPane width={editorPaneWidth} /></Catch> }
-          { displayPaneWidth === 0 ? null : <Catch><this.DisplayPane width={displayPaneWidth} /></Catch> }
-        </Flex>
-      </>
+      <Flex style={{ height: '100vh' }}>
+        { sideBarWidth === 0 ? null : <Catch><this.SidebarPane width={sideBarWidth} /></Catch> }
+        { editorPaneWidth === 0 ? null : <Catch><this.EditorPane width={editorPaneWidth} /></Catch> }
+        { displayPaneWidth === 0 ? null : <Catch><this.DisplayPane width={displayPaneWidth} /></Catch> }
+      </Flex>
     );
   }
 }

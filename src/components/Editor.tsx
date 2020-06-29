@@ -1,4 +1,7 @@
 import * as React from 'react';
+import Display from './Display';
+import { bug } from '../util/bug';
+import Signal from '../util/Signal';
 
 // import { FixedSizeList } from 'react-window';
 import RSCEditor, { Session } from './react-simple-code-editor';
@@ -12,7 +15,7 @@ import highlight from './highlight'
 interface Props {
   view: data.Types;
   content: string;
-  compiledFile: data.CompiledFile;
+  compiledFile: Signal<data.CompiledFile>;
   session: Session;
 
   onChange: (content: string, session: Session) => void;
@@ -56,20 +59,26 @@ const errComponents =
   link:       styled(okComponents.link)(errStyle),
 }
 
-export class Editor extends React.Component<Props, {}> {
-  rscEditorRef = React.createRef<RSCEditor>();
-  preRef = React.createRef<HTMLPreElement>();
+type Editor = {
+  focus: () => void
+};
 
-  focus() {
-    if (this.rscEditorRef.current) {
-      this.rscEditorRef.current.focus();
+const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
+  const rscEditorRef = React.useRef<RSCEditor>(null);
+  const preRef = React.useRef<HTMLPreElement>(null);
+
+  React.useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (rscEditorRef.current) {
+        rscEditorRef.current.focus();
+      }
     }
-  }
+  }));
 
-  findHighlightSpan = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
-    if (!this.preRef.current) return;
-    for (let i = 0; i < this.preRef.current.children.length; i++) {
-      const child = this.preRef.current.children.item(i);
+  const findHighlightSpan = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    if (!preRef.current) return;
+    for (let i = 0; i < preRef.current.children.length; i++) {
+      const child = preRef.current.children.item(i);
       if (child) {
         const clientRect = child.getBoundingClientRect();
         if (e.clientX >= clientRect.left && e.clientX <= clientRect.right &&
@@ -80,44 +89,52 @@ export class Editor extends React.Component<Props, {}> {
     }
   }
 
-  onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
-    const span = this.findHighlightSpan(e);
+  const onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    const span = findHighlightSpan(e);
     if (span) {
-      this.props.setStatus(span.dataset.status);
+      props.setStatus(span.dataset.status);
     } else {
-      this.props.setStatus(undefined);
+      props.setStatus(undefined);
     }
   }
 
-  onClick = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
-    const span = this.findHighlightSpan(e);
+  const onClick = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
+    const span = findHighlightSpan(e);
     if (span && span.dataset.link) {
       e.preventDefault();
-      this.props.setSelected(span.dataset.link);
+      props.setSelected(span.dataset.link);
     }
   }
 
-  render() {
-    const { view, content, compiledFile } = this.props;
-    const highlighted =
-      highlight(okComponents, errComponents, view, content, compiledFile.ast, compiledFile.astAnnotations);
-    return (
-      <div style={{
-        fontFamily: 'Monaco, monospace',
-        fontSize: '14px',
-      }}>
-        <RSCEditor
-          ref={this.rscEditorRef}
-          preRef={this.preRef}
-          value={content}
-          session={this.props.session}
-          onChange={this.props.onChange}
-          highlight={_ => highlighted}
-          onMouseOver={this.onMouseEvent}
-          onMouseMove={this.onMouseEvent}
-          onClick={this.onClick}
-        />
-      </div>
-    );
-  }
-}
+  const highlighted = props.compiledFile.map(compiledFile =>
+    highlight(
+      props.view,
+      props.content,
+      compiledFile.ast,
+      compiledFile.astAnnotations ?? bug(''),
+      okComponents,
+      errComponents
+    )
+  );
+
+  return (
+    <div style={{
+      fontFamily: 'Monaco, monospace',
+      fontSize: '14px',
+    }}>
+      <RSCEditor
+        ref={rscEditorRef}
+        preRef={preRef}
+        value={props.content}
+        session={props.session}
+        onChange={props.onChange}
+        highlight={<Display signal={highlighted} />}
+        onMouseOver={onMouseEvent}
+        onMouseMove={onMouseEvent}
+        onClick={onClick}
+      />
+    </div>
+  );
+}));
+
+export default Editor;

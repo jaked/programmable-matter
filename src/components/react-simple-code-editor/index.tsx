@@ -5,7 +5,7 @@ type Props = {
   value: string,
   session: Session,
   onChange: (value: string, session: Session) => void,
-  highlight: (value: string) => string | React.ReactNode,
+  highlight: React.ReactNode,
   tabSize: number,
   insertSpaces: boolean,
   ignoreTabKey: boolean,
@@ -584,8 +584,6 @@ export default class Editor extends React.Component<Props, State> {
       paddingLeft: padding,
     };
 
-    const highlighted = highlight(value);
-
     return (
       <div {...rest} style={{ ...styles.container, ...style }}>
         <textarea
@@ -625,10 +623,7 @@ export default class Editor extends React.Component<Props, State> {
           ref={preRef}
           aria-hidden="true"
           style={{ ...styles.editor, ...styles.highlight, ...contentStyle }}
-          {...(typeof highlighted === 'string'
-            ? { dangerouslySetInnerHTML: { __html: highlighted + '<br />' } }
-            : { children: highlighted })}
-        />
+        >{highlight}</pre>
         {/* eslint-disable-next-line react/no-danger */}
         <style type="text/css" dangerouslySetInnerHTML={{ __html: cssText }} />
       </div>

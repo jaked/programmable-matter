@@ -1,4 +1,5 @@
 import * as React from 'react';
+
 import Try from '../util/Try';
 import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
@@ -27,8 +28,6 @@ type Span = {
 };
 
 function computeJsSpans(
-  okComponents: components,
-  errComponents: components,
   ast: ESTree.Node,
   annots: data.AstAnnotations | undefined,
   spans: Array<Span>
@@ -180,14 +179,6 @@ function computeJsSpans(
 
       case 'VariableDeclarator':
         {
-          // TODO(jaked) clean up duplication
-          let components = okComponents;
-          let status: string | undefined = undefined;
-          let type = annots && annots.get(ast.id);
-          if (type && type.kind === 'Error') {
-            components = errComponents;
-            status = type.err.message;
-          }
           span(ast.id, 'definition', undefined, undefined, ast.id.start, ast.id.start + ast.id.name.length);
           ESTree.visit(ast.id.typeAnnotation, fn);
         }
@@ -222,8 +213,6 @@ function computeJsSpans(
 }
 
 function computeSpans(
-  okComponents: components,
-  errComponents: components,
   ast: MDXHAST.Node,
   annots: data.AstAnnotations | undefined,
   spans: Array<Span>
@@ -232,7 +221,7 @@ function computeSpans(
     case 'root':
     case 'element':
       return ast.children.forEach(child =>
-        computeSpans(okComponents, errComponents, child, annots, spans)
+        computeSpans(child, annots, spans)
       );
 
     case 'text':
@@ -243,7 +232,7 @@ function computeSpans(
       // TODO(jaked)
       // parsing should always succeed with some AST
       return ast.jsxElement.forEach(expr => {
-        computeJsSpans(okComponents, errComponents, expr, annots, spans);
+        computeJsSpans(expr, annots, spans);
       });
 
     case 'import':
@@ -253,19 +242,19 @@ function computeSpans(
       // parsing should always succeed with some AST
       return ast.declarations.forEach(decls => {
         decls.forEach(decl => {
-          computeJsSpans(okComponents, errComponents, decl, annots, spans);
+          computeJsSpans(decl, annots, spans);
         });
       });
     }
 }
 
 export default function computeHighlight(
-  okComponents: components,
-  errComponents: components,
   view: data.Types,
   content: string,
   ast: Try<any>,
-  annots?: data.AstAnnotations,
+  annots: data.AstAnnotations,
+  okComps: components,
+  errComps: components,
 ) {
   const spans: Array<Span> = [];
 
@@ -273,14 +262,14 @@ export default function computeHighlight(
   // parsing should always succeed with some AST
   switch (view) {
     case 'mdx': {
-      ast.forEach(ast => computeSpans(okComponents, errComponents, ast, annots, spans));
+      ast.forEach(ast => computeSpans(ast, annots, spans));
     }
     break;
 
     case 'json':
     case 'table':
     case 'meta': {
-      ast.forEach(ast => computeJsSpans(okComponents, errComponents, ast, annots, spans));
+      ast.forEach(ast => computeJsSpans(ast, annots, spans));
     }
     break;
   }
@@ -322,7 +311,7 @@ export default function computeHighlight(
       }
     }
     const chunk = content.slice(span.start, span.end);
-    const component = span.status ? errComponents[span.component] : okComponents[span.component];
+    const component = span.status ? errComps[span.component] : okComps[span.component];
     lineNodes.push(
       React.createElement(component as any, { 'data-status': span.status, 'data-link': span.link }, chunk)
     );

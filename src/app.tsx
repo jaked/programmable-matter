@@ -19,6 +19,7 @@ import Server from './server';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
+import AppContext from './appContext';
 import { Main } from './components/Main';
 import { Session, emptySession } from './components/react-simple-code-editor';
 
@@ -222,7 +223,7 @@ export class App {
       return null;
     });
 
-  private compiledFileSignal = Signal.label('compiledFile',
+  public compiledFileSignal = Signal.label('compiledFile',
     Signal.join(this.selectedFileSignal, this.compiledFilesSignal).flatMap(([file, compiledFiles]) => {
       if (file) {
         const compiledFile = compiledFiles.get(file.path) ?? bug(`expected compiled file for ${file.path}`);
@@ -443,10 +444,12 @@ export class App {
   private reactRender = (trace: Trace) => {
     trace.open('ReactDOM.render');
     ReactDOM.render(
-      <Main
-        ref={this.mainRef}
-        app={this}
-      />,
+      <AppContext.Provider value={{ level: this.level, trace: this.__trace }}>
+        <Main
+          ref={this.mainRef}
+          app={this}
+        />
+      </AppContext.Provider>,
       document.getElementById('main')
     );
     trace.close();
