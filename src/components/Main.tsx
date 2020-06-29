@@ -10,7 +10,7 @@ import { App } from '../app';
 import { Catch } from './Catch';
 import Display from './Display';
 import Editor from './Editor';
-import { Sidebar } from './Sidebar';
+import Sidebar from './Sidebar';
 import { TabBar } from './TabBar';
 
 interface Props {
