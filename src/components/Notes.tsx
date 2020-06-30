@@ -6,7 +6,6 @@ import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import { bug } from '../util/bug';
 import * as data from '../data';
 import { Note } from './Note';
 
@@ -22,7 +21,7 @@ type NoteFnProps = {
   data: Props,
 }
 
-const NoteFn = ({ index, style, data }: NoteFnProps) => {
+const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
 
   let err = false;
@@ -51,7 +50,7 @@ const NoteFn = ({ index, style, data }: NoteFnProps) => {
       style={style}
     />
   );
-};
+});
 
 
 interface Props {
@@ -63,7 +62,7 @@ interface Props {
   toggleDirExpanded: (tag: string) => void;
 }
 
-export const Notes = React.forwardRef<HTMLDivElement, Props>((props, ref) => {
+export default React.memo(React.forwardRef<HTMLDivElement, Props>((props, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (props.notes.length === 0) return false;
     let nextTagIndex: number;
@@ -133,4 +132,4 @@ export const Notes = React.forwardRef<HTMLDivElement, Props>((props, ref) => {
       </AutoSizer>
     </Box>
   );
-});
+}));

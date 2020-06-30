@@ -2,8 +2,8 @@ import React from 'react';
 import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
 
-import { Notes } from './Notes';
-import { SearchBox } from './SearchBox';
+import Notes from './Notes';
+import SearchBox from './SearchBox';
 import * as data from '../data';
 
 type Props = {
