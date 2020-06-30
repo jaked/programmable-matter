@@ -3,9 +3,13 @@ import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
 
-import { bug } from '../util/bug';
+import Signal from '../util/Signal';
+
+import * as data from '../data';
 
 import { App } from '../app';
+
+import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
 import Display from './Display';
@@ -50,77 +54,92 @@ const SidebarPane = React.forwardRef<Sidebar, SidebarPaneProps>((props, ref) =>
 );
 
 type EditorPaneProps = {
-  app: App;
+  content: Signal<string | null>;
+  compiledFile: Signal<data.CompiledFile | null>;
+  editorView: Signal<'meta' | 'mdx' | 'json' | 'table'>;
+  session: Signal<Session>;
+  selectedNoteProblems: Signal<{ meta?: boolean, mdx?: boolean, json?: boolean, table?: boolean }>;
+  status: Signal<string | undefined>;
+  onChange: Signal<(updateContent: string, session: Session) => void>;
+  setStatus: (status: string | undefined) => void;
+  setSelected: (selected: string | null) => void;
+  setEditorView: (view: 'meta' | 'mdx' | 'json' | 'table') => void;
   width: number;
 }
 
-const EditorPane = React.forwardRef<Editor, EditorPaneProps>((props, ref) => {
-  // TODO(jaked) better way to handle discharging null case
-  const compiledFileSignal = props.app.compiledFileSignal.map(compiledFile =>
-    compiledFile ?? bug('')
-  );
-
-  return (
+const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) =>
+  <Flex
+    flexDirection='column'
+    justifyContent='space-between'
+    width={props.width}
+    borderColor='#cccccc'
+    borderStyle='solid'
+    borderWidth='0px 0px 0px 1px'
+  >
     <Flex
       flexDirection='column'
-      justifyContent='space-between'
-      width={props.width}
-      borderColor='#cccccc'
-      borderStyle='solid'
-      borderWidth='0px 0px 0px 1px'
     >
-      <Flex
-        flexDirection='column'
-      >
-        <TabBar
-          editorView={props.app.editorView}
-          setEditorView={props.app.setEditorView}
-          selectedNoteProblems={props.app.selectedNoteProblems}
-        />
-        <Box
-          padding={1}
-        >{
-          (props.app.content !== null &&
-          props.app.compiledFile !== null) ?
-            <Editor
-              ref={ref}
-              view={props.app.editorView}
-              content={props.app.content}
-              compiledFile={compiledFileSignal}
-              session={props.app.session}
-              onChange={props.app.setContentAndSession}
-              setStatus={props.app.setStatus}
-              setSelected={props.app.setSelected}
-            /> :
-            <Box
-              padding={1}
-            >
-              no note
-            </Box>
-        }</Box>
-      </Flex>
-      <div style={{ backgroundColor: '#ffc0c0' }}>{props.app.status}</div>
+      <Display signal={
+        Signal.join(props.editorView, props.selectedNoteProblems).map(([editorView, selectedNoteProblems]) =>
+          <TabBar
+            editorView={editorView}
+            setEditorView={props.setEditorView}
+            selectedNoteProblems={selectedNoteProblems}
+          />
+        )
+      }/>
+      <Box padding={1} >
+        <Display signal={
+          Signal.join(props.content, props.compiledFile).map(([ content, compiledFile ]) =>
+            content !== null && compiledFile !== null ?
+              <Display signal={
+                Signal.join(props.editorView, props.session, props.onChange).map(([ editorView, session, onChange ]) =>
+                  <Editor
+                    ref={ref}
+                    view={editorView}
+                    content={content}
+                    compiledFile={Signal.ok(compiledFile)}
+                    session={session}
+                    onChange={onChange}
+                    setStatus={props.setStatus}
+                    setSelected={props.setSelected}
+                  />
+                )}/> :
+              <Box padding={1}>no note</Box>
+            )
+        }/>
+      </Box>
     </Flex>
-  );
-});
+    <Display signal={
+      props.status.map(status =>
+        <div style={{ backgroundColor: '#ffc0c0' }}>{status}</div>
+      )
+    }/>
+  </Flex>
+));
 
 type DisplayPaneProps = {
-  app: App;
+  compiledNoteSignal: Signal<data.CompiledNote | null>;
   width: number;
 }
 
-const DisplayPane = (props: DisplayPaneProps) =>
+const DisplayPane = React.memo((props: DisplayPaneProps) =>
   <Box
     width={props.width}
     padding={1}
     borderColor='#cccccc'
     borderStyle='solid'
     borderWidth='0px 0px 0px 1px'
-  >{
-    props.app.compiledNote ?
-      <Display signal={props.app.compiledNote.rendered} /> :
-      'no note'
-  }</Box>
+  >
+    <Display signal={
+      props.compiledNoteSignal.flatMap(compiledNote =>
+        compiledNote ?
+          compiledNote.rendered :
+          Signal.ok('no note')
+      )
+    }/>
+  </Box>
+);
 
 type Main = {
   focusSearchBox: () => void;
@@ -166,7 +185,16 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
         <Catch>
           <EditorPane
             ref={editorRef}
-            app={props.app}
+            content={props.app.contentSignal}
+            compiledFile={props.app.compiledFileSignal}
+            editorView={props.app.editorViewCell}
+            session={props.app.sessionSignal}
+            selectedNoteProblems={props.app.selectedNoteProblemsSignal}
+            status={props.app.statusCell}
+            onChange={props.app.setContentAndSessionSignal}
+            setStatus={props.app.setStatus}
+            setSelected={props.app.setSelected}
+            setEditorView={props.app.setEditorView}
             width={editorPaneWidth}
           />
         </Catch>
@@ -174,7 +202,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       { displayPaneWidth === 0 ? null :
         <Catch>
           <DisplayPane
-            app={props.app}
+            compiledNoteSignal={props.app.compiledNoteSignal}
             width={displayPaneWidth}
           />
         </Catch>

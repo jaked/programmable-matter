@@ -123,7 +123,7 @@ export class App {
     this.searchCell.setOk(search);
   }
 
-  private statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
+  public statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
   public get status() { return this.statusCell.get() }
   public setStatus = (status: string | undefined) => {
     this.statusCell.setOk(status);
@@ -141,15 +141,14 @@ export class App {
     this.mainPaneViewCell.setOk(view);
   }
 
-  private editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
-  public get editorView() { return this.editorViewCell.get() }
+  public editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
   public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
     this.editorViewCell.setOk(view);
   }
 
   deleteNote = () => {
     const selected = this.selected;
-    const view = this.editorView;
+    const view = this.editorViewCell.get();
     if (selected === null || !view) return;
 
     const note = this.compiledNotesSignal.get().get(selected);
@@ -177,7 +176,7 @@ export class App {
   private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
   public get compiledNotes() { return this.compiledNotesSignal.get() }
 
-  private compiledNoteSignal = Signal.label('compiledNote',
+  public compiledNoteSignal = Signal.label('compiledNote',
     Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
       if (selected !== null) {
         const note = compiledNotes.get(selected);
@@ -186,9 +185,8 @@ export class App {
       return null;
     })
   );
-  public get compiledNote() { return this.compiledNoteSignal.get() }
 
-  private selectedNoteProblemsSignal =
+  public selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
       if (compiledNote !== null) {
         // TODO(jaked) pass these on note instead of reconstructing
@@ -207,7 +205,6 @@ export class App {
         return Signal.ok({ meta: false, mdx: false, table: false, json: false });
       }
     });
-  public get selectedNoteProblems() { return this.selectedNoteProblemsSignal.get() }
 
   private selectedFileSignal =
     Signal.join(
@@ -232,18 +229,16 @@ export class App {
       return Signal.ok(null);
     })
   );
-  public get compiledFile() { return this.compiledFileSignal.get() }
 
   // TODO(jaked) bundle data we need for editor in CompiledFile
-  private contentSignal: Signal<string | null> =
+  public contentSignal: Signal<string | null> =
     this.selectedFileSignal.flatMap(file => {
       if (file) return file.content;
       else return Signal.ok(null);
     });
-  public get content() { return this.contentSignal.get() }
 
   private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
-  private sessionSignal = Signal.label('session',
+  public sessionSignal = Signal.label('session',
     Signal.join(this.selectedFileSignal, this.sessionsCell).map(([file, sessions]) => {
       if (file) {
         const session = sessions.get(file.path);
@@ -254,9 +249,8 @@ export class App {
       return emptySession();
     })
   );
-  public get session() { return this.sessionSignal.get() }
 
-  private setContentAndSessionSignal = Signal.label('setContentAndSession',
+  public setContentAndSessionSignal = Signal.label('setContentAndSession',
     Signal.join(
       this.selectedFileSignal,
       this.sessionsCell,
@@ -273,7 +267,6 @@ export class App {
       );
     })
   );
-  public get setContentAndSession() { return this.setContentAndSessionSignal.get() }
 
   private matchingNotesSignal = Signal.label('matchingNotes',
     Signal.join(
@@ -413,26 +406,10 @@ export class App {
   // TODO(jaked) find a way to integrate these demands into the React render
   // so we don't need to coordinate this manually.
   private mainSignal = Signal.label('main',
-    Signal.join(
-      Signal.label('rendered', this.compiledNoteSignal.flatMap(compiledNote => {
-        if (compiledNote) {
-          return compiledNote.rendered;
-        } else {
-          return Signal.ok(undefined);
-        }
-      })),
-      this.contentSignal,
-      this.sessionSignal,
-      this.setContentAndSessionSignal,
-      this.compiledFileSignal,
-      Signal.label('selectedNoteProblems', this.selectedNoteProblemsSignal),
-      Signal.label('matchingNotes problems',
-        this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
-          const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
-          return Signal.join(...matchingNotes);
-        })
-      ),
-    )
+    this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
+      const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
+      return Signal.join(...matchingNotes);
+    })
   );
 
   private server =
