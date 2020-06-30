@@ -44,12 +44,9 @@ export class App {
     this.__trace.reset();
     this.level++;
 
-    try {
-      this.mainSignal.reconcile(this.__trace, this.level);
-    } catch (e) {
-      console.log(e);
-    }
-
+    // TODO(jaked)
+    // we need to reconcile explicitly to trigger BrowserSync reload
+    // can this be avoided?
     this.server.reconcile(this.__trace, this.level);
 
     this.reactRender(this.__trace);
@@ -87,10 +84,9 @@ export class App {
 
   private history: string[] = [];
   private historyIndex: number = -1; // index of current selection, or -1 if none
-  private selectedCell = Signal.cellOk<string | null>(null, this.render);
-  public get selected() { return this.selectedCell.get() }
+  public selectedCell = Signal.cellOk<string | null>(null, this.render);
   public setSelected = (selected: string | null) => {
-    if (selected === this.selected) return;
+    if (selected === this.selectedCell.get()) return;
     if (selected !== null) {
       this.history = this.history.slice(0, this.historyIndex + 1);
       this.history.push(selected);
@@ -112,19 +108,16 @@ export class App {
   }
 
   public focusDirCell = Signal.cellOk<string | null>(null, this.render);
-  public get focusDir() { return this.focusDirCell.get() }
   public setFocusDir = (focus: string | null) => {
     this.focusDirCell.setOk(focus);
   }
 
   public searchCell = Signal.cellOk<string>('', this.render);
-  public get search() { return this.searchCell.get() }
   public setSearch = (search: string) => {
     this.searchCell.setOk(search);
   }
 
   public statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
-  public get status() { return this.statusCell.get() }
   public setStatus = (status: string | undefined) => {
     this.statusCell.setOk(status);
   }
@@ -147,7 +140,7 @@ export class App {
   }
 
   deleteNote = () => {
-    const selected = this.selected;
+    const selected = this.selectedCell.get();
     const view = this.editorViewCell.get();
     if (selected === null || !view) return;
 
@@ -174,7 +167,6 @@ export class App {
     )
   private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
   private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
-  public get compiledNotes() { return this.compiledNotesSignal.get() }
 
   public compiledNoteSignal = Signal.label('compiledNote',
     Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
@@ -341,7 +333,6 @@ export class App {
       );
     })
   );
-  public get matchingNotes() { return this.matchingNotesSignal.get() }
 
   private dirExpandedCell = Signal.cellOk(Immutable.Map<string, boolean>(), this.render);
   public toggleDirExpanded = (dir: string) => {
@@ -351,7 +342,7 @@ export class App {
     });
   }
 
-  private matchingNotesTreeSignal = Signal.label('matchingNotesTree',
+  public matchingNotesTreeSignal = Signal.label('matchingNotesTree',
     Signal.join(
       this.matchingNotesSignal,
       this.searchCell,
@@ -396,21 +387,6 @@ export class App {
       return matchingNotesTree;
     })
   );
-  public get matchingNotesTree() { return this.matchingNotesTreeSignal.get() }
-
-  // join all the signals used by the Main component for the render loop
-  // TODO(jaked) we could avoid reconciling some of this depending on UI state
-  // e.g. we don't need matchingNotesSignal if the sidebar is hidden
-  // TODO(jaked) but be careful about global commands needing state
-  // e.g. 'next problem' should maybe go to the next global problem?
-  // TODO(jaked) find a way to integrate these demands into the React render
-  // so we don't need to coordinate this manually.
-  private mainSignal = Signal.label('main',
-    this.matchingNotesTreeSignal.flatMap(matchingNotesTree => {
-      const matchingNotes = matchingNotesTree.map(matchingNote => matchingNote.problems);
-      return Signal.join(...matchingNotes);
-    })
-  );
 
   private server =
     new Server(this.__trace, this.compiledNotesSignal);
@@ -433,39 +409,43 @@ export class App {
   }
 
   private nextProblem = () => {
-    const selected = this.selected;
-    const matchingNotes = this.matchingNotes;
-    const nextIndex = matchingNotes.findIndex(note => note.tag === selected) + 1;
-    let cont = true;
-    for (let i = 0; cont && i < matchingNotes.length; i++) {
-      const index = (nextIndex + i) % matchingNotes.length;
-      const matchingNote = matchingNotes[index];
-      // TODO(jaked) separate selectable content objects in notes?
-      if (matchingNote.problems.get() === true) {
-        cont = false;
-        this.setSelected(matchingNote.tag);
-      }
-    }
+    // TODO(jaked)
+    // const selected = this.selected;
+    // const matchingNotes = this.matchingNotes;
+    // const nextIndex = matchingNotes.findIndex(note => note.tag === selected) + 1;
+    // let cont = true;
+    // for (let i = 0; cont && i < matchingNotes.length; i++) {
+    //   const index = (nextIndex + i) % matchingNotes.length;
+    //   const matchingNote = matchingNotes[index];
+    //   // TODO(jaked) separate selectable content objects in notes?
+    //   if (matchingNote.problems.get() === true) {
+    //     cont = false;
+    //     this.setSelected(matchingNote.tag);
+    //   }
+    // }
   }
 
   private previousProblem = () => {
-    const selected = this.selected;
-    const matchingNotes = this.matchingNotes;
-    const previousIndex = matchingNotes.findIndex(note => note.tag === selected) - 1;
-    let cont = true;
-    for (let i = matchingNotes.length - 1; cont && i > 0; i--) {
-      const index = (previousIndex + i) % matchingNotes.length;
-      const matchingNote = matchingNotes[index];
-      // TODO(jaked) separate selectable content objects in notes?
-      if (matchingNote.problems.get() === true) {
-        cont = false;
-        this.setSelected(matchingNote.tag);
-      }
-    }
+    // TODO(jaked)
+    // const selected = this.selected;
+    // const matchingNotes = this.matchingNotes;
+    // const previousIndex = matchingNotes.findIndex(note => note.tag === selected) - 1;
+    // let cont = true;
+    // for (let i = matchingNotes.length - 1; cont && i > 0; i--) {
+    //   const index = (previousIndex + i) % matchingNotes.length;
+    //   const matchingNote = matchingNotes[index];
+    //   // TODO(jaked) separate selectable content objects in notes?
+    //   if (matchingNote.problems.get() === true) {
+    //     cont = false;
+    //     this.setSelected(matchingNote.tag);
+    //   }
+    // }
   }
 
   publishSite = async () => {
-    ghPages(this.compiledNotes, this.__trace, this.level);
+    this.compiledNotesSignal.reconcile(this.__trace, this.level);
+    const compiledNotes = this.compiledNotesSignal.get();
+    ghPages(compiledNotes, this.__trace, this.level);
   }
 
   syncGoogleTasks = () => {

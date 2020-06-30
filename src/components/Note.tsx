@@ -23,7 +23,7 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export const Note = ({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style } : Props) => {
+export default React.memo(({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style } : Props) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :
@@ -48,4 +48,4 @@ export const Note = ({ label, expanded, indent, err, selected, onSelect, toggleD
       <div>{label}</div>
     </Flex>
   );
-};
+});

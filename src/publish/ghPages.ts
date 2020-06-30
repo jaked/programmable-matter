@@ -21,54 +21,56 @@ export default async function ghPages(
   trace: Trace,
   level: number,
 ) {
-    // TODO(jaked) generate random dir name?
-    const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-    // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
-    await rimraf(tempdir, { glob: false })
-    await mkdir(tempdir);
-    await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
-    await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
-    await Promise.all(compiledNotes.map(async note => {
-      // TODO(jaked) don't blow up on failed notes
+  // TODO(jaked) use context provider to avoid manual reconciliation
 
-      note.meta.reconcile(trace, level);
-      if (!note.meta.get().publish) return
-      note.publishedType.reconcile(trace, level);
-      const publishedType = note.publishedType.get();
+  // TODO(jaked) generate random dir name?
+  const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
+  // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
+  await rimraf(tempdir, { glob: false })
+  await mkdir(tempdir);
+  await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
+  await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
+  await Promise.all(compiledNotes.map(async note => {
+    // TODO(jaked) don't blow up on failed notes
 
-      if (publishedType === 'jpeg') {
-        const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
-        const path = Path.resolve(tempdir, base) + '.jpeg';
+    note.meta.reconcile(trace, level);
+    if (!note.meta.get().publish) return
+    note.publishedType.reconcile(trace, level);
+    const publishedType = note.publishedType.get();
 
-        await mkdir(Path.dirname(path), { recursive: true });
-        note.exportValue.reconcile(trace, level);
-        const exportValue = note.exportValue.get();
-        exportValue.buffer.reconcile(trace, level);
-        const buffer = exportValue.buffer.get();
-        await writeFile(path, buffer);
+    if (publishedType === 'jpeg') {
+      const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
+      const path = Path.resolve(tempdir, base) + '.jpeg';
 
-      } else if (publishedType === 'html') {
-        const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
-        const path = Path.resolve(tempdir, base) + '.html';
+      await mkdir(Path.dirname(path), { recursive: true });
+      note.exportValue.reconcile(trace, level);
+      const exportValue = note.exportValue.get();
+      exportValue.buffer.reconcile(trace, level);
+      const buffer = exportValue.buffer.get();
+      await writeFile(path, buffer);
 
-        note.rendered.reconcile(trace, level);
-        const rendered = note.rendered.get();
-        if (!rendered) return;
+    } else if (publishedType === 'html') {
+      const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
+      const path = Path.resolve(tempdir, base) + '.html';
 
-        const renderedWithContext =
-          React.createElement(Render.context.Provider, { value: 'server' }, rendered)
-        const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
-        await mkdir(Path.dirname(path), { recursive: true });
-        await writeFile(path, html);
-      }
-    }).values());
-    await ghPagesPublish(tempdir, {
-      src: '**',
-      dotfiles: true,
-      branch: 'master',
-      repo: 'https://github.com/jaked/jaked.github.io.git',
-      message: 'published from Programmable Matter',
-      name: 'Jake Donham',
-      email: 'jake.donham@gmail.com',
-    });
+      note.rendered.reconcile(trace, level);
+      const rendered = note.rendered.get();
+      if (!rendered) return;
+
+      const renderedWithContext =
+        React.createElement(Render.context.Provider, { value: 'server' }, rendered)
+      const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+      await mkdir(Path.dirname(path), { recursive: true });
+      await writeFile(path, html);
+    }
+  }).values());
+  await ghPagesPublish(tempdir, {
+    src: '**',
+    dotfiles: true,
+    branch: 'master',
+    repo: 'https://github.com/jaked/jaked.github.io.git',
+    message: 'published from Programmable Matter',
+    name: 'Jake Donham',
+    email: 'jake.donham@gmail.com',
+  });
 }

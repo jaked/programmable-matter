@@ -7,7 +7,8 @@ import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
 import * as data from '../data';
-import { Note } from './Note';
+import Note from './Note';
+import Display from './Display';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
@@ -24,34 +25,31 @@ type NoteFnProps = {
 const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
 
-  let err = false;
-  if (note.problems.value.type === 'err') err = true;
-  else if (note.problems.get()) err = true;
-
-  return (
-    <Note
-      key={note.tag}
-      label={Path.parse(note.tag).base}
-      expanded={note.expanded}
-      indent={note.indent}
-      err={err}
-      selected={note.tag === data.selected}
-      onSelect={ () => data.onSelect(note.tag) }
-      toggleDirExpanded={
-        typeof note.expanded !== 'undefined' ?
-          (() => data.toggleDirExpanded(note.tag)) :
-          undefined
-      }
-      onFocusDir={
-        typeof note.expanded !== 'undefined' ?
-          (() => data.onFocusDir(note.tag)) :
-          undefined
-      }
-      style={style}
-    />
-  );
+  return (<Display signal={
+    note.problems.map(problems =>
+      <Note
+        key={note.tag}
+        label={Path.parse(note.tag).base}
+        expanded={note.expanded}
+        indent={note.indent}
+        err={problems}
+        selected={note.tag === data.selected}
+        onSelect={ () => data.onSelect(note.tag) }
+        toggleDirExpanded={
+          typeof note.expanded !== 'undefined' ?
+            (() => data.toggleDirExpanded(note.tag)) :
+            undefined
+        }
+        onFocusDir={
+          typeof note.expanded !== 'undefined' ?
+            (() => data.onFocusDir(note.tag)) :
+            undefined
+        }
+        style={style}
+      />
+    )
+  } />);
 });
-
 
 interface Props {
   notes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;

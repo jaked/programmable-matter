@@ -30,26 +30,43 @@ const Flex = styled(FlexBase)({
 }, borders);
 
 type SidebarPaneProps = {
-  app: App;
+  focusDir: Signal<string | null>;
+  search: Signal<string>;
+  matchingNotesTree: Signal<Array<data.CompiledNote & { indent: number, expanded?: boolean }>>;
+  selected: Signal<string | null>;
+  setFocusDir: (focus: string | null) => void;
+  setSearch: (search: string) => void;
+  setSelected: (selected: string | null) => void;
+  newNote: (tag: string) => void;
+  toggleDirExpanded: (dir: string) => void;
   width: number;
   focusEditor: () => void;
 };
 
 const SidebarPane = React.forwardRef<Sidebar, SidebarPaneProps>((props, ref) =>
   <Flex width={props.width} flexDirection='column'>
-    <Sidebar
-      ref={ref}
-      focusDir={props.app.focusDir}
-      onFocusDir={props.app.setFocusDir}
-      search={props.app.search}
-      onSearch={props.app.setSearch}
-      matchingNotes={props.app.matchingNotesTree}
-      selected={props.app.selected}
-      onSelect={props.app.setSelected}
-      newNote={props.app.newNote}
-      focusEditor={props.focusEditor}
-      toggleDirExpanded={props.app.toggleDirExpanded}
-    />
+    <Display signal={
+      Signal.join(
+        props.focusDir,
+        props.search,
+        props.matchingNotesTree,
+        props.selected,
+      ).map(([focusDir, search, matchingNotesTree, selected]) =>
+        <Sidebar
+          ref={ref}
+          focusDir={focusDir}
+          search={search}
+          matchingNotes={matchingNotesTree}
+          selected={selected}
+          onFocusDir={props.setFocusDir}
+          onSearch={props.setSearch}
+          onSelect={props.setSelected}
+          newNote={props.newNote}
+          focusEditor={props.focusEditor}
+          toggleDirExpanded={props.toggleDirExpanded}
+      />
+      )
+    }/>
   </Flex>
 );
 
@@ -175,7 +192,15 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
         <Catch>
           <SidebarPane
             ref={sidebarRef}
-            app={props.app}
+            selected={props.app.selectedCell}
+            focusDir={props.app.focusDirCell}
+            search={props.app.searchCell}
+            matchingNotesTree={props.app.matchingNotesTreeSignal}
+            setFocusDir={props.app.setFocusDir}
+            setSearch={props.app.setSearch}
+            setSelected={props.app.setSelected}
+            newNote={props.app.newNote}
+            toggleDirExpanded={props.app.toggleDirExpanded}
             width={sideBarWidth}
             focusEditor={focusEditor}
           />
