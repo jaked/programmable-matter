@@ -19,5 +19,5 @@ export default React.memo(({ signal, log }: Props) => {
         signal.value.ok :
         <pre>{signal.value.err}</pre>
     }</>;
-  }, [ signal.version ]);
+  }, [ signal, signal.version ]);
 });
