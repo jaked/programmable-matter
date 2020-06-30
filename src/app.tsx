@@ -20,7 +20,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import AppContext from './appContext';
-import { Main } from './components/Main';
+import Main from './components/Main';
 import { Session, emptySession } from './components/react-simple-code-editor';
 
 import * as GTasks from './integrations/gtasks';
