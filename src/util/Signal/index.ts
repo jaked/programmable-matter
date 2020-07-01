@@ -1,5 +1,4 @@
 import * as Immutable from 'immutable';
-import Trace from '../Trace';
 import Try from '../Try';
 import { diffMap } from '../immutable/Map';
 import { bug } from '../bug';
@@ -74,7 +73,7 @@ interface Signal<T> {
    * `reconcile` must be called with monotonically increasing numbers
    * greater than 0.
    */
-  reconcile(trace: Trace, level: number): void;
+  reconcile(level: number): void;
 }
 
 function equal(v1: any, v2: any): boolean {
@@ -86,7 +85,7 @@ abstract class SignalImpl<T> implements Signal<T> {
   abstract value: Try<T>;
   abstract version: number;
   abstract level: number;
-  abstract reconcile(trace: Trace, level: number): void;
+  abstract reconcile(level: number): void;
 
   map<U>(f: (t: T) => U): Signal<U> { return new Map(this, f); }
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U> { return new FlatMap(this, f); }
@@ -107,7 +106,7 @@ class Const<T> extends SignalImpl<T> {
   get version(): 1 { return 1; }
   // don't need to track `level` because `reconcile` is a no-op
   get level(): 0 { return 0; }
-  reconcile(trace: Trace, level: number) { }
+  reconcile(level: number) { }
 }
 
 interface CellIntf<T> extends Signal<T> {
@@ -132,7 +131,7 @@ class CellImpl<T> extends SignalImpl<T> implements CellIntf<T> {
   onChange?: () => void;
   // don't need to track `level` because `reconcile` is a no-op
   get level(): 0 { return 0; }
-  reconcile(trace: Trace, level: number) { }
+  reconcile(level: number) { }
 
   set(t: Try<T>) {
     if (equal(t, this.value)) return;
@@ -167,8 +166,8 @@ class RefImpl<T> extends SignalImpl<T> implements RefIntf<T> {
   get value() { return this.checkedS().value; }
   get version() { return this.checkedS().version; }
   get level() { return this.checkedS().level; }
-  reconcile(trace: Trace, level: number) {
-    this.checkedS().reconcile(trace, level);
+  reconcile(level: number) {
+    this.checkedS().reconcile(level);
   }
 }
 
@@ -192,10 +191,10 @@ class Map<T, U> extends SignalImpl<U> {
   value: Try<U>;
   version: number;
   level: number;
-  reconcile(trace: Trace, level: number) {
+  reconcile(level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s.reconcile(trace, level);
+    this.s.reconcile(level);
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     const value = this.s.value.map(this.f);
@@ -227,14 +226,14 @@ class FlatMap<T, U> extends SignalImpl<U> {
   value: Try<U>;
   version: number;
   level: number;
-  reconcile(trace: Trace, level: number) {
+  reconcile(level: number) {
     if (this.level === level) return;
     this.level = level;
-    this.s.reconcile(trace, level);
+    this.s.reconcile(level);
     let value: Try<U>;
     if (this.sVersion === this.s.version) {
       if (!this.fs) return;
-      this.fs.reconcile(trace, level);
+      this.fs.reconcile(level);
       if (this.fs.version === this.fsVersion) return;
       this.fsVersion = this.fs.version;
       value = this.fs.value;
@@ -246,7 +245,7 @@ class FlatMap<T, U> extends SignalImpl<U> {
         } catch (e) {
           this.fs = Signal.err(e);
         }
-        this.fs.reconcile(trace, level);
+        this.fs.reconcile(level);
         this.fsVersion = this.fs.version;
         value = this.fs.value;
       } else {
@@ -274,8 +273,8 @@ class LiftToTry<T> extends SignalImpl<Try<T>> {
   get value(): Try<Try<T>> { return Try.ok(this.s.value); }
   get version(): number { return this.s.version; }
   get level(): number { return this.s.level; }
-  reconcile(trace: Trace, level: number) {
-    this.s.reconcile(trace, level);
+  reconcile(level: number) {
+    this.s.reconcile(level);
   }
 }
 
@@ -299,11 +298,11 @@ class Join<T> extends SignalImpl<T[]> {
   value: Try<T[]>;
   version: number;
   level: number;
-  reconcile(trace: Trace, level: number) {
+  reconcile(level: number) {
     if (this.level === level) return;
     this.level = level;
     const versions = this.signals.map(s => {
-      s.reconcile(trace, level);
+      s.reconcile(level);
       return s.version;
     });
     // equal() here is very slow :(
@@ -341,12 +340,12 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
   value: Try<Immutable.Map<K, V>>;
   version: number;
   level: number;
-  reconcile(trace: Trace, level: number) {
+  reconcile(level: number) {
     if (this.level === level) return;
     this.level === level;
-    this.s.reconcile(trace, level);
+    this.s.reconcile(level);
     if (this.sVersion === this.s.version) {
-      this.vsSignals.forEach((v, k) => v.reconcile(trace, level));
+      this.vsSignals.forEach((v, k) => v.reconcile(level));
       if (this.vsSignals.every((v, k) => {
         const vVersion = this.vsVersions.get(k);
         if (vVersion === undefined) bug(`expected vsVersion for ${k}`);
@@ -363,7 +362,7 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
       this.sVersion = this.s.version
       if (this.s.value.type === 'ok') {
         this.vsSignals = this.s.value.ok;
-        this.vsSignals.forEach(v => v.reconcile(trace, level));
+        this.vsSignals.forEach(v => v.reconcile(level));
 
         // TODO(jaked)
         // incrementally update value / versions instead of rebuilding from scratch
@@ -394,14 +393,13 @@ class Label<T> extends SignalImpl<T> {
   get value() { return this.s.value; }
   get version() { return this.s.version; }
   get level() { return this.s.level; }
-  reconcile(trace: Trace, level: number) {
+  reconcile(level: number) {
     const version = this.s.version;
-    trace.open(this.label);
     if (typeof performance !== 'undefined') {
       performance.mark(this.label);
     }
     try {
-      this.s.reconcile(trace, level);
+      this.s.reconcile(level);
     } catch (e) {
       const err = new Error(this.label);
       err.stack = `${err.stack}\n${e.stack}`;
@@ -418,8 +416,6 @@ class Label<T> extends SignalImpl<T> {
       performance.clearMarks(this.label);
       performance.clearMeasures(measureLabel);
     }
-    trace.record('__changed', version !== this.s.version);
-    trace.close();
   }
 }
 

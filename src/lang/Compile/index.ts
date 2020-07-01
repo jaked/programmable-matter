@@ -3,7 +3,6 @@ import * as Immutable from 'immutable';
 import React from 'react';
 
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import * as Tag from '../../util/Tag';
 import Type from '../Type';
 import * as data from '../../data';
@@ -30,7 +29,6 @@ function mergeModuleValue(
 }
 
 export function compileFiles(
-  trace: Trace,
   files: Signal<data.Files>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
@@ -46,7 +44,7 @@ export function compileFiles(
   const compiledFiles = Signal.mapImmutableMap(files, file =>
     Signal.label(
       file.path,
-      compileFile(trace, file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
+      compileFile(file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
     )
   );
   compiledFilesRef.set(compiledFiles);

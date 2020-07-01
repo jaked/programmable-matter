@@ -4,7 +4,6 @@ import JSON5 from 'json5';
 import * as React from 'react';
 import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import * as Tag from '../../util/Tag';
 import { diffMap } from '../../util/immutable/Map';
@@ -195,7 +194,6 @@ function computeFields(
 }
 
 function compileTable(
-  trace: Trace,
   ast: ESTree.Expression,
   noteTag: string,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
@@ -241,7 +239,6 @@ function compileTable(
 }
 
 export default function compileFileTable(
-  trace: Trace,
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
@@ -281,7 +278,7 @@ export default function compileFileTable(
     switch (astTry.type) {
       case 'ok':
         return noteEnv.map(noteEnv => {
-          const compiled = compileTable(trace, astTry.ok, noteTag, noteEnv, setSelected, updateFile, deleteFile);
+          const compiled = compileTable(astTry.ok, noteTag, noteEnv, setSelected, updateFile, deleteFile);
           return { ...compiled, ast: astTryOrig };
         });
 

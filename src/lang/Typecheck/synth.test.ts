@@ -1,5 +1,4 @@
 import * as Immutable from 'immutable';
-import Trace from '../../util/Trace';
 import * as ESTree from '../ESTree';
 import * as MDXHAST from '../mdxhast';
 import * as Parse from '../Parse';
@@ -858,8 +857,7 @@ describe('synthMdx', () => {
     env?: Typecheck.Env | { [s: string]: string | Type },
     error?: boolean
   }) {
-    const trace = new Trace();
-    mdx = (typeof mdx === 'string') ? Parse.parse(trace, mdx) : mdx;
+    mdx = (typeof mdx === 'string') ? Parse.parse(mdx) : mdx;
     env = env ?
       (isEnv(env) ?
         env :

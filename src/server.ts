@@ -8,23 +8,19 @@ import ReactDOMServer from 'react-dom/server';
 
 import * as data from './data';
 import Signal from './util/Signal';
-import Trace from './util/Trace';
 import * as Render from './lang/Render';
 
 export default class Server {
   level: number;
-  trace: Trace;
   compiledNotes: Signal<data.CompiledNotes>;
   browserSync: BrowserSync.BrowserSyncInstance;
 
   constructor(
-    trace: Trace,
     compiledNotes: Signal<data.CompiledNotes>
   ) {
     this.handle = this.handle.bind(this);
 
     this.level = 0;
-    this.trace = trace;
     this.compiledNotes = compiledNotes;
     this.browserSync = BrowserSync.create();
     this.browserSync.init({
@@ -36,8 +32,8 @@ export default class Server {
     });
   }
 
-  reconcile(trace: Trace, level: number) {
-    this.compiledNotes.reconcile(this.trace, this.level)
+  reconcile(level: number) {
+    this.compiledNotes.reconcile(this.level)
     this.level = level;
 
     // TODO(jaked)
@@ -57,7 +53,7 @@ export default class Server {
     if (tag === '.') tag = '';
 
     const note = this.compiledNotes.get().get(tag);
-    if (note) note.meta.reconcile(this.trace, this.level);
+    if (note) note.meta.reconcile(this.level);
     if (!note || !note.meta.get().publish) {
       res.statusCode = 404;
       res.end(`no note ${tag}`);
@@ -65,14 +61,14 @@ export default class Server {
       // TODO(jaked)
       // don't rely on URL here, notes should track their own content type
       if (pathParts.ext === '.jpeg') {
-        note.exportValue.reconcile(this.trace, this.level);
+        note.exportValue.reconcile(this.level);
         const buffer = note.exportValue.get().buffer;
-        buffer.reconcile(this.trace, this.level);
+        buffer.reconcile(this.level);
         res.setHeader("Content-Type", "image/jpeg");
         res.end(buffer.get());
       } else {
         // TODO(jaked) don't blow up on failed notes
-        note.rendered.reconcile(this.trace, this.level);
+        note.rendered.reconcile(this.level);
         const node = note.rendered.get();
 
         const nodeWithContext =

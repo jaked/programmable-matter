@@ -1,12 +1,10 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import Type from '../Type';
 import { bug } from '../../util/bug';
 import * as data from '../../data';
 import { compileFiles } from './index';
 
-const trace = new Trace();
 const updateFile = (s: string, b: Buffer) => {}
 const deleteFile = (s: string) => {}
 const setSelected = (s: string) => {}
@@ -18,11 +16,11 @@ it('compiles mdx', () => {
       Signal.cellOk(Buffer.from("foo"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(trace, 1);
+  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
+  compiledNotes.reconcile(1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(trace, 1);
+  foo.problems.reconcile(1);
   expect(foo.problems.get()).toBeFalsy();
 });
 
@@ -33,11 +31,11 @@ it('compiles json', () => {
       Signal.cellOk(Buffer.from("{ }"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files,  updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(trace, 1);
+  const { compiledNotes } = compileFiles(files,  updateFile, deleteFile, setSelected);
+  compiledNotes.reconcile(1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(trace, 1);
+  foo.problems.reconcile(1);
   expect(foo.problems.get()).toBeFalsy();
 });
 
@@ -48,11 +46,11 @@ it('compiles meta', () => {
       Signal.cellOk(Buffer.from("{ }"))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(trace, 1);
+  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
+  compiledNotes.reconcile(1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(trace, 1);
+  foo.problems.reconcile(1);
   expect(foo.problems.get()).toBeFalsy();
 });
 
@@ -108,11 +106,11 @@ it('compiles table', () => {
       `)),
     ),
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(trace, 1);
+  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
+  compiledNotes.reconcile(1);
   const cats = compiledNotes.get().get('cats');
   if (!cats) bug('expected cats');
-  cats.problems.reconcile(trace, 1);
+  cats.problems.reconcile(1);
   expect(cats.problems.get()).toBeFalsy();
 });
 
@@ -131,16 +129,16 @@ it('compiles mdx + json + meta', () => {
       Signal.cellOk(Buffer.from(`{ bar: 7 }`))
     )
   }));
-  const { compiledNotes } = compileFiles(trace, files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(trace, 1);
+  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
+  compiledNotes.reconcile(1);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(trace, 1);
+  foo.problems.reconcile(1);
   expect(foo.problems.get()).toBeFalsy();
-  foo.meta.reconcile(trace, 1);
+  foo.meta.reconcile(1);
   expect(foo.meta.get().dataType).toBeTruthy();
   expect(foo.meta.get().title).toBe('foo');
-  foo.exportType.reconcile(trace, 1);
+  foo.exportType.reconcile(1);
   expect(foo.exportType.get().getFieldType('default'))
     .toEqual(Type.object({ bar: Type.number }));
 });

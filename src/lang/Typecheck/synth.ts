@@ -1,7 +1,6 @@
 import * as Immutable from 'immutable';
 import Recast from 'recast/main';
 import { bug } from '../../util/bug';
-import Trace from '../../util/Trace';
 import Type from '../Type';
 import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
@@ -15,7 +14,6 @@ function synthIdentifier(
   ast: ESTree.Identifier,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   const type = env.get(ast.name);
   if (type) return type;
@@ -27,7 +25,6 @@ function synthLiteral(
   ast: ESTree.Literal,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   return Type.singleton(ast.value);
 }
@@ -36,9 +33,8 @@ function synthArrayExpression(
   ast: ESTree.ArrayExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  const types = ast.elements.map(e => synth(e, env, annots, trace));
+  const types = ast.elements.map(e => synth(e, env, annots));
   const elem = Type.union(...types);
   return Type.array(elem);
 }
@@ -47,7 +43,6 @@ function synthObjectExpression(
   ast: ESTree.ObjectExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   const seen = new Set();
   const fieldTypes = ast.properties.reduce<{ [n: string]: Type }>(
@@ -63,7 +58,7 @@ function synthObjectExpression(
         return obj;
       } else {
         seen.add(name);
-        return { ...obj, [name]: synth(prop.value, env, annots, trace) };
+        return { ...obj, [name]: synth(prop.value, env, annots) };
       }
     },
     {}
@@ -78,9 +73,8 @@ function synthUnaryExpression(
   ast: ESTree.UnaryExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  const type = synth(ast.argument, env, annots, trace);
+  const type = synth(ast.argument, env, annots);
 
   switch (type.kind) {
     case 'Error':
@@ -119,47 +113,46 @@ function synthLogicalExpression(
   ast: ESTree.LogicalExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.operator) {
     case '&&': {
-      const left = synth(ast.left, env, annots, trace);
+      const left = synth(ast.left, env, annots);
 
       switch (left.kind) {
         case 'Error': {
-          const right = synth(ast.right, env, annots, trace);
+          const right = synth(ast.right, env, annots);
           return left;
         }
 
         case 'Singleton': {
-          const right = synth(ast.right, env, annots, trace); // synth even when !left.value
+          const right = synth(ast.right, env, annots); // synth even when !left.value
           return !left.value ? left : right;
         }
 
         default: {
-          const rightEnv = narrowEnvironment(env, ast.left, true, annots, trace);
-          const right = synth(ast.right, rightEnv, annots, trace);
+          const rightEnv = narrowEnvironment(env, ast.left, true, annots);
+          const right = synth(ast.right, rightEnv, annots);
           return Type.union(narrowType(left, Type.falsy), right);
         }
       }
     }
 
     case '||': {
-      const left = synth(ast.left, env, annots, trace);
+      const left = synth(ast.left, env, annots);
 
       switch (left.kind) {
         case 'Error': {
-          return synth(ast.right, env, annots, trace);
+          return synth(ast.right, env, annots);
         }
 
         case 'Singleton': {
-          const right = synth(ast.right, env, annots, trace); // synth even when left.value
+          const right = synth(ast.right, env, annots); // synth even when left.value
           return left.value ? left : right;
         }
 
         default: {
-          const rightEnv = narrowEnvironment(env, ast.left, false, annots, trace);
-          const right = synth(ast.right, rightEnv, annots, trace);
+          const rightEnv = narrowEnvironment(env, ast.left, false, annots);
+          const right = synth(ast.right, rightEnv, annots);
           // TODO(jaked) Type.union(Type.intersection(left, Type.notFalsy), right) ?
           return Type.union(left, right);
         }
@@ -175,10 +168,9 @@ function synthBinaryExpression(
   ast: ESTree.BinaryExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  let left = synth(ast.left, env, annots, trace);
-  let right = synth(ast.right, env, annots, trace);
+  let left = synth(ast.left, env, annots);
+  let right = synth(ast.right, env, annots);
 
   // TODO(jaked) handle other operators
   switch (ast.operator) {
@@ -225,23 +217,21 @@ function synthSequenceExpression(
   ast: ESTree.SequenceExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   ast.expressions.forEach((e, i) => {
     if (i < ast.expressions.length - 1)
-      synth(e, env, annots, trace);
+      synth(e, env, annots);
   });
-  return synth(ast.expressions[ast.expressions.length - 1], env, annots, trace);
+  return synth(ast.expressions[ast.expressions.length - 1], env, annots);
 }
 
 function synthMemberExpression(
   ast: ESTree.MemberExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
   objectType?: Type | undefined
 ): Type {
-  objectType = objectType || synth(ast.object, env, annots, trace);
+  objectType = objectType || synth(ast.object, env, annots);
 
   if (objectType.kind === 'Error') {
     return objectType;
@@ -251,7 +241,7 @@ function synthMemberExpression(
       objectType.types
         // don't annotate AST with possibly spurious errors
         // TODO(jaked) rethink
-        .map(type => synthMemberExpression(ast, env, undefined, trace, type));
+        .map(type => synthMemberExpression(ast, env, undefined, type));
     if (memberTypes.every(type => type.kind === 'Error')) {
       if (ast.property.type === 'Identifier')
         return Error.unknownField(ast.property, ast.property.name, annots);
@@ -265,13 +255,13 @@ function synthMemberExpression(
 
   } else if (objectType.kind === 'Union') {
     const types =
-      objectType.types.map(type => synthMemberExpression(ast, env, annots, trace, type));
+      objectType.types.map(type => synthMemberExpression(ast, env, annots, type));
     return Type.union(...types);
 
   } else if (ast.computed) {
     switch (objectType.kind) {
       case 'Array': {
-        const propertyType = check(ast.property, env, Type.number, annots, trace);
+        const propertyType = check(ast.property, env, Type.number, annots);
         if (propertyType.kind === 'Error')
           return Type.undefined;
         else
@@ -283,10 +273,10 @@ function synthMemberExpression(
         const elems = objectType.elems;
         const validIndexes =
           elems.map((_, i) => Type.singleton(i));
-        check(ast.property, env, Type.union(...validIndexes), annots, trace);
+        check(ast.property, env, Type.union(...validIndexes), annots);
 
         // synth to find out which valid indexes are actually present
-        const propertyType = synth(ast.property, env, annots, trace);
+        const propertyType = synth(ast.property, env, annots);
         const presentIndexes: Array<number> = [];
 
         if (propertyType.kind === 'Error') {
@@ -314,10 +304,10 @@ function synthMemberExpression(
         const fields = objectType.fields;
         const validIndexes =
           fields.map(({ _1: name }) => Type.singleton(name));
-        check(ast.property, env, Type.union(...validIndexes), annots, trace);
+        check(ast.property, env, Type.union(...validIndexes), annots);
 
         // synth to find out which valid indexes are actually present
-        const propertyType = synth(ast.property, env, annots, trace);
+        const propertyType = synth(ast.property, env, annots);
         const presentIndexes: Array<string> = [];
 
         if (propertyType.kind === 'Error') {
@@ -490,16 +480,15 @@ function synthCallExpression(
   ast: ESTree.CallExpression,
   env:Env,
   annots?: AstAnnotations,
-  trace?: Trace,
   calleeType?: Type | undefined
 ): Type {
-  calleeType = calleeType || synth(ast.callee, env, annots, trace);
+  calleeType = calleeType || synth(ast.callee, env, annots);
 
   if (calleeType.kind === 'Intersection') {
     const callTypes =
       calleeType.types
         .filter(type => type.kind === 'Function')
-        .map(type => synthCallExpression(ast, env, undefined, trace, type));
+        .map(type => synthCallExpression(ast, env, undefined, type));
     const okTypes = callTypes.filter(type => type.kind !== 'Error');
     switch (okTypes.size) {
       case 0:
@@ -509,7 +498,7 @@ function synthCallExpression(
         const okCalleeType =
           calleeType.types.get(callTypes.findIndex(type => type.kind !== 'Error'));
         // redo for annots. TODO(jaked) immutable update for annots
-        return synthCallExpression(ast, env, annots, trace, okCalleeType);
+        return synthCallExpression(ast, env, annots, okCalleeType);
       }
       default:
         // TODO(jaked)
@@ -529,7 +518,7 @@ function synthCallExpression(
     const calleeType2 = calleeType; // preserve type inside closure
     const types = calleeType.args.map((expectedType, i) => {
       if (i < ast.arguments.length) {
-        const type = check(ast.arguments[i], env, expectedType, annots, trace);
+        const type = check(ast.arguments[i], env, expectedType, annots);
         if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
           return Type.undefined;
         else
@@ -615,7 +604,6 @@ function synthArrowFunctionExpression(
   ast: ESTree.ArrowFunctionExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
@@ -629,7 +617,7 @@ function synthArrowFunctionExpression(
     return t;
   });
   env = env.concat(patEnv);
-  const type = synth(ast.body, env, annots, trace);
+  const type = synth(ast.body, env, annots);
   return Type.functionType(paramTypes, type);
 }
 
@@ -637,9 +625,8 @@ function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  const testType = synth(ast.test, env, annots, trace);
+  const testType = synth(ast.test, env, annots);
 
   switch (testType.kind) {
     // conjecture: we can't learn anything new from narrowing
@@ -651,20 +638,20 @@ function synthConditionalExpression(
     // only as much as needed to run the program
 
     case 'Error': {
-      return synth(ast.alternate, env, annots, trace);
+      return synth(ast.alternate, env, annots);
     }
 
     case 'Singleton':
       if (testType.value)
-        return synth(ast.consequent, env, annots, trace);
+        return synth(ast.consequent, env, annots);
       else
-        return synth(ast.alternate, env, annots, trace);
+        return synth(ast.alternate, env, annots);
 
     default: {
-      const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-      const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-      const consequent = synth(ast.consequent, envConsequent, annots, trace);
-      const alternate = synth(ast.alternate, envAlternate, annots, trace);
+      const envConsequent = narrowEnvironment(env, ast.test, true, annots);
+      const envAlternate = narrowEnvironment(env, ast.test, false, annots);
+      const consequent = synth(ast.consequent, envConsequent, annots);
+      const alternate = synth(ast.alternate, envAlternate, annots);
       return Type.union(consequent, alternate);
     }
   }
@@ -674,7 +661,6 @@ function synthTemplateLiteral(
   ast: ESTree.TemplateLiteral,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   // TODO(jaked) handle interpolations
   return Type.string;
@@ -684,7 +670,6 @@ function synthJSXIdentifier(
   ast: ESTree.JSXIdentifier,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   const type = env.get(ast.name);
   if (type) return type;
@@ -695,9 +680,8 @@ function synthJSXElement(
   ast: ESTree.JSXElement,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  const type = Type.expand(synth(ast.openingElement.name, env, annots, trace));
+  const type = Type.expand(synth(ast.openingElement.name, env, annots));
 
   const [ attrsType, retType ] = ((): [ Type.ObjectType, Type.Type ] => {
     switch (type.kind) {
@@ -724,7 +708,7 @@ function synthJSXElement(
     const expectedType = attrsType.getFieldType(attr.name.name);
     if (expectedType) {
       if (attr.value) {
-        const type = check(attr.value, env, expectedType, annots, trace);
+        const type = check(attr.value, env, expectedType, annots);
         if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
           return Type.undefined;
         else
@@ -741,7 +725,7 @@ function synthJSXElement(
     } else {
       Error.extraField(attr.name, attr.name.name, annots);
       if (attr.value) {
-        return synth(attr.value, env, annots, trace);
+        return synth(attr.value, env, annots);
       } else {
         return Type.singleton(true);
       }
@@ -750,7 +734,7 @@ function synthJSXElement(
 
   ast.children.forEach(child =>
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
-    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
+    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots)
   );
 
   const attrNames =
@@ -773,11 +757,10 @@ function synthJSXFragment(
   ast: ESTree.JSXFragment,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   ast.children.forEach(child =>
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
-    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots, trace)
+    check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), annots)
   );
   return Type.reactNodeType;
 }
@@ -786,16 +769,14 @@ function synthJSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  return synth(ast.expression, env, annots, trace);
+  return synth(ast.expression, env, annots);
 }
 
 function synthJSXText(
   ast: ESTree.JSXText,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   return Type.string;
 }
@@ -804,7 +785,6 @@ function synthJSXEmptyExpression(
   ast: ESTree.JSXEmptyExpression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   return Type.undefined;
 }
@@ -813,28 +793,27 @@ function synthHelper(
   ast: ESTree.Expression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
-    case 'Identifier':              return synthIdentifier(ast, env, annots, trace);
-    case 'Literal':                 return synthLiteral(ast, env, annots, trace);
-    case 'ArrayExpression':         return synthArrayExpression(ast, env, annots, trace);
-    case 'ObjectExpression':        return synthObjectExpression(ast, env, annots, trace);
-    case 'ArrowFunctionExpression': return synthArrowFunctionExpression(ast, env, annots, trace);
-    case 'UnaryExpression':         return synthUnaryExpression(ast, env, annots, trace);
-    case 'LogicalExpression':       return synthLogicalExpression(ast, env, annots, trace);
-    case 'BinaryExpression':        return synthBinaryExpression(ast, env, annots, trace);
-    case 'SequenceExpression':      return synthSequenceExpression(ast, env, annots, trace);
-    case 'MemberExpression':        return synthMemberExpression(ast, env, annots, trace);
-    case 'CallExpression':          return synthCallExpression(ast, env, annots, trace);
-    case 'ConditionalExpression':   return synthConditionalExpression(ast, env, annots, trace);
-    case 'TemplateLiteral':         return synthTemplateLiteral(ast, env, annots, trace);
-    case 'JSXIdentifier':           return synthJSXIdentifier(ast, env, annots, trace);
-    case 'JSXElement':              return synthJSXElement(ast, env, annots, trace);
-    case 'JSXFragment':             return synthJSXFragment(ast, env, annots, trace);
-    case 'JSXExpressionContainer':  return synthJSXExpressionContainer(ast, env, annots, trace);
-    case 'JSXText':                 return synthJSXText(ast, env, annots, trace);
-    case 'JSXEmptyExpression':      return synthJSXEmptyExpression(ast, env, annots, trace);
+    case 'Identifier':              return synthIdentifier(ast, env, annots);
+    case 'Literal':                 return synthLiteral(ast, env, annots);
+    case 'ArrayExpression':         return synthArrayExpression(ast, env, annots);
+    case 'ObjectExpression':        return synthObjectExpression(ast, env, annots);
+    case 'ArrowFunctionExpression': return synthArrowFunctionExpression(ast, env, annots);
+    case 'UnaryExpression':         return synthUnaryExpression(ast, env, annots);
+    case 'LogicalExpression':       return synthLogicalExpression(ast, env, annots);
+    case 'BinaryExpression':        return synthBinaryExpression(ast, env, annots);
+    case 'SequenceExpression':      return synthSequenceExpression(ast, env, annots);
+    case 'MemberExpression':        return synthMemberExpression(ast, env, annots);
+    case 'CallExpression':          return synthCallExpression(ast, env, annots);
+    case 'ConditionalExpression':   return synthConditionalExpression(ast, env, annots);
+    case 'TemplateLiteral':         return synthTemplateLiteral(ast, env, annots);
+    case 'JSXIdentifier':           return synthJSXIdentifier(ast, env, annots);
+    case 'JSXElement':              return synthJSXElement(ast, env, annots);
+    case 'JSXFragment':             return synthJSXFragment(ast, env, annots);
+    case 'JSXExpressionContainer':  return synthJSXExpressionContainer(ast, env, annots);
+    case 'JSXText':                 return synthJSXText(ast, env, annots);
+    case 'JSXEmptyExpression':      return synthJSXEmptyExpression(ast, env, annots);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);
@@ -845,18 +824,10 @@ export function synth(
   ast: ESTree.Expression,
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
-  try {
-    const type = trace ?
-      trace.time(Recast.print(ast).code, () => synthHelper(ast, env, annots, trace)) :
-      synthHelper(ast, env, annots, trace);
-    if (annots) annots.set(ast, type);
-    return type;
-  } catch (e) {
-    if (annots) annots.set(ast, Type.error(e));
-    throw e;
-  }
+  const type = synthHelper(ast, env, annots);
+  if (annots) annots.set(ast, type);
+  return type;
 }
 
 function extendEnvWithImport(
@@ -911,7 +882,6 @@ function extendEnvWithNamedExport(
   exportTypes: { [s: string]: Type },
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Env {
   decl.declaration.declarations.forEach(declarator => {
     let type;
@@ -920,9 +890,9 @@ function extendEnvWithNamedExport(
       undefined;
     if (declarator.init) {
       if (typeAnnotation) {
-        type = check(declarator.init, env, typeAnnotation, annots, trace);
+        type = check(declarator.init, env, typeAnnotation, annots);
       } else {
-        type = synth(declarator.init, env, annots, trace);
+        type = synth(declarator.init, env, annots);
       }
     } else {
       type = Error.withLocation(declarator.id, `expected initializer`, annots);
@@ -946,9 +916,8 @@ function extendEnvWithDefaultExport(
   exportTypes: { [s: string]: Type },
   env: Env,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Env {
-  exportTypes['default'] = synth(decl.declaration, env, annots, trace);
+  exportTypes['default'] = synth(decl.declaration, env, annots);
   return env;
 }
 
@@ -959,13 +928,12 @@ export function synthMdx(
   env: Env,
   exportTypes: { [s: string]: Type },
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Env {
   switch (ast.type) {
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdx(child, moduleEnv, env, exportTypes, annots, trace)
+        env = synthMdx(child, moduleEnv, env, exportTypes, annots)
       );
       return env;
 
@@ -974,7 +942,7 @@ export function synthMdx(
 
     case 'jsx':
       if (!ast.jsxElement) bug('expected JSX node to be parsed');
-      ast.jsxElement.forEach(elem => check(elem, env, Type.reactNodeType, annots, trace));
+      ast.jsxElement.forEach(elem => check(elem, env, Type.reactNodeType, annots));
       return env;
 
     case 'import':
@@ -987,11 +955,11 @@ export function synthMdx(
             break;
 
           case 'ExportNamedDeclaration':
-            env = extendEnvWithNamedExport(decl, exportTypes, env, annots, trace);
+            env = extendEnvWithNamedExport(decl, exportTypes, env, annots);
             break;
 
           case 'ExportDefaultDeclaration':
-            env = extendEnvWithDefaultExport(decl, exportTypes, env, annots, trace);
+            env = extendEnvWithDefaultExport(decl, exportTypes, env, annots);
             break;
         }
       }));

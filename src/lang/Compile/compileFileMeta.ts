@@ -1,7 +1,6 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import Trace from '../../util/Trace';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
@@ -48,7 +47,6 @@ function compileMeta(
 }
 
 export default function compileFileMeta(
-  trace: Trace,
   file: data.File,
 ): Signal<data.CompiledFile> {
   const ast = file.content.map(Parse.parseExpression);

@@ -1,7 +1,6 @@
 import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import * as data from '../../data';
 
 import compileFileMeta from './compileFileMeta';
@@ -11,7 +10,6 @@ import compileFileTable from './compileFileTable';
 import compileFileJpeg from './compileFileJpeg';
 
 export default function compileFile(
-  trace: Trace,
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
@@ -22,19 +20,19 @@ export default function compileFile(
 
   switch (file.type) {
     case 'meta':
-      return compileFileMeta(trace, file);
+      return compileFileMeta(file);
 
     case 'mdx':
-      return compileFileMdx(trace, file, compiledFiles, compiledNotes, setSelected);
+      return compileFileMdx(file, compiledFiles, compiledNotes, setSelected);
 
     case 'json':
-      return compileFileJson(trace, file, compiledFiles, updateFile);
+      return compileFileJson(file, compiledFiles, updateFile);
 
     case 'table':
-      return compileFileTable(trace, file, compiledFiles, compiledNotes, setSelected, updateFile, deleteFile);
+      return compileFileTable(file, compiledFiles, compiledNotes, setSelected, updateFile, deleteFile);
 
     case 'jpeg':
-      return compileFileJpeg(trace, file);
+      return compileFileJpeg(file);
 
     default: bug(`unimplemented file type ${file.type}`);
   }

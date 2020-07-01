@@ -10,8 +10,8 @@ interface Props {
 
 export default React.memo(({ signal, log }: Props) => {
   if (log) console.log('outer render');
-  const { level, trace } = React.useContext(AppContext);
-  signal.reconcile(trace, level);
+  const level = React.useContext(AppContext);
+  signal.reconcile(level);
   return React.useMemo(() => {
     if (log) console.log('inner render');
     return <>{

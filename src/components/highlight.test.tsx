@@ -1,6 +1,5 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
-import Trace from '../util/trace';
 import Try from '../util/Try';
 import * as Parse from '../lang/Parse';
 import Type from '../lang/Type';
@@ -50,8 +49,7 @@ describe('highlight', () => {
     expected: React.ReactNode,
   ) {
     // TODO(jaked) this is a lot of setup
-    const trace = new Trace();
-    const ast = Parse.parse(trace, mdx);
+    const ast = Parse.parse(mdx);
     const typeEnv = Immutable.Map<string, Type>();
     const exportTypes: { [s: string]: Type } = {};
     const annots = new Map<unknown, Type>();
@@ -67,11 +65,10 @@ describe('highlight', () => {
     expected: React.ReactNode,
   ) {
     // TODO(jaked) this is a lot of setup
-    const trace = new Trace();
     const ast = Parse.parseExpression(expr);
     const typeEnv = Immutable.Map<string, Type>();
     const annots = new Map<unknown, Type>();
-    Typecheck.synth(ast, typeEnv, annots, trace);
+    Typecheck.synth(ast, typeEnv, annots);
 
     const highlighted =
       highlight('json', expr, Try.ok(ast), annots, ok, err);

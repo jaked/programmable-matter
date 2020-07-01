@@ -12,13 +12,11 @@ const ghPagesPublish = util.promisify(GHPages.publish);
 import * as React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
-import Trace from '../util/Trace';
 import * as Render from '../lang/Render';
 import * as data from '../data';
 
 export default async function ghPages(
   compiledNotes: data.CompiledNotes,
-  trace: Trace,
   level: number,
 ) {
   // TODO(jaked) use context provider to avoid manual reconciliation
@@ -33,9 +31,9 @@ export default async function ghPages(
   await Promise.all(compiledNotes.map(async note => {
     // TODO(jaked) don't blow up on failed notes
 
-    note.meta.reconcile(trace, level);
+    note.meta.reconcile(level);
     if (!note.meta.get().publish) return
-    note.publishedType.reconcile(trace, level);
+    note.publishedType.reconcile(level);
     const publishedType = note.publishedType.get();
 
     if (publishedType === 'jpeg') {
@@ -43,9 +41,9 @@ export default async function ghPages(
       const path = Path.resolve(tempdir, base) + '.jpeg';
 
       await mkdir(Path.dirname(path), { recursive: true });
-      note.exportValue.reconcile(trace, level);
+      note.exportValue.reconcile(level);
       const exportValue = note.exportValue.get();
-      exportValue.buffer.reconcile(trace, level);
+      exportValue.buffer.reconcile(level);
       const buffer = exportValue.buffer.get();
       await writeFile(path, buffer);
 
@@ -53,7 +51,7 @@ export default async function ghPages(
       const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
       const path = Path.resolve(tempdir, base) + '.html';
 
-      note.rendered.reconcile(trace, level);
+      note.rendered.reconcile(level);
       const rendered = note.rendered.get();
       if (!rendered) return;
 

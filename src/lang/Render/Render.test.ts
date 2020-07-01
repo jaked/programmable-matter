@@ -1,6 +1,5 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import Trace from '../../util/trace';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
@@ -14,8 +13,7 @@ describe('renderMdx', () => {
       moduleValueEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
     ) {
       // TODO(jaked) this is a lot of setup
-      const trace = new Trace();
-      const ast = Parse.parse(trace, mdx);
+      const ast = Parse.parse(mdx);
       const typeEnv = Immutable.Map<string, Type>();
       const exportTypes: { [s: string]: Type } = {};
       const annots = new Map<unknown, Type>();
@@ -30,7 +28,7 @@ describe('renderMdx', () => {
         valueEnv,
         exportValue,
       );
-      rendered.reconcile(trace, 1);
+      rendered.reconcile(1);
 
       expect(rendered.value.type).toBe('ok');
     }

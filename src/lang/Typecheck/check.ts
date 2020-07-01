@@ -1,7 +1,6 @@
 import * as Immutable from 'immutable';
 import Recast from 'recast/main';
 import { bug } from '../../util/bug';
-import Trace from '../../util/Trace';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';
@@ -15,14 +14,13 @@ function checkSubtype(
   env: Env,
   type: Type,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
     case 'JSXExpressionContainer':
-      return check(ast.expression, env, type, annots, trace);
+      return check(ast.expression, env, type, annots);
 
     case 'ConditionalExpression': {
-      const testType = synth(ast.test, env, annots, trace);
+      const testType = synth(ast.test, env, annots);
 
       switch (testType.kind) {
         // conjecture: we can't learn anything new from narrowing
@@ -34,20 +32,20 @@ function checkSubtype(
         // only as much as needed to run the program
 
         case 'Error': {
-          return check(ast.alternate, env, type, annots, trace);
+          return check(ast.alternate, env, type, annots);
         }
 
         case 'Singleton':
           if (testType.value)
-            return check(ast.consequent, env, type, annots, trace);
+            return check(ast.consequent, env, type, annots);
           else
-            return check(ast.alternate, env, type, annots, trace);
+            return check(ast.alternate, env, type, annots);
 
         default: {
-          const envConsequent = narrowEnvironment(env, ast.test, true, annots, trace);
-          const envAlternate = narrowEnvironment(env, ast.test, false, annots, trace);
-          const consequent = check(ast.consequent, envConsequent, type, annots, trace);
-          const alternate = check(ast.alternate, envAlternate, type, annots, trace);
+          const envConsequent = narrowEnvironment(env, ast.test, true, annots);
+          const envAlternate = narrowEnvironment(env, ast.test, false, annots);
+          const consequent = check(ast.consequent, envConsequent, type, annots);
+          const alternate = check(ast.alternate, envAlternate, type, annots);
           return Type.union(consequent, alternate);
         }
       }
@@ -56,13 +54,13 @@ function checkSubtype(
     case 'SequenceExpression': {
       ast.expressions.forEach((e, i) => {
         if (i < ast.expressions.length - 1)
-          synth(e, env, annots, trace);
+          synth(e, env, annots);
       });
-      return check(ast.expressions[ast.expressions.length - 1], env, type, annots, trace);
+      return check(ast.expressions[ast.expressions.length - 1], env, type, annots);
     }
 
     default:
-      const actual = synth(ast, env, annots, trace);
+      const actual = synth(ast, env, annots);
       if (Type.isSubtype(actual, type))
         return actual;
       else if (actual.kind === 'Error')
@@ -77,13 +75,12 @@ function checkTuple(
   env: Env,
   type: Type.TupleType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
     case 'ArrayExpression': {
       const types = type.elems.map((expectedType, i) => {
         if (i < ast.elements.length) {
-          const type = check(ast.elements[i], env, expectedType, annots, trace);
+          const type = check(ast.elements[i], env, expectedType, annots);
           if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
             return Type.undefined;
           else
@@ -97,7 +94,7 @@ function checkTuple(
     }
 
     default:
-      return checkSubtype(ast, env, type, annots, trace);
+      return checkSubtype(ast, env, type, annots);
   }
 }
 
@@ -106,14 +103,13 @@ function checkArray(
   env: Env,
   type: Type.ArrayType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
     case 'JSXFragment': {
       const expectedType = type.elem;
       const types = ast.children.map(child => {
-        const type = check(child, env, expectedType, annots, trace);
+        const type = check(child, env, expectedType, annots);
         if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
           return Type.undefined;
         else
@@ -125,7 +121,7 @@ function checkArray(
     case 'ArrayExpression': {
       const expectedType = type.elem;
       const types = ast.elements.map(child => {
-        const type = check(child, env, expectedType, annots, trace);
+        const type = check(child, env, expectedType, annots);
         if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
           return Type.undefined;
         else
@@ -135,7 +131,7 @@ function checkArray(
     }
 
     default:
-      return checkSubtype(ast, env, type, annots, trace);
+      return checkSubtype(ast, env, type, annots);
   }
 }
 
@@ -144,13 +140,12 @@ function checkSet(
   env: Env,
   type: Type.SetType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
     // TODO(jaked) Set literals?
 
     default:
-      return checkSubtype(ast, env, type, annots, trace);
+      return checkSubtype(ast, env, type, annots);
   }
 }
 
@@ -159,13 +154,12 @@ function checkMap(
   env: Env,
   type: Type.MapType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
     // TODO(jaked) Map literals?
 
     default:
-      return checkSubtype(ast, env, type, annots, trace);
+      return checkSubtype(ast, env, type, annots);
   }
 }
 
@@ -223,7 +217,6 @@ function checkFunction(
   env: Env,
   type: Type.FunctionType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
@@ -233,12 +226,12 @@ function checkFunction(
       ast.params.forEach((pat, i) => {
         patEnv = patTypeEnv(pat, type.args.get(i) ?? bug(), patEnv, annots);
       });
-      const retType = check(ast.body, env.merge(patEnv), type.ret, annots, trace);
+      const retType = check(ast.body, env.merge(patEnv), type.ret, annots);
       if (retType.kind === 'Error') return retType;
       else return Type.functionType(type.args.toArray(), retType);
 
     default:
-      return checkSubtype(ast, env, type, annots, trace);
+      return checkSubtype(ast, env, type, annots);
   }
 }
 
@@ -247,7 +240,6 @@ function checkUnion(
   env: Env,
   type: Type.UnionType,
   annots?: AstAnnotations,
-  trace?: Trace
 ): Type {
   // to get a more localized error message we'd like to decompose the type and expression
   // as far as possible, but for unions we don't know which arm to break down.
@@ -260,9 +252,9 @@ function checkUnion(
     (t.kind === 'Function' && ast.type === 'ArrowFunctionExpression')
   );
   if (matchingArms.size === 1)
-    return check(ast, env, matchingArms.get(0) ?? bug(), annots, trace);
+    return check(ast, env, matchingArms.get(0) ?? bug(), annots);
   else
-    return checkSubtype(ast, env, type, annots, trace);
+    return checkSubtype(ast, env, type, annots);
 }
 
 function checkIntersection(
@@ -270,12 +262,11 @@ function checkIntersection(
   env: Env,
   type: Type.IntersectionType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   // TODO(jaked)
   // how should we return / display errors here?
   // we don't have a way to show alternatives in editor
-  const types = type.types.map(type => check(ast, env, type, annots, trace));
+  const types = type.types.map(type => check(ast, env, type, annots));
   return types.find(type => type.kind === 'Error') ?? type;
 }
 
@@ -284,9 +275,8 @@ function checkSingleton(
   env: Env,
   type: Type.SingletonType,
   annots?: AstAnnotations,
-  trace?: Trace
 ): Type {
-  return checkSubtype(ast, env, type, annots, trace);
+  return checkSubtype(ast, env, type, annots);
 }
 
 function checkObject(
@@ -294,7 +284,6 @@ function checkObject(
   env: Env,
   type: Type.ObjectType,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   if (ast.type === 'ObjectExpression') {
     const types = ast.properties.map(prop => {
@@ -305,10 +294,10 @@ function checkObject(
         default: bug('expected Identifier or Literal prop key name');
       }
       const fieldType = type.getFieldType(name);
-      if (fieldType) return check(prop.value, env, fieldType, annots, trace);
+      if (fieldType) return check(prop.value, env, fieldType, annots);
       else {
         Error.extraField(prop.key, name, annots);
-        return synth(prop.value, env, annots, trace);
+        return synth(prop.value, env, annots);
       }
     });
 
@@ -332,7 +321,7 @@ function checkObject(
     return types.find(type => type.kind === 'Error') ?? type;
   }
 
-  else return checkSubtype(ast, env, type, annots, trace);
+  else return checkSubtype(ast, env, type, annots);
 }
 
 function checkAbstract(
@@ -340,9 +329,8 @@ function checkAbstract(
   env: Env,
   type: Type.AbstractType,
   annots?: AstAnnotations,
-  trace?: Trace
 ): Type {
-  return check(ast, env, Type.expand(type), annots, trace);
+  return check(ast, env, Type.expand(type), annots);
 }
 
 function checkHelper(
@@ -350,21 +338,20 @@ function checkHelper(
   env: Env,
   type: Type,
   annots?: AstAnnotations,
-  trace?: Trace,
 ): Type {
   switch (type.kind) {
-    case 'Tuple':         return checkTuple(ast, env, type, annots, trace);
-    case 'Array':         return checkArray(ast, env, type, annots, trace);
-    case 'Set':           return checkSet(ast, env, type, annots, trace);
-    case 'Map':           return checkMap(ast, env, type, annots, trace);
-    case 'Object':        return checkObject(ast, env, type, annots, trace);
-    case 'Function':      return checkFunction(ast, env, type, annots, trace);
-    case 'Union':         return checkUnion(ast, env, type, annots, trace);
-    case 'Intersection':  return checkIntersection(ast, env, type, annots, trace);
-    case 'Singleton':     return checkSingleton(ast, env, type, annots, trace);
-    case 'Abstract':      return checkAbstract(ast, env, type, annots, trace);
+    case 'Tuple':         return checkTuple(ast, env, type, annots);
+    case 'Array':         return checkArray(ast, env, type, annots);
+    case 'Set':           return checkSet(ast, env, type, annots);
+    case 'Map':           return checkMap(ast, env, type, annots);
+    case 'Object':        return checkObject(ast, env, type, annots);
+    case 'Function':      return checkFunction(ast, env, type, annots);
+    case 'Union':         return checkUnion(ast, env, type, annots);
+    case 'Intersection':  return checkIntersection(ast, env, type, annots);
+    case 'Singleton':     return checkSingleton(ast, env, type, annots);
+    case 'Abstract':      return checkAbstract(ast, env, type, annots);
 
-    default:              return checkSubtype(ast, env, type, annots, trace);
+    default:              return checkSubtype(ast, env, type, annots);
   }
 }
 
@@ -373,22 +360,8 @@ export function check(
   env: Env,
   type: Type,
   annots?: AstAnnotations,
-  trace?: Trace
 ): Type {
-  try {
-    if (trace) {
-      return trace.time(Recast.print(ast).code, () => {
-        const actualType = checkHelper(ast, env, type, annots, trace);
-        if (annots) annots.set(ast, actualType);
-        return actualType;
-      });
-    } else {
-      const actualType = checkHelper(ast, env, type, annots, trace);
-      if (annots) annots.set(ast, actualType);
-      return actualType;
-    }
-  } catch (e) {
-    if (annots) annots.set(ast, Type.error(e));
-    throw e;
-  }
+  const actualType = checkHelper(ast, env, type, annots);
+  if (annots) annots.set(ast, actualType);
+  return actualType;
 }

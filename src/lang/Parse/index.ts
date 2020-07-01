@@ -10,7 +10,6 @@ import mdxAstToMdxHast from '@mdx-js/mdx/mdx-ast-to-mdx-hast';
 import * as Babel from '@babel/parser';
 
 import { bug } from '../../util/bug';
-import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
@@ -120,9 +119,9 @@ function parseJsxNodes(ast: MDXHAST.Node) {
   }
 }
 
-export function parse(trace: Trace, input: string): MDXHAST.Root {
-  const ast = trace.time('parseMdx', () => parseMdx(input));
-  trace.time('parseJsxNodes', () => parseJsxNodes(ast));
+export function parse(input: string): MDXHAST.Root {
+  const ast = parseMdx(input);
+  parseJsxNodes(ast);
   return ast;
 }
 

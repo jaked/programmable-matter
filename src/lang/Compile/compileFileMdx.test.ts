@@ -2,18 +2,15 @@ import * as Immutable from 'immutable';
 import React from 'react';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import Trace from '../../util/Trace';
 import Type from '../Type';
 import * as data from '../../data';
 
 import compileFileMdx from './compileFileMdx';
 
-const trace = new Trace();
 const setSelected = (s: string) => {}
 
 it('compiles', () => {
   const compiled = compileFileMdx(
-    trace,
     new data.File(
       'foo.mdx',
       Signal.cellOk(Buffer.from(`foo`))
@@ -22,10 +19,10 @@ it('compiles', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.reconcile(trace, 1);
+  compiled.reconcile(1);
   expect(compiled.get().problems).toBeFalsy();
 
-  compiled.get().rendered.reconcile(trace, 1);
+  compiled.get().rendered.reconcile(1);
   expect(compiled.get().rendered.get()).toEqual(
     [
       null, null, null, null, // TODO(jaked) not sure where these come from
@@ -36,7 +33,6 @@ it('compiles', () => {
 
 it('compiles `a` tag', () => {
   const compiled = compileFileMdx(
-    trace,
     new data.File(
       'foo.mdx',
       Signal.cellOk(Buffer.from(`<a href='foo'>bar</a>`))
@@ -45,10 +41,10 @@ it('compiles `a` tag', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.reconcile(trace, 1);
+  compiled.reconcile(1);
   expect(compiled.get().problems).toBeFalsy();
 
-  compiled.get().rendered.reconcile(trace, 1);
+  compiled.get().rendered.reconcile(1);
   expect(compiled.get().rendered.get()).toEqual(
     [
       null, null, null, null, // TODO(jaked) not sure where these come from
@@ -59,7 +55,6 @@ it('compiles `a` tag', () => {
 
 it('compiles referencing data / table', () => {
   const compiled = compileFileMdx(
-    trace,
     new data.File(
       'foo.mdx',
       Signal.cellOk(Buffer.from(`foo <>{data.bar}</> <>{table.baz}</>`))
@@ -83,10 +78,10 @@ it('compiles referencing data / table', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.reconcile(trace, 1);
+  compiled.reconcile(1);
   expect(compiled.get().problems).toBeFalsy();
 
-  compiled.get().rendered.reconcile(trace, 1);
+  compiled.get().rendered.reconcile(1);
   expect(compiled.get().rendered.get()).toEqual(
     [
       null, null, null, null,
@@ -99,7 +94,6 @@ it('compiles with layout', () => {
   console.error = jest.fn(); // suppress React warning about key props
 
   const compiled = compileFileMdx(
-    trace,
     new data.File(
       'foo.mdx',
       Signal.cellOk(Buffer.from(`foo`))
@@ -134,10 +128,10 @@ it('compiles with layout', () => {
     })),
     setSelected
   );
-  compiled.reconcile(trace, 1);
+  compiled.reconcile(1);
   expect(compiled.get().problems).toBeFalsy();
 
-  compiled.get().rendered.reconcile(trace, 1);
+  compiled.get().rendered.reconcile(1);
   expect(compiled.get().rendered.get()).toEqual(
     React.createElement('div', {},
       null, null, null, null,

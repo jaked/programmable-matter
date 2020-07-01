@@ -7,7 +7,6 @@ import * as Immutable from 'immutable';
 
 import { bug } from './util/bug';
 import Signal from './util/Signal';
-import Trace from './util/Trace';
 import * as Tag from './util/Tag';
 import * as data from './data';
 import { Filesystem } from './files/Filesystem';
@@ -34,23 +33,15 @@ Unhandled();
 const debug = false;
 
 export class App {
-  // TODO(jaked)
-  // global for the benefit of functions inside of Signal.map etc.
-  // maybe build trace argument into Signal?
-  // or have a current active trace in Trace instead of threading it around
-  private __trace = new Trace();
-
   private render = () => {
-    this.__trace.reset();
     this.level++;
 
     // TODO(jaked)
     // we need to reconcile explicitly to trigger BrowserSync reload
     // can this be avoided?
-    this.server.reconcile(this.__trace, this.level);
+    this.server.reconcile(this.level);
 
-    this.reactRender(this.__trace);
-    console.log(this.__trace.finish());
+    this.reactRender();
   }
 
   // TODO(jaked) make this configurable
@@ -159,7 +150,6 @@ export class App {
 
   private compiledFilesSignalNotesSignal =
     Compile.compileFiles(
-      this.__trace,
       this.filesystem.files,
       this.filesystem.update,
       this.filesystem.delete,
@@ -389,15 +379,14 @@ export class App {
   );
 
   private server =
-    new Server(this.__trace, this.compiledNotesSignal);
+    new Server(this.compiledNotesSignal);
 
   private mainRef = React.createRef<Main>();
   private level = 0;
 
-  private reactRender = (trace: Trace) => {
-    trace.open('ReactDOM.render');
+  private reactRender = () => {
     ReactDOM.render(
-      <AppContext.Provider value={{ level: this.level, trace: this.__trace }}>
+      <AppContext.Provider value={this.level}>
         <Main
           ref={this.mainRef}
           app={this}
@@ -405,7 +394,6 @@ export class App {
       </AppContext.Provider>,
       document.getElementById('main')
     );
-    trace.close();
   }
 
   private nextProblem = () => {
@@ -443,9 +431,9 @@ export class App {
   }
 
   publishSite = async () => {
-    this.compiledNotesSignal.reconcile(this.__trace, this.level);
+    this.compiledNotesSignal.reconcile(this.level);
     const compiledNotes = this.compiledNotesSignal.get();
-    ghPages(compiledNotes, this.__trace, this.level);
+    ghPages(compiledNotes, this.level);
   }
 
   syncGoogleTasks = () => {

@@ -1,7 +1,6 @@
 import Path from 'path';
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import * as Parse from '../Parse';
 import * as Render from '../Render';
@@ -47,7 +46,6 @@ function findImports(ast: MDXHAST.Node) {
 }
 
 export default function compileFileMdx(
-  trace: Trace,
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
@@ -55,7 +53,7 @@ export default function compileFileMdx(
 ): Signal<data.CompiledFile> {
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content =>
-    sortMdx(Parse.parse(trace, content))
+    sortMdx(Parse.parse(content))
   );
 
   const meta = metaForPath(file.path, compiledFiles);
@@ -116,7 +114,7 @@ export default function compileFileMdx(
 
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
-    trace.time('synthMdx', () => Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations));
+    Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations);
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
     const exportType = Type.module(exportTypes);
     return { exportType, astAnnotations, problems }
@@ -165,11 +163,7 @@ export default function compileFileMdx(
     // TODO(jaked) clean up mess with errors
     try {
       const exportValue: { [s: string]: Signal<any> } = {};
-      const rendered =
-        trace.time('renderMdx', () => {
-          const [_, node] = Render.renderMdx(ast, typecheck.astAnnotations, moduleValueEnv, valueEnv, exportValue);
-          return node;
-        });
+      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, moduleValueEnv, valueEnv, exportValue);
 
       return { exportValue, rendered };
     } catch (e) {

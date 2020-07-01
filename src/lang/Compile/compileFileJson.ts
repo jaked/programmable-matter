@@ -3,7 +3,6 @@ import JSON5 from 'json5';
 import * as React from 'react';
 import styled from 'styled-components';
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
@@ -136,7 +135,6 @@ function compileJson(
 }
 
 export default function compileFileJson(
-  trace: Trace,
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   updateFile: (path: string, buffer: Buffer) => void,

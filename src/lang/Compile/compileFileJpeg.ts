@@ -1,6 +1,5 @@
 import * as React from 'react';
 import Signal from '../../util/Signal';
-import Trace from '../../util/Trace';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as Render from '../Render';
@@ -82,7 +81,6 @@ function compileJpeg(
 }
 
 export default function compileFileJpeg(
-  trace: Trace,
   file: data.File
 ): Signal<data.CompiledFile> {
   return file.bufferCell.map(buffer => compileJpeg(buffer))
