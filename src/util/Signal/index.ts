@@ -397,12 +397,26 @@ class Label<T> extends SignalImpl<T> {
   reconcile(trace: Trace, level: number) {
     const version = this.s.version;
     trace.open(this.label);
+    if (typeof performance !== 'undefined') {
+      performance.mark(this.label);
+    }
     try {
       this.s.reconcile(trace, level);
     } catch (e) {
       const err = new Error(this.label);
       err.stack = `${err.stack}\n${e.stack}`;
       throw err;
+    }
+    if (typeof performance !== 'undefined') {
+      const measureLabel =
+        this.label + (version !== this.s.version ? ' (changed)' : '');
+      try {
+        performance.measure(measureLabel, this.label);
+      } catch (e) {
+        console.log(e);
+      }
+      performance.clearMarks(this.label);
+      performance.clearMeasures(measureLabel);
     }
     trace.record('__changed', version !== this.s.version);
     trace.close();
