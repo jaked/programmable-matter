@@ -33,7 +33,7 @@ Unhandled();
 const debug = false;
 
 export class App {
-  private render = () => {
+  public render = () => {
     this.level++;
 
     // TODO(jaked)
@@ -98,16 +98,6 @@ export class App {
     }
   }
 
-  public focusDirCell = Signal.cellOk<string | null>(null, this.render);
-  public setFocusDir = (focus: string | null) => {
-    this.focusDirCell.setOk(focus);
-  }
-
-  public searchCell = Signal.cellOk<string>('', this.render);
-  public setSearch = (search: string) => {
-    this.searchCell.setOk(search);
-  }
-
   public statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
   public setStatus = (status: string | undefined) => {
     this.statusCell.setOk(status);
@@ -156,7 +146,7 @@ export class App {
       this.setSelected,
     )
   private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
-  private compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
+  public compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
 
   public compiledNoteSignal = Signal.label('compiledNote',
     Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
@@ -247,134 +237,6 @@ export class App {
           this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
         }
       );
-    })
-  );
-
-  private matchingNotesSignal = Signal.label('matchingNotes',
-    Signal.join(
-      // TODO(jaked)
-      // map matching function over individual note signals
-      // so we only need to re-match notes that have changed
-      this.compiledNotesSignal,
-      this.focusDirCell,
-      this.searchCell
-    ).flatMap(([notes, focusDir, search]) => {
-
-      let focusDirNotes: data.CompiledNotes;
-      if (focusDir) {
-        focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
-      } else {
-        focusDirNotes = notes;
-      }
-
-      let matchingNotes: Signal<data.CompiledNotes>;
-      if (search) {
-        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-        const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-        const regexp = RegExp(escaped, 'i');
-
-        function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
-          return Signal.label(note.tag,
-            Signal.join(
-              note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-              note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
-              note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
-              Signal.ok(regexp.test(note.tag)),
-            ).map(bools => [bools.some(bool => bool), note])
-          );
-        }
-        // TODO(jaked) wrap this up in a function on Signal
-        const matches = Signal.label('matches',
-          Signal.joinImmutableMap(Signal.ok(focusDirNotes.map(matchesSearch)))
-            .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note)
-          )
-        );
-
-        // include parents of matching notes
-        matchingNotes = Signal.label('matchingNotes',
-          matches.map(matches => matches.withMutations(map => {
-            matches.forEach((_, tag) => {
-              if (focusDir) {
-                tag = Path.relative(focusDir, tag);
-              }
-              const dirname = Path.dirname(tag);
-              if (dirname != '.') {
-                const dirs = dirname.split('/');
-                let dir = '';
-                for (let i=0; i < dirs.length; i++) {
-                  dir = Path.join(dir, dirs[i]);
-                  if (!map.has(dir)) {
-                    const note = notes.get(dir) || bug(`expected note for ${dir}`);
-                    map.set(dir, note);
-                  }
-                }
-              }
-            });
-          }))
-        );
-      } else {
-        matchingNotes = Signal.ok(focusDirNotes);
-      }
-
-      return Signal.label('sort',
-        matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
-          a.tag < b.tag ? -1 : 1
-        ))
-      );
-    })
-  );
-
-  private dirExpandedCell = Signal.cellOk(Immutable.Map<string, boolean>(), this.render);
-  public toggleDirExpanded = (dir: string) => {
-    this.dirExpandedCell.update(dirExpanded => {
-      const flag = dirExpanded.get(dir, false);
-      return dirExpanded.set(dir, !flag);
-    });
-  }
-
-  public matchingNotesTreeSignal = Signal.label('matchingNotesTree',
-    Signal.join(
-      this.matchingNotesSignal,
-      this.searchCell,
-      this.dirExpandedCell,
-      this.selectedCell,
-      this.focusDirCell
-    ).map(([matchingNotes, search, dirExpanded, selected, focusDir]) => {
-      const matchingNotesTree: Array<data.CompiledNote & { indent: number, expanded?: boolean }> = [];
-      const expandAll = search.length >= 3;
-      matchingNotes.forEach(note => {
-        // TODO(jaked) this code is bad
-        let tag = note.tag;
-        if (focusDir) {
-          tag = Path.relative(focusDir, tag);
-        }
-        const dirname = Path.dirname(tag);
-        let showNote = true;
-        let indent = 0;
-        if (dirname !== '.') {
-          const dirs = dirname.split('/');
-          indent = dirs.length;
-          let dir = '';
-          for (let i = 0; i < dirs.length; i++) {
-            dir = Path.join(dir, dirs[i]);
-            if (focusDir) {
-              dir = Path.join(focusDir, dir);
-            }
-            if (!expandAll && !dirExpanded.get(dir, false)) showNote = false;
-          }
-          if (selected && selected.startsWith(note.tag))
-            showNote = true;
-        }
-        if (focusDir) indent += 1;
-        if (showNote) {
-          let expanded: boolean | undefined = undefined;
-          if (note.isIndex) {
-            expanded = expandAll ? true : dirExpanded.get(note.tag, false);
-          }
-          matchingNotesTree.push({ ...note, indent, expanded });
-        }
-      });
-      return matchingNotesTree;
     })
   );
 

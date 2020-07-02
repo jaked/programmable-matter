@@ -29,47 +29,6 @@ const Box = styled(BoxBase)({
 const Flex = styled(FlexBase)({
 }, borders);
 
-type SidebarPaneProps = {
-  focusDir: Signal<string | null>;
-  search: Signal<string>;
-  matchingNotesTree: Signal<Array<data.CompiledNote & { indent: number, expanded?: boolean }>>;
-  selected: Signal<string | null>;
-  setFocusDir: (focus: string | null) => void;
-  setSearch: (search: string) => void;
-  setSelected: (selected: string | null) => void;
-  newNote: (tag: string) => void;
-  toggleDirExpanded: (dir: string) => void;
-  width: number;
-  focusEditor: () => void;
-};
-
-const SidebarPane = React.forwardRef<Sidebar, SidebarPaneProps>((props, ref) =>
-  <Flex width={props.width} flexDirection='column'>
-    <Display signal={
-      Signal.join(
-        props.focusDir,
-        props.search,
-        props.matchingNotesTree,
-        props.selected,
-      ).map(([focusDir, search, matchingNotesTree, selected]) =>
-        <Sidebar
-          ref={ref}
-          focusDir={focusDir}
-          search={search}
-          matchingNotes={matchingNotesTree}
-          selected={selected}
-          onFocusDir={props.setFocusDir}
-          onSearch={props.setSearch}
-          onSelect={props.setSelected}
-          newNote={props.newNote}
-          focusEditor={props.focusEditor}
-          toggleDirExpanded={props.toggleDirExpanded}
-      />
-      )
-    }/>
-  </Flex>
-);
-
 type EditorPaneProps = {
   content: Signal<string | null>;
   compiledFile: Signal<data.CompiledFile | null>;
@@ -166,9 +125,10 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
   const sidebarRef = React.useRef<Sidebar>(null);
   const editorRef = React.useRef<Editor>(null);
 
-  const focusEditor = () => {
+  // TODO(jaked) necessary to avoid spurious rerenders until Main is memoized
+  const focusEditor = React.useCallback(() => {
     editorRef.current && editorRef.current.focus();
-  }
+  }, []);
 
   const focusSearchBox = () => {
     sidebarRef.current && sidebarRef.current.focusSearchBox();
@@ -190,20 +150,17 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
     <Flex style={{ height: '100vh' }}>
       { sideBarWidth === 0 ? null :
         <Catch>
-          <SidebarPane
-            ref={sidebarRef}
-            selected={props.app.selectedCell}
-            focusDir={props.app.focusDirCell}
-            search={props.app.searchCell}
-            matchingNotesTree={props.app.matchingNotesTreeSignal}
-            setFocusDir={props.app.setFocusDir}
-            setSearch={props.app.setSearch}
-            setSelected={props.app.setSelected}
-            newNote={props.app.newNote}
-            toggleDirExpanded={props.app.toggleDirExpanded}
-            width={sideBarWidth}
-            focusEditor={focusEditor}
-          />
+          <Flex width={sideBarWidth} flexDirection='column'>
+            <Sidebar
+              ref={sidebarRef}
+              render={props.app.render}
+              compiledNotes={props.app.compiledNotesSignal}
+              selected={props.app.selectedCell}
+              onSelect={props.app.setSelected}
+              newNote={props.app.newNote}
+              focusEditor={focusEditor}
+            />
+          </Flex>
         </Catch>
       }
       { editorPaneWidth === 0 ? null :

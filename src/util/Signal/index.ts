@@ -411,7 +411,7 @@ class Label<T> extends SignalImpl<T> {
       try {
         performance.measure(measureLabel, this.label);
       } catch (e) {
-        console.log(e);
+        // TODO(jaked) we blow up if the same label appears twice in a call stack
       }
       performance.clearMarks(this.label);
       performance.clearMeasures(measureLabel);
