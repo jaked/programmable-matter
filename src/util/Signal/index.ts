@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import * as React from 'react';
 import Try from '../Try';
 import { diffMap } from '../immutable/Map';
 import { bug } from '../bug';
@@ -580,6 +581,51 @@ module Signal {
 
   export function label<T>(label: string, s: Signal<T>): Signal<T> {
     return new Label(label, s);
+  }
+
+  export const level = React.createContext<number>(0);
+
+  // inspired by Focal.lift
+
+  export type Lifted<T> = {
+    [K in keyof T]: T[K] | Signal<T[K]>
+  }
+
+  export function lift<Props>(
+    component: React.ComponentClass<Props> | React.StatelessComponent<Props>
+  ) {
+    // TODO(jaked) handle children
+    // TODO(jaked) fast path if no props / children are Signals?
+    // TODO(jaked) tighten up types?
+
+    return React.memo((props: Lifted<Props>) => {
+      const signal = React.useMemo(() =>
+        Signal.joinObject(
+          Object.keys(props).reduce<any>(
+            (obj, key) => {
+              const value = props[key];
+              const signal = value instanceof SignalImpl ? value : Signal.ok(value);
+              return { ...obj, [key]: signal }
+            },
+            {}
+          )
+        ),
+        [ props ],
+      );
+      const level = React.useContext(Signal.level);
+      signal.reconcile(level);
+      return React.useMemo(
+        () => {
+          if (signal.value.type === 'ok') {
+            return React.createElement(component, signal.value.ok as any);
+          } else {
+            console.log(signal.value.err);
+            return React.createElement('pre', {}, signal.value.err);
+          }
+        },
+        [ signal, signal.version ]
+      );
+    })
   }
 }
 

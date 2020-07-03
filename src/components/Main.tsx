@@ -15,7 +15,7 @@ import { Catch } from './Catch';
 import Display from './Display';
 import Editor from './Editor';
 import Sidebar from './Sidebar';
-import { TabBar } from './TabBar';
+import TabBar from './TabBar';
 
 interface Props {
   app: App;
@@ -55,15 +55,11 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
     <Flex
       flexDirection='column'
     >
-      <Display signal={
-        Signal.join(props.editorView, props.selectedNoteProblems).map(([editorView, selectedNoteProblems]) =>
-          <TabBar
-            editorView={editorView}
-            setEditorView={props.setEditorView}
-            selectedNoteProblems={selectedNoteProblems}
-          />
-        )
-      }/>
+      <TabBar
+        editorView={props.editorView}
+        setEditorView={props.setEditorView}
+        selectedNoteProblems={props.selectedNoteProblems}
+      />
       <Box padding={1} >
         <Display signal={
           Signal.join(props.content, props.compiledFile).map(([ content, compiledFile ]) =>

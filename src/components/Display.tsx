@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import Signal from '../util/Signal';
-import AppContext from '../appContext';
 
 interface Props {
   signal: Signal<React.ReactNode>,
@@ -10,7 +9,7 @@ interface Props {
 
 export default React.memo(({ signal, log }: Props) => {
   if (log) console.log('outer render');
-  const level = React.useContext(AppContext);
+  const level = React.useContext(Signal.level);
   signal.reconcile(level);
   return React.useMemo(() => {
     if (log) console.log('inner render');

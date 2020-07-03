@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box as BoxBase, Flex as FlexBase } from 'rebass';
 import styled from 'styled-components';
-import * as data from '../data';
+import Signal from '../util/Signal';
 
 const BarBox = styled(FlexBase)({
   paddingLeft: '4px',
@@ -51,11 +51,11 @@ const Tab = (props: TabProps) => {
   );
 }
 
-export const TabBar = (props: Props) => {
+export default Signal.lift((props: Props) => {
   return <BarBox>
     <Tab view={'meta'} {...props} />
     <Tab view={'mdx'} {...props} />
     <Tab view={'json'} {...props} />
     <Tab rightmost={true} view={'table'} {...props} />
   </BarBox>;
-}
+});

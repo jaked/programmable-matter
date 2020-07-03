@@ -8,7 +8,6 @@ import * as Immutable from 'immutable';
 import { bug } from './util/bug';
 import Signal from './util/Signal';
 import * as Tag from './util/Tag';
-import * as data from './data';
 import { Filesystem } from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
@@ -18,7 +17,6 @@ import Server from './server';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
-import AppContext from './appContext';
 import Main from './components/Main';
 import { Session, emptySession } from './components/react-simple-code-editor';
 
@@ -248,12 +246,12 @@ export class App {
 
   private reactRender = () => {
     ReactDOM.render(
-      <AppContext.Provider value={this.level}>
+      <Signal.level.Provider value={this.level}>
         <Main
           ref={this.mainRef}
           app={this}
         />
-      </AppContext.Provider>,
+      </Signal.level.Provider>,
       document.getElementById('main')
     );
   }
