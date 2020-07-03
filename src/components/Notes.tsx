@@ -6,9 +6,9 @@ import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
+import Signal from '../util/Signal';
 import * as data from '../data';
 import Note from './Note';
-import Display from './Display';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
@@ -24,31 +24,26 @@ type NoteFnProps = {
 
 const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
-
-  return (<Display signal={
-    note.problems.map(problems =>
-      <Note
-        key={note.tag}
-        label={Path.parse(note.tag).base}
-        expanded={note.expanded}
-        indent={note.indent}
-        err={problems}
-        selected={note.tag === data.selected}
-        onSelect={ () => data.onSelect(note.tag) }
-        toggleDirExpanded={
-          typeof note.expanded !== 'undefined' ?
-            (() => data.toggleDirExpanded(note.tag)) :
-            undefined
-        }
-        onFocusDir={
-          typeof note.expanded !== 'undefined' ?
-            (() => data.onFocusDir(note.tag)) :
-            undefined
-        }
-        style={style}
-      />
-    )
-  } />);
+  return <Note
+    key={note.tag}
+    label={Path.parse(note.tag).base}
+    expanded={note.expanded}
+    indent={note.indent}
+    err={note.problems}
+    selected={note.tag === data.selected}
+    onSelect={ () => data.onSelect(note.tag) }
+    toggleDirExpanded={
+      typeof note.expanded !== 'undefined' ?
+        (() => data.toggleDirExpanded(note.tag)) :
+        undefined
+    }
+    onFocusDir={
+      typeof note.expanded !== 'undefined' ?
+        (() => data.onFocusDir(note.tag)) :
+        undefined
+    }
+    style={style}
+  />;
 });
 
 interface Props {
@@ -60,7 +55,7 @@ interface Props {
   toggleDirExpanded: (tag: string) => void;
 }
 
-export default React.memo(React.forwardRef<HTMLDivElement, Props>((props, ref) => {
+export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (props.notes.length === 0) return false;
     let nextTagIndex: number;
@@ -130,4 +125,4 @@ export default React.memo(React.forwardRef<HTMLDivElement, Props>((props, ref) =
       </AutoSizer>
     </Box>
   );
-}));
+});

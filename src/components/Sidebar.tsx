@@ -218,16 +218,12 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
   );
 
   return (<>
-    <Display signal={
-      Signal.join(onKeyDown, searchCell).map(([onKeyDown, search]) =>
-        <SearchBox
-          ref={searchBoxRef}
-          search={search}
-          onSearch={setSearch}
-          onKeyDown={onKeyDown}
-        />
-      )
-    } />
+    <SearchBox
+      ref={searchBoxRef}
+      search={searchCell}
+      onSearch={setSearch}
+      onKeyDown={onKeyDown}
+    />
     <Display signal={
       focusDirCell.map(focusDir =>
         focusDir && (
@@ -241,19 +237,15 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         )
       )
     } />
-    <Display signal={
-      Signal.join(props.selected, matchingNotesTreeSignal).map(([selected, matchingNotes]) =>
-        <Notes
-          ref={notesRef}
-          notes={matchingNotes}
-          selected={selected}
-          onSelect={props.onSelect}
-          onFocusDir={setFocusDir}
-          focusEditor={props.focusEditor}
-          toggleDirExpanded={toggleDirExpanded}
-        />
-      )
-    } />
+    <Notes
+      ref={notesRef}
+      notes={matchingNotesTreeSignal}
+      selected={props.selected}
+      onSelect={props.onSelect}
+      onFocusDir={setFocusDir}
+      focusEditor={props.focusEditor}
+      toggleDirExpanded={toggleDirExpanded}
+    />
   </>);
 }));
 

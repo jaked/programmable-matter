@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
+import Signal from '../util/Signal';
 
 interface Props {
   label: string,
@@ -23,7 +24,7 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export default React.memo(({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style } : Props) => {
+export default Signal.lift<Props>(({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style }) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :

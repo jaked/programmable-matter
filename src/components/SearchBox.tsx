@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
+import Signal from '../util/Signal';
 
 type Props = {
   search: string,
@@ -25,7 +26,7 @@ type SearchBox = {
   focus: () => void
 };
 
-const SearchBox = React.memo(React.forwardRef<SearchBox, Props>((props, ref) => {
+const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useImperativeHandle(ref, () => ({
@@ -57,6 +58,6 @@ const SearchBox = React.memo(React.forwardRef<SearchBox, Props>((props, ref) => 
       />
     </Box>
   );
-}));
+});
 
 export default SearchBox;

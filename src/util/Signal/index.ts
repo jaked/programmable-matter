@@ -592,13 +592,13 @@ module Signal {
   }
 
   export function lift<Props>(
-    component: React.ComponentClass<Props> | React.StatelessComponent<Props>
+    component: React.FunctionComponent<Props>
   ) {
-    // TODO(jaked) handle children
     // TODO(jaked) fast path if no props / children are Signals?
     // TODO(jaked) tighten up types?
 
     return React.memo((props: Lifted<Props>) => {
+      // memoize on props to avoid recreating on level changes
       const signal = React.useMemo(() =>
         Signal.joinObject(
           Object.keys(props).reduce<any>(
@@ -614,6 +614,7 @@ module Signal {
       );
       const level = React.useContext(Signal.level);
       signal.reconcile(level);
+      // memoize on signal + version to prune render
       return React.useMemo(
         () => {
           if (signal.value.type === 'ok') {
@@ -626,6 +627,44 @@ module Signal {
         [ signal, signal.version ]
       );
     })
+  }
+
+  export function liftForwardRef<Ref, Props>(
+    component: React.RefForwardingComponent<Ref, Props>
+  ) {
+    // create once to avoid remounts
+    const memoComponent = React.memo(React.forwardRef(component));
+
+    return React.memo(React.forwardRef<Ref, Lifted<Props>>((props, ref) => {
+      // memoize on props to avoid recreating on level changes
+      const signal = React.useMemo(() =>
+        Signal.joinObject(
+          Object.keys(props).reduce<any>(
+            (obj, key) => {
+              const value = props[key];
+              const signal = value instanceof SignalImpl ? value : Signal.ok(value);
+              return { ...obj, [key]: signal }
+            },
+            {}
+          )
+        ),
+        [ props ],
+      );
+      const level = React.useContext(Signal.level);
+      signal.reconcile(level);
+      // memoize on signal + version to prune render
+      return React.useMemo(
+        () => {
+          if (signal.value.type === 'ok') {
+            return React.createElement(memoComponent, { ref, ...signal.value.ok as any });
+          } else {
+            console.log(signal.value.err);
+            return React.createElement('pre', {}, signal.value.err);
+          }
+        },
+        [ signal, signal.version ]
+      );
+    }))
   }
 }
 
