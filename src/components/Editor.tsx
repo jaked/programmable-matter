@@ -1,5 +1,4 @@
 import * as React from 'react';
-import Display from './Display';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 
@@ -128,7 +127,7 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
         value={props.content}
         session={props.session}
         onChange={props.onChange}
-        highlight={<Display signal={highlighted} />}
+        highlight={Signal.node(highlighted)}
         onMouseOver={onMouseEvent}
         onMouseMove={onMouseEvent}
         onClick={onClick}

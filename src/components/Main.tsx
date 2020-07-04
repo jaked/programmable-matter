@@ -12,7 +12,6 @@ import { App } from '../app';
 import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
-import Display from './Display';
 import Editor from './Editor';
 import Sidebar from './Sidebar';
 import TabBar from './TabBar';
@@ -61,10 +60,10 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
         selectedNoteProblems={props.selectedNoteProblems}
       />
       <Box padding={1} >
-        <Display signal={
+        {Signal.node(
           Signal.join(props.content, props.compiledFile).map(([ content, compiledFile ]) =>
             content !== null && compiledFile !== null ?
-              <Display signal={
+              Signal.node(
                 Signal.join(props.editorView, props.session, props.onChange).map(([ editorView, session, onChange ]) =>
                   <Editor
                     ref={ref}
@@ -76,17 +75,18 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
                     setStatus={props.setStatus}
                     setSelected={props.setSelected}
                   />
-                )}/> :
+                )
+              ) :
               <Box padding={1}>no note</Box>
-            )
-        }/>
+          )
+        )}
       </Box>
     </Flex>
-    <Display signal={
+    {Signal.node(
       props.status.map(status =>
         <div style={{ backgroundColor: '#ffc0c0' }}>{status}</div>
       )
-    }/>
+    )}
   </Flex>
 ));
 
@@ -103,13 +103,13 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
     borderStyle='solid'
     borderWidth='0px 0px 0px 1px'
   >
-    <Display signal={
+    {Signal.node(
       props.compiledNoteSignal.flatMap(compiledNote =>
         compiledNote ?
           compiledNote.rendered :
           Signal.ok('no note')
       )
-    }/>
+    )}
   </Box>
 );
 

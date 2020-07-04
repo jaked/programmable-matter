@@ -8,7 +8,6 @@ import styled from 'styled-components';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
 
-import Display from './Display';
 import Notes from './Notes';
 import SearchBox from './SearchBox';
 import * as data from '../data';
@@ -30,6 +29,28 @@ const Flex = styled(BaseFlex)`
   text-overflow: ellipsis;
   overflow: hidden;
 `;
+
+type FocusDir = {
+  focusDir: string | null;
+  setFocusDir: (dir: string | null) => void;
+  onSelect: (tag: string | null) => void;
+}
+
+const FocusDir = Signal.lift<FocusDir>(props => {
+  if (props.focusDir !== null)
+    return (
+      <Flex
+        padding={2}
+        onClick={() => props.onSelect(props.focusDir) }
+      >
+        <div onClick={e => { props.setFocusDir(null); e.stopPropagation() } } style={{ minWidth: '10px' }}>x</div>
+        <div>{props.focusDir}</div>
+      </Flex>
+    );
+  else
+    return null;
+});
+
 
 type Sidebar = {
   focusSearchBox: () => void;
@@ -224,19 +245,11 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       onSearch={setSearch}
       onKeyDown={onKeyDown}
     />
-    <Display signal={
-      focusDirCell.map(focusDir =>
-        focusDir && (
-          <Flex
-            padding={2}
-            onClick={() => props.onSelect(focusDir) }
-          >
-            <div onClick={e => { setFocusDir(null); e.stopPropagation() } } style={{ minWidth: '10px' }}>x</div>
-            <div>{focusDir}</div>
-          </Flex>
-        )
-      )
-    } />
+    <FocusDir
+      focusDir={focusDirCell}
+      setFocusDir={setFocusDir}
+      onSelect={props.onSelect}
+    />
     <Notes
       ref={notesRef}
       notes={matchingNotesTreeSignal}
