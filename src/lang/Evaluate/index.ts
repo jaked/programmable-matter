@@ -37,6 +37,14 @@ function isConstructor(f: any) {
   }
 }
 
+// the purpose of this wrapper is to avoid remounts when `component` changes.
+// React assumes that a changed component is likely to be very different,
+// so remounts the whole tree, losing the state of stateful DOM components.
+// TODO(jaked) memoize on individual props?
+const functionComponent = React.memo<{ component, props }>(({ component, props }) =>
+  component(props)
+)
+
 export function evaluateExpression(
   ast: ESTree.Expression,
   annots: AstAnnotations,
@@ -110,12 +118,7 @@ export function evaluateExpression(
         return evaluateExpression(child, annots, env);
       });
       if (typeof elem === 'function' && !isConstructor(elem))
-        // TODO(jaked)
-        // components defined in user code are recreated on rerenders
-        // causing them to be remounted when inserted into the React tree
-        // which loses focus on input elements
-        // for now, apply the components so their results go in the React tree
-        return elem({ ...attrs, children });
+        return React.createElement(functionComponent, { component: elem, props: { ...attrs, children } });
       else return React.createElement(elem, attrs, ...children);
     }
 
