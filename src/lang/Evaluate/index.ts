@@ -233,7 +233,7 @@ export function evaluateExpression(
       return ast.elements.map(e => evaluateExpression(e, annots, env));
 
     case 'ArrowFunctionExpression':
-      return function(...args: Array<any>) {
+      return (...args: Array<any>) => {
         ast.params.forEach((pat, i) => {
           env = patValueEnv(pat, args[i], env);
         });
