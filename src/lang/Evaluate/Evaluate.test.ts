@@ -253,9 +253,10 @@ describe('evaluateExpression', () => {
       Bar: ({ children, baz }) => baz ? [ baz, ...children] : children,
     });
 
+    // TODO(jaked)
+    // these tests depend on Evaluate hack that applies Foo
+/*
     it('attr with no value', () => {
-      // TODO(jaked)
-      // this depends on Evaluate hack that applies Foo
       expectEval({
         expr: '<Foo bar={false} />',
         value: false,
@@ -287,6 +288,7 @@ describe('evaluateExpression', () => {
         venv,
       });
     });
+*/
   });
 
   describe('Map#filter', () => {
