@@ -60,10 +60,10 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
         selectedNoteProblems={props.selectedNoteProblems}
       />
       <Box padding={1} >
-        {Signal.node(
+        <Signal.node signal={
           Signal.join(props.content, props.compiledFile).map(([ content, compiledFile ]) =>
             content !== null && compiledFile !== null ?
-              Signal.node(
+              <Signal.node signal={
                 Signal.join(props.editorView, props.session, props.onChange).map(([ editorView, session, onChange ]) =>
                   <Editor
                     ref={ref}
@@ -76,17 +76,17 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
                     setSelected={props.setSelected}
                   />
                 )
-              ) :
+              }/> :
               <Box padding={1}>no note</Box>
           )
-        )}
+        }/>
       </Box>
     </Flex>
-    {Signal.node(
+    <Signal.node signal={
       props.status.map(status =>
         <div style={{ backgroundColor: '#ffc0c0' }}>{status}</div>
       )
-    )}
+    }/>
   </Flex>
 ));
 
@@ -103,13 +103,13 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
     borderStyle='solid'
     borderWidth='0px 0px 0px 1px'
   >
-    {Signal.node(
+    <Signal.node signal={
       props.compiledNoteSignal.flatMap(compiledNote =>
         compiledNote ?
           compiledNote.rendered :
           Signal.ok('no note')
       )
-    )}
+    }/>
   </Box>
 );
 

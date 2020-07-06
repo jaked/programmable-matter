@@ -127,7 +127,7 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
         value={props.content}
         session={props.session}
         onChange={props.onChange}
-        highlight={Signal.node(highlighted)}
+        highlight={<Signal.node signal={highlighted}/>}
         onMouseOver={onMouseEvent}
         onMouseMove={onMouseEvent}
         onClick={onClick}

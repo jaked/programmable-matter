@@ -585,27 +585,23 @@ module Signal {
 
   export const level = React.createContext<number>(0);
 
-  export function node(
-    signal: Signal<React.ReactNode>
-  ) {
-    return React.createElement((props: {}) => {
-      const level = React.useContext(Signal.level);
-      signal.reconcile(level);
-      // memoize on signal + version to prune render
-      return React.useMemo(
-        () => {
-          if (signal.value.type === 'ok') {
-            // TODO(jaked) ReactElement != ReactNode
-            return signal.value.ok as any;
-          } else {
-            console.log(signal.value.err);
-            return React.createElement('pre', {}, signal.value.err);
-          }
-        },
-        [ signal.version ]
-      );
-    });
-  }
+  export const node = React.memo<{ signal: Signal<React.ReactNode> }>(({ signal }) => {
+    const level = React.useContext(Signal.level);
+    signal.reconcile(level);
+    // memoize on signal + version to prune render
+    return React.useMemo(
+      () => {
+        if (signal.value.type === 'ok') {
+          // TODO(jaked) ReactElement != ReactNode
+          return signal.value.ok as any;
+        } else {
+          console.log(signal.value.err);
+          return React.createElement('pre', {}, signal.value.err);
+        }
+      },
+      [ signal, signal.version ]
+    );
+  });
 
   // inspired by Focal.lift
 
