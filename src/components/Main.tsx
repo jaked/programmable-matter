@@ -12,9 +12,10 @@ import { App } from '../app';
 import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
-import Editor from './Editor';
 import Sidebar from './Sidebar';
+import TitleBar from './TitleBar'
 import TabBar from './TabBar';
+import Editor from './Editor';
 
 interface Props {
   app: App;
@@ -39,17 +40,14 @@ type EditorPaneProps = {
   setStatus: (status: string | undefined) => void;
   setSelected: (selected: string | null) => void;
   setEditorView: (view: 'meta' | 'mdx' | 'json' | 'table') => void;
-  width: number;
 }
 
 const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) =>
   <Flex
     flexDirection='column'
     justifyContent='space-between'
-    width={props.width}
-    borderColor='#cccccc'
-    borderStyle='solid'
-    borderWidth='0px 0px 0px 1px'
+    flex={1}
+    minWidth={0}
   >
     <Flex
       flexDirection='column'
@@ -92,16 +90,13 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
 
 type DisplayPaneProps = {
   compiledNoteSignal: Signal<data.CompiledNote | null>;
-  width: number;
 }
 
 const DisplayPane = React.memo((props: DisplayPaneProps) =>
   <Box
-    width={props.width}
+    flex={1}
+    minWidth={0}
     padding={1}
-    borderColor='#cccccc'
-    borderStyle='solid'
-    borderWidth='0px 0px 0px 1px'
   >
     <Signal.node signal={
       props.compiledNoteSignal.flatMap(compiledNote =>
@@ -136,11 +131,11 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
 
   const [sideBarWidth, mainPaneWidth] =
     props.app.sideBarVisible ? [ 1/6, 5/6 ] : [ 0, 1 ];
-  const [editorPaneWidth, displayPaneWidth] = (
-    props.app.mainPaneView === 'code' ? [1, 0] :
-    props.app.mainPaneView === 'display' ? [0, 1] :
-    /* props.app.mainPaneView === 'split' ? */ [1/2, 1/2]
-  ).map(w => w * mainPaneWidth);
+  const [showEditorPane, showDisplayPane] = (
+    props.app.mainPaneView === 'code' ? [true, false] :
+    props.app.mainPaneView === 'display' ? [false, true] :
+    /* props.app.mainPaneView === 'split' ? */ [true, true]
+  );
 
   return (
     <Flex style={{ height: '100vh' }}>
@@ -159,32 +154,41 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           </Flex>
         </Catch>
       }
-      { editorPaneWidth === 0 ? null :
-        <Catch>
-          <EditorPane
-            ref={editorRef}
-            content={props.app.contentSignal}
-            compiledFile={props.app.compiledFileSignal}
-            editorView={props.app.editorViewCell}
-            session={props.app.sessionSignal}
-            selectedNoteProblems={props.app.selectedNoteProblemsSignal}
-            status={props.app.statusCell}
-            onChange={props.app.setContentAndSessionSignal}
-            setStatus={props.app.setStatus}
-            setSelected={props.app.setSelected}
-            setEditorView={props.app.setEditorView}
-            width={editorPaneWidth}
-          />
-        </Catch>
+      { sideBarWidth === 0 ? null :
+          <Box width='1px' backgroundColor='#cccccc' />
       }
-      { displayPaneWidth === 0 ? null :
-        <Catch>
-          <DisplayPane
-            compiledNoteSignal={props.app.compiledNoteSignal}
-            width={displayPaneWidth}
-          />
-        </Catch>
-      }
+      <Flex flex={1} minWidth={0} flexDirection='column'>
+        <TitleBar title={props.app.selectedCell} />
+        <Flex flex={1}>
+          { showEditorPane &&
+            <Catch>
+              <EditorPane
+                ref={editorRef}
+                content={props.app.contentSignal}
+                compiledFile={props.app.compiledFileSignal}
+                editorView={props.app.editorViewCell}
+                session={props.app.sessionSignal}
+                selectedNoteProblems={props.app.selectedNoteProblemsSignal}
+                status={props.app.statusCell}
+                onChange={props.app.setContentAndSessionSignal}
+                setStatus={props.app.setStatus}
+                setSelected={props.app.setSelected}
+                setEditorView={props.app.setEditorView}
+              />
+            </Catch>
+          }
+          { showEditorPane && showDisplayPane &&
+              <Box width='1px' backgroundColor='#cccccc' />
+          }
+          { showDisplayPane &&
+            <Catch>
+              <DisplayPane
+                compiledNoteSignal={props.app.compiledNoteSignal}
+              />
+            </Catch>
+          }
+        </Flex>
+      </Flex>
     </Flex>
   );
 });
