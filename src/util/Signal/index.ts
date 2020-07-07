@@ -585,7 +585,7 @@ module Signal {
 
   export const level = React.createContext<number>(0);
 
-  export const node = React.memo<{ signal: Signal<React.ReactNode> }>(({ signal }) => {
+  export const node = ({ signal }) => {
     const level = React.useContext(Signal.level);
     signal.reconcile(level);
     // memoize on signal + version to prune render
@@ -601,7 +601,7 @@ module Signal {
       },
       [ signal, signal.version ]
     );
-  });
+  };
 
   // inspired by Focal.lift
 
@@ -615,20 +615,21 @@ module Signal {
     // TODO(jaked) fast path if no props / children are Signals?
     // TODO(jaked) tighten up types?
 
-    return React.memo((props: Lifted<Props>) => {
+    return (props: Lifted<Props>) => {
       // memoize on props to avoid recreating on level changes
-      const signal = React.useMemo(() =>
-        Signal.joinObject(
-          Object.keys(props).reduce<any>(
-            (obj, key) => {
-              const value = props[key];
-              const signal = value instanceof SignalImpl ? value : Signal.ok(value);
-              return { ...obj, [key]: signal }
-            },
-            {}
-          )
-        ),
-        [ props ],
+      const signal = React.useMemo(
+        () =>
+          Signal.joinObject(
+            Object.keys(props).reduce<any>(
+              (obj, key) => {
+                const value = props[key];
+                const signal = value instanceof SignalImpl ? value : Signal.ok(value);
+                return { ...obj, [key]: signal }
+              },
+              {}
+            )
+          ),
+        [ ...Object.values(props) ],
       );
       const level = React.useContext(Signal.level);
       signal.reconcile(level);
@@ -644,29 +645,30 @@ module Signal {
         },
         [ signal, signal.version ]
       );
-    });
+    }
   }
 
   export function liftForwardRef<Ref, Props>(
     component: React.RefForwardingComponent<Ref, Props>
   ) {
     // create once to avoid remounts
-    const memoComponent = React.memo(React.forwardRef(component));
+    const memoComponent = React.forwardRef(component);
 
-    return React.memo(React.forwardRef<Ref, Lifted<Props>>((props, ref) => {
+    return React.forwardRef<Ref, Lifted<Props>>((props, ref) => {
       // memoize on props to avoid recreating on level changes
-      const signal = React.useMemo(() =>
-        Signal.joinObject(
-          Object.keys(props).reduce<any>(
-            (obj, key) => {
-              const value = props[key];
-              const signal = value instanceof SignalImpl ? value : Signal.ok(value);
-              return { ...obj, [key]: signal }
-            },
-            {}
-          )
-        ),
-        [ props ],
+      const signal = React.useMemo(
+        () =>
+          Signal.joinObject(
+            Object.keys(props).reduce<any>(
+              (obj, key) => {
+                const value = props[key];
+                const signal = value instanceof SignalImpl ? value : Signal.ok(value);
+                return { ...obj, [key]: signal }
+              },
+              {}
+            )
+          ),
+        [ Object.values(props) ],
       );
       const level = React.useContext(Signal.level);
       signal.reconcile(level);
@@ -682,7 +684,7 @@ module Signal {
         },
         [ signal, signal.version ]
       );
-    }));
+    });
   }
 }
 
