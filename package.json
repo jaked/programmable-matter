@@ -24,7 +24,7 @@
     "@types/styled-components": "^5.1.0",
     "@types/styled-system": "^4.2.2",
     "@types/victory": "^31.0.21",
-    "electron": "^5.0.10",
+    "electron": "^7.2.4",
     "electron-devtools-installer": "^2.2.4",
     "electron-rebuild": "^1.8.6",
     "jest": "^26.0.1",
