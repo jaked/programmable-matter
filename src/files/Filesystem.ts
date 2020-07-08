@@ -94,6 +94,33 @@ export class Filesystem {
     });
   }
 
+  public rename = (oldPath: string, newPath: string) => {
+    this.updateFiles(files => {
+      if (oldPath === newPath) return files;
+      const lastUpdateMs = Date.now();
+
+      const oldFile = files.get(oldPath) ?? bug(`rename: expected file for ${oldPath}`);
+      const oldFileMetadata = this.filesMetadata.get(oldPath) ?? bug(`rename: expected metadata for ${oldPath}`);
+      oldFileMetadata.deleted = true;
+      oldFileMetadata.lastUpdateMs = lastUpdateMs;
+      files = files.delete(oldPath);
+
+      const newFile = files.get(newPath);
+      if (newFile) {
+        const newFileMetadata = this.filesMetadata.get(newPath) ?? bug(`rename: expected metadata for ${newPath}`);
+        newFileMetadata.lastUpdateMs = lastUpdateMs;
+        newFile.bufferCell.setOk(oldFile.bufferCell.get());
+      } else {
+        const newFileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false, deleted: false };
+        this.filesMetadata.set(newPath, newFileMetadata);
+        const newFile = new data.File(newPath, Signal.cellOk(oldFile.bufferCell.get(), this.onChange));
+        files = files.set(newPath, newFile);
+      }
+
+      return files;
+    });
+  }
+
   public exists = (path: string) => {
     return !!this.filesCell.get().get(path);
   }

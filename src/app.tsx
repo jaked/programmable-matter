@@ -156,6 +156,18 @@ export class App {
     })
   );
 
+  public renameNoteSignal = this.compiledNoteSignal.map(compiledNote => {
+    if (compiledNote === null) return (slug: string) => {};
+    else return (slug: string) => {
+      Object.values(compiledNote.files).forEach(file => {
+        if (!file) return;
+        const pathParsed = Path.parse(file.path);
+        const newPath = Path.format({ ...pathParsed, base: slug + pathParsed.ext})
+        this.filesystem.rename(file.path, newPath);
+      });
+    };
+  });
+
   public selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
       if (compiledNote !== null) {

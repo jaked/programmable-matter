@@ -158,7 +158,12 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           <Box width='1px' backgroundColor='#cccccc' />
       }
       <Flex flex={1} minWidth={0} flexDirection='column'>
-        <TitleBar title={props.app.selectedCell} />
+        <TitleBar
+          slug={props.app.selectedCell}
+          setSlug={props.app.renameNoteSignal}
+          setSelected={props.app.setSelected}
+          render={props.app.render}
+        />
         <Flex flex={1}>
           { showEditorPane &&
             <Catch>

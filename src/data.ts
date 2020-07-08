@@ -27,6 +27,7 @@ export type Meta = Immutable.RecordOf<MetaProps>;
 
 export type AstAnnotations = Map<unknown, Type>;
 
+// TODO(jaked) move to util/ or files/
 export class File {
   path: string;
   bufferCell: Signal.Cell<Buffer>;

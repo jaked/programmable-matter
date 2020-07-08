@@ -50,6 +50,11 @@ export function compileFiles(
   compiledFilesRef.set(compiledFiles);
 
   const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByTag, (files, tag) => {
+    function fileForType(type: data.Types): data.File | undefined {
+      // TODO(jaked) fix tags for index files, then just use tag here instead of files
+      return files.find(file => file.type === type);
+    }
+
     function compiledFileForType(type: data.Types): Signal<data.CompiledFile | undefined> {
       // TODO(jaked) fix tags for index files, then just use tag here instead of files
       const file = files.find(file => file.type === type);
@@ -126,7 +131,13 @@ export function compileFiles(
         publishedType: parts.map(parts => parts.publishedType),
         isIndex,
         meta: metaForPath(Tag.pathOfTag(tag, isIndex, 'meta'), compiledFiles),
-        files: { },
+        files: {
+          mdx: fileForType('mdx'),
+          table: fileForType('table'),
+          json: fileForType('json'),
+          jpeg: fileForType('jpeg'),
+          meta: fileForType('meta'),
+        },
         problems: parts.map(parts => parts.problems),
         rendered: parts.flatMap(parts => parts.rendered),
         exportType: parts.map(parts => parts.exportType),
