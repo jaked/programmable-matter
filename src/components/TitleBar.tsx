@@ -17,13 +17,38 @@ const Box = styled(BoxBase)({
   height: '32px',
 });
 
-const Input = styled.input({
+const StyledInput = styled.input({
   boxSizing: 'border-box',
   borderStyle: 'none',
   outline: 'none',
   fontSize: '14px',
   width: '100%',
 });
+
+type InputProps = {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  onBlur: () => void;
+};
+const Input = ({ value, onChange, onKeyDown, onBlur }: InputProps) => {
+  const ref = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.focus();
+      ref.current.setSelectionRange(0, value.length);
+    }
+  }, []);
+  return <StyledInput
+    ref={ref}
+    type='text'
+    maxLength={100}
+    value={value}
+    onChange={onChange}
+    onKeyDown={onKeyDown}
+    onBlur={onBlur}
+  />;
+}
 
 export default Signal.lift<Props>(({ slug, setSlug, setSelected, render }) => {
   if (slug === null)
@@ -62,17 +87,19 @@ export default Signal.lift<Props>(({ slug, setSlug, setSelected, render }) => {
     const onClick = () => {
       editSlugCell.setOk(slug);
     }
+    const onBlur = () => {
+      editSlugCell.setOk(undefined);
+    }
 
     return <Box><Signal.node signal={editSlugCell.map(editSlug => {
       if (editSlug === undefined) {
         return <span onClick={onClick}>{slug}</span>;
       } else {
         return <Input
-          type='text'
-          maxLength={100}
           value={editSlug}
           onChange={onChange}
           onKeyDown={onKeyDown}
+          onBlur={onBlur}
         />;
       }
     })
