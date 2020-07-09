@@ -13,7 +13,8 @@ const Input = styled.input({
   boxSizing: 'border-box',
   borderStyle: 'none',
   outline: 'none',
-  fontSize: '14px',
+  fontFamily: 'inherit',
+  fontSize: 'inherit',
   width: '100%',
 });
 

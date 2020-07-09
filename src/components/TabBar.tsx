@@ -1,22 +1,14 @@
 import React from 'react';
-import { Box as BoxBase, Flex as FlexBase } from 'rebass';
+import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
-import Signal from '../util/Signal';
-
-const BarBox = styled(FlexBase)({
-  paddingLeft: '4px',
-  paddingTop: '4px',
-  width: '100%',
-  borderBottom: '1px solid #cccccc'
-});
 
 // TODO(jaked)
 // must we use CSS style to get props interpolation?
-const TabBox = styled(BoxBase)`
+const TabBox = styled(Box)`
   padding: 4px;
   border-style: solid;
   border-color: #cccccc;
-  border-width: 1px ${props => props.rightmost ? '1px' : '0px'} 0px 1px;
+  border-width: 1px ${props => props.rightmost ? '1px' : '0px'} 1px 1px;
 `;
 
 type Props = {
@@ -51,11 +43,13 @@ const Tab = (props: TabProps) => {
   );
 }
 
-export default Signal.lift((props: Props) => {
-  return <BarBox>
-    <Tab view={'meta'} {...props} />
-    <Tab view={'mdx'} {...props} />
-    <Tab view={'json'} {...props} />
-    <Tab rightmost={true} view={'table'} {...props} />
-  </BarBox>;
-});
+export default (props: Props) => {
+  return (
+    <Flex>
+      <Tab view={'meta'} {...props} />
+      <Tab view={'mdx'} {...props} />
+      <Tab view={'json'} {...props} />
+      <Tab rightmost={true} view={'table'} {...props} />
+    </Flex>
+  );
+};

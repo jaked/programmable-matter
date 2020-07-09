@@ -13,8 +13,7 @@ import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
 import Sidebar from './Sidebar';
-import TitleBar from './TitleBar'
-import TabBar from './TabBar';
+import Header from './Header'
 import Editor from './Editor';
 
 interface Props {
@@ -34,12 +33,10 @@ type EditorPaneProps = {
   compiledFile: Signal<data.CompiledFile | null>;
   editorView: Signal<'meta' | 'mdx' | 'json' | 'table'>;
   session: Signal<Session>;
-  selectedNoteProblems: Signal<{ meta?: boolean, mdx?: boolean, json?: boolean, table?: boolean }>;
   status: Signal<string | undefined>;
   onChange: Signal<(updateContent: string, session: Session) => void>;
   setStatus: (status: string | undefined) => void;
   setSelected: (selected: string | null) => void;
-  setEditorView: (view: 'meta' | 'mdx' | 'json' | 'table') => void;
 }
 
 const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) =>
@@ -52,11 +49,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
     <Flex
       flexDirection='column'
     >
-      <TabBar
-        editorView={props.editorView}
-        setEditorView={props.setEditorView}
-        selectedNoteProblems={props.selectedNoteProblems}
-      />
       <Box padding={1} >
         <Signal.node signal={
           Signal.join(props.content, props.compiledFile).map(([ content, compiledFile ]) =>
@@ -158,12 +150,15 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           <Box width='1px' backgroundColor='#cccccc' />
       }
       <Flex flex={1} minWidth={0} flexDirection='column'>
-        <TitleBar
+        <Header
           slug={props.app.selectedCell}
           setSlug={props.app.renameNoteSignal}
           setSelected={props.app.setSelected}
           render={props.app.render}
-        />
+          editorView={props.app.editorViewCell}
+          setEditorView={props.app.setEditorView}
+          selectedNoteProblems={props.app.selectedNoteProblemsSignal}
+          />
         <Flex flex={1}>
           { showEditorPane &&
             <Catch>
@@ -173,12 +168,10 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
                 compiledFile={props.app.compiledFileSignal}
                 editorView={props.app.editorViewCell}
                 session={props.app.sessionSignal}
-                selectedNoteProblems={props.app.selectedNoteProblemsSignal}
                 status={props.app.statusCell}
                 onChange={props.app.setContentAndSessionSignal}
                 setStatus={props.app.setStatus}
                 setSelected={props.app.setSelected}
-                setEditorView={props.app.setEditorView}
               />
             </Catch>
           }
