@@ -6,10 +6,15 @@ import TitleBar from './TitleBar';
 import TabBar from './TabBar';
 
 const HeaderBox = styled(Flex)({
-  padding: '2px',
+  padding: '4px',
   borderBottom: '1px solid #cccccc',
   height: '33px',
 });
+
+const TitleBox = styled(Box)({
+  flex: 1,
+  padding: '2px',
+})
 
 type Props = {
   slug: string | null;
@@ -27,14 +32,14 @@ export default Signal.lift<Props>(props => {
   else
     return (
       <HeaderBox>
-        <Box flex={1} padding='4px'>
+        <TitleBox>
           <TitleBar
             slug={props.slug}
             setSlug={props.setSlug}
             setSelected={props.setSelected}
             render={props.render}
           />
-        </Box>
+        </TitleBox>
         <Box>
           <TabBar
             editorView={props.editorView}

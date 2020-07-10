@@ -5,11 +5,20 @@ import styled from 'styled-components';
 // TODO(jaked)
 // must we use CSS style to get props interpolation?
 const TabBox = styled(Box)`
-  padding: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  padding: 2px 4px 2px 4px;
   border-style: solid;
   border-color: #cccccc;
   border-width: 1px ${props => props.rightmost ? '1px' : '0px'} 1px 1px;
+  :hover {
+    cursor: pointer;
+  }
 `;
+TabBox.defaultProps = {
+  as: 'button'
+}
 
 type Props = {
   editorView: 'mdx' | 'json' | 'table' | 'meta',

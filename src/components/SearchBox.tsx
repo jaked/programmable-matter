@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box as BoxBase } from 'rebass';
+import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
 import Signal from '../util/Signal';
 
@@ -10,18 +10,38 @@ type Props = {
 }
 
 const Input = styled.input({
+  padding: '2px',
   boxSizing: 'border-box',
   borderStyle: 'none',
   outline: 'none',
   fontFamily: 'inherit',
   fontSize: 'inherit',
-  width: '100%',
 });
 
-const Box = styled(BoxBase)({
-  padding: '6px',
+const OuterBox = styled(Flex)({
+  padding: '4px',
   borderBottom: '1px solid #cccccc',
 });
+
+const InputBox = styled(Box)({
+  flex: 1,
+});
+
+const Button = styled(Box)`
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  padding: 2px 4px 2px 4px;
+  border-style: solid;
+  border-color: #cccccc;
+  border-width: 1px;
+  :hover {
+    cursor: pointer;
+  }
+`;
+Button.defaultProps = {
+  as: 'button'
+}
 
 type SearchBox = {
   focus: () => void
@@ -42,22 +62,25 @@ const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
 
   const { search, onSearch, onKeyDown } = props;
   return (
-    <Box>
-      <Input
-        ref={inputRef}
-        type='text'
-        maxLength={100}
-        value={search}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-          e.preventDefault();
-          onSearch(e.currentTarget.value);
-        }}
-        onKeyDown={(e: React.KeyboardEvent) => {
-          if (onKeyDown(e))
+    <OuterBox>
+      <InputBox>
+        <Input
+          ref={inputRef}
+          type='text'
+          maxLength={100}
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             e.preventDefault();
-        }}
-      />
-    </Box>
+            onSearch(e.currentTarget.value);
+          }}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (onKeyDown(e))
+              e.preventDefault();
+          }}
+        />
+      </InputBox>
+      <Button>+</Button>
+    </OuterBox>
   );
 });
 
