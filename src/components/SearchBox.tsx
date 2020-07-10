@@ -6,7 +6,8 @@ import Signal from '../util/Signal';
 type Props = {
   search: string,
   onSearch: (search: string) => void,
-  onKeyDown: (e: React.KeyboardEvent) => boolean,
+  onKeyDown: (e: React.KeyboardEvent) => void,
+  onNewNote: (slug: string) => void,
 }
 
 const Input = styled.input({
@@ -60,7 +61,7 @@ const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
     }
   }));
 
-  const { search, onSearch, onKeyDown } = props;
+  const { search, onSearch, onKeyDown, onNewNote } = props;
   return (
     <OuterBox>
       <InputBox>
@@ -73,13 +74,14 @@ const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
             e.preventDefault();
             onSearch(e.currentTarget.value);
           }}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (onKeyDown(e))
-              e.preventDefault();
-          }}
+          onKeyDown={onKeyDown}
         />
       </InputBox>
-      <Button>+</Button>
+      <Button
+        onClick={() =>
+          onNewNote(inputRef.current ? inputRef.current.value : '')
+        }
+      >+</Button>
     </OuterBox>
   );
 });

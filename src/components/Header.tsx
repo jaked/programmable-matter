@@ -19,8 +19,8 @@ const TitleBox = styled(Box)({
 type Props = {
   slug: string | null;
   setSlug: (s: string) => void;
-  setSelected: (s: string) => void;
-  render: () => void;
+  editSlug: string | undefined;
+  setEditSlug: (s: string | undefined) => void;
   editorView: 'mdx' | 'json' | 'table' | 'meta',
   setEditorView: (view: 'mdx' | 'json' | 'table' | 'meta') => void,
   selectedNoteProblems: { meta?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
@@ -36,8 +36,8 @@ export default Signal.lift<Props>(props => {
           <TitleBar
             slug={props.slug}
             setSlug={props.setSlug}
-            setSelected={props.setSelected}
-            render={props.render}
+            editSlug={props.editSlug}
+            setEditSlug={props.setEditSlug}
           />
         </TitleBox>
         <Box>

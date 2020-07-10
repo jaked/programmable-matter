@@ -1,14 +1,12 @@
 import React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
-import Signal from '../util/Signal';
-import { bug } from '../util/bug';
 
 type Props = {
   slug: string;
   setSlug: (s: string) => void;
-  setSelected: (s: string) => void;
-  render: () => void;
+  editSlug: string | undefined;
+  setEditSlug: (s: string | undefined) => void;
 }
 
 const InputBox = styled(BoxBase)({
@@ -49,58 +47,41 @@ const Input = ({ value, onChange, onKeyDown, onBlur }: InputProps) => {
   />;
 }
 
-export default ({ slug, setSlug, setSelected, render }: Props) => {
-  // we want to clear the editing state when the slug prop changes
-  // and we'd like the editing state to be local to TitleBar
-  // recreating the state signal accomplishes this
-  // TODO(jaked) maybe there's a better way to go about it
-  // e.g. React.useState + React.useEffect to clear
-  // or React.useRef(Signal..., [slug]) ?
-
-  const editSlugCell = Signal.cellOk<undefined | string>(undefined, render);
+export default ({ slug, setSlug, editSlug, setEditSlug }) => {
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    editSlugCell.setOk(e.currentTarget.value);
+    setEditSlug(e.currentTarget.value);
   }
   const onKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'Enter': {
-        const newSlug = editSlugCell.get() ?? bug(`expected slug in editSlugCell`);
-        setSlug(newSlug);
-        setSelected(newSlug);
-        editSlugCell.setOk(undefined);
+        setSlug(editSlug);
         e.preventDefault();
         break;
       }
 
       case 'Escape': {
-        editSlugCell.setOk(undefined);
+        setEditSlug(undefined);
         e.preventDefault();
         break;
       }
     }
   }
   const onClick = () => {
-    editSlugCell.setOk(slug);
+    setEditSlug(slug);
   }
   const onBlur = () => {
-    editSlugCell.setOk(undefined);
+    setEditSlug(undefined);
   }
 
-  return (
-    <Signal.node signal={
-      editSlugCell.map(editSlug => {
-        if (editSlug === undefined) {
-          return <InputBox onClick={onClick}>{slug}</InputBox>;
-        } else {
-          return <Input
-            value={editSlug}
-            onChange={onChange}
-            onKeyDown={onKeyDown}
-            onBlur={onBlur}
-          />;
-        }
-      })
-    }/>
-  );
+  if (editSlug === undefined) {
+    return <InputBox onClick={onClick}>{slug}</InputBox>;
+  } else {
+    return <Input
+      value={editSlug}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+      onBlur={onBlur}
+    />;
+  }
 };

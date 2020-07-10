@@ -71,6 +71,9 @@ export class App {
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
   }
 
+  public editSlugCell = Signal.cellOk<string | undefined>(undefined, this.render);
+  public setEditSlug = (editSlug: string | undefined) => this.editSlugCell.setOk(editSlug)
+
   private history: string[] = [];
   private historyIndex: number = -1; // index of current selection, or -1 if none
   public selectedCell = Signal.cellOk<string | null>(null, this.render);
@@ -82,6 +85,7 @@ export class App {
       this.historyIndex++;
     }
     this.selectedCell.setOk(selected);
+    this.setEditSlug(undefined);
   }
   public historyBack = () => {
     if (this.historyIndex > 0) {
@@ -120,6 +124,7 @@ export class App {
 
   deleteNote = () => {
     const selected = this.selectedCell.get();
+    this.setSelected(null);
     const view = this.editorViewCell.get();
     if (selected === null || !view) return;
 
@@ -156,7 +161,7 @@ export class App {
     })
   );
 
-  public renameNoteSignal = this.compiledNoteSignal.map(compiledNote => {
+  public setSlugSignal = this.compiledNoteSignal.map(compiledNote => {
     if (compiledNote === null) return (slug: string) => {};
     else return (slug: string) => {
       Object.values(compiledNote.files).forEach(file => {
@@ -165,8 +170,28 @@ export class App {
         const newPath = Path.format({ ...pathParsed, base: slug + pathParsed.ext})
         this.filesystem.rename(file.path, newPath);
       });
+      this.setSelected(slug);
     };
   });
+
+  public onNewNoteSignal = this.compiledNotesSignal.map(compiledNotes =>
+    (slug: string) => {
+      slug = slug.trim();
+      if (slug === '') slug = 'untitled';
+      if (compiledNotes.has(slug)) {
+        for (let i = 1; ; i++) {
+          const newSlug = `${slug} (${i})`;
+          if (!compiledNotes.has(newSlug)) {
+            slug = newSlug;
+            break;
+          }
+        }
+      }
+      this.filesystem.update(`${slug}.mdx`, Buffer.from('', 'utf8'));
+      this.setSelected(slug);
+      this.setEditSlug(slug);
+    }
+  );
 
   public selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {

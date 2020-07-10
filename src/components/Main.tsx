@@ -140,7 +140,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
               compiledNotes={props.app.compiledNotesSignal}
               selected={props.app.selectedCell}
               onSelect={props.app.setSelected}
-              newNote={props.app.newNote}
+              onNewNote={props.app.onNewNoteSignal}
               focusEditor={focusEditor}
             />
           </Flex>
@@ -152,9 +152,9 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       <Flex flex={1} minWidth={0} flexDirection='column'>
         <Header
           slug={props.app.selectedCell}
-          setSlug={props.app.renameNoteSignal}
-          setSelected={props.app.setSelected}
-          render={props.app.render}
+          setSlug={props.app.setSlugSignal}
+          editSlug={props.app.editSlugCell}
+          setEditSlug={props.app.setEditSlug}
           editorView={props.app.editorViewCell}
           setEditorView={props.app.setEditorView}
           selectedNoteProblems={props.app.selectedNoteProblemsSignal}

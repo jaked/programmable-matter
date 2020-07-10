@@ -17,7 +17,7 @@ type Props = {
   compiledNotes: Signal<data.CompiledNotes>;
   selected: Signal<string | null>;
   onSelect: (s: string | null) => void;
-  newNote: (s: string) => void;
+  onNewNote: Signal<(s: string) => void>;
   focusEditor: () => void;
 }
 
@@ -209,20 +209,22 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
   );
 
   const onKeyDown = Signal.join(searchCell, matchingNotesSignal).map(([search, matchingNotes]) =>
-    (e: React.KeyboardEvent): boolean => {
+    (e: React.KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
-        return false;
+        return;
 
       switch (e.key) {
         case 'ArrowUp':
           focusNotes();
           props.onSelect(matchingNotes[matchingNotes.length - 1].tag);
-          return true;
+          e.preventDefault();
+          break;
 
         case 'ArrowDown':
           focusNotes();
           props.onSelect(matchingNotes[0].tag);
-          return true;
+          e.preventDefault();
+          break;
 
         case 'Enter':
           // TODO(jaked)
@@ -231,9 +233,8 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           // }
           props.onSelect(search);
           props.focusEditor();
-          return true;
-
-        default: return false;
+          e.preventDefault();
+          break;
       }
     }
   );
@@ -244,6 +245,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       search={searchCell}
       onSearch={setSearch}
       onKeyDown={onKeyDown}
+      onNewNote={props.onNewNote}
     />
     <FocusDir
       focusDir={focusDirCell}
