@@ -21,6 +21,7 @@ type Props = {
   setSlug: (s: string) => void;
   editSlug: string | undefined;
   setEditSlug: (s: string | undefined) => void;
+  focusEditor: () => void;
   editorView: 'mdx' | 'json' | 'table' | 'meta',
   setEditorView: (view: 'mdx' | 'json' | 'table' | 'meta') => void,
   selectedNoteProblems: { meta?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
@@ -38,6 +39,7 @@ export default Signal.lift<Props>(props => {
             setSlug={props.setSlug}
             editSlug={props.editSlug}
             setEditSlug={props.setEditSlug}
+            focusEditor={props.focusEditor}
           />
         </TitleBox>
         <Box>

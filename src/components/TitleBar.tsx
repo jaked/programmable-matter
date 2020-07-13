@@ -7,6 +7,7 @@ type Props = {
   setSlug: (s: string) => void;
   editSlug: string | undefined;
   setEditSlug: (s: string | undefined) => void;
+  focusEditor: () => void;
 }
 
 const InputBox = styled(BoxBase)({
@@ -23,31 +24,20 @@ const StyledInput = styled.input({
 });
 
 type InputProps = {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
-  onBlur: () => void;
+  setSlug: (s: string) => void;
+  editSlug: string;
+  setEditSlug: (s: string | undefined) => void;
+  focusEditor: () => void;
 };
-const Input = ({ value, onChange, onKeyDown, onBlur }: InputProps) => {
+const Input = ({ setSlug, editSlug, setEditSlug, focusEditor }: InputProps) => {
   const ref = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
     if (ref.current) {
       ref.current.focus();
-      ref.current.setSelectionRange(0, value.length);
+      ref.current.setSelectionRange(0, editSlug.length);
     }
   }, []);
-  return <StyledInput
-    ref={ref}
-    type='text'
-    maxLength={100}
-    value={value}
-    onChange={onChange}
-    onKeyDown={onKeyDown}
-    onBlur={onBlur}
-  />;
-}
 
-export default ({ slug, setSlug, editSlug, setEditSlug }) => {
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     setEditSlug(e.currentTarget.value);
@@ -56,32 +46,45 @@ export default ({ slug, setSlug, editSlug, setEditSlug }) => {
     switch (e.key) {
       case 'Enter': {
         setSlug(editSlug);
+        focusEditor();
         e.preventDefault();
         break;
       }
 
       case 'Escape': {
         setEditSlug(undefined);
+        focusEditor();
         e.preventDefault();
         break;
       }
     }
   }
-  const onClick = () => {
-    setEditSlug(slug);
-  }
   const onBlur = () => {
     setEditSlug(undefined);
   }
+
+  return <StyledInput
+    ref={ref}
+    type='text'
+    maxLength={100}
+    value={editSlug}
+    onChange={onChange}
+    onKeyDown={onKeyDown}
+    onBlur={onBlur}
+  />;
+}
+
+export default ({ slug, setSlug, editSlug, setEditSlug, focusEditor }: Props) => {
+  const onClick = () => setEditSlug(slug)
 
   if (editSlug === undefined) {
     return <InputBox onClick={onClick}>{slug}</InputBox>;
   } else {
     return <Input
-      value={editSlug}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      onBlur={onBlur}
+      setSlug={setSlug}
+      editSlug={editSlug}
+      setEditSlug={setEditSlug}
+      focusEditor={focusEditor}
     />;
   }
 };

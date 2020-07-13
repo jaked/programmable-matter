@@ -155,6 +155,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           setSlug={props.app.setSlugSignal}
           editSlug={props.app.editSlugCell}
           setEditSlug={props.app.setEditSlug}
+          focusEditor={focusEditor}
           editorView={props.app.editorViewCell}
           setEditorView={props.app.setEditorView}
           selectedNoteProblems={props.app.selectedNoteProblemsSignal}
