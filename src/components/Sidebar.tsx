@@ -208,7 +208,12 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     })
   );
 
-  const onKeyDown = Signal.join(searchCell, matchingNotesSignal).map(([search, matchingNotes]) =>
+  const onKeyDown = Signal.join(
+    searchCell,
+    props.compiledNotes,
+    matchingNotesSignal,
+    props.onNewNote,
+  ).map(([search, compiledNotes, matchingNotes, onNewNote]) =>
     (e: React.KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
         return;
@@ -227,12 +232,12 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           break;
 
         case 'Enter':
-          // TODO(jaked)
-          // if (this.props.notes.every(note => note.tag !== this.props.search)) {
-          //   this.props.newNote(this.props.search);
-          // }
-          props.onSelect(search);
-          props.focusEditor();
+          if (compiledNotes.some((_, slug) => slug === search)) {
+            props.onSelect(search);
+            props.focusEditor();
+          } else {
+            onNewNote(search);
+          }
           e.preventDefault();
           break;
       }
