@@ -167,7 +167,8 @@ export class App {
       Object.values(compiledNote.files).forEach(file => {
         if (!file) return;
         const pathParsed = Path.parse(file.path);
-        const newPath = Path.format({ ...pathParsed, base: slug + pathParsed.ext})
+        const slugParsed = Path.parse(slug);
+        const newPath = Path.format({ ...pathParsed, base: undefined, name: slugParsed.name });
         this.filesystem.rename(file.path, newPath);
       });
       this.setSelected(slug);
