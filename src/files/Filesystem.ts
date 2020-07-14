@@ -18,6 +18,10 @@ const debug = false;
 
 const emptyBuffer = Buffer.from('');
 
+// TODO(jaked)
+// the typing included with NSFW doesn't export this
+// and also lacks the directory field on rename
+// https://github.com/Axosoft/nsfw/pull/115
 type NsfwEvent =
   {
     action: 0 | 1 | 2; // created, deleted, modified
@@ -26,7 +30,7 @@ type NsfwEvent =
   } |
   {
     action: 3; // renamed
-    directory: string;
+    // directory: string;
     oldFile: string;
     newDirectory: string;
     newFile: string;
@@ -49,11 +53,10 @@ export class Filesystem {
     this.onChange = onChange;
     this.filesCell = Signal.cellOk(Immutable.Map(), onChange);
     this.timeout = Timers.setInterval(this.timerCallback, 500);
-    this.watcher = new Nsfw(
-      500, // debounceMS
+    this.watcher = Nsfw(
       this.filesPath,
       this.handleNsfwEvents,
-      this.handleNsfwError
+      { debounceMS: 500 }
     );
   }
 
@@ -129,6 +132,7 @@ export class Filesystem {
     const events: Array<NsfwEvent> = [];
     await this.walkDir(this.filesPath, events);
     await this.handleNsfwEvents(events);
+    this.watcher = await this.watcher;
     this.watcher.start();
   }
 
@@ -278,7 +282,7 @@ export class Filesystem {
           }
 
           case 3: { // renamed
-            if (debug) console.log(`${ev.directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
+            if (debug) console.log(`${(ev as any).directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
             const buffer = await readBuffer(ev.newDirectory, ev.newFile);
             return [ ev, buffer ];
           }
@@ -306,7 +310,7 @@ export class Filesystem {
             }
 
             case 3: { // renamed
-              const oldPath = canonizePath(this.filesPath, ev.directory, ev.oldFile);
+              const oldPath = canonizePath(this.filesPath, (ev as any).directory, ev.oldFile);
               deleted.add(oldPath);
               const path = canonizePath(this.filesPath, ev.newDirectory, ev.newFile);
               return this.updateFile(files, path, buffer);
