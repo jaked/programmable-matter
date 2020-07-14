@@ -1,21 +1,11 @@
 // Modules to control application life and create native browser window
 import { app, BrowserWindow, globalShortcut, Menu, MenuItemConstructorOptions } from 'electron';
 
-import path from 'path';
-import electronReload from 'electron-reload';
-electronReload(path.resolve(__dirname, 'build'));
-
-import { default as installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
-
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow: null | BrowserWindow;
 
 function createWindow () {
-  installExtension(REACT_DEVELOPER_TOOLS)
-    .then((name) => console.log(`Added Extension:  ${name}`))
-    .catch((err) => console.log('An error occurred: ', err));
-
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1440,
