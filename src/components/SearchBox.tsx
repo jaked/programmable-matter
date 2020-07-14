@@ -32,6 +32,7 @@ const Button = styled(Box)`
   font-family: inherit;
   font-size: inherit;
   outline: none;
+  background-color: #ffffff;
   padding: 2px 4px 2px 4px;
   border-style: solid;
   border-color: #cccccc;
