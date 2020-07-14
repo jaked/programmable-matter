@@ -77,8 +77,15 @@ export class App {
   private history: string[] = [];
   private historyIndex: number = -1; // index of current selection, or -1 if none
   public selectedCell = Signal.cellOk<string | null>(null, this.render);
+
+  // TODO(jaked)
+  // selection + history needs its own module + tests
+
   public setSelected = (selected: string | null) => {
     if (selected === this.selectedCell.get()) return;
+    this.compiledNotesSignal.reconcile(this.level);
+    if (selected !== null && !this.compiledNotesSignal.get().has(selected))
+      selected = null;
     if (selected !== null) {
       this.history = this.history.slice(0, this.historyIndex + 1);
       this.history.push(selected);
@@ -88,15 +95,31 @@ export class App {
     this.setEditSlug(undefined);
   }
   public historyBack = () => {
-    if (this.historyIndex > 0) {
-      this.historyIndex--;
-      this.selectedCell.setOk(this.history[this.historyIndex]);
+    this.compiledNotesSignal.reconcile(this.level);
+    const notes = this.compiledNotesSignal.get();
+    const selected = this.selectedCell.get();
+    let newIndex = this.historyIndex;
+    // skip history entries of deleted notes
+    while (newIndex >= 0 && (this.history[newIndex] === selected || !notes.has(this.history[newIndex])))
+     newIndex--;
+    if (newIndex >= 0 && newIndex < this.history.length) {
+      this.historyIndex = newIndex;
+      this.selectedCell.setOk(this.history[newIndex]);
+      this.setEditSlug(undefined);
     }
   }
   public historyForward = () => {
-    if (this.historyIndex < this.history.length - 1) {
-      this.historyIndex++;
-      this.selectedCell.setOk(this.history[this.historyIndex])
+    this.compiledNotesSignal.reconcile(this.level);
+    const notes = this.compiledNotesSignal.get();
+    const selected = this.selectedCell.get();
+    let newIndex = this.historyIndex;
+    // skip history entries of deleted notes
+    while (newIndex < this.history.length && (this.history[newIndex] === selected || !notes.has(this.history[newIndex])))
+     newIndex++;
+    if (newIndex >= 0 && newIndex < this.history.length) {
+      this.historyIndex = newIndex;
+      this.selectedCell.setOk(this.history[newIndex]);
+      this.setEditSlug(undefined);
     }
   }
 
