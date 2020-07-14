@@ -88,7 +88,7 @@ function initMenu() {
           visible: macos
         },
         {
-          role: 'hideothers',
+          role: 'hideOthers',
           visible: macos
         },
         {
@@ -140,9 +140,9 @@ function initMenu() {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        { role: 'pasteandmatchstyle' },
+        { role: 'pasteAndMatchStyle' },
         { role: 'delete' },
-        { role: 'selectall' },
+        { role: 'selectAll' },
         {
           type: 'separator'
         },
@@ -237,16 +237,16 @@ function initMenu() {
           visible: isDevelopment
         },
         {
-          role: 'forcereload',
+          role: 'forceReload',
           visible: isDevelopment
         },
         {
           type: 'separator',
           visible: isDevelopment
         },
-        { role: 'resetzoom' },
-        { role: 'zoomin' },
-        { role: 'zoomout' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
         { type: 'separator' },
         {
           label: 'Toggle Full Screen',
@@ -272,7 +272,7 @@ function initMenu() {
       role: 'help',
       submenu: [
         {
-          role: 'toggledevtools',
+          role: 'toggleDevTools',
           accelerator: 'CommandOrControl+Alt+I'
         }
       ]
