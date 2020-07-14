@@ -43,7 +43,7 @@ function initGlobalShortcut() {
     if (mainWindow === null) {
       createWindow();
     } else if (!mainWindow.isFocused()) {
-      app.focus();
+      app.focus({ steal: true });
       send('focus-search-box');
     } else {
       app.hide();
