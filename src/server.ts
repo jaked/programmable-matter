@@ -48,15 +48,15 @@ export default class Server {
     let path = url.path || '';
     const decodedPath = decodeURIComponent(path.slice(1, path.length));
     const pathParts = Path.parse(decodedPath);
-    let tag = Path.join(pathParts.dir, pathParts.name)
+    let name = Path.join(pathParts.dir, pathParts.name)
     // TODO(jaked) temporary hack for the root index note
-    if (tag === '.') tag = '';
+    if (name === '.') name = '';
 
-    const note = this.compiledNotes.get().get(tag);
+    const note = this.compiledNotes.get().get(name);
     if (note) note.meta.reconcile(this.level);
     if (!note || !note.meta.get().publish) {
       res.statusCode = 404;
-      res.end(`no note ${tag}`);
+      res.end(`no note ${name}`);
     } else {
       // TODO(jaked)
       // don't rely on URL here, notes should track their own content type

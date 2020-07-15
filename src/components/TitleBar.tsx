@@ -3,10 +3,10 @@ import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 
 type Props = {
-  slug: string;
-  setSlug: (s: string) => void;
-  editSlug: string | undefined;
-  setEditSlug: (s: string | undefined) => void;
+  name: string;
+  setName: (s: string) => void;
+  editName: string | undefined;
+  setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
 }
 
@@ -24,35 +24,35 @@ const StyledInput = styled.input({
 });
 
 type InputProps = {
-  setSlug: (s: string) => void;
-  editSlug: string;
-  setEditSlug: (s: string | undefined) => void;
+  setName: (s: string) => void;
+  editName: string;
+  setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
 };
-const Input = ({ setSlug, editSlug, setEditSlug, focusEditor }: InputProps) => {
+const Input = ({ setName, editName, setEditName, focusEditor }: InputProps) => {
   const ref = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
     if (ref.current) {
       ref.current.focus();
-      ref.current.setSelectionRange(0, editSlug.length);
+      ref.current.setSelectionRange(0, editName.length);
     }
   }, []);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    setEditSlug(e.currentTarget.value);
+    setEditName(e.currentTarget.value);
   }
   const onKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'Enter': {
-        setSlug(editSlug);
+        setName(editName);
         focusEditor();
         e.preventDefault();
         break;
       }
 
       case 'Escape': {
-        setEditSlug(undefined);
+        setEditName(undefined);
         focusEditor();
         e.preventDefault();
         break;
@@ -60,30 +60,30 @@ const Input = ({ setSlug, editSlug, setEditSlug, focusEditor }: InputProps) => {
     }
   }
   const onBlur = () => {
-    setEditSlug(undefined);
+    setEditName(undefined);
   }
 
   return <StyledInput
     ref={ref}
     type='text'
     maxLength={100}
-    value={editSlug}
+    value={editName}
     onChange={onChange}
     onKeyDown={onKeyDown}
     onBlur={onBlur}
   />;
 }
 
-export default ({ slug, setSlug, editSlug, setEditSlug, focusEditor }: Props) => {
-  const onClick = () => setEditSlug(slug)
+export default ({ name, setName, editName, setEditName, focusEditor }: Props) => {
+  const onClick = () => setEditName(name)
 
-  if (editSlug === undefined) {
-    return <InputBox onClick={onClick}>{slug}</InputBox>;
+  if (editName === undefined) {
+    return <InputBox onClick={onClick}>{name}</InputBox>;
   } else {
     return <Input
-      setSlug={setSlug}
-      editSlug={editSlug}
-      setEditSlug={setEditSlug}
+      setName={setName}
+      editName={editName}
+      setEditName={setEditName}
       focusEditor={focusEditor}
     />;
   }

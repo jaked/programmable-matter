@@ -142,10 +142,10 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       }
       <Flex flex={1} minWidth={0} flexDirection='column'>
         <Header
-          slug={props.app.selectedCell}
-          setSlug={props.app.setSlugSignal}
-          editSlug={props.app.editSlugCell}
-          setEditSlug={props.app.setEditSlug}
+          name={props.app.selectedCell}
+          setName={props.app.setNameSignal}
+          editName={props.app.editNameCell}
+          setEditName={props.app.setEditName}
           focusEditor={focusEditor}
           editorView={props.app.editorViewCell}
           setEditorView={props.app.setEditorView}

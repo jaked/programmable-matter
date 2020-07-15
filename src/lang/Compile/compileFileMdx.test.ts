@@ -109,7 +109,7 @@ it('compiles with layout', () => {
     })),
     Signal.ok(Immutable.Map({
       'layout': {
-        tag: 'layout',
+        name: 'layout',
         isIndex: false,
         meta: Signal.ok(data.Meta({})),
         files: {},

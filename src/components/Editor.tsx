@@ -19,7 +19,7 @@ interface Props {
 
   onChange: (content: string, session: Session) => void;
   setStatus: (status: string | undefined) => void;
-  setSelected: (tag: string) => void;
+  setSelected: (name: string) => void;
 }
 
 const okComponents =

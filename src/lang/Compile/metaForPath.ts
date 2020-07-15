@@ -2,7 +2,7 @@ import * as Path from 'path';
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import * as Tag from '../../util/Tag';
+import * as Name from '../../util/Name';
 import Type from '../Type';
 import * as data from '../../data';
 
@@ -40,7 +40,7 @@ export default function metaForPath(
     const meta = extractMeta(compiledFiles.get(metaPath) ?? emptyMeta);
     return Signal.join(indexMeta, meta)
       .map(([indexMeta, meta]) => data.Meta({
-        title: meta.title ?? indexMeta.dirMeta?.title ?? Path.parse(Tag.tagOfPath(path)).base,
+        title: meta.title ?? indexMeta.dirMeta?.title ?? Path.parse(Name.nameOfPath(path)).base,
         tags: meta.tags ?? indexMeta.dirMeta?.tags,
         layout: meta.layout ?? indexMeta.dirMeta?.layout,
         publish: meta.publish ?? indexMeta.dirMeta?.publish,

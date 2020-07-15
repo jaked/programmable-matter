@@ -63,9 +63,9 @@ export default function compileFileMdx(
   const noteEnv =
     Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) => {
       const importedNotes = Immutable.Map<string, data.CompiledNote>().asMutable();
-      imports.forEach(tag => {
-        const note = compiledNotes.get(tag);
-        if (note) importedNotes.set(tag, note);
+      imports.forEach(name => {
+        const note = compiledNotes.get(name);
+        if (note) importedNotes.set(name, note);
       });
       return importedNotes.asImmutable();
     });

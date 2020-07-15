@@ -75,7 +75,7 @@ export type TableFieldData = TableFieldBase &
   { kind: 'data', type: Type }
 
 export type TableFieldMeta = TableFieldBase &
-  { kind: 'meta', field: 'tag' | 'title' | 'created' | 'updated' }
+  { kind: 'meta', field: 'name' | 'title' | 'created' | 'updated' }
 
 export type TableField = TableFieldData | TableFieldMeta
 
@@ -99,7 +99,7 @@ export type CompiledFile = Compiled & {
 }
 
 export type CompiledNote = {
-  tag: string;
+  name: string;
   isIndex: boolean;
   meta: Signal<Meta>;
   files: NoteFiles;
@@ -116,5 +116,5 @@ export type CompiledNote = {
 // indexed by path
 export type Files = Immutable.Map<string, File>;
 
-// indexed by tag
+// indexed by name
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;

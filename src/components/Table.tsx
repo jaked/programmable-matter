@@ -35,7 +35,7 @@ export type Field = {
 type Props = {
   data: Immutable.Map<string, object>,
   fields: Field[],
-  onSelect: (tag: string) => void
+  onSelect: (name: string) => void
 }
 
 let measureTextCanvas: any = undefined
@@ -49,17 +49,17 @@ function measureText(text: string): number {
 }
 
 export const Table = ({ data, fields, onSelect }: Props) => {
-  const tagsByIndex = data.keySeq().toIndexedSeq();
+  const namesByIndex = data.keySeq().toIndexedSeq();
 
   // TODO(jaked) Util.memoize
-  const onSelectByTagMap = new Map<string, () => void>();
-  const onSelectByTag = (tag: string) => {
-    let onSelectForTag = onSelectByTagMap.get(tag);
-    if (!onSelectForTag) {
-      onSelectForTag = () => onSelect(tag);
-      onSelectByTagMap.set(tag, onSelectForTag);
+  const onSelectByNameMap = new Map<string, () => void>();
+  const onSelectByName = (name: string) => {
+    let onSelectForName = onSelectByNameMap.get(name);
+    if (!onSelectForName) {
+      onSelectForName = () => onSelect(name);
+      onSelectByNameMap.set(name, onSelectForName);
     }
-    return onSelectForTag;
+    return onSelectForName;
   }
 
   const widths = data.reduce(
@@ -86,8 +86,8 @@ export const Table = ({ data, fields, onSelect }: Props) => {
           width={width}
         >
           {({ rowIndex, columnIndex, style }) => {
-            const tag = tagsByIndex.get(rowIndex) || bug(`expected tag for ${rowIndex}`)
-            const object = data.get(tag) || bug(`expected object for ${tag}`);
+            const name = namesByIndex.get(rowIndex) || bug(`expected name for ${rowIndex}`)
+            const object = data.get(name) || bug(`expected object for ${name}`);
             const field = fields[columnIndex];
             const value = field.accessor(object);
             const Component = field.component;
@@ -99,7 +99,7 @@ export const Table = ({ data, fields, onSelect }: Props) => {
                 style={style}
                 borderTopWidth={borderTopWidth}
                 borderLeftWidth={borderLeftWidth}
-                onClick={onSelectByTag(tag)}
+                onClick={onSelectByName(name)}
               >
                 <Component data={value} />
               </Box>

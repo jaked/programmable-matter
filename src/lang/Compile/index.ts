@@ -3,12 +3,12 @@ import * as Immutable from 'immutable';
 import React from 'react';
 
 import Signal from '../../util/Signal';
-import * as Tag from '../../util/Tag';
+import * as Name from '../../util/Name';
 import Type from '../Type';
 import * as data from '../../data';
 
 import compileFile from './compileFile';
-import groupFilesByTag2 from './groupFilesByTag';
+import groupFilesByName from './groupFilesByName';
 import metaForPath from './metaForPath';
 
 function mergeModuleType(
@@ -32,10 +32,10 @@ export function compileFiles(
   files: Signal<data.Files>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
-  setSelected: (note: string) => void,
+  setSelected: (name: string) => void,
 ): { compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>, compiledNotes: Signal<data.CompiledNotes> } {
 
-  const filesByTag = groupFilesByTag2(files);
+  const filesByName = groupFilesByName(files);
 
   const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<data.CompiledFile>>>();
 
@@ -49,14 +49,14 @@ export function compileFiles(
   );
   compiledFilesRef.set(compiledFiles);
 
-  const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByTag, (files, tag) => {
+  const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByName, (files, name) => {
     function fileForType(type: data.Types): data.File | undefined {
-      // TODO(jaked) fix tags for index files, then just use tag here instead of files
+      // TODO(jaked) fix names for index files, then just use name here instead of files
       return files.find(file => file.type === type);
     }
 
     function compiledFileForType(type: data.Types): Signal<data.CompiledFile | undefined> {
-      // TODO(jaked) fix tags for index files, then just use tag here instead of files
+      // TODO(jaked) fix names for index files, then just use name here instead of files
       const file = files.find(file => file.type === type);
       if (file) {
         return compiledFiles.flatMap(compiledFiles =>
@@ -127,10 +127,10 @@ export function compileFiles(
         };
       });
       return {
-        tag,
+        name,
         publishedType: parts.map(parts => parts.publishedType),
         isIndex,
-        meta: metaForPath(Tag.pathOfTag(tag, isIndex, 'meta'), compiledFiles),
+        meta: metaForPath(Name.pathOfName(name, isIndex, 'meta'), compiledFiles),
         files: {
           mdx: fileForType('mdx'),
           table: fileForType('table'),

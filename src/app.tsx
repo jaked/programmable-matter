@@ -7,7 +7,7 @@ import * as Immutable from 'immutable';
 
 import { bug } from './util/bug';
 import Signal from './util/Signal';
-import * as Tag from './util/Tag';
+import * as Name from './util/Name';
 import { Filesystem } from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
@@ -71,8 +71,8 @@ export class App {
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
   }
 
-  public editSlugCell = Signal.cellOk<string | undefined>(undefined, this.render);
-  public setEditSlug = (editSlug: string | undefined) => this.editSlugCell.setOk(editSlug)
+  public editNameCell = Signal.cellOk<string | undefined>(undefined, this.render);
+  public setEditName = (editName: string | undefined) => this.editNameCell.setOk(editName)
 
   private history: string[] = [];
   private historyIndex: number = -1; // index of current selection, or -1 if none
@@ -92,7 +92,7 @@ export class App {
       this.historyIndex++;
     }
     this.selectedCell.setOk(selected);
-    this.setEditSlug(undefined);
+    this.setEditName(undefined);
   }
   public historyBack = () => {
     this.compiledNotesSignal.reconcile(this.level);
@@ -105,7 +105,7 @@ export class App {
     if (newIndex >= 0 && newIndex < this.history.length) {
       this.historyIndex = newIndex;
       this.selectedCell.setOk(this.history[newIndex]);
-      this.setEditSlug(undefined);
+      this.setEditName(undefined);
     }
   }
   public historyForward = () => {
@@ -119,7 +119,7 @@ export class App {
     if (newIndex >= 0 && newIndex < this.history.length) {
       this.historyIndex = newIndex;
       this.selectedCell.setOk(this.history[newIndex]);
-      this.setEditSlug(undefined);
+      this.setEditName(undefined);
     }
   }
 
@@ -160,10 +160,6 @@ export class App {
     });
   }
 
-  public newNote = (tag: string) => {
-    this.filesystem.update(tag, Buffer.from('', 'utf8'));
-  }
-
   private compiledFilesSignalNotesSignal =
     Compile.compileFiles(
       this.filesystem.files,
@@ -184,36 +180,36 @@ export class App {
     })
   );
 
-  public setSlugSignal = this.compiledNoteSignal.map(compiledNote => {
-    if (compiledNote === null) return (slug: string) => {};
-    else return (slug: string) => {
+  public setNameSignal = this.compiledNoteSignal.map(compiledNote => {
+    if (compiledNote === null) return (name: string) => {};
+    else return (name: string) => {
       Object.values(compiledNote.files).forEach(file => {
         if (!file) return;
         const pathParsed = Path.parse(file.path);
-        const slugParsed = Path.parse(slug);
-        const newPath = Path.format({ ...pathParsed, base: undefined, name: slugParsed.name });
+        const nameParsed = Path.parse(name);
+        const newPath = Path.format({ ...pathParsed, base: undefined, name: nameParsed.name });
         this.filesystem.rename(file.path, newPath);
       });
-      this.setSelected(slug);
+      this.setSelected(name);
     };
   });
 
   public onNewNoteSignal = this.compiledNotesSignal.map(compiledNotes =>
-    (slug: string) => {
-      slug = slug.trim();
-      if (slug === '') slug = 'untitled';
-      if (compiledNotes.has(slug)) {
+    (name: string) => {
+      name = name.trim();
+      if (name === '') name = 'untitled';
+      if (compiledNotes.has(name)) {
         for (let i = 1; ; i++) {
-          const newSlug = `${slug} (${i})`;
-          if (!compiledNotes.has(newSlug)) {
-            slug = newSlug;
+          const newName = `${name} (${i})`;
+          if (!compiledNotes.has(newName)) {
+            name = newName;
             break;
           }
         }
       }
-      this.filesystem.update(`${slug}.mdx`, Buffer.from('', 'utf8'));
-      this.setSelected(slug);
-      this.setEditSlug(slug);
+      this.filesystem.update(`${name}.mdx`, Buffer.from('', 'utf8'));
+      this.setSelected(name);
+      this.setEditName(name);
     }
   );
 
@@ -221,10 +217,10 @@ export class App {
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
       if (compiledNote !== null) {
         // TODO(jaked) pass these on note instead of reconstructing
-        const meta = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'meta')) ?? Signal.ok(undefined);
-        const mdx = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'mdx')) ?? Signal.ok(undefined);
-        const table = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'table')) ?? Signal.ok(undefined);
-        const json = compiledFiles.get(Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, 'json')) ?? Signal.ok(undefined);
+        const meta = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'meta')) ?? Signal.ok(undefined);
+        const mdx = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'mdx')) ?? Signal.ok(undefined);
+        const table = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'table')) ?? Signal.ok(undefined);
+        const json = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'json')) ?? Signal.ok(undefined);
         return Signal.join(meta, mdx, table, json).map(([meta, mdx, table, json]) => ({
           meta: meta?.problems,
           mdx: mdx?.problems,
@@ -244,7 +240,7 @@ export class App {
       this.filesystem.files,
     ).map(([compiledNote, view, files]) => {
       if (compiledNote) {
-        const path = Tag.pathOfTag(compiledNote.tag, compiledNote.isIndex, view);
+        const path = Name.pathOfName(compiledNote.name, compiledNote.isIndex, view);
         const file = files.get(path);
         if (file) return file;
       }
@@ -321,7 +317,7 @@ export class App {
     // TODO(jaked)
     // const selected = this.selected;
     // const matchingNotes = this.matchingNotes;
-    // const nextIndex = matchingNotes.findIndex(note => note.tag === selected) + 1;
+    // const nextIndex = matchingNotes.findIndex(note => note.name === selected) + 1;
     // let cont = true;
     // for (let i = 0; cont && i < matchingNotes.length; i++) {
     //   const index = (nextIndex + i) % matchingNotes.length;
@@ -329,7 +325,7 @@ export class App {
     //   // TODO(jaked) separate selectable content objects in notes?
     //   if (matchingNote.problems.get() === true) {
     //     cont = false;
-    //     this.setSelected(matchingNote.tag);
+    //     this.setSelected(matchingNote.name);
     //   }
     // }
   }
@@ -338,7 +334,7 @@ export class App {
     // TODO(jaked)
     // const selected = this.selected;
     // const matchingNotes = this.matchingNotes;
-    // const previousIndex = matchingNotes.findIndex(note => note.tag === selected) - 1;
+    // const previousIndex = matchingNotes.findIndex(note => note.name === selected) - 1;
     // let cont = true;
     // for (let i = matchingNotes.length - 1; cont && i > 0; i--) {
     //   const index = (previousIndex + i) % matchingNotes.length;
@@ -346,7 +342,7 @@ export class App {
     //   // TODO(jaked) separate selectable content objects in notes?
     //   if (matchingNote.problems.get() === true) {
     //     cont = false;
-    //     this.setSelected(matchingNote.tag);
+    //     this.setSelected(matchingNote.name);
     //   }
     // }
   }

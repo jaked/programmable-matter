@@ -4,8 +4,7 @@ import JSON5 from 'json5';
 import * as React from 'react';
 import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
-import * as Tag from '../../util/Tag';
+import * as Name from '../../util/Name';
 import { diffMap } from '../../util/immutable/Map';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
@@ -20,7 +19,7 @@ import lensType from './lensType';
 // see Typescript-level types in data.ts
 // TODO(jaked)
 // this way of writing the type produces obscure error messages, e.g.
-//   expected { name: string, label: string } & { kind: 'data', type: string } | { name: string, label: string } & { kind: 'meta', field: 'tag' | 'title' | 'created' | 'upated' }, got {  }
+//   expected { name: string, label: string } & { kind: 'data', type: string } | { name: string, label: string } & { kind: 'meta', field: 'name' | 'title' | 'created' | 'upated' }, got {  }
 // need to improve checking inside unions / intersections
 
 const tableFieldBaseType = Type.object({
@@ -39,7 +38,7 @@ const tableFieldDataType = Type.intersection(tableFieldBaseType, Type.object({
 
 const tableFieldMetaType = Type.intersection(tableFieldBaseType, Type.object({
   kind: Type.singleton('meta'),
-  field: Type.enumerate('tag', 'title', 'created', 'updated')
+  field: Type.enumerate('name', 'title', 'created', 'updated')
 }));
 
 const tableFieldType = Type.union(tableFieldDataType, tableFieldMetaType);
@@ -86,14 +85,14 @@ function computeTableDataType(
 function computeTable(
   tableConfig: data.Table,
   tableDataType: Type.ObjectType,
-  noteTag: string,
+  tableName: string,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ) {
   return Signal.joinImmutableMap(Signal.ok(
     Immutable.Map<string, Signal<any>>().withMutations(map =>
-      noteEnv.forEach((note, tag) => {
+      noteEnv.forEach((note, name) => {
         // TODO(jaked) handle partial failures better here
 
         const defaultType = note.exportType.map(exportType => {
@@ -129,8 +128,8 @@ function computeTable(
           // TODO(jaked) could some meta members be mutable?
           return mutableValue;
         });
-        const relativeTag = Path.relative(noteTag, tag);
-        map.set(relativeTag, value);
+        const baseName = Path.relative(tableName, name);
+        map.set(baseName, value);
       })
     )
   )).map<any>(lensTable => {
@@ -144,7 +143,7 @@ function computeTable(
           const table2 = v[0];
           const { added, changed, deleted } = diffMap(table, table2);
           added.forEach((value, key) => {
-            const path = Path.join(noteTag, key) + '.json';
+            const path = Path.join(tableName, key) + '.json';
             updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
           });
           changed.forEach(([prev, curr], key) => {
@@ -153,7 +152,7 @@ function computeTable(
           });
           deleted.forEach(key => {
             // TODO(jaked) delete multi-part notes
-            const path = Path.join(noteTag, key) + '.json';
+            const path = Path.join(tableName, key) + '.json';
             deleteFile(path);
           });
           return;
@@ -195,9 +194,9 @@ function computeFields(
 
 function compileTable(
   ast: ESTree.Expression,
-  noteTag: string,
+  tableName: string,
   noteEnv: Immutable.Map<string, data.CompiledNote>,
-  setSelected: (tag: string) => void,
+  setSelected: (name: string) => void,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ): data.Compiled {
@@ -218,7 +217,7 @@ function compileTable(
   const tableConfig = computeTableConfig(ast, annots);
   const tableDataType = computeTableDataType(tableConfig);
 
-  const table = computeTable(tableConfig, tableDataType, noteTag, noteEnv, updateFile, deleteFile);
+  const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
 
   const fields = computeFields(tableConfig);
 
@@ -230,8 +229,9 @@ function compileTable(
     default: table
   }
 
-  const onSelect = (tag: string) =>
-    setSelected(Path.join(Path.dirname(noteTag), tag));
+  // TODO(jaked) fix when index notes have name 'dir/index' instead of 'dir'
+  const onSelect = (name: string) => setSelected(Path.join(tableName, name));
+
   const rendered = table.map(table =>
     React.createElement(Table, { data: table(), fields, onSelect })
   );
@@ -242,12 +242,12 @@ export default function compileFileTable(
   file: data.File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
-  setSelected: (tag: string) => void,
+  setSelected: (name: string) => void,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ): Signal<data.CompiledFile> {
 
-  const noteTag = Tag.tagOfPath(file.path);
+  const tableName = Name.nameOfPath(file.path);
 
   const ast = file.content.map(Parse.parseExpression);
 
@@ -259,14 +259,14 @@ export default function compileFileTable(
       return prevNoteEnv.withMutations(noteEnv => {
         const dir = Path.parse(file.path).dir;
         const { added, changed, deleted } = diffMap(prevCompiledNotes, compiledNotes);
-        added.forEach((compiledNote, tag) => {
+        added.forEach((compiledNote, name) => {
           // TODO(jaked) not sure if we should handle nested dirs in tables
           // TODO(jaked) handle non-json files
-          if (tag !== dir && !Path.relative(dir, tag).startsWith('..'))
-            noteEnv.set(tag, compiledNote);
+          if (name !== dir && !Path.relative(dir, name).startsWith('..'))
+            noteEnv.set(name, compiledNote);
         });
-        changed.forEach(([prev, curr], tag) => noteEnv.set(tag, curr));
-        deleted.forEach(tag => noteEnv.delete(tag));
+        changed.forEach(([prev, curr], name) => noteEnv.set(name, curr));
+        deleted.forEach(name => noteEnv.delete(name));
       });
     },
     Immutable.Map(),
@@ -278,7 +278,7 @@ export default function compileFileTable(
     switch (astTry.type) {
       case 'ok':
         return noteEnv.map(noteEnv => {
-          const compiled = compileTable(astTry.ok, noteTag, noteEnv, setSelected, updateFile, deleteFile);
+          const compiled = compileTable(astTry.ok, tableName, noteEnv, setSelected, updateFile, deleteFile);
           return { ...compiled, ast: astTryOrig };
         });
 

@@ -25,21 +25,21 @@ type NoteFnProps = {
 const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
   return <Note
-    key={note.tag}
-    label={Path.parse(note.tag).base}
+    key={note.name}
+    label={Path.parse(note.name).base}
     expanded={note.expanded}
     indent={note.indent}
     err={note.problems}
-    selected={note.tag === data.selected}
-    onSelect={ () => data.onSelect(note.tag) }
+    selected={note.name === data.selected}
+    onSelect={ () => data.onSelect(note.name) }
     toggleDirExpanded={
       typeof note.expanded !== 'undefined' ?
-        (() => data.toggleDirExpanded(note.tag)) :
+        (() => data.toggleDirExpanded(note.name)) :
         undefined
     }
     onFocusDir={
       typeof note.expanded !== 'undefined' ?
-        (() => data.onFocusDir(note.tag)) :
+        (() => data.onFocusDir(note.name)) :
         undefined
     }
     style={style}
@@ -49,26 +49,26 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
 interface Props {
   notes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
   selected: string | null;
-  onSelect: (tag: string) => void;
-  onFocusDir: (tag: string | null) => void;
+  onSelect: (name: string) => void;
+  onFocusDir: (name: string | null) => void;
   focusEditor: () => void;
-  toggleDirExpanded: (tag: string) => void;
+  toggleDirExpanded: (name: string) => void;
 }
 
 export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
   function nextNote(dir: 'prev' | 'next'): boolean {
     if (props.notes.length === 0) return false;
-    let nextTagIndex: number;
-    const tagIndex = props.notes.findIndex(note => note.tag === props.selected);
-    if (tagIndex === -1) {
-      nextTagIndex = dir === 'prev' ? (props.notes.length - 1) : 0;
+    let nextNameIndex: number;
+    const nameIndex = props.notes.findIndex(note => note.name === props.selected);
+    if (nameIndex === -1) {
+      nextNameIndex = dir === 'prev' ? (props.notes.length - 1) : 0;
     } else {
-      nextTagIndex = (tagIndex + (dir === 'prev' ? -1 : 1));
-      if (nextTagIndex === -1) nextTagIndex = props.notes.length - 1;
-      else if (nextTagIndex === props.notes.length) nextTagIndex = 0;
+      nextNameIndex = (nameIndex + (dir === 'prev' ? -1 : 1));
+      if (nextNameIndex === -1) nextNameIndex = props.notes.length - 1;
+      else if (nextNameIndex === props.notes.length) nextNameIndex = 0;
     }
-    const nextTag = props.notes[nextTagIndex].tag;
-    props.onSelect(nextTag);
+    const nextName = props.notes[nextNameIndex].name;
+    props.onSelect(nextName);
     return true;
   }
 
@@ -93,7 +93,7 @@ export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
 
   // TODO(jaked)
   // this scrolls the list on any render, even if selected item hasn't changed
-  const selectedIndex = props.notes.findIndex(note => note.tag === props.selected);
+  const selectedIndex = props.notes.findIndex(note => note.name === props.selected);
   const fixedSizeListRef = React.createRef<FixedSizeList>();
   React.useEffect(() => {
     const current = fixedSizeListRef.current;

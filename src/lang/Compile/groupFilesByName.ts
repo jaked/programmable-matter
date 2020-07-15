@@ -1,11 +1,11 @@
 import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
-import * as Tag from '../../util/Tag';
+import * as Name from '../../util/Name';
 import { diffMap } from '../../util/immutable/Map';
 import * as data from '../../data';
 
-function groupFilesByTag(
+function groupFilesByName(
   files: data.Files,
   oldFiles: data.Files,
   oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, data.File>>,
@@ -15,42 +15,42 @@ function groupFilesByTag(
   let { added, changed, deleted } = diffMap(oldFiles, files);
 
   deleted.forEach(path => {
-    const tag = Tag.tagOfPath(path);
-    const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
+    const name = Name.nameOfPath(path);
+    const group = groupedFiles.get(name) || bug(`expected group for ${name}`);
     const updatedGroup = group.delete(path);
     if (updatedGroup.size === 0)
-      groupedFiles = groupedFiles.delete(tag);
+      groupedFiles = groupedFiles.delete(name);
     else
-      groupedFiles = groupedFiles.set(tag, updatedGroup);
+      groupedFiles = groupedFiles.set(name, updatedGroup);
   });
 
   changed.forEach(([prev, curr], path) => {
     // TODO(jaked) can this ever happen for Filesystem?
-    const tag = Tag.tagOfPath(path);
-    const group = groupedFiles.get(tag) || bug(`expected group for ${tag}`);
-    groupedFiles = groupedFiles.set(tag, group.set(path, curr));
+    const name = Name.nameOfPath(path);
+    const group = groupedFiles.get(name) || bug(`expected group for ${name}`);
+    groupedFiles = groupedFiles.set(name, group.set(path, curr));
   });
 
   added.forEach((file, path) => {
-    const tag = Tag.tagOfPath(path);
-    const group = groupedFiles.get(tag) || Immutable.Map<string, data.File>();
-    groupedFiles = groupedFiles.set(tag, group.set(path, file));
+    const name = Name.nameOfPath(path);
+    const group = groupedFiles.get(name) || Immutable.Map<string, data.File>();
+    groupedFiles = groupedFiles.set(name, group.set(path, file));
   })
 
   return groupedFiles;
 }
 
-export default function groupFilesByTagSignal(
+export default function groupFilesByNameSignal(
   files: Signal<data.Files>
 ): Signal<Immutable.Map<string, Immutable.Map<string, data.File>>> {
-  const tags = Signal.mapWithPrev(
+  const name = Signal.mapWithPrev(
     files,
-    groupFilesByTag,
+    groupFilesByName,
     Immutable.Map(),
     Immutable.Map()
   )
 
   // TODO(jaked) add directory indexes
 
-  return tags;
+  return name;
 }

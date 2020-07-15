@@ -17,10 +17,10 @@ const TitleBox = styled(Box)({
 })
 
 type Props = {
-  slug: string | null;
-  setSlug: (s: string) => void;
-  editSlug: string | undefined;
-  setEditSlug: (s: string | undefined) => void;
+  name: string | null;
+  setName: (s: string) => void;
+  editName: string | undefined;
+  setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
   editorView: 'mdx' | 'json' | 'table' | 'meta',
   setEditorView: (view: 'mdx' | 'json' | 'table' | 'meta') => void,
@@ -28,17 +28,17 @@ type Props = {
 }
 
 export default Signal.lift<Props>(props => {
-  if (props.slug === null)
+  if (props.name === null)
     return <HeaderBox />
   else
     return (
       <HeaderBox>
         <TitleBox>
           <TitleBar
-            slug={props.slug}
-            setSlug={props.setSlug}
-            editSlug={props.editSlug}
-            setEditSlug={props.setEditSlug}
+            name={props.name}
+            setName={props.setName}
+            editName={props.editName}
+            setEditName={props.setEditName}
             focusEditor={props.focusEditor}
           />
         </TitleBox>

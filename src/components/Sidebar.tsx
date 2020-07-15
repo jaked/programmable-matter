@@ -33,7 +33,7 @@ const Flex = styled(BaseFlex)`
 type FocusDir = {
   focusDir: string | null;
   setFocusDir: (dir: string | null) => void;
-  onSelect: (tag: string | null) => void;
+  onSelect: (name: string | null) => void;
 }
 
 const FocusDir = Signal.lift<FocusDir>(props => {
@@ -100,7 +100,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
 
       let focusDirNotes: data.CompiledNotes;
       if (focusDir) {
-        focusDirNotes = notes.filter((_, tag) => tag.startsWith(focusDir + '/'))
+        focusDirNotes = notes.filter((_, name) => name.startsWith(focusDir + '/'))
       } else {
         focusDirNotes = notes;
       }
@@ -112,12 +112,12 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         const regexp = RegExp(escaped, 'i');
 
         function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
-          return Signal.label(note.tag,
+          return Signal.label(note.name,
             Signal.join(
               note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
               note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
               note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
-              Signal.ok(regexp.test(note.tag)),
+              Signal.ok(regexp.test(note.name)),
             ).map(bools => [bools.some(bool => bool), note])
           );
         }
@@ -131,11 +131,11 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         // include parents of matching notes
         matchingNotes = Signal.label('matchingNotes',
           matches.map(matches => matches.withMutations(map => {
-            matches.forEach((_, tag) => {
+            matches.forEach((_, name) => {
               if (focusDir) {
-                tag = Path.relative(focusDir, tag);
+                name = Path.relative(focusDir, name);
               }
-              const dirname = Path.dirname(tag);
+              const dirname = Path.dirname(name);
               if (dirname != '.') {
                 const dirs = dirname.split('/');
                 let dir = '';
@@ -156,7 +156,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
 
       return Signal.label('sort',
         matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
-          a.tag < b.tag ? -1 : 1
+          a.name < b.name ? -1 : 1
         ))
       );
     })
@@ -174,11 +174,11 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       const expandAll = search.length >= 3;
       matchingNotes.forEach(note => {
         // TODO(jaked) this code is bad
-        let tag = note.tag;
+        let name = note.name;
         if (focusDir) {
-          tag = Path.relative(focusDir, tag);
+          name = Path.relative(focusDir, name);
         }
-        const dirname = Path.dirname(tag);
+        const dirname = Path.dirname(name);
         let showNote = true;
         let indent = 0;
         if (dirname !== '.') {
@@ -192,14 +192,14 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
             }
             if (!expandAll && !dirExpanded.get(dir, false)) showNote = false;
           }
-          if (selected && selected.startsWith(note.tag))
+          if (selected && selected.startsWith(note.name))
             showNote = true;
         }
         if (focusDir) indent += 1;
         if (showNote) {
           let expanded: boolean | undefined = undefined;
           if (note.isIndex) {
-            expanded = expandAll ? true : dirExpanded.get(note.tag, false);
+            expanded = expandAll ? true : dirExpanded.get(note.name, false);
           }
           matchingNotesTree.push({ ...note, indent, expanded });
         }
@@ -221,18 +221,18 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       switch (e.key) {
         case 'ArrowUp':
           focusNotes();
-          props.onSelect(matchingNotes[matchingNotes.length - 1].tag);
+          props.onSelect(matchingNotes[matchingNotes.length - 1].name);
           e.preventDefault();
           break;
 
         case 'ArrowDown':
           focusNotes();
-          props.onSelect(matchingNotes[0].tag);
+          props.onSelect(matchingNotes[0].name);
           e.preventDefault();
           break;
 
         case 'Enter':
-          if (compiledNotes.some((_, slug) => slug === search)) {
+          if (compiledNotes.some((_, name) => name === search)) {
             props.onSelect(search);
             props.focusEditor();
           } else {

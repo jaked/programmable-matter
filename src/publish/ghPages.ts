@@ -37,7 +37,7 @@ export default async function ghPages(
     const publishedType = note.publishedType.get();
 
     if (publishedType === 'jpeg') {
-      const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
+      const base = note.isIndex ? Path.join(note.name, 'index') : note.name;
       const path = Path.resolve(tempdir, base) + '.jpeg';
 
       await mkdir(Path.dirname(path), { recursive: true });
@@ -48,7 +48,7 @@ export default async function ghPages(
       await writeFile(path, buffer);
 
     } else if (publishedType === 'html') {
-      const base = note.isIndex ? Path.join(note.tag, 'index') : note.tag;
+      const base = note.isIndex ? Path.join(note.name, 'index') : note.name;
       const path = Path.resolve(tempdir, base) + '.html';
 
       note.rendered.reconcile(level);

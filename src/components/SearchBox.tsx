@@ -7,7 +7,7 @@ type Props = {
   search: string,
   onSearch: (search: string) => void,
   onKeyDown: (e: React.KeyboardEvent) => void,
-  onNewNote: (slug: string) => void,
+  onNewNote: (name: string) => void,
 }
 
 const Input = styled.input({
