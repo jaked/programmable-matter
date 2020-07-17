@@ -1,4 +1,3 @@
-import * as Path from 'path';
 import * as Immutable from 'immutable';
 import JSON5 from 'json5';
 import * as React from 'react';
@@ -128,7 +127,7 @@ function computeTable(
           // TODO(jaked) could some meta members be mutable?
           return mutableValue;
         });
-        const baseName = Path.relative(tableName, name);
+        const baseName = Name.relative(tableName, name);
         map.set(baseName, value);
       })
     )
@@ -143,7 +142,7 @@ function computeTable(
           const table2 = v[0];
           const { added, changed, deleted } = diffMap(table, table2);
           added.forEach((value, key) => {
-            const path = Path.join(tableName, key) + '.json';
+            const path = Name.pathOfName(Name.join(tableName, key), false, 'json');
             updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
           });
           changed.forEach(([prev, curr], key) => {
@@ -152,7 +151,7 @@ function computeTable(
           });
           deleted.forEach(key => {
             // TODO(jaked) delete multi-part notes
-            const path = Path.join(tableName, key) + '.json';
+            const path = Name.pathOfName(Name.join(tableName, key), false, 'json');
             deleteFile(path);
           });
           return;
@@ -230,7 +229,7 @@ function compileTable(
   }
 
   // TODO(jaked) fix when index notes have name 'dir/index' instead of 'dir'
-  const onSelect = (name: string) => setSelected(Path.join(tableName, name));
+  const onSelect = (name: string) => setSelected(Name.join(tableName, name));
 
   const rendered = table.map(table =>
     React.createElement(Table, { data: table(), fields, onSelect })
@@ -257,12 +256,12 @@ export default function compileFileTable(
     compiledNotes,
     (compiledNotes, prevCompiledNotes, prevNoteEnv) => {
       return prevNoteEnv.withMutations(noteEnv => {
-        const dir = Path.parse(file.path).dir;
+        const dir = Name.dirname(Name.nameOfPath(file.path));
         const { added, changed, deleted } = diffMap(prevCompiledNotes, compiledNotes);
         added.forEach((compiledNote, name) => {
           // TODO(jaked) not sure if we should handle nested dirs in tables
           // TODO(jaked) handle non-json files
-          if (name !== dir && !Path.relative(dir, name).startsWith('..'))
+          if (name !== dir && !Name.relative(dir, name).startsWith('..'))
             noteEnv.set(name, compiledNote);
         });
         changed.forEach(([prev, curr], name) => noteEnv.set(name, curr));

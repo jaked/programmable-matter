@@ -32,15 +32,15 @@ export default function metaForPath(
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
 ): Signal<data.Meta> {
   const pathParsed = Path.parse(path);
-  const indexMetaPath = Path.format({ ...pathParsed, base: 'index.meta' });
-  const metaPath = Path.format({ ...pathParsed, base: pathParsed.name + '.meta' });
+  const indexMetaPath = Path.format({ ...pathParsed, base: undefined, name: 'index', ext: '.meta' });
+  const metaPath = Path.format({ ...pathParsed, base: undefined, ext: '.meta' });
 
   return compiledFiles.flatMap(compiledFiles => {
     const indexMeta = extractMeta(compiledFiles.get(indexMetaPath) ?? emptyMeta);
     const meta = extractMeta(compiledFiles.get(metaPath) ?? emptyMeta);
     return Signal.join(indexMeta, meta)
       .map(([indexMeta, meta]) => data.Meta({
-        title: meta.title ?? indexMeta.dirMeta?.title ?? Path.parse(Name.nameOfPath(path)).base,
+        title: meta.title ?? indexMeta.dirMeta?.title ?? Name.basename(Name.nameOfPath(path)),
         tags: meta.tags ?? indexMeta.dirMeta?.tags,
         layout: meta.layout ?? indexMeta.dirMeta?.layout,
         publish: meta.publish ?? indexMeta.dirMeta?.publish,

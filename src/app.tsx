@@ -186,8 +186,7 @@ export class App {
       Object.values(compiledNote.files).forEach(file => {
         if (!file) return;
         const pathParsed = Path.parse(file.path);
-        const nameParsed = Path.parse(name);
-        const newPath = Path.format({ ...pathParsed, base: undefined, name: nameParsed.name });
+        const newPath = Path.format({ ...pathParsed, base: undefined, name: Name.basename(name) });
         this.filesystem.rename(file.path, newPath);
       });
       this.setSelected(name);

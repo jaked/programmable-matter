@@ -76,8 +76,8 @@ export default function compileFileMdx(
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
 
   const pathParsed = Path.parse(file.path);
-  const jsonPath = Path.format({ ...pathParsed, base: pathParsed.name + '.json' });
-  const tablePath = Path.format({ ...pathParsed, base: pathParsed.name + '.table' });
+  const jsonPath = Path.format({ ...pathParsed, base: undefined, ext: '.json' });
+  const tablePath = Path.format({ ...pathParsed, base: undefined, ext: '.table' });
 
   const jsonType = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);

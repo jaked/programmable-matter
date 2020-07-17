@@ -1,10 +1,10 @@
 import * as Immutable from 'immutable';
-import * as Path from 'path';
 
 import React from 'react';
 import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
 
+import * as Name from '../util/Name';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
 
@@ -133,14 +133,14 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           matches.map(matches => matches.withMutations(map => {
             matches.forEach((_, name) => {
               if (focusDir) {
-                name = Path.relative(focusDir, name);
+                name = Name.relative(focusDir, name);
               }
-              const dirname = Path.dirname(name);
+              const dirname = Name.dirname(name);
               if (dirname != '.') {
                 const dirs = dirname.split('/');
                 let dir = '';
                 for (let i=0; i < dirs.length; i++) {
-                  dir = Path.join(dir, dirs[i]);
+                  dir = Name.join(dir, dirs[i]);
                   if (!map.has(dir)) {
                     const note = notes.get(dir) || bug(`expected note for ${dir}`);
                     map.set(dir, note);
@@ -176,9 +176,9 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         // TODO(jaked) this code is bad
         let name = note.name;
         if (focusDir) {
-          name = Path.relative(focusDir, name);
+          name = Name.relative(focusDir, name);
         }
-        const dirname = Path.dirname(name);
+        const dirname = Name.dirname(name);
         let showNote = true;
         let indent = 0;
         if (dirname !== '.') {
@@ -186,9 +186,9 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           indent = dirs.length;
           let dir = '';
           for (let i = 0; i < dirs.length; i++) {
-            dir = Path.join(dir, dirs[i]);
+            dir = Name.join(dir, dirs[i]);
             if (focusDir) {
-              dir = Path.join(focusDir, dir);
+              dir = Name.join(focusDir, dir);
             }
             if (!expandAll && !dirExpanded.get(dir, false)) showNote = false;
           }

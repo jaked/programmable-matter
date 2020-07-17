@@ -1,11 +1,10 @@
-import * as Path from 'path';
-
 import React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
+import * as Name from '../util/Name';
 import Signal from '../util/Signal';
 import * as data from '../data';
 import Note from './Note';
@@ -26,7 +25,7 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   const note = data.notes[index];
   return <Note
     key={note.name}
-    label={Path.parse(note.name).base}
+    label={Name.basename(note.name)}
     expanded={note.expanded}
     indent={note.indent}
     err={note.problems}

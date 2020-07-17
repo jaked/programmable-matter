@@ -7,6 +7,7 @@ import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
 import * as data from './data';
+import * as Name from './util/Name';
 import Signal from './util/Signal';
 import * as Render from './lang/Render';
 
@@ -47,8 +48,8 @@ export default class Server {
     let url = Url.parse(req.url || '');
     let path = url.path || '';
     const decodedPath = decodeURIComponent(path.slice(1, path.length));
-    const pathParts = Path.parse(decodedPath);
-    let name = Path.join(pathParts.dir, pathParts.name)
+    const ext = Path.parse(decodedPath).ext;
+    let name = Name.nameOfPath(decodedPath);
     // TODO(jaked) temporary hack for the root index note
     if (name === '.') name = '';
 
@@ -60,7 +61,7 @@ export default class Server {
     } else {
       // TODO(jaked)
       // don't rely on URL here, notes should track their own content type
-      if (pathParts.ext === '.jpeg') {
+      if (ext === '.jpeg') {
         note.exportValue.reconcile(this.level);
         const buffer = note.exportValue.get().buffer;
         buffer.reconcile(this.level);

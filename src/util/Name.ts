@@ -16,3 +16,19 @@ export function pathOfName(name: string, isIndex: boolean, type: Types) {
   if (isIndex) return Path.join(name, `index.${type}`);
   else return `${name}.${type}`;
 }
+
+export function basename(name: string) {
+  return Path.basename(name);
+}
+
+export function dirname(name: string) {
+  return Path.dirname(name);
+}
+
+export function join(dir: string, basename: string) {
+  return Path.join(dir, basename);
+}
+
+export function relative(dir: string, name: string) {
+  return Path.relative(dir, name);
+}
