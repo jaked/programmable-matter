@@ -9,44 +9,50 @@ import Signal from '../util/Signal';
 import * as data from '../data';
 import Note from './Note';
 
+import { NoteTree } from './Sidebar';
+
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
   outline: 'none',
   height: '100%'
 });
 
-type NoteFnProps = {
+type EntryFnProps = {
   index: number,
   style: object,
   data: Props,
 }
 
-const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
-  const note = data.notes[index];
-  return <Note
-    key={note.name}
-    label={Name.basename(note.name)}
-    expanded={note.expanded}
-    indent={note.indent}
-    err={note.problems}
-    selected={note.name === data.selected}
-    onSelect={ () => data.onSelect(note.name) }
-    toggleDirExpanded={
-      typeof note.expanded !== 'undefined' ?
-        (() => data.toggleDirExpanded(note.name)) :
-        undefined
-    }
-    onFocusDir={
-      typeof note.expanded !== 'undefined' ?
-        (() => data.onFocusDir(note.name)) :
-        undefined
-    }
-    style={style}
-  />;
+const EntryFn = React.memo(({ index, style, data }: EntryFnProps) => {
+  const entry = data.entries[index];
+  if (entry.type === 'note') {
+    return <Note
+      key={entry.note.name}
+      label={Name.basename(entry.note.name)}
+      indent={entry.indent}
+      err={entry.note.problems}
+      selected={entry.note.name === data.selected}
+      onSelect={ () => data.onSelect(entry.note.name) }
+      style={style}
+    />;
+  } else {
+    return <Note
+      key={entry.name}
+      label={Name.basename(entry.name)}
+      expanded={entry.expanded}
+      indent={entry.indent}
+      err={false}
+      selected={false}
+      onSelect={ () => { } }
+      toggleDirExpanded={ () => data.toggleDirExpanded(entry.name) }
+      onFocusDir={ () => data.onFocusDir(entry.name) }
+      style={style}
+    />;
+  }
 });
 
 interface Props {
-  notes: Array<data.CompiledNote & { indent: number, expanded?: boolean }>;
+  entries: NoteTree;
   selected: string | null;
   onSelect: (name: string) => void;
   onFocusDir: (name: string | null) => void;
@@ -55,20 +61,29 @@ interface Props {
 }
 
 export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
-  function nextNote(dir: 'prev' | 'next'): boolean {
-    if (props.notes.length === 0) return false;
-    let nextNameIndex: number;
-    const nameIndex = props.notes.findIndex(note => note.name === props.selected);
-    if (nameIndex === -1) {
-      nextNameIndex = dir === 'prev' ? (props.notes.length - 1) : 0;
-    } else {
-      nextNameIndex = (nameIndex + (dir === 'prev' ? -1 : 1));
-      if (nextNameIndex === -1) nextNameIndex = props.notes.length - 1;
-      else if (nextNameIndex === props.notes.length) nextNameIndex = 0;
+  function nextNote() {
+    const length = props.entries.length;
+    let currIndex = props.entries.findIndex(note => note.type === 'note' && note.note.name === props.selected);
+    for (let i = 1; i < length; i++) {
+      const entry = props.entries[(currIndex + i) % length];
+      if (entry.type === 'note') {
+        props.onSelect(entry.note.name);
+        return;
+      }
     }
-    const nextName = props.notes[nextNameIndex].name;
-    props.onSelect(nextName);
-    return true;
+  }
+
+  function prevNote() {
+    const length = props.entries.length;
+    let currIndex = props.entries.findIndex(note => note.type === 'note' && note.note.name === props.selected);
+    if (currIndex === -1) currIndex = length;
+    for (let i = 1; i < length; i++) {
+      const note = props.entries[(currIndex - i) % length];
+      if (note.type === 'note') {
+        props.onSelect(note.note.name);
+        return;
+      }
+    }
   }
 
   function onKeyDown(e: React.KeyboardEvent): boolean {
@@ -77,10 +92,12 @@ export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
 
     switch (e.key) {
       case 'ArrowUp':
-        return nextNote('prev');
+        prevNote();
+        return true;
 
       case 'ArrowDown':
-        return nextNote('next');
+        nextNote();
+        return true;
 
       case 'Enter':
         props.focusEditor();
@@ -90,14 +107,12 @@ export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
     }
   }
 
-  // TODO(jaked)
-  // this scrolls the list on any render, even if selected item hasn't changed
-  const selectedIndex = props.notes.findIndex(note => note.name === props.selected);
+  const selectedIndex = props.entries.findIndex(note => note.type === 'note' && note.note.name === props.selected);
   const fixedSizeListRef = React.createRef<FixedSizeList>();
   React.useEffect(() => {
     const current = fixedSizeListRef.current;
     if (current && selectedIndex !== -1) current.scrollToItem(selectedIndex, 'auto');
-  });
+  }, [ props.selected ]);
 
   return (
     <Box
@@ -112,13 +127,13 @@ export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
         {({ height, width }) =>
           <FixedSizeList
             ref={fixedSizeListRef}
-            itemCount={props.notes.length}
+            itemCount={props.entries.length}
             itemSize={30} // TODO(jaked) compute somehow
             width={width}
             height={height}
             itemData={props}
           >
-            {NoteFn}
+            {EntryFn}
           </FixedSizeList>
         }
       </AutoSizer>

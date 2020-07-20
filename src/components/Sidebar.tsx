@@ -12,6 +12,13 @@ import Notes from './Notes';
 import SearchBox from './SearchBox';
 import * as data from '../data';
 
+export type NoteTreeEntry =
+  { type: 'note', indent: number, note: data.CompiledNote } |
+  { type: 'dir', indent: number, name: string, expanded: boolean }
+;
+
+export type NoteTree = Array<NoteTreeEntry>;
+
 type Props = {
   render: () => void;
   compiledNotes: Signal<data.CompiledNotes>;
@@ -122,33 +129,10 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           );
         }
         // TODO(jaked) wrap this up in a function on Signal
-        const matches = Signal.label('matches',
+        matchingNotes = Signal.label('matches',
           Signal.joinImmutableMap(Signal.ok(focusDirNotes.map(matchesSearch)))
             .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note)
           )
-        );
-
-        // include parents of matching notes
-        matchingNotes = Signal.label('matchingNotes',
-          matches.map(matches => matches.withMutations(map => {
-            matches.forEach((_, name) => {
-              if (focusDir) {
-                name = Name.relative(focusDir, name);
-              }
-              const dirname = Name.dirname(name);
-              if (dirname != '.') {
-                const dirs = dirname.split('/');
-                let dir = '';
-                for (let i=0; i < dirs.length; i++) {
-                  dir = Name.join(dir, dirs[i]);
-                  if (!map.has(dir)) {
-                    const note = notes.get(dir) || bug(`expected note for ${dir}`);
-                    map.set(dir, note);
-                  }
-                }
-              }
-            });
-          }))
         );
       } else {
         matchingNotes = Signal.ok(focusDirNotes);
@@ -166,42 +150,30 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     Signal.join(
       props.selected,
       matchingNotesSignal,
-      searchCell,
       dirExpandedCell,
-      focusDirCell
-    ).map(([selected, matchingNotes, search, dirExpanded, focusDir]) => {
-      const matchingNotesTree: Array<data.CompiledNote & { indent: number, expanded?: boolean }> = [];
-      const expandAll = search.length >= 3;
+    ).map(([selected, matchingNotes, dirExpanded]) => {
+      const matchingNotesTree: NoteTree = [];
+      const seenDirs = new Set<string>();
       matchingNotes.forEach(note => {
-        // TODO(jaked) this code is bad
         let name = note.name;
-        if (focusDir) {
-          name = Name.relative(focusDir, name);
-        }
         const dirname = Name.dirname(name);
-        let showNote = true;
-        let indent = 0;
-        if (dirname !== '.') {
+        if (dirname === '.') {
+          matchingNotesTree.push({ type: 'note', note, indent: 0 });
+        } else {
+          const mustShow = selected === note.name;
           const dirs = dirname.split('/');
-          indent = dirs.length;
           let dir = '';
           for (let i = 0; i < dirs.length; i++) {
             dir = Name.join(dir, dirs[i]);
-            if (focusDir) {
-              dir = Name.join(focusDir, dir);
+            const expanded = dirExpanded.get(dir, false);
+            if (!seenDirs.has(dir)) {
+              seenDirs.add(dir);
+              matchingNotesTree.push({ type: 'dir', name: dir, indent: i, expanded });
             }
-            if (!expandAll && !dirExpanded.get(dir, false)) showNote = false;
+            if (!expanded && !mustShow)
+              return;
           }
-          if (selected && selected.startsWith(note.name))
-            showNote = true;
-        }
-        if (focusDir) indent += 1;
-        if (showNote) {
-          let expanded: boolean | undefined = undefined;
-          if (note.isIndex) {
-            expanded = expandAll ? true : dirExpanded.get(note.name, false);
-          }
-          matchingNotesTree.push({ ...note, indent, expanded });
+          matchingNotesTree.push({ type: 'note', note, indent: dirs.length });
         }
       });
       return matchingNotesTree;
@@ -259,7 +231,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     />
     <Notes
       ref={notesRef}
-      notes={matchingNotesTreeSignal}
+      entries={matchingNotesTreeSignal}
       selected={props.selected}
       onSelect={props.onSelect}
       onFocusDir={setFocusDir}
