@@ -100,7 +100,6 @@ export type CompiledFile = Compiled & {
 
 export type CompiledNote = {
   name: string;
-  isIndex: boolean;
   meta: Signal<Meta>;
   files: NoteFiles;
   problems: Signal<boolean>;

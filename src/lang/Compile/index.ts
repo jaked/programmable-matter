@@ -67,9 +67,6 @@ export function compileFiles(
       }
     }
 
-    const isIndex =
-      files.some(file => Path.parse(file.path).name === 'index');
-
     // TODO(jaked) Signal.untuple
     const parts =
       Signal.join(
@@ -129,8 +126,7 @@ export function compileFiles(
       return {
         name,
         publishedType: parts.map(parts => parts.publishedType),
-        isIndex,
-        meta: metaForPath(Name.pathOfName(name, isIndex, 'meta'), compiledFiles),
+        meta: metaForPath(Name.pathOfName(name, 'meta'), compiledFiles),
         files: {
           mdx: fileForType('mdx'),
           table: fileForType('table'),

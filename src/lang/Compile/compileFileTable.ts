@@ -142,7 +142,7 @@ function computeTable(
           const table2 = v[0];
           const { added, changed, deleted } = diffMap(table, table2);
           added.forEach((value, key) => {
-            const path = Name.pathOfName(Name.join(tableName, key), false, 'json');
+            const path = Name.pathOfName(Name.join(tableName, key), 'json');
             updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
           });
           changed.forEach(([prev, curr], key) => {
@@ -151,7 +151,7 @@ function computeTable(
           });
           deleted.forEach(key => {
             // TODO(jaked) delete multi-part notes
-            const path = Name.pathOfName(Name.join(tableName, key), false, 'json');
+            const path = Name.pathOfName(Name.join(tableName, key), 'json');
             deleteFile(path);
           });
           return;

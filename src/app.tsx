@@ -216,10 +216,10 @@ export class App {
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
       if (compiledNote !== null) {
         // TODO(jaked) pass these on note instead of reconstructing
-        const meta = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'meta')) ?? Signal.ok(undefined);
-        const mdx = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'mdx')) ?? Signal.ok(undefined);
-        const table = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'table')) ?? Signal.ok(undefined);
-        const json = compiledFiles.get(Name.pathOfName(compiledNote.name, compiledNote.isIndex, 'json')) ?? Signal.ok(undefined);
+        const meta = compiledFiles.get(Name.pathOfName(compiledNote.name, 'meta')) ?? Signal.ok(undefined);
+        const mdx = compiledFiles.get(Name.pathOfName(compiledNote.name, 'mdx')) ?? Signal.ok(undefined);
+        const table = compiledFiles.get(Name.pathOfName(compiledNote.name, 'table')) ?? Signal.ok(undefined);
+        const json = compiledFiles.get(Name.pathOfName(compiledNote.name, 'json')) ?? Signal.ok(undefined);
         return Signal.join(meta, mdx, table, json).map(([meta, mdx, table, json]) => ({
           meta: meta?.problems,
           mdx: mdx?.problems,
@@ -239,7 +239,7 @@ export class App {
       this.filesystem.files,
     ).map(([compiledNote, view, files]) => {
       if (compiledNote) {
-        const path = Name.pathOfName(compiledNote.name, compiledNote.isIndex, view);
+        const path = Name.pathOfName(compiledNote.name, view);
         const file = files.get(path);
         if (file) return file;
       }

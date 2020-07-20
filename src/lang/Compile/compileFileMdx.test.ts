@@ -110,7 +110,6 @@ it('compiles with layout', () => {
     Signal.ok(Immutable.Map({
       'layout': {
         name: 'layout',
-        isIndex: false,
         meta: Signal.ok(data.Meta({})),
         files: {},
         problems: Signal.ok(false),
