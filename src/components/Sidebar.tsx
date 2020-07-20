@@ -190,17 +190,18 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         return;
 
       switch (e.key) {
-        case 'ArrowUp':
-          focusNotes();
-          props.setSelected(matchingNotes[matchingNotes.length - 1].name);
-          e.preventDefault();
-          break;
+        // TODO(jaked) restore
+        // case 'ArrowUp':
+        //   focusNotes();
+        //   props.setSelected(matchingNotes[matchingNotes.length - 1].name);
+        //   e.preventDefault();
+        //   break;
 
-        case 'ArrowDown':
-          focusNotes();
-          props.setSelected(matchingNotes[0].name);
-          e.preventDefault();
-          break;
+        // case 'ArrowDown':
+        //   focusNotes();
+        //   props.setSelected(matchingNotes[0].name);
+        //   e.preventDefault();
+        //   break;
 
         case 'Enter':
           if (props.maybeSetSelected(search)) {

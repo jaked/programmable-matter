@@ -78,9 +78,9 @@ export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
     let currIndex = props.entries.findIndex(note => note.type === 'note' && note.note.name === props.selected);
     if (currIndex === -1) currIndex = length;
     for (let i = 1; i < length; i++) {
-      const note = props.entries[(currIndex - i) % length];
-      if (note.type === 'note') {
-        props.onSelect(note.note.name);
+      const entry = props.entries[(length + currIndex - i) % length];
+      if (entry.type === 'note') {
+        props.onSelect(entry.note.name);
         return;
       }
     }
