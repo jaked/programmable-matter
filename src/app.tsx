@@ -81,11 +81,21 @@ export class App {
   // TODO(jaked)
   // selection + history needs its own module + tests
 
-  public setSelected = (selected: string | null) => {
-    if (selected === this.selectedCell.get()) return;
+  private rewriteName(name: string | null): string | null {
+    if (name === null) return null;
     this.compiledNotesSignal.reconcile(this.level);
-    if (selected !== null && !this.compiledNotesSignal.get().has(selected))
-      selected = null;
+    const compiledNotes = this.compiledNotesSignal.get();
+    if (compiledNotes.has(name)) return name;
+    const nameIndex = name + 'index'
+    if (compiledNotes.has(nameIndex)) return nameIndex;
+    const nameSlashIndex = name + '/index'
+    if (compiledNotes.has(nameSlashIndex)) return nameSlashIndex;
+    return null;
+  }
+
+  public setSelected = (selected: string | null) => {
+    selected = this.rewriteName(selected);
+    if (selected === this.selectedCell.get()) return;
     if (selected !== null) {
       this.history = this.history.slice(0, this.historyIndex + 1);
       this.history.push(selected);
@@ -94,6 +104,16 @@ export class App {
     this.selectedCell.setOk(selected);
     this.setEditName(undefined);
   }
+
+  public maybeSetSelected = (selected: string | null): boolean => {
+    selected = this.rewriteName(selected);
+    if (selected === null) return false;
+    else {
+      this.setSelected(selected);
+      return true;
+    }
+  }
+
   public historyBack = () => {
     this.compiledNotesSignal.reconcile(this.level);
     const notes = this.compiledNotesSignal.get();

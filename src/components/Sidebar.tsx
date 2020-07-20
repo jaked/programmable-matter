@@ -6,7 +6,6 @@ import styled from 'styled-components';
 
 import * as Name from '../util/Name';
 import Signal from '../util/Signal';
-import { bug } from '../util/bug';
 
 import Notes from './Notes';
 import SearchBox from './SearchBox';
@@ -23,7 +22,8 @@ type Props = {
   render: () => void;
   compiledNotes: Signal<data.CompiledNotes>;
   selected: Signal<string | null>;
-  onSelect: (s: string | null) => void;
+  setSelected: (s: string | null) => void;
+  maybeSetSelected: (s: string) => boolean;
   onNewNote: Signal<(s: string) => void>;
   focusEditor: () => void;
 }
@@ -182,10 +182,9 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
 
   const onKeyDown = Signal.join(
     searchCell,
-    props.compiledNotes,
     matchingNotesSignal,
     props.onNewNote,
-  ).map(([search, compiledNotes, matchingNotes, onNewNote]) =>
+  ).map(([search, matchingNotes, onNewNote]) =>
     (e: React.KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
         return;
@@ -193,19 +192,18 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       switch (e.key) {
         case 'ArrowUp':
           focusNotes();
-          props.onSelect(matchingNotes[matchingNotes.length - 1].name);
+          props.setSelected(matchingNotes[matchingNotes.length - 1].name);
           e.preventDefault();
           break;
 
         case 'ArrowDown':
           focusNotes();
-          props.onSelect(matchingNotes[0].name);
+          props.setSelected(matchingNotes[0].name);
           e.preventDefault();
           break;
 
         case 'Enter':
-          if (compiledNotes.some((_, name) => name === search)) {
-            props.onSelect(search);
+          if (props.maybeSetSelected(search)) {
             props.focusEditor();
           } else {
             onNewNote(search);
@@ -227,13 +225,13 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     <FocusDir
       focusDir={focusDirCell}
       setFocusDir={setFocusDir}
-      onSelect={props.onSelect}
+      onSelect={props.setSelected}
     />
     <Notes
       ref={notesRef}
       entries={matchingNotesTreeSignal}
       selected={props.selected}
-      onSelect={props.onSelect}
+      onSelect={props.setSelected}
       onFocusDir={setFocusDir}
       focusEditor={props.focusEditor}
       toggleDirExpanded={toggleDirExpanded}
