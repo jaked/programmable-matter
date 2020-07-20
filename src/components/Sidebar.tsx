@@ -157,12 +157,12 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       matchingNotes.forEach(note => {
         let name = note.name;
         const dirname = Name.dirname(name);
-        if (dirname === '.') {
+        if (dirname === '/') {
           matchingNotesTree.push({ type: 'note', note, indent: 0 });
         } else {
           const mustShow = selected === note.name;
-          const dirs = dirname.split('/');
-          let dir = '';
+          const dirs = dirname.substr(1).split('/');
+          let dir = '/';
           for (let i = 0; i < dirs.length; i++) {
             dir = Name.join(dir, dirs[i]);
             const expanded = dirExpanded.get(dir, false);

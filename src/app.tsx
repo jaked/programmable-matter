@@ -85,6 +85,7 @@ export class App {
     if (name === null) return null;
     this.compiledNotesSignal.reconcile(this.level);
     const compiledNotes = this.compiledNotesSignal.get();
+    name = Name.normalize(name);
     if (compiledNotes.has(name)) return name;
     const nameIndex = name + 'index'
     if (compiledNotes.has(nameIndex)) return nameIndex;
@@ -215,8 +216,8 @@ export class App {
 
   public onNewNoteSignal = this.compiledNotesSignal.map(compiledNotes =>
     (name: string) => {
-      name = name.trim();
-      if (name === '') name = 'untitled';
+      name = Name.normalize(name);
+      if (name === '/') name = '/untitled';
       if (compiledNotes.has(name)) {
         for (let i = 1; ; i++) {
           const newName = `${name} (${i})`;

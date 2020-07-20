@@ -25,3 +25,7 @@ export function join(dir: string, basename: string) {
 export function relative(dir: string, name: string) {
   return Path.relative(dir, name);
 }
+
+export function normalize(name: string) {
+  return Path.normalize('/' + name.trim());
+}

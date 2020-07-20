@@ -37,7 +37,7 @@ type NsfwEvent =
   }
 
 function canonizePath(filesPath: string, directory: string, file: string) {
-  return Path.relative(filesPath, Path.resolve(directory, file));
+  return Path.resolve('/', Path.relative(filesPath, Path.resolve(directory, file)));
 }
 
 export class Filesystem {
@@ -180,14 +180,14 @@ export class Filesystem {
         const file = this.filesCell.get().get(path);
         if (file) {
           if (debug) console.log(`writeFile(${path})`);
-          Fs.writeFile(Path.resolve(this.filesPath, path), file.bufferCell.get())
+          Fs.writeFile(Path.join(this.filesPath, path), file.bufferCell.get())
             .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
             });
         } else {
           if (debug) console.log(`unlink(${path})`);
-          Fs.unlink(Path.resolve(this.filesPath, path))
+          Fs.unlink(Path.join(this.filesPath, path))
             .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
