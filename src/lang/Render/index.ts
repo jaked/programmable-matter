@@ -193,8 +193,9 @@ export function renderMdx(
           // passing via env is a hack to get Link bound to setSelected
           // fix it somehow
           const Link = env.get('Link') || bug(`expected 'Link'`);
-          const to = Name.resolve(Name.dirname(name), ast.properties['href']);
-          const properties = { ...ast.properties, to };
+          const dir = Name.dirname(name);
+          const to = ast.properties['href'];
+          const properties = { ...ast.properties, dir, to };
           const node = Signal.join(Link, Signal.join(...childNodes)).map(([ Link, childNodes ]) =>
             React.createElement(Link, properties, ...childNodes)
           );

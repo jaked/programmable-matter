@@ -17,13 +17,14 @@ import { InlineMath, BlockMath } from 'react-katex';
 
 import HighlightedCode from '../HighlightedCode';
 
+import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import { Env } from './index';
 
 function Link(
   setSelected: (note: string) => void,
 ) {
-  return function ({ to, children }: { to: string, children: React.ReactNodeArray }) {
+  return function ({ dir, to, children }: { dir: string, to: string, children: React.ReactNodeArray }) {
     // TODO(jaked) validate URL
     const url = Url.parse(to);
     if (url.protocol && url.slashes && url.hostname) {
@@ -35,7 +36,7 @@ function Link(
     } else {
       const onClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        setSelected(to);
+        setSelected(Name.resolve(dir, to));
       }
       // this href is used when note is rendered statically
       // TODO(jaked)
