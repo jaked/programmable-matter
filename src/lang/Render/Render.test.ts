@@ -24,6 +24,7 @@ describe('renderMdx', () => {
       const [ _, rendered ] = Render.renderMdx(
         ast,
         annots,
+        '/mdx',
         moduleValueEnv,
         valueEnv,
         exportValue,

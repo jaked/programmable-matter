@@ -3,6 +3,7 @@ import * as React from 'react';
 import Retext from 'retext';
 import RetextSmartypants from 'retext-smartypants';
 
+import * as Name from '../../util/Name';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 
@@ -130,6 +131,7 @@ function extendEnvWithDefaultExport(
 export function renderMdx(
   ast: MDXHAST.Node,
   annots: AstAnnotations,
+  name: string,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
@@ -141,7 +143,7 @@ export function renderMdx(
     case 'root': {
       const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, annots, moduleEnv, env, exportValue);
+        const [env2, childNode] = renderMdx(child, annots, name, moduleEnv, env, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -183,7 +185,7 @@ export function renderMdx(
         case 'a': {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, name, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -191,7 +193,7 @@ export function renderMdx(
           // passing via env is a hack to get Link bound to setSelected
           // fix it somehow
           const Link = env.get('Link') || bug(`expected 'Link'`);
-          const to = ast.properties['href'];
+          const to = Name.resolve(Name.dirname(name), ast.properties['href']);
           const properties = { ...ast.properties, to };
           const node = Signal.join(Link, Signal.join(...childNodes)).map(([ Link, childNodes ]) =>
             React.createElement(Link, properties, ...childNodes)
@@ -202,7 +204,7 @@ export function renderMdx(
         default: {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, name, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });

@@ -29,3 +29,7 @@ export function relative(dir: string, name: string) {
 export function normalize(name: string) {
   return Path.normalize('/' + name.trim());
 }
+
+export function resolve(dir: string, name: string) {
+  return Path.resolve(dir, name);
+}

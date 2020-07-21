@@ -1,5 +1,6 @@
 import Path from 'path';
 import * as Immutable from 'immutable';
+import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import * as Parse from '../Parse';
@@ -51,6 +52,8 @@ export default function compileFileMdx(
   compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
+  const name = Name.nameOfPath(file.path);
+
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content =>
     sortMdx(Parse.parse(content))
@@ -163,7 +166,7 @@ export default function compileFileMdx(
     // TODO(jaked) clean up mess with errors
     try {
       const exportValue: { [s: string]: Signal<any> } = {};
-      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, moduleValueEnv, valueEnv, exportValue);
+      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, name, moduleValueEnv, valueEnv, exportValue);
 
       return { exportValue, rendered };
     } catch (e) {
