@@ -11,7 +11,6 @@ type FileMetadata = {
   writing: boolean; // true if we are in the middle of writing the file
   lastUpdateMs: number; // timestamp of last in-memory update
   lastWriteMs: number; // timestamp of last write to underlying filesystem
-  deleted: boolean;
 };
 
 const debug = false;
@@ -85,7 +84,7 @@ export class Filesystem {
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
-        const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false, deleted: false };
+        const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
         this.filesMetadata.set(path, fileMetadata);
         const file = new data.File(path, Signal.cellOk(buffer, this.onChange));
         return files.set(path, file);
@@ -97,7 +96,6 @@ export class Filesystem {
     this.updateFiles(files => {
       const lastUpdateMs = Date.now();
       const fileMetadata = this.filesMetadata.get(path) || bug(`delete: expected metadata for ${path}`);
-      fileMetadata.deleted = true;
       fileMetadata.lastUpdateMs = lastUpdateMs;
       return files.delete(path);
     });
@@ -110,7 +108,6 @@ export class Filesystem {
 
       const oldFile = files.get(oldPath) ?? bug(`rename: expected file for ${oldPath}`);
       const oldFileMetadata = this.filesMetadata.get(oldPath) ?? bug(`rename: expected metadata for ${oldPath}`);
-      oldFileMetadata.deleted = true;
       oldFileMetadata.lastUpdateMs = lastUpdateMs;
       files = files.delete(oldPath);
 
@@ -120,7 +117,7 @@ export class Filesystem {
         newFileMetadata.lastUpdateMs = lastUpdateMs;
         newFile.bufferCell.setOk(oldFile.bufferCell.get());
       } else {
-        const newFileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false, deleted: false };
+        const newFileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
         this.filesMetadata.set(newPath, newFileMetadata);
         const newFile = new data.File(newPath, Signal.cellOk(oldFile.bufferCell.get(), this.onChange));
         files = files.set(newPath, newFile);
@@ -134,24 +131,43 @@ export class Filesystem {
     return !!this.filesCell.get().get(path);
   }
 
+  private deleteMissing(events: NsfwEvent[]) {
+    const seen = new Set<string>();
+    events.forEach(ev => {
+      switch (ev.action) {
+        case 0:
+          seen.add(canonizePath(this.filesPath, ev.directory, ev.file));
+          break;
+
+        default: bug(`expected add`);
+      }
+    });
+    this.updateFiles(files =>
+      files.filter((_, path) => seen.has(path))
+    );
+  }
+
   public start = async () => {
     if (!this.watcher) return; // don't walk dir twice on startup
     if (debug) console.log(`Filesystem.start`);
     const events: Array<NsfwEvent> = [];
+    // TODO(jaked) needs protecting against concurrent updates
     await this.walkDir(this.filesPath, events);
     await this.handleNsfwEvents(events);
+    this.deleteMissing(events);
     this.timeout = Timers.setInterval(this.timerCallback, 1000);
     this.watcher.start();
   }
 
   public stop = () => {
     if (debug) console.log(`Filesystem.stop`);
+    // TODO(jaked) ensure no updates after final write
     this.timerCallback(true);
     if (this.timeout) Timers.clearInterval(this.timeout);
     if (this.watcher) this.watcher.stop()
   }
 
-  private shouldWrite = (path: string, fileMetadata: FileMetadata) => {
+  private shouldWrite = (path: string, fileMetadata: FileMetadata, force: boolean) => {
     // we're in the middle of a write
     if (fileMetadata.writing) {
       if (debugShouldWrite) console.log(`shouldWrite(${path}): false because file.writing`);
@@ -162,6 +178,11 @@ export class Filesystem {
     if (fileMetadata.lastWriteMs >= fileMetadata.lastUpdateMs) {
       // if (debugShouldWrite) console.log(`shouldWrite(${path}): false because already written`);
       return false;
+    }
+
+    if (force) {
+      if (debugShouldWrite) console.log(`shouldWrite($path): true because force`);
+      return true;
     }
 
     const now = Date.now();
@@ -185,7 +206,7 @@ export class Filesystem {
   private timerCallback = (force = false) => {
     if (debug) console.log(`timerCallback`);
     this.filesMetadata.forEach((fileMetadata, path) => {
-      if (force || this.shouldWrite(path, fileMetadata)) {
+      if (this.shouldWrite(path, fileMetadata, force)) {
         fileMetadata.writing = true;
 
         const lastWriteMs = Date.now();
@@ -271,7 +292,7 @@ export class Filesystem {
     } else {
       if (debug) console.log(`adding ${path}`);
       const fileMetadata =
-        { lastUpdateMs: now, lastWriteMs: now, writing: false, deleted: false };
+        { lastUpdateMs: now, lastWriteMs: now, writing: false };
       this.filesMetadata.set(path, fileMetadata);
       const file = new data.File(path, Signal.cellOk(buffer, this.onChange));
       return files.set(path, file);
