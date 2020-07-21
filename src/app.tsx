@@ -49,8 +49,6 @@ export class App {
   constructor() {
     this.render();
 
-    this.filesystem.start(); // TODO(jaked) stop this on shutdown
-
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
     ipc.on('toggle-sidebar-visible', this.toggleSidebarVisible);
@@ -69,6 +67,9 @@ export class App {
 
     ipc.on('publish-site', this.publishSite);
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
+
+    ipc.on('focus', () => this.filesystem.start());
+    ipc.on('blur', () => this.filesystem.stop());
   }
 
   public editNameCell = Signal.cellOk<string | undefined>(undefined, this.render);

@@ -15,6 +15,7 @@ type FileMetadata = {
 };
 
 const debug = false;
+const debugShouldWrite = false;
 
 const emptyBuffer = Buffer.from('');
 
@@ -45,19 +46,24 @@ export class Filesystem {
   private onChange: () => void;
   private filesCell: Signal.Cell<Immutable.Map<string, data.File>>;
   private filesMetadata: Map<string, FileMetadata> = new Map();
-  private timeout: NodeJS.Timeout;
-  private watcher: any;
+  private timeout: null | NodeJS.Timeout = null;
+
+  // TODO(jaked) type NSFW is not exported
+  private watcher: null | any = null;
 
   public constructor(filesPath: string, onChange: () => void) {
     this.filesPath = filesPath;
     this.onChange = onChange;
     this.filesCell = Signal.cellOk(Immutable.Map(), onChange);
-    this.timeout = Timers.setInterval(this.timerCallback, 500);
-    this.watcher = Nsfw(
+    const watcher = Nsfw(
       this.filesPath,
       this.handleNsfwEvents,
       { debounceMS: 500 }
     );
+    watcher.then(watcher => {
+      this.watcher = watcher;
+      this.start();
+    });
   }
 
   public get files(): Signal<data.Files> { return this.filesCell };
@@ -129,27 +135,32 @@ export class Filesystem {
   }
 
   public start = async () => {
+    if (!this.watcher) return; // don't walk dir twice on startup
+    if (debug) console.log(`Filesystem.start`);
     const events: Array<NsfwEvent> = [];
     await this.walkDir(this.filesPath, events);
     await this.handleNsfwEvents(events);
-    this.watcher = await this.watcher;
+    this.timeout = Timers.setInterval(this.timerCallback, 1000);
     this.watcher.start();
   }
 
   public stop = () => {
-    this.watcher.stop()
+    if (debug) console.log(`Filesystem.stop`);
+    this.timerCallback(true);
+    if (this.timeout) Timers.clearInterval(this.timeout);
+    if (this.watcher) this.watcher.stop()
   }
 
   private shouldWrite = (path: string, fileMetadata: FileMetadata) => {
     // we're in the middle of a write
     if (fileMetadata.writing) {
-      if (debug) console.log(`shouldWrite(${path}): false because file.writing`);
+      if (debugShouldWrite) console.log(`shouldWrite(${path}): false because file.writing`);
       return false;
     }
 
     // the current in-memory file is already written
     if (fileMetadata.lastWriteMs >= fileMetadata.lastUpdateMs) {
-      if (debug) console.log(`shouldWrite(${path}): false because already written`);
+      // if (debugShouldWrite) console.log(`shouldWrite(${path}): false because already written`);
       return false;
     }
 
@@ -157,23 +168,24 @@ export class Filesystem {
 
     // there's been no update in 500 ms
     if (now > fileMetadata.lastUpdateMs + 500) {
-      if (debug) console.log(`shouldWrite(${path}): true because no update in 500 ms`);
+      if (debugShouldWrite) console.log(`shouldWrite(${path}): true because no update in 500 ms`);
       return true;
     }
 
     // the file hasn't been written in 5 s
-    if (Date.now() > fileMetadata.lastWriteMs + 5000) {
-      if (debug) console.log(`shouldWrite(${path}): true because no write in 5 s`);
+    if (now > fileMetadata.lastWriteMs + 5000) {
+      if (debugShouldWrite) console.log(`shouldWrite(${path}): true because no write in 5 s`);
       return true;
     }
 
-    if (debug) console.log(`shouldWrite(${path}): false because otherwise`);
+    if (debugShouldWrite) console.log(`shouldWrite(${path}): false because otherwise`);
     return false;
   }
 
-  private timerCallback = () => {
+  private timerCallback = (force = false) => {
+    if (debug) console.log(`timerCallback`);
     this.filesMetadata.forEach((fileMetadata, path) => {
-      if (this.shouldWrite(path, fileMetadata)) {
+      if (force || this.shouldWrite(path, fileMetadata)) {
         fileMetadata.writing = true;
 
         const lastWriteMs = Date.now();
