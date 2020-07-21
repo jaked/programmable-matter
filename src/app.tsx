@@ -204,10 +204,12 @@ export class App {
   public setNameSignal = this.compiledNoteSignal.map(compiledNote => {
     if (compiledNote === null) return (name: string) => {};
     else return (name: string) => {
+      name = Name.normalize(name);
       Object.values(compiledNote.files).forEach(file => {
         if (!file) return;
         const pathParsed = Path.parse(file.path);
-        const newPath = Path.format({ ...pathParsed, base: undefined, name: Name.basename(name) });
+        const newParsed = { ...pathParsed, base: undefined, dir: Name.dirname(name), name: Name.basename(name) };
+        const newPath = Path.format(newParsed);
         this.filesystem.rename(file.path, newPath);
       });
       this.setSelected(name);

@@ -27,7 +27,11 @@ export function relative(dir: string, name: string) {
 }
 
 export function normalize(name: string) {
-  return Path.normalize('/' + name.trim());
+  const normalized = Path.normalize('/' + name.trim());
+  if (normalized.endsWith('/') && normalized.length > 1)
+    return normalized.substr(0, normalized.length - 1);
+  else
+    return normalized;
 }
 
 export function resolve(dir: string, name: string) {
