@@ -108,7 +108,7 @@ it('compiles table', () => {
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile(1);
-  const cats = compiledNotes.get().get('cats');
+  const cats = compiledNotes.get().get('cats/index');
   if (!cats) bug('expected cats');
   cats.problems.reconcile(1);
   expect(cats.problems.get()).toBeFalsy();

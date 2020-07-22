@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import JSON5 from 'json5';
 import * as React from 'react';
+import Try from '../../util/Try';
 import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
@@ -89,24 +90,11 @@ function computeTable(
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ) {
-  return Signal.joinImmutableMap(Signal.ok(
-    Immutable.Map<string, Signal<any>>().withMutations(map =>
+  const tryLensTable = Signal.joinImmutableMap(Signal.ok(
+    Immutable.Map<string, Signal<Try<any>>>().withMutations(map =>
       noteEnv.forEach((note, name) => {
-        // TODO(jaked) handle partial failures better here
-
-        const defaultType = note.exportType.map(exportType => {
-          const defaultType = exportType.getFieldType('default') ?? bug(`expected type for default field`);
-          // TODO(jaked)
-          // check data files directly against table config
-          // instead of checking after the fact
-          // that their types agree with the table config type
-          if (!Type.isSubtype(defaultType, tableDataType))
-            throw new Error('record data type must match table config type');
-          return defaultType;
-        });
-
         const mutableValue =
-          note.exportValue.flatMap(exportValue => exportValue['mutable']);
+          note.exportValue.flatMap(exportValue => exportValue['mutable'] ?? bug(`expected mutable value`));
 
         const metaValue = note.meta.map(meta =>
           tableConfig.fields.reduce<object>(
@@ -122,16 +110,35 @@ function computeTable(
           ),
         );
 
-        const value = Signal.join(defaultType, mutableValue, metaValue).map(([defaultType, mutableValue, metaValue]) => {
-          // TODO(jaked) merge mutable data members and immutable meta members
-          // TODO(jaked) could some meta members be mutable?
-          return mutableValue;
+        const value = note.exportType.flatMap(exportType => {
+          const defaultType = exportType.getFieldType('default');
+          // TODO(jaked)
+          // check data files directly against table config
+          // instead of checking after the fact
+          // that their types agree with the table config type
+          const mutableType = exportType.getFieldType('mutable');
+          if (!defaultType || !mutableType || !Type.isSubtype(defaultType, tableDataType))
+            // TODO(jaked) check `mutableType` too
+            throw new Error('record data type must match table config type')
+
+          return Signal.join(mutableValue, metaValue).map(([mutableValue, metaValue]) => {
+            // TODO(jaked) merge mutable data members and immutable meta members
+            // TODO(jaked) could some meta members be mutable?
+            return mutableValue;
+          });
         });
-        const baseName = Name.relative(tableName, name);
-        map.set(baseName, value);
+
+        const baseName = Name.relative(Name.dirname(tableName), name);
+        map.set(baseName, value.liftToTry());
       })
     )
-  )).map<any>(lensTable => {
+  ));
+  // TODO(jaked) give return a better type
+  return tryLensTable.map<any>(tryLensTable => {
+    // skip over failed notes
+    // TODO(jaked) reflect failures in UI
+    const lensTable = tryLensTable.filter(t => t.type === 'ok').map(t => t.get());
+
     const table = lensTable.map(v => v());
 
     const f = function(...v: any[]) {
@@ -228,8 +235,7 @@ function compileTable(
     default: table
   }
 
-  // TODO(jaked) fix when index notes have name 'dir/index' instead of 'dir'
-  const onSelect = (name: string) => setSelected(Name.join(tableName, name));
+  const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
 
   const rendered = table.map(table =>
     React.createElement(Table, { data: table(), fields, onSelect })
@@ -256,12 +262,10 @@ export default function compileFileTable(
     compiledNotes,
     (compiledNotes, prevCompiledNotes, prevNoteEnv) => {
       return prevNoteEnv.withMutations(noteEnv => {
-        const dir = Name.dirname(Name.nameOfPath(file.path));
+        const dir = Name.dirname(tableName);
         const { added, changed, deleted } = diffMap(prevCompiledNotes, compiledNotes);
         added.forEach((compiledNote, name) => {
-          // TODO(jaked) not sure if we should handle nested dirs in tables
-          // TODO(jaked) handle non-json files
-          if (name !== dir && !Name.relative(dir, name).startsWith('..'))
+          if (Name.dirname(name) === dir && name !== tableName)
             noteEnv.set(name, compiledNote);
         });
         changed.forEach(([prev, curr], name) => noteEnv.set(name, curr));
