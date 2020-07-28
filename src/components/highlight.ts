@@ -252,7 +252,7 @@ export default function computeHighlight(
   view: data.Types,
   content: string,
   ast: Try<any>,
-  annots: data.AstAnnotations,
+  annots: data.AstAnnotations | undefined,
   okComps: components,
   errComps: components,
 ) {

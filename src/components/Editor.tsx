@@ -110,7 +110,7 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
       props.view,
       props.content,
       compiledFile.ast,
-      compiledFile.astAnnotations ?? bug(''),
+      compiledFile.astAnnotations,
       okComponents,
       errComponents
     )
