@@ -1,5 +1,5 @@
 import * as Immutable from 'immutable';
-import Recast from 'recast/main';
+import * as Name from '../../util/Name';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as MDXHAST from '../mdxhast';
@@ -831,12 +831,13 @@ export function synth(
 }
 
 function extendEnvWithImport(
+  mdxName: string,
   decl: ESTree.ImportDeclaration,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
   annots?: AstAnnotations,
 ): Env {
-  const module = moduleEnv.get(decl.source.value);
+  const module = moduleEnv.get(Name.resolve(Name.dirname(mdxName), decl.source.value));
   if (!module) {
     const error = Error.withLocation(decl.source, `no module '${decl.source.value}'`, annots);
     decl.specifiers.forEach(spec => {
@@ -923,6 +924,7 @@ function extendEnvWithDefaultExport(
 
 // TODO(jaked) this interface is a little weird
 export function synthMdx(
+  mdxName: string,
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
@@ -933,7 +935,7 @@ export function synthMdx(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdx(child, moduleEnv, env, exportTypes, annots)
+        env = synthMdx(mdxName, child, moduleEnv, env, exportTypes, annots)
       );
       return env;
 
@@ -951,7 +953,7 @@ export function synthMdx(
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
-            env = extendEnvWithImport(decl, moduleEnv, env, annots);
+            env = extendEnvWithImport(mdxName, decl, moduleEnv, env, annots);
             break;
 
           case 'ExportNamedDeclaration':

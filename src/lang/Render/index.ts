@@ -40,6 +40,7 @@ function evaluateExpressionSignal(
 }
 
 function extendEnvWithImport(
+  mdxName: string,
   decl: ESTree.ImportDeclaration,
   annots: AstAnnotations,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
@@ -53,7 +54,7 @@ function extendEnvWithImport(
       env = env.set(spec.local.name, Signal.ok(type.err));
     });
   } else {
-    const module = moduleEnv.get(decl.source.value) ?? bug(`expected module '${decl.source.value}'`);
+    const module = moduleEnv.get(Name.resolve(Name.dirname(mdxName), decl.source.value)) ?? bug(`expected module '${decl.source.value}'`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -131,7 +132,7 @@ function extendEnvWithDefaultExport(
 export function renderMdx(
   ast: MDXHAST.Node,
   annots: AstAnnotations,
-  name: string,
+  mdxName: string,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
   exportValue: { [s: string]: Signal<any> }
@@ -143,7 +144,7 @@ export function renderMdx(
     case 'root': {
       const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, annots, name, moduleEnv, env, exportValue);
+        const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue);
         env = env2;
         childNodes.push(childNode);
       });
@@ -185,7 +186,7 @@ export function renderMdx(
         case 'a': {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, name, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -193,7 +194,7 @@ export function renderMdx(
           // passing via env is a hack to get Link bound to setSelected
           // fix it somehow
           const Link = env.get('Link') || bug(`expected 'Link'`);
-          const dir = Name.dirname(name);
+          const dir = Name.dirname(mdxName);
           const to = ast.properties['href'];
           const properties = { ...ast.properties, dir, to };
           const node = Signal.join(Link, Signal.join(...childNodes)).map(([ Link, childNodes ]) =>
@@ -205,7 +206,7 @@ export function renderMdx(
         default: {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, name, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue);
             env = env2;
             childNodes.push(childNode);
           });
@@ -246,7 +247,7 @@ export function renderMdx(
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
-            env = extendEnvWithImport(decl, annots, moduleEnv, env);
+            env = extendEnvWithImport(mdxName, decl, annots, moduleEnv, env);
             break;
 
           case 'ExportNamedDeclaration':

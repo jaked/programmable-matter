@@ -53,7 +53,7 @@ describe('highlight', () => {
     const typeEnv = Immutable.Map<string, Type>();
     const exportTypes: { [s: string]: Type } = {};
     const annots = new Map<unknown, Type>();
-    Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, annots);
+    Typecheck.synthMdx('mdx', ast, moduleTypeEnv, typeEnv, exportTypes, annots);
 
     const highlighted =
       highlight('mdx', mdx, Try.ok(ast), annots, ok, err);
@@ -118,7 +118,7 @@ describe('highlight', () => {
   describe('imports', () => {
     it('highlights module for missing module', () => {
       expectHighlightMdx(
-        `import Foo from 'foo'`,
+        `import Foo from '/foo'`,
         Immutable.Map({ }),
         [
           [
@@ -126,7 +126,7 @@ describe('highlight', () => {
             ' ',
             <ok.definition>Foo</ok.definition>,
             ' from ',
-            <err.link data-link='foo' data-status="no module 'foo'">'foo'</err.link>,
+            <err.link data-link='/foo' data-status="no module '/foo'">'/foo'</err.link>,
           ],
           <br />,
         ]
@@ -135,17 +135,17 @@ describe('highlight', () => {
 
     it('highlights local name for missing default import', () => {
       expectHighlightMdx(
-        `import Foo from 'foo'`,
+        `import Foo from '/foo'`,
         Immutable.Map({
-          foo: Type.module({ })
+          '/foo': Type.module({ })
         }),
         [
           [
             <ok.keyword>import</ok.keyword>,
             ' ',
-            <err.definition data-status="no default export on 'foo'">Foo</err.definition>,
+            <err.definition data-status="no default export on '/foo'">Foo</err.definition>,
             ' from ',
-            <ok.link data-link='foo'>'foo'</ok.link>,
+            <ok.link data-link='/foo'>'/foo'</ok.link>,
           ],
           <br />,
         ]
@@ -154,17 +154,17 @@ describe('highlight', () => {
 
     it('highlights local name for missing named import without `as`', () => {
       expectHighlightMdx(
-        `import { Foo } from 'foo'`,
+        `import { Foo } from '/foo'`,
         Immutable.Map({
-          foo: Type.module({ })
+          '/foo': Type.module({ })
         }),
         [
           [
             <ok.keyword>import</ok.keyword>,
             ' { ',
-            <err.definition data-status="no exported member 'Foo' on 'foo'">Foo</err.definition>,
+            <err.definition data-status="no exported member 'Foo' on '/foo'">Foo</err.definition>,
             ' } from ',
-            <ok.link data-link='foo'>'foo'</ok.link>,
+            <ok.link data-link='/foo'>'/foo'</ok.link>,
           ],
           <br />,
         ]

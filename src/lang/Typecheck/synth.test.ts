@@ -864,7 +864,7 @@ describe('synthMdx', () => {
         Typecheck.env(env as any)) :
       Typecheck.env();
     const annots = new Map<unknown, Type>();
-    Typecheck.synthMdx(mdx, Immutable.Map(), env, {}, annots);
+    Typecheck.synthMdx('mdx', mdx, Immutable.Map(), env, {}, annots);
     const errorValue = [...annots.values()].some(t => t.kind === 'Error');
     if (error !== undefined) expect(errorValue).toBe(error);
   }

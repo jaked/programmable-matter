@@ -17,7 +17,7 @@ describe('renderMdx', () => {
       const typeEnv = Immutable.Map<string, Type>();
       const exportTypes: { [s: string]: Type } = {};
       const annots = new Map<unknown, Type>();
-      Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, annots)
+      Typecheck.synthMdx('mdx', ast, moduleTypeEnv, typeEnv, exportTypes, annots)
       const exportValue: { [s: string]: Signal<any> } = {};
       const valueEnv = Immutable.Map<string, Signal<any>>();
 

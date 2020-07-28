@@ -52,7 +52,7 @@ export default function compileFileMdx(
   compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (note: string) => void,
 ): Signal<data.CompiledFile> {
-  const name = Name.nameOfPath(file.path);
+  const mdxName = Name.nameOfPath(file.path);
 
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content =>
@@ -64,14 +64,16 @@ export default function compileFileMdx(
 
   // TODO(jaked) push note errors into envs so they're surfaced in editor?
   const noteEnv =
-    Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) => {
-      const importedNotes = Immutable.Map<string, data.CompiledNote>().asMutable();
-      imports.forEach(name => {
-        const note = compiledNotes.get(name);
-        if (note) importedNotes.set(name, note);
-      });
-      return importedNotes.asImmutable();
-    });
+    Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) =>
+      Immutable.Map<string, data.CompiledNote>().withMutations(noteEnv => {
+        imports.forEach(name => {
+          const resolvedName = Name.resolve(Name.dirname(mdxName), name);
+          const note = compiledNotes.get(resolvedName);
+          if (note) noteEnv.set(resolvedName, note);
+        });
+        return noteEnv
+      })
+    );
   const moduleTypeEnv = Signal.joinImmutableMap(
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportType))
   );
@@ -117,7 +119,7 @@ export default function compileFileMdx(
 
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
-    Typecheck.synthMdx(ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations);
+    Typecheck.synthMdx(mdxName, ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations);
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
     const exportType = Type.module(exportTypes);
     return { exportType, astAnnotations, problems }
@@ -166,7 +168,7 @@ export default function compileFileMdx(
     // TODO(jaked) clean up mess with errors
     try {
       const exportValue: { [s: string]: Signal<any> } = {};
-      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, name, moduleValueEnv, valueEnv, exportValue);
+      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, mdxName, moduleValueEnv, valueEnv, exportValue);
 
       return { exportValue, rendered };
     } catch (e) {
