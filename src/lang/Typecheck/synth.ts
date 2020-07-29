@@ -837,13 +837,14 @@ function extendEnvWithImport(
   env: Env,
   annots?: AstAnnotations,
 ): Env {
-  const module = moduleEnv.get(Name.resolve(Name.dirname(mdxName), decl.source.value));
-  if (!module) {
+  const moduleName = Name.rewriteResolve(moduleEnv, mdxName, decl.source.value);
+  if (!moduleName) {
     const error = Error.withLocation(decl.source, `no module '${decl.source.value}'`, annots);
     decl.specifiers.forEach(spec => {
       env = env.set(spec.local.name, error);
     });
   } else {
+    const module = moduleEnv.get(moduleName) ?? bug(`expected module '${moduleName}'`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {

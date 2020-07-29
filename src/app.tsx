@@ -86,13 +86,7 @@ export class App {
     if (name === null) return null;
     this.compiledNotesSignal.reconcile(this.level);
     const compiledNotes = this.compiledNotesSignal.get();
-    name = Name.normalize(name);
-    if (compiledNotes.has(name)) return name;
-    const nameIndex = name + 'index'
-    if (compiledNotes.has(nameIndex)) return nameIndex;
-    const nameSlashIndex = name + '/index'
-    if (compiledNotes.has(nameSlashIndex)) return nameSlashIndex;
-    return null;
+    return Name.rewrite(compiledNotes, name);
   }
 
   public setSelected = (selected: string | null) => {

@@ -3,6 +3,7 @@ import * as Immutable from 'immutable';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
+import { bug } from '../../util/bug';
 import * as Parse from '../Parse';
 import * as Render from '../Render';
 import * as MDXHAST from '../mdxhast';
@@ -67,9 +68,14 @@ export default function compileFileMdx(
     Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) =>
       Immutable.Map<string, data.CompiledNote>().withMutations(noteEnv => {
         imports.forEach(name => {
-          const resolvedName = Name.resolve(Name.dirname(mdxName), name);
-          const note = compiledNotes.get(resolvedName);
-          if (note) noteEnv.set(resolvedName, note);
+          // TODO(jaked)
+          // we do this resolution here, in Synth, and in Render
+          // could rewrite or annotate the AST to do it just once
+          const resolvedName = Name.rewriteResolve(compiledNotes, mdxName, name);
+          if (resolvedName) {
+            const note = compiledNotes.get(resolvedName) ?? bug(`expected module '${resolvedName}'`);
+            noteEnv.set(resolvedName, note);
+          }
         });
         return noteEnv
       })

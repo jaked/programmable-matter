@@ -54,7 +54,8 @@ function extendEnvWithImport(
       env = env.set(spec.local.name, Signal.ok(type.err));
     });
   } else {
-    const module = moduleEnv.get(Name.resolve(Name.dirname(mdxName), decl.source.value)) ?? bug(`expected module '${decl.source.value}'`);
+    const moduleName = Name.rewriteResolve(moduleEnv, mdxName, decl.source.value) || bug(`expected module '${decl.source.value}'`);
+    const module = moduleEnv.get(moduleName) ?? bug(`expected module '${moduleName}'`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
