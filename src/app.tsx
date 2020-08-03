@@ -8,7 +8,7 @@ import * as Immutable from 'immutable';
 import { bug } from './util/bug';
 import Signal from './util/Signal';
 import * as Name from './util/Name';
-import { Filesystem } from './files/Filesystem';
+import Filesystem from './files/Filesystem';
 
 import * as Compile from './lang/Compile';
 
@@ -44,10 +44,11 @@ export class App {
 
   // TODO(jaked) make this configurable
   private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  private filesystem = new Filesystem(this.filesPath, this.render);
+  private filesystem = Filesystem(this.filesPath, this.render);
 
   constructor() {
     this.render();
+    this.filesystem.start();
 
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
@@ -172,7 +173,7 @@ export class App {
 
     Object.values(note.files).forEach(file => {
       if (!file) return;
-      this.filesystem.delete(file.path);
+      this.filesystem.remove(file.path);
     });
   }
 
@@ -180,7 +181,7 @@ export class App {
     Compile.compileFiles(
       this.filesystem.files,
       this.filesystem.update,
-      this.filesystem.delete,
+      this.filesystem.remove,
       this.setSelected,
     )
   private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
