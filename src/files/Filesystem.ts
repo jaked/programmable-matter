@@ -86,7 +86,7 @@ type Filesystem = {
 function make(
   filesPath: string,
   onChange: () => void,
-  Now: Now = { now: Date.now },
+  Now: Now = Date,
   Timers: Timers = timers,
   Fs: Fs = fs.promises,
   Nsfw: Nsfw = nsfw,
@@ -107,7 +107,7 @@ function make(
     path: string,
     buffer: Buffer
   ): Immutable.Map<string, data.File> => {
-    const now = Date.now();
+    const now = Now.now();
     const oldFile = files.get(path);
     if (oldFile) {
       if (debug) console.log(`${path} has oldFile`);
@@ -119,7 +119,7 @@ function make(
         if (debug) console.log(`${path} is being written`);
         return files;
       }
-      if (Date.now() < fileMetadata.lastWriteMs + 5000) {
+      if (Now.now() < fileMetadata.lastWriteMs + 5000) {
         if (debug) console.log(`${path} was just written`);
         return files;
       }
@@ -214,7 +214,7 @@ function make(
   const update = (path: string, buffer: Buffer) => {
     updateFiles(files => {
       const oldFile = files.get(path);
-      const lastUpdateMs = Date.now();
+      const lastUpdateMs = Now.now();
       if (oldFile) {
         const fileMetadata = filesMetadata.get(path) || bug(`expected metadata for ${path}`);
         if (buffer.equals(oldFile.bufferCell.get())) {
@@ -238,7 +238,7 @@ function make(
 
   const remove = (path: string) => {
     updateFiles(files => {
-      const lastUpdateMs = Date.now();
+      const lastUpdateMs = Now.now();
       const fileMetadata = filesMetadata.get(path) || bug(`delete: expected metadata for ${path}`);
       fileMetadata.lastUpdateMs = lastUpdateMs;
       return files.delete(path);
@@ -248,7 +248,7 @@ function make(
   const rename = (oldPath: string, newPath: string) => {
     updateFiles(files => {
       if (oldPath === newPath) return files;
-      const lastUpdateMs = Date.now();
+      const lastUpdateMs = Now.now();
 
       const oldFile = files.get(oldPath) ?? bug(`rename: expected file for ${oldPath}`);
       const oldFileMetadata = filesMetadata.get(oldPath) ?? bug(`rename: expected metadata for ${oldPath}`);
@@ -316,7 +316,7 @@ function make(
 
     // the current in-memory file is already written
     if (fileMetadata.lastWriteMs >= fileMetadata.lastUpdateMs) {
-      // if (debugShouldWrite) console.log(`shouldWrite(${path}): false because already written`);
+      if (debugShouldWrite) console.log(`shouldWrite(${path}): false because already written`);
       return false;
     }
 
@@ -325,7 +325,7 @@ function make(
       return true;
     }
 
-    const now = Date.now();
+    const now = Now.now();
 
     // there's been no update in 500 ms
     if (now > fileMetadata.lastUpdateMs + 500) {
@@ -349,7 +349,7 @@ function make(
       if (shouldWrite(path, fileMetadata, force)) {
         fileMetadata.writing = true;
 
-        const lastWriteMs = Date.now();
+        const lastWriteMs = Now.now();
         const file = filesCell.get().get(path);
         const filePath = Path.join(filesPath, path);
         if (file) {

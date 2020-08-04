@@ -3,7 +3,7 @@ import Filesystem from './Filesystem';
 test('makes dir on update if needed', async () => {
   let ok = false;
 
-  let theNow = 0
+  let theNow = 1000
   const Now = {
     now: () => theNow
   }
@@ -57,7 +57,7 @@ test('makes dir on update if needed', async () => {
 
   await filesystem.start();
   filesystem.update('/foo/bar', Buffer.from('foo bar'));
-  theNow = 1000;
+  theNow = 2000;
   runScheduled();
   await filesystem.stop();
 
