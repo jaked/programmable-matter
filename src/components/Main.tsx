@@ -12,7 +12,7 @@ import { App } from '../app';
 import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
-import Sidebar from './Sidebar';
+import Sidebar from './search/Sidebar';
 import Header from './Header'
 import Editor from './Editor';
 

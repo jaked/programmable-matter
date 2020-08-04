@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
-import Signal from '../util/Signal';
+import Signal from '../../util/Signal';
 
 interface Props {
   label: string,

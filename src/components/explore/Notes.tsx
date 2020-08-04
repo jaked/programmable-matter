@@ -4,9 +4,9 @@ import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import * as Name from '../util/Name';
-import Signal from '../util/Signal';
-import * as data from '../data';
+import * as Name from '../../util/Name';
+import Signal from '../../util/Signal';
+import * as data from '../../data';
 import Note from './Note';
 
 import { NoteTree } from './Sidebar';

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
-import Signal from '../util/Signal';
+import Signal from '../../util/Signal';
 
 type Props = {
   search: string,

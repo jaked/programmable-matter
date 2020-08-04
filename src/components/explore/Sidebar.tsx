@@ -4,12 +4,12 @@ import React from 'react';
 import { Flex as BaseFlex } from 'rebass';
 import styled from 'styled-components';
 
-import * as Name from '../util/Name';
-import Signal from '../util/Signal';
+import * as Name from '../../util/Name';
+import Signal from '../../util/Signal';
 
 import Notes from './Notes';
 import SearchBox from './SearchBox';
-import * as data from '../data';
+import * as data from '../../data';
 
 export type NoteTreeEntry =
   { type: 'note', indent: number, note: data.CompiledNote } |
