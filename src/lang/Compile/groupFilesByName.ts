@@ -4,12 +4,13 @@ import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import { diffMap } from '../../util/immutable/Map';
 import * as data from '../../data';
+import File from '../../files/File';
 
 function groupFilesByName(
   files: data.Files,
   oldFiles: data.Files,
-  oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, data.File>>,
-): Immutable.Map<string, Immutable.Map<string, data.File>> {
+  oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, File>>,
+): Immutable.Map<string, Immutable.Map<string, File>> {
 
   let groupedFiles = oldGroupedFiles;
   let { added, changed, deleted } = diffMap(oldFiles, files);
@@ -33,7 +34,7 @@ function groupFilesByName(
 
   added.forEach((file, path) => {
     const name = Name.nameOfPath(path);
-    const group = groupedFiles.get(name) || Immutable.Map<string, data.File>();
+    const group = groupedFiles.get(name) || Immutable.Map<string, File>();
     groupedFiles = groupedFiles.set(name, group.set(path, file));
   })
 
@@ -42,7 +43,7 @@ function groupFilesByName(
 
 export default function groupFilesByNameSignal(
   files: Signal<data.Files>
-): Signal<Immutable.Map<string, Immutable.Map<string, data.File>>> {
+): Signal<Immutable.Map<string, Immutable.Map<string, File>>> {
   const name = Signal.mapWithPrev(
     files,
     groupFilesByName,

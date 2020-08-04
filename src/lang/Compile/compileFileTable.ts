@@ -13,6 +13,7 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
+import File from '../../files/File';
 import { Table, Field as TableField } from '../../components/Table';
 import lensType from './lensType';
 
@@ -244,7 +245,7 @@ function compileTable(
 }
 
 export default function compileFileTable(
-  file: data.File,
+  file: File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (name: string) => void,

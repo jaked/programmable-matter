@@ -2,6 +2,7 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import * as data from '../../data';
+import File from '../../files/File';
 
 import compileFileTable from './compileFileTable';
 
@@ -12,9 +13,9 @@ const deleteFile = (s: string) => {}
 it('succeeds with syntax error', () => {
   console.log = jest.fn();
   const compiled = compileFileTable(
-    new data.File(
+    new File(
       'foo.table',
-      Signal.cellOk(Buffer.from(`#Q(*&#$)`)),
+      Buffer.from(`#Q(*&#$)`),
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
@@ -29,9 +30,9 @@ it('succeeds with syntax error', () => {
 it('succeeds with type error', () => {
   console.log = jest.fn();
   const compiled = compileFileTable(
-    new data.File(
+    new File(
       'foo.table',
-      Signal.cellOk(Buffer.from(`{ }`)),
+      Buffer.from(`{ }`),
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
@@ -45,9 +46,9 @@ it('succeeds with type error', () => {
 
 it('empty table', () => {
   const compiled = compileFileTable(
-    new data.File(
+    new File(
       'foo.table',
-      Signal.cellOk(Buffer.from(`{
+      Buffer.from(`{
         fields: [
           {
             name: 'foo',
@@ -56,7 +57,7 @@ it('empty table', () => {
             type: 'string',
           }
         ]
-      }`)),
+      }`),
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
@@ -71,9 +72,9 @@ it('empty table', () => {
 
 it('non-data note in table dir', () => {
   const compiled = compileFileTable(
-    new data.File(
+    new File(
       '/foo/index.table',
-      Signal.cellOk(Buffer.from(`{
+      Buffer.from(`{
         fields: [
           {
             name: 'foo',
@@ -82,7 +83,7 @@ it('non-data note in table dir', () => {
             type: 'string',
           }
         ]
-      }`)),
+      }`),
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map({

@@ -4,6 +4,7 @@ import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as data from '../../data';
+import File from '../../files/File';
 
 import compileFileMdx from './compileFileMdx';
 
@@ -11,9 +12,9 @@ const setSelected = (s: string) => {}
 
 it('compiles', () => {
   const compiled = compileFileMdx(
-    new data.File(
+    new File(
       'foo.mdx',
-      Signal.cellOk(Buffer.from(`foo`))
+      Buffer.from(`foo`)
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
@@ -33,9 +34,9 @@ it('compiles', () => {
 
 it('compiles `a` tag', () => {
   const compiled = compileFileMdx(
-    new data.File(
+    new File(
       'foo.mdx',
-      Signal.cellOk(Buffer.from(`<a href='foo'>bar</a>`))
+      Buffer.from(`<a href='foo'>bar</a>`)
     ),
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
@@ -55,9 +56,9 @@ it('compiles `a` tag', () => {
 
 it('compiles referencing data / table', () => {
   const compiled = compileFileMdx(
-    new data.File(
+    new File(
       'foo.mdx',
-      Signal.cellOk(Buffer.from(`foo <>{data.bar}</> <>{table.baz}</>`))
+      Buffer.from(`foo <>{data.bar}</> <>{table.baz}</>`)
     ),
     Signal.ok(Immutable.Map({
       'foo.json': Signal.ok({
@@ -94,9 +95,9 @@ it('compiles with layout', () => {
   console.error = jest.fn(); // suppress React warning about key props
 
   const compiled = compileFileMdx(
-    new data.File(
+    new File(
       'foo.mdx',
-      Signal.cellOk(Buffer.from(`foo`))
+      Buffer.from(`foo`)
     ),
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({

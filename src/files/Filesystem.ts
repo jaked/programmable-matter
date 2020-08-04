@@ -6,6 +6,7 @@ import nsfw from 'nsfw';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
 import * as data from '../data';
+import File from './File';
 
 type FileMetadata = {
   writing: boolean; // true if we are in the middle of writing the file
@@ -55,6 +56,7 @@ type Fs = {
   stat: (path: string) => Promise<{
     isFile: () => boolean,
     isDirectory: () => boolean,
+    mtimeMs: number,
   }>,
   readFile: (path: string) => Promise<Buffer>,
   writeFile: (path: string, buffer: Buffer) => Promise<void>,
@@ -91,23 +93,23 @@ function make(
   Fs: Fs = fs.promises,
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
-  const filesCell = Signal.cellOk(Immutable.Map<string, data.File>(), onChange);
+  const filesCell = Signal.cellOk(Immutable.Map<string, File>(), onChange);
   const filesMetadata = new Map<string, FileMetadata>();
   let timeout: null | NodeJS.Timeout = null;
 
   const updateFiles = (
-    updater: (files: Immutable.Map<string, data.File>) => Immutable.Map<string, data.File>
+    updater: (files: Immutable.Map<string, File>) => Immutable.Map<string, File>
   ) => {
     const files = updater(filesCell.get());
     filesCell.setOk(files);
   }
 
   const updateFile = (
-    files: Immutable.Map<string, data.File>,
+    files: Immutable.Map<string, File>,
     path: string,
-    buffer: Buffer
-  ): Immutable.Map<string, data.File> => {
-    const now = Now.now();
+    buffer: Buffer,
+    mtimeMs: number,
+  ): Immutable.Map<string, File> => {
     const oldFile = files.get(path);
     if (oldFile) {
       if (debug) console.log(`${path} has oldFile`);
@@ -123,50 +125,53 @@ function make(
         if (debug) console.log(`${path} was just written`);
         return files;
       }
-      if (buffer.equals(oldFile.bufferCell.get())) {
+      if (buffer.equals(oldFile.cell.get().buffer)) {
         if (debug) console.log(`${path} has not changed`);
         return files;
       }
 
       if (debug) console.log(`updating ${path}`);
-      fileMetadata.lastUpdateMs = now;
-      fileMetadata.lastWriteMs = now;
-      oldFile.bufferCell.setOk(buffer);
+      fileMetadata.lastUpdateMs = mtimeMs;
+      fileMetadata.lastWriteMs = mtimeMs;
+      oldFile.cell.setOk({ buffer, mtimeMs });
       return files;
     } else {
       if (debug) console.log(`adding ${path}`);
       const fileMetadata =
-        { lastUpdateMs: now, lastWriteMs: now, writing: false };
+        { lastUpdateMs: mtimeMs, lastWriteMs: mtimeMs, writing: false };
       filesMetadata.set(path, fileMetadata);
-      const file = new data.File(path, Signal.cellOk(buffer, onChange));
+      const file = new File(path, buffer, mtimeMs, onChange);
       return files.set(path, file);
     }
   }
 
   const handleNsfwEvents = async (nsfwEvents: Array<NsfwEvent>) => {
-    function readBuffer(directory: string, file: string): Promise<Buffer> {
-      return Fs.readFile(Path.resolve(directory, file));
+    function readBuffer(directory: string, file: string): Promise<{ buffer: Buffer, mtimeMs: number }> {
+      const path = Path.resolve(directory, file);
+      const buffer = Fs.readFile(path);
+      const stat = Fs.stat(path);
+      return Promise.all([buffer, stat]).then(([buffer, stat]) => ({ buffer, mtimeMs: stat.mtimeMs }));
     }
 
     const events = await Promise.all(
-      nsfwEvents.map(async function(ev: NsfwEvent): Promise<[ NsfwEvent, Buffer ]> {
+      nsfwEvents.map(async function(ev: NsfwEvent): Promise<{ ev: NsfwEvent, buffer: Buffer, mtimeMs: number }> {
         switch (ev.action) {
           case 0:   // created
           case 2: { // modified
             if (debug) console.log(`${ev.directory} / ${ev.file} was ${ev.action == 0 ? 'created' : 'modified'}`);
-            const buffer = await readBuffer(ev.directory, ev.file);
-            return [ ev, buffer ];
+            const { buffer, mtimeMs } = await readBuffer(ev.directory, ev.file);
+            return { ev, buffer, mtimeMs };
           }
 
           case 3: { // renamed
             if (debug) console.log(`${(ev as any).directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
-            const buffer = await readBuffer(ev.newDirectory, ev.newFile);
-            return [ ev, buffer ];
+            const { buffer, mtimeMs } = await readBuffer(ev.newDirectory, ev.newFile);
+            return { ev, buffer, mtimeMs };
           }
 
           case 1: { // deleted
             if (debug) console.log(`${ev.directory} / ${ev.file} was deleted`);
-            return [ ev, emptyBuffer ];
+            return { ev, buffer: emptyBuffer, mtimeMs: 0 };
           }
         }
       })
@@ -177,20 +182,20 @@ function make(
       // TODO(jaked) rethink this
       const deleted = new Set<string>();
       files =
-        events.reduce((files, [ ev, buffer ]) => {
+        events.reduce((files, { ev, buffer, mtimeMs }) => {
           switch (ev.action) {
             case 0:   // created
             case 2: { // modified
               const path = canonizePath(filesPath, ev.directory, ev.file);
               deleted.delete(path);
-              return updateFile(files, path, buffer);
+              return updateFile(files, path, buffer, mtimeMs);
             }
 
             case 3: { // renamed
               const oldPath = canonizePath(filesPath, (ev as any).directory, ev.oldFile);
               deleted.add(oldPath);
               const path = canonizePath(filesPath, ev.newDirectory, ev.newFile);
-              return updateFile(files, path, buffer);
+              return updateFile(files, path, buffer, mtimeMs);
             }
             case 1:
               const oldPath = canonizePath(filesPath, ev.directory, ev.file);
@@ -217,20 +222,20 @@ function make(
       const lastUpdateMs = Now.now();
       if (oldFile) {
         const fileMetadata = filesMetadata.get(path) || bug(`expected metadata for ${path}`);
-        if (buffer.equals(oldFile.bufferCell.get())) {
+        if (buffer.equals(oldFile.cell.get().buffer)) {
           if (debug) console.log(`${path} has not changed`);
           return files;
         } else {
           if (debug) console.log(`updating file path=${path}`);
           fileMetadata.lastUpdateMs = lastUpdateMs;
-          oldFile.bufferCell.setOk(buffer);
+          oldFile.cell.setOk({ buffer, mtimeMs: lastUpdateMs });
           return files;
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
         const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
         filesMetadata.set(path, fileMetadata);
-        const file = new data.File(path, Signal.cellOk(buffer, onChange));
+        const file = new File(path, buffer, lastUpdateMs, onChange);
         return files.set(path, file);
       }
     });
@@ -259,11 +264,11 @@ function make(
       if (newFile) {
         const newFileMetadata = filesMetadata.get(newPath) ?? bug(`rename: expected metadata for ${newPath}`);
         newFileMetadata.lastUpdateMs = lastUpdateMs;
-        newFile.bufferCell.setOk(oldFile.bufferCell.get());
+        newFile.cell.setOk(oldFile.cell.get());
       } else {
         const newFileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
         filesMetadata.set(newPath, newFileMetadata);
-        const newFile = new data.File(newPath, Signal.cellOk(oldFile.bufferCell.get(), onChange));
+        const newFile = new File(newPath, oldFile.cell.get().buffer, oldFile.cell.get().mtimeMs, onChange);
         files = files.set(newPath, newFile);
       }
 
@@ -355,7 +360,7 @@ function make(
         if (file) {
           if (debug) console.log(`writeFile(${path})`);
           Fs.mkdir(Path.dirname(filePath), { recursive: true })
-            .then(() => Fs.writeFile(filePath, file.bufferCell.get()))
+            .then(() => Fs.writeFile(filePath, file.cell.get().buffer))
             .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;

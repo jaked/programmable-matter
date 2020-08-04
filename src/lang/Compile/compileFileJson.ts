@@ -11,6 +11,7 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import * as data from '../../data';
+import File from '../../files/File';
 import { Record } from '../../components/Record';
 import lensType from './lensType';
 import lensValue from './lensValue';
@@ -78,7 +79,7 @@ function fieldComponent(field: string, type: Type) {
 }
 
 function compileJson(
-  file: data.File,
+  file: File,
   ast: ESTree.Expression,
   meta: data.Meta,
   updateFile: (path: string, buffer: Buffer) => void
@@ -135,7 +136,7 @@ function compileJson(
 }
 
 export default function compileFileJson(
-  file: data.File,
+  file: File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   updateFile: (path: string, buffer: Buffer) => void,
 ): Signal<data.CompiledFile> {

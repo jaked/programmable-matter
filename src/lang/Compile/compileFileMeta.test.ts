@@ -1,13 +1,12 @@
-import Signal from '../../util/Signal';
-import * as data from '../../data';
+import File from '../../files/File';
 
 import compileFileMeta from './compileFileMeta';
 
 it('compiles', () => {
   const compiled = compileFileMeta(
-    new data.File(
+    new File(
       'foo.meta',
-      Signal.cellOk(Buffer.from(`{ }`)),
+      Buffer.from(`{ }`),
     ),
   );
   compiled.reconcile(1);
@@ -16,9 +15,9 @@ it('compiles', () => {
 
 it('succeeds with syntax error', () => {
   const compiled = compileFileMeta(
-    new data.File(
+    new File(
       'foo.meta',
-      Signal.cellOk(Buffer.from(`#Q(*&#$)`)),
+      Buffer.from(`#Q(*&#$)`),
     ),
   );
   compiled.reconcile(1);
@@ -28,9 +27,9 @@ it('succeeds with syntax error', () => {
 it('succeeds with type error', () => {
   console.log = jest.fn();
   const compiled = compileFileMeta(
-    new data.File(
+    new File(
       'foo.meta',
-      Signal.cellOk(Buffer.from(`{ foo: 7 }`)),
+      Buffer.from(`{ foo: 7 }`),
     ),
   );
   compiled.reconcile(1);

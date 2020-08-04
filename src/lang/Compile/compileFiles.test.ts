@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import { bug } from '../../util/bug';
-import * as data from '../../data';
+import File from '../../files/File';
 import { compileFiles } from './index';
 
 const updateFile = (s: string, b: Buffer) => {}
@@ -11,9 +11,9 @@ const setSelected = (s: string) => {}
 
 it('compiles mdx', () => {
   const files = Signal.ok(Immutable.Map({
-    'foo.mdx': new data.File(
+    'foo.mdx': new File(
       'foo.mdx',
-      Signal.cellOk(Buffer.from("foo"))
+      Buffer.from("foo")
     )
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
@@ -26,9 +26,9 @@ it('compiles mdx', () => {
 
 it('compiles json', () => {
   const files = Signal.ok(Immutable.Map({
-    'foo.json': new data.File(
+    'foo.json': new File(
       'foo.json',
-      Signal.cellOk(Buffer.from("{ }"))
+      Buffer.from("{ }")
     )
   }));
   const { compiledNotes } = compileFiles(files,  updateFile, deleteFile, setSelected);
@@ -41,9 +41,9 @@ it('compiles json', () => {
 
 it('compiles meta', () => {
   const files = Signal.ok(Immutable.Map({
-    'foo.meta': new data.File(
+    'foo.meta': new File(
       'foo.meta',
-      Signal.cellOk(Buffer.from("{ }"))
+      Buffer.from("{ }")
     )
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
@@ -56,19 +56,19 @@ it('compiles meta', () => {
 
 it('compiles table', () => {
   const files = Signal.ok(Immutable.Map({
-    'cats/index.meta': new data.File(
+    'cats/index.meta': new File(
       'cats/index.meta',
-      Signal.cellOk(Buffer.from(`
+      Buffer.from(`
         {
           dirMeta: {
             dataType: '{ name: string, breed: string }'
           }
         }
-      `))
+      `)
     ),
-    'cats/index.table': new data.File(
+    'cats/index.table': new File(
       'cats/index.table',
-      Signal.cellOk(Buffer.from(`
+      Buffer.from(`
         {
           fields: [
             {
@@ -85,25 +85,25 @@ it('compiles table', () => {
             },
           ]
         }
-      `))
+      `)
     ),
-    'cats/smokey.json': new data.File(
+    'cats/smokey.json': new File(
       'cats/smokey.json',
-      Signal.cellOk(Buffer.from(`
+      Buffer.from(`
         {
           name: 'Smokey',
           breed: 'Ocicat',
         }
-      `)),
+      `),
     ),
-    'cats/danny.json': new data.File(
+    'cats/danny.json': new File(
       'cats/danny.json',
-      Signal.cellOk(Buffer.from(`
+      Buffer.from(`
         {
           name: 'Danny',
           breed: 'American shorthair',
         }
-      `)),
+      `),
     ),
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
@@ -116,17 +116,17 @@ it('compiles table', () => {
 
 it('compiles mdx + json + meta', () => {
   const files = Signal.ok(Immutable.Map({
-    'foo.mdx': new data.File(
+    'foo.mdx': new File(
       'foo.mdx',
-      Signal.cellOk(Buffer.from("foo <>data.bar</>"))
+      Buffer.from("foo <>data.bar</>")
     ),
-    'foo.meta': new data.File(
+    'foo.meta': new File(
       'foo.meta',
-      Signal.cellOk(Buffer.from(`{ dataType: '{ bar: number }' }`))
+      Buffer.from(`{ dataType: '{ bar: number }' }`)
     ),
-    'foo.json': new data.File(
+    'foo.json': new File(
       'foo.json',
-      Signal.cellOk(Buffer.from(`{ bar: 7 }`))
+      Buffer.from(`{ bar: 7 }`)
     )
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);

@@ -6,6 +6,7 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
+import File from '../../files/File';
 import * as data from '../../data';
 
 // TODO(jaked)
@@ -47,7 +48,7 @@ function compileMeta(
 }
 
 export default function compileFileMeta(
-  file: data.File,
+  file: File,
 ): Signal<data.CompiledFile> {
   const ast = file.content.map(Parse.parseExpression);
 

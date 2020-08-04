@@ -11,6 +11,7 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import sortMdx from './sortMdx';
 import * as data from '../../data';
+import File from '../../files/File';
 
 import metaForPath from './metaForPath';
 
@@ -48,7 +49,7 @@ function findImports(ast: MDXHAST.Node) {
 }
 
 export default function compileFileMdx(
-  file: data.File,
+  file: File,
   compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
   compiledNotes: Signal<data.CompiledNotes>,
   setSelected: (note: string) => void,

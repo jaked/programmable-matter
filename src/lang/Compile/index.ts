@@ -6,6 +6,7 @@ import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
 import * as data from '../../data';
+import File from '../../files/File';
 
 import compileFile from './compileFile';
 import groupFilesByName from './groupFilesByName';
@@ -50,7 +51,7 @@ export function compileFiles(
   compiledFilesRef.set(compiledFiles);
 
   const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByName, (files, name) => {
-    function fileForType(type: data.Types): data.File | undefined {
+    function fileForType(type: data.Types): File | undefined {
       // TODO(jaked) fix names for index files, then just use name here instead of files
       return files.find(file => file.type === type);
     }

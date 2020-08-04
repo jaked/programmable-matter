@@ -4,6 +4,7 @@ import Try from '../../util/Try';
 import Type from '../Type';
 import * as Render from '../Render';
 import * as data from '../../data';
+import File from '../../files/File';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
 
@@ -81,8 +82,8 @@ function compileJpeg(
 }
 
 export default function compileFileJpeg(
-  file: data.File
+  file: File
 ): Signal<data.CompiledFile> {
-  return file.bufferCell.map(buffer => compileJpeg(buffer))
+  return file.cell.map(({ buffer }) => compileJpeg(buffer))
     .map(compiled => ({ ...compiled, ast: Try.ok(null) }));
 }

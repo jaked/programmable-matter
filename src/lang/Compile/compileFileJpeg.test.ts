@@ -2,8 +2,7 @@
  * @jest-environment jsdom
  */
 
-import Signal from '../../util/Signal';
-import * as data from '../../data';
+import File from '../../files/File';
 
 import compileFileJpeg from './compileFileJpeg';
 
@@ -14,9 +13,9 @@ it('compiles', () => {
   window.URL.createObjectURL = () => '';
 
   const compiled = compileFileJpeg(
-    new data.File(
+    new File(
       'foo.jpeg',
-      Signal.cellOk(jpeg),
+      jpeg,
     ),
   );
   compiled.reconcile(1);

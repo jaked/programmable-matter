@@ -53,20 +53,20 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
         const regexp = RegExp(escaped, 'i');
 
-        function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
-          return Signal.label(note.name,
+        function matchesSearch(note: data.CompiledNote): Signal<{ matches: boolean, note: data.CompiledNote }> {
+          return Signal.label(`match ${note.name}`,
             Signal.join(
               note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
               note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
               note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
               Signal.ok(regexp.test(note.name)),
-            ).map(bools => [bools.some(bool => bool), note])
+            ).map(bools => ({ matches: bools.some(bool => bool), note }))
           );
         }
         // TODO(jaked) wrap this up in a function on Signal
         matchingNotes = Signal.label('matches',
           Signal.joinImmutableMap(Signal.ok(notes.map(matchesSearch)))
-            .map(map => map.filter(([bool, note]) => bool).map(([bool, note]) => note)
+            .map(map => map.filter(({ matches }) => matches).map(({ note }) => note)
           )
         );
       } else {
