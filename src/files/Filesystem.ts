@@ -1,6 +1,6 @@
 import fs from 'fs';
+import timers from 'timers';
 import * as Path from 'path';
-import * as Timers from 'timers';
 import * as Immutable from 'immutable';
 import nsfw from 'nsfw';
 import Signal from '../util/Signal';
@@ -40,6 +40,16 @@ function canonizePath(filesPath: string, directory: string, file: string) {
   return Path.resolve('/', Path.relative(filesPath, Path.resolve(directory, file)));
 }
 
+type Now = {
+  now: () => number,
+}
+
+type Timers = {
+  // TODO(jaked) can we use an abstract type instead of NodeJS.Timeout?
+  setInterval: (callback: () => void, delay: number) => NodeJS.Timeout,
+  clearInterval: (timeout: NodeJS.Timeout) => void,
+}
+
 type Fs = {
   readdir: (path: string, config: { encoding: 'utf8' }) => Promise<string[]>,
   stat: (path: string) => Promise<{
@@ -49,6 +59,7 @@ type Fs = {
   readFile: (path: string) => Promise<Buffer>,
   writeFile: (path: string, buffer: Buffer) => Promise<void>,
   unlink: (path: string) => Promise<void>,
+  mkdir: (path: string, options?: { recursive?: boolean }) => Promise<void>,
 }
 
 type Nsfw = (
@@ -58,7 +69,8 @@ type Nsfw = (
     debounceMS: number
   }
 ) => Promise<{
-
+  start: () => Promise<void>,
+  stop: () => Promise<void>,
 }>
 
 type Filesystem = {
@@ -74,6 +86,8 @@ type Filesystem = {
 function make(
   filesPath: string,
   onChange: () => void,
+  Now: Now = { now: Date.now },
+  Timers: Timers = timers,
   Fs: Fs = fs.promises,
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
@@ -337,16 +351,18 @@ function make(
 
         const lastWriteMs = Date.now();
         const file = filesCell.get().get(path);
+        const filePath = Path.join(filesPath, path);
         if (file) {
           if (debug) console.log(`writeFile(${path})`);
-          Fs.writeFile(Path.join(filesPath, path), file.bufferCell.get())
+          Fs.mkdir(Path.dirname(filePath), { recursive: true })
+            .then(() => Fs.writeFile(filePath, file.bufferCell.get()))
             .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
             });
         } else {
           if (debug) console.log(`unlink(${path})`);
-          Fs.unlink(Path.join(filesPath, path))
+          Fs.unlink(filePath)
             .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
@@ -364,7 +380,8 @@ function make(
     await handleNsfwEvents(events);
     deleteMissing(events);
     timeout = Timers.setInterval(timerCallback, 1000);
-    (await watcher).start();
+    try { (await watcher).start() }
+    catch (e) { console.log(e) }
   }
 
   const stop = async () => {
@@ -372,7 +389,8 @@ function make(
     // TODO(jaked) ensure no updates after final write
     timerCallback(true);
     if (timeout) Timers.clearInterval(timeout);
-    (await watcher).stop();
+    try { (await watcher).stop() }
+    catch (e) { console.log(e) }
   }
 
   return {
