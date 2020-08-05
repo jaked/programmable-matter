@@ -25,7 +25,7 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   const entry = data.notes[index];
   return <Note
     key={entry.name}
-    label={Name.basename(entry.name)}
+    label={entry.name}
     err={entry.problems}
     selected={entry.name === data.selected}
     onSelect={ () => data.onSelect(entry.name) }
