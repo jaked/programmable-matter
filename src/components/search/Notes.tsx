@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box as BoxBase } from 'rebass';
+import { Box as BoxBase, Flex as FlexBase } from 'rebass';
 import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
@@ -7,13 +7,35 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import * as data from '../../data';
-import Note from './Note';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
   outline: 'none',
   height: '100%'
 });
+
+const Label = styled(BoxBase)`
+  white-space: nowrap;
+  text-overflow: ellipsis;
+`;
+
+const SubLabel = styled(BoxBase)`
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-left: 10px;
+  font-size: small;
+`;
+
+const Flex = styled(FlexBase)`
+  :hover {
+    cursor: pointer;
+  }
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  align-items: center;
+`;
+
 
 type NoteFnProps = {
   index: number,
@@ -22,15 +44,29 @@ type NoteFnProps = {
 }
 
 const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
-  const entry = data.notes[index];
-  return <Note
-    key={entry.name}
-    label={entry.name}
-    err={entry.problems}
-    selected={entry.name === data.selected}
-    onSelect={ () => data.onSelect(entry.name) }
-    style={style}
-  />;
+  const note = data.notes[index];
+  const selected = note.name === data.selected;
+  const err = Signal.useSignal(note.problems);
+  const backgroundColor =
+    err ?
+      (selected ? '#cc8080' : '#ffc0c0') :
+      (selected ? '#cccccc' : '#ffffff');
+  const dirname = Name.dirname(note.name);
+  const dirLabel = (dirname !== '/') ? dirname.substr(1) : null;
+  console.log(`dirLabel = ${dirLabel}`);
+
+  return (
+    <Flex
+      key={note.name}
+      padding={2}
+      backgroundColor={backgroundColor}
+      style={style}
+      onClick={() => data.onSelect(note.name)}
+    >
+      <Label>{Name.basename(note.name)}</Label>
+      <SubLabel>{dirLabel}</SubLabel>
+    </Flex>
+  );
 });
 
 interface Props {

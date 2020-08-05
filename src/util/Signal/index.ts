@@ -686,6 +686,12 @@ module Signal {
       );
     });
   }
+
+  export function useSignal<T>(signal: Signal<T>): T {
+    const level = React.useContext(Signal.level);
+    signal.reconcile(level);
+    return signal.get();
+  }
 }
 
 export default Signal;
