@@ -84,6 +84,6 @@ function compileJpeg(
 export default function compileFileJpeg(
   file: File
 ): Signal<data.CompiledFile> {
-  return file.cell.map(({ buffer }) => compileJpeg(buffer))
+  return file.buffer.map(buffer => compileJpeg(buffer))
     .map(compiled => ({ ...compiled, ast: Try.ok(null) }));
 }

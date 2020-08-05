@@ -6,7 +6,8 @@ import { Types } from '../data';
 
 export default class File {
   path: string;
-  cell: Signal.Cell<{ buffer: Buffer; mtimeMs: number; }>;
+  buffer: Signal.Cell<Buffer>;
+  mtimeMs: Signal.Cell<number>;
 
   constructor(
     path: string,
@@ -15,11 +16,12 @@ export default class File {
     onChange: () => void = () => { }
   ) {
     this.path = path;
-    this.cell = Signal.cellOk({ buffer, mtimeMs }, onChange);
+    this.buffer = Signal.cellOk(buffer, onChange);
+    this.mtimeMs = Signal.cellOk(mtimeMs, onChange);
   }
 
   get content() {
-    return this.cell.map(cell => cell.buffer.toString('utf8'));
+    return this.buffer.map(buffer => buffer.toString('utf8'));
   }
 
 

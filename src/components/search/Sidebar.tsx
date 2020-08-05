@@ -47,36 +47,47 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       props.compiledNotes,
       searchCell,
     ).flatMap(([notes, search]) => {
-      let matchingNotes: Signal<data.CompiledNotes>;
-      if (search) {
-        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-        const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
-        const regexp = RegExp(escaped, 'i');
+      // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+      const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      const regexp = RegExp(escaped, 'i');
 
-        function matchesSearch(note: data.CompiledNote): Signal<{ matches: boolean, note: data.CompiledNote }> {
-          return Signal.label(`match ${note.name}`,
-            Signal.join(
-              note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-              note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
-              note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
-              Signal.ok(regexp.test(note.name)),
-            ).map(bools => ({ matches: bools.some(bool => bool), note }))
-          );
-        }
-        // TODO(jaked) wrap this up in a function on Signal
-        matchingNotes = Signal.label('matches',
-          Signal.joinImmutableMap(Signal.ok(notes.map(matchesSearch)))
-            .map(map => map.filter(({ matches }) => matches).map(({ note }) => note)
-          )
+      function matchesSearch(note: data.CompiledNote): Signal<{
+        matches: boolean,
+        mtimeMs: number,
+        note: data.CompiledNote
+      }> {
+        const matches = search ?
+          Signal.join(
+            note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
+            note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
+            note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
+            Signal.ok(regexp.test(note.name)),
+          ).map(bools => bools.some(bool => bool)) :
+          Signal.ok(true);
+        const mtimeMs = Signal.join(
+          note.files.mdx ? note.files.mdx.mtimeMs : Signal.ok(0),
+          note.files.json ? note.files.json.mtimeMs : Signal.ok(0),
+          note.files.meta ? note.files.meta.mtimeMs : Signal.ok(0),
+        ).map(mtimeMss => Math.max(...mtimeMss));
+
+        return Signal.label(`match ${note.name}`,
+          Signal.join(matches, mtimeMs)
+          .map(([matches, mtimeMs]) => ({ matches, note, mtimeMs }))
         );
-      } else {
-        matchingNotes = Signal.ok(notes);
       }
 
+      // TODO(jaked) wrap this up in a function on Signal
+      const matchingNotes = Signal.label('matches',
+        Signal.joinImmutableMap(Signal.ok(notes.map(matchesSearch)))
+          .map(map => map.filter(({ matches }) => matches))
+      );
+
       return Signal.label('sort',
-        matchingNotes.map(matchingNotes => matchingNotes.valueSeq().toArray().sort((a, b) =>
-          a.name < b.name ? -1 : 1
-        ))
+        matchingNotes.map(matchingNotes =>
+          matchingNotes.valueSeq().toArray()
+            .sort((a, b) => a.mtimeMs > b.mtimeMs ? -1 : 1 )
+            .map(({ note }) => note)
+        )
       );
     })
   );

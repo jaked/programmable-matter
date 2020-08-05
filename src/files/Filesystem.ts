@@ -125,7 +125,7 @@ function make(
         if (debug) console.log(`${path} was just written`);
         return files;
       }
-      if (buffer.equals(oldFile.cell.get().buffer)) {
+      if (buffer.equals(oldFile.buffer.get())) {
         if (debug) console.log(`${path} has not changed`);
         return files;
       }
@@ -133,7 +133,8 @@ function make(
       if (debug) console.log(`updating ${path}`);
       fileMetadata.lastUpdateMs = mtimeMs;
       fileMetadata.lastWriteMs = mtimeMs;
-      oldFile.cell.setOk({ buffer, mtimeMs });
+      oldFile.buffer.setOk(buffer);
+      oldFile.mtimeMs.setOk(mtimeMs);
       return files;
     } else {
       if (debug) console.log(`adding ${path}`);
@@ -222,13 +223,14 @@ function make(
       const lastUpdateMs = Now.now();
       if (oldFile) {
         const fileMetadata = filesMetadata.get(path) || bug(`expected metadata for ${path}`);
-        if (buffer.equals(oldFile.cell.get().buffer)) {
+        if (buffer.equals(oldFile.buffer.get())) {
           if (debug) console.log(`${path} has not changed`);
           return files;
         } else {
           if (debug) console.log(`updating file path=${path}`);
           fileMetadata.lastUpdateMs = lastUpdateMs;
-          oldFile.cell.setOk({ buffer, mtimeMs: lastUpdateMs });
+          oldFile.buffer.setOk(buffer);
+          oldFile.mtimeMs.setOk(lastUpdateMs);
           return files;
         }
       } else {
@@ -264,11 +266,12 @@ function make(
       if (newFile) {
         const newFileMetadata = filesMetadata.get(newPath) ?? bug(`rename: expected metadata for ${newPath}`);
         newFileMetadata.lastUpdateMs = lastUpdateMs;
-        newFile.cell.setOk(oldFile.cell.get());
+        newFile.buffer.setOk(oldFile.buffer.get());
+        newFile.mtimeMs.setOk(newFile.mtimeMs.get());
       } else {
         const newFileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
         filesMetadata.set(newPath, newFileMetadata);
-        const newFile = new File(newPath, oldFile.cell.get().buffer, oldFile.cell.get().mtimeMs, onChange);
+        const newFile = new File(newPath, oldFile.buffer.get(), oldFile.mtimeMs.get(), onChange);
         files = files.set(newPath, newFile);
       }
 
@@ -360,7 +363,7 @@ function make(
         if (file) {
           if (debug) console.log(`writeFile(${path})`);
           Fs.mkdir(Path.dirname(filePath), { recursive: true })
-            .then(() => Fs.writeFile(filePath, file.cell.get().buffer))
+            .then(() => Fs.writeFile(filePath, file.buffer.get()))
             .finally(() => {
               fileMetadata.lastWriteMs = lastWriteMs;
               fileMetadata.writing = false;
