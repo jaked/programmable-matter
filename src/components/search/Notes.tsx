@@ -17,11 +17,13 @@ const Box = styled(BoxBase)({
 const Label = styled(BoxBase)`
   white-space: nowrap;
   text-overflow: ellipsis;
+  overflow: hidden;
 `;
 
 const SubLabel = styled(BoxBase)`
   white-space: nowrap;
   text-overflow: ellipsis;
+  overflow: hidden;
   padding-left: 10px;
   font-size: small;
 `;
@@ -53,7 +55,6 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
       (selected ? '#cccccc' : '#ffffff');
   const dirname = Name.dirname(note.name);
   const dirLabel = (dirname !== '/') ? dirname.substr(1) : null;
-  console.log(`dirLabel = ${dirLabel}`);
 
   return (
     <Flex
