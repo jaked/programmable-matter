@@ -54,7 +54,8 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
       (selected ? '#cc8080' : '#ffc0c0') :
       (selected ? '#cccccc' : '#ffffff');
   const dirname = Name.dirname(note.name);
-  const dirLabel = (dirname !== '/') ? dirname.substr(1) : null;
+  const focusDir = data.focusDir ? data.focusDir : '/';
+  const dirLabel = Name.relative(focusDir, dirname);
 
   return (
     <Flex
@@ -62,10 +63,9 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
       padding={2}
       backgroundColor={backgroundColor}
       style={style}
-      onClick={() => data.onSelect(note.name)}
     >
-      <Label>{Name.basename(note.name)}</Label>
-      <SubLabel>{dirLabel}</SubLabel>
+      <Label onClick={() => data.onSelect(note.name)}>{Name.basename(note.name)}</Label>
+      { dirLabel ? <SubLabel onClick={() => data.onFocusDir(Name.dirname(note.name))}>{dirLabel}</SubLabel> : null }
     </Flex>
   );
 });
@@ -74,6 +74,8 @@ interface Props {
   notes: data.CompiledNote[];
   selected: string | null;
   onSelect: (name: string) => void;
+  focusDir: string | null;
+  onFocusDir: (name: string | null) => void;
   focusEditor: () => void;
 }
 

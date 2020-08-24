@@ -113,7 +113,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
   }))
 
   const [sideBarWidth, mainPaneWidth] =
-    props.app.sideBarVisible ? [ 1/6, 5/6 ] : [ 0, 1 ];
+    props.app.sideBarVisible ? [ 1/5, 4/5 ] : [ 0, 1 ];
   const [showEditorPane, showDisplayPane] = (
     props.app.mainPaneView === 'code' ? [true, false] :
     props.app.mainPaneView === 'display' ? [false, true] :

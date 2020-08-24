@@ -34,6 +34,11 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     focusNotes,
   }));
 
+  const focusDirCell = Signal.cellOk<string | null>(null, props.render);
+  const setFocusDir = (focus: string | null) => {
+    focusDirCell.setOk(focus);
+  }
+
   const searchCell = Signal.cellOk<string>('', props.render);
   const setSearch = (search: string) => {
     searchCell.setOk(search);
@@ -45,19 +50,22 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       // map matching function over individual note signals
       // so we only need to re-match notes that have changed
       props.compiledNotes,
+      focusDirCell,
       searchCell,
-    ).flatMap(([notes, search]) => {
+    ).flatMap(([notes, focusDir, search]) => {
       // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
       const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
       const regexp = RegExp(escaped, 'i');
 
+      // TODO(jaked) match on source files not compiled note
       function matchesSearch(note: data.CompiledNote): Signal<{
         matches: boolean,
         mtimeMs: number,
         note: data.CompiledNote
       }> {
-        const matches = search ?
-          Signal.join(
+        const matches =
+          focusDir && !note.name.startsWith(focusDir + '/') ? Signal.ok(false) :
+          search ? Signal.join(
             note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
             note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
             note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
@@ -129,6 +137,8 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
   return (<>
     <SearchBox
       ref={searchBoxRef}
+      focusDir={focusDirCell}
+      setFocusDir={setFocusDir}
       search={searchCell}
       onSearch={setSearch}
       onKeyDown={onKeyDown}
@@ -139,6 +149,8 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       notes={matchingNotesSignal}
       selected={props.selected}
       onSelect={props.setSelected}
+      focusDir={focusDirCell}
+      onFocusDir={setFocusDir}
       focusEditor={props.focusEditor}
     />
   </>);

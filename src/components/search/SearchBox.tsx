@@ -4,11 +4,21 @@ import styled from 'styled-components';
 import Signal from '../../util/Signal';
 
 type Props = {
+  focusDir: string | null,
+  setFocusDir: (focusDir: string | null) => void,
   search: string,
   onSearch: (search: string) => void,
   onKeyDown: (e: React.KeyboardEvent) => void,
   onNewNote: (name: string) => void,
 }
+
+const FocusDir = styled(Box)`
+  white-space: nowrap;
+  font-size: small;
+  :hover {
+    cursor: pointer;
+  }
+`;
 
 const Input = styled.input({
   padding: '2px',
@@ -22,6 +32,7 @@ const Input = styled.input({
 const OuterBox = styled(Flex)({
   padding: '4px',
   borderBottom: '1px solid #cccccc',
+  alignItems: 'center',
 });
 
 const InputBox = styled(Box)({
@@ -62,9 +73,10 @@ const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
     }
   }));
 
-  const { search, onSearch, onKeyDown, onNewNote } = props;
+  const { focusDir, setFocusDir, search, onSearch, onKeyDown, onNewNote } = props;
   return (
     <OuterBox>
+      { focusDir ? <FocusDir onClick={() => setFocusDir(null)}>{focusDir + '/'}</FocusDir> : null }
       <InputBox>
         <Input
           ref={inputRef}
