@@ -94,7 +94,7 @@ const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
       </InputBox>
       <Button
         onClick={() =>
-          onNewNote(inputRef.current ? inputRef.current.value : '')
+          inputRef.current && onNewNote(inputRef.current.value)
         }
       >+</Button>
     </OuterBox>

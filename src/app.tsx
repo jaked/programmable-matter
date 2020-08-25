@@ -215,7 +215,6 @@ export class App {
   public onNewNoteSignal = this.compiledNotesSignal.map(compiledNotes =>
     (name: string) => {
       name = Name.normalize(name);
-      if (name === '/') name = '/untitled';
       if (compiledNotes.has(name)) {
         for (let i = 1; ; i++) {
           const newName = `${name} (${i})`;

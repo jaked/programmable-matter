@@ -1,5 +1,6 @@
 import React from 'react';
 
+import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 
 import Notes from './Notes';
@@ -100,10 +101,20 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     })
   );
 
+  const onNewNote = Signal.join(props.onNewNote, focusDirCell).map(([onNewNote, focusDir]) =>
+    (name: string) => {
+      name = name.trim();
+      if (name === '') name = 'untitled';
+      if (focusDir)
+        name = Name.join(focusDir, name);
+      onNewNote(name);
+    }
+  );
+
   const onKeyDown = Signal.join(
     searchCell,
     matchingNotesSignal,
-    props.onNewNote,
+    onNewNote,
   ).map(([search, matchingNotes, onNewNote]) =>
     (e: React.KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
@@ -142,7 +153,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       search={searchCell}
       onSearch={setSearch}
       onKeyDown={onKeyDown}
-      onNewNote={props.onNewNote}
+      onNewNote={onNewNote}
     />
     <Notes
       ref={notesRef}
