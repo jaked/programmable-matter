@@ -27,6 +27,7 @@ const Input = styled.input({
   outline: 'none',
   fontFamily: 'inherit',
   fontSize: 'inherit',
+  width: '100%',
 });
 
 const OuterBox = styled(Flex)({
@@ -37,6 +38,7 @@ const OuterBox = styled(Flex)({
 
 const InputBox = styled(Box)({
   flex: 1,
+  minWidth: 0,
 });
 
 const Button = styled(Box)`
