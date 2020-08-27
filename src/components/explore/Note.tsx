@@ -24,7 +24,7 @@ const Flex = styled(BaseFlex)`
   overflow: hidden;
 `;
 
-export default Signal.lift<Props>(({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style }) => {
+export default Signal.liftComponent<Props>(({ label, expanded, indent, err, selected, onSelect, toggleDirExpanded, onFocusDir, style }) => {
   const backgroundColor =
     err ?
       (selected ? '#cc8080' : '#ffc0c0') :

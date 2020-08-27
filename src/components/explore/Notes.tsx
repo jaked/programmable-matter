@@ -60,7 +60,7 @@ interface Props {
   toggleDirExpanded: (name: string) => void;
 }
 
-export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
+export default Signal.liftRefForwardingComponent<HTMLDivElement, Props>((props, ref) => {
   function nextNote() {
     const length = props.entries.length;
     let currIndex = props.entries.findIndex(note => note.type === 'note' && note.note.name === props.selected);

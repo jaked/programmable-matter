@@ -62,7 +62,7 @@ type SearchBox = {
   focus: () => void
 };
 
-const SearchBox = Signal.liftForwardRef<SearchBox, Props>((props, ref) => {
+const SearchBox = Signal.liftRefForwardingComponent<SearchBox, Props>((props, ref) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useImperativeHandle(ref, () => ({

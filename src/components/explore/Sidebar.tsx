@@ -43,7 +43,7 @@ type FocusDir = {
   onSelect: (name: string | null) => void;
 }
 
-const FocusDir = Signal.lift<FocusDir>(props => {
+const FocusDir = Signal.liftComponent<FocusDir>(props => {
   if (props.focusDir !== null)
     return (
       <Flex

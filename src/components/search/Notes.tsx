@@ -79,7 +79,7 @@ interface Props {
   focusEditor: () => void;
 }
 
-export default Signal.liftForwardRef<HTMLDivElement, Props>((props, ref) => {
+export default Signal.liftRefForwardingComponent<HTMLDivElement, Props>((props, ref) => {
   function nextNote() {
     const length = props.notes.length;
     let currIndex = props.notes.findIndex(note => note.name === props.selected);

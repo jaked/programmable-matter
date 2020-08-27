@@ -27,7 +27,7 @@ type Props = {
   selectedNoteProblems: { meta?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
 }
 
-export default Signal.lift<Props>(props => {
+export default Signal.liftComponent<Props>(props => {
   if (props.name === null)
     return <HeaderBox />
   else

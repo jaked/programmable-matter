@@ -605,17 +605,17 @@ module Signal {
 
   // inspired by Focal.lift
 
-  export type Lifted<T> = {
+  export type LiftedProps<T> = {
     [K in keyof T]: T[K] | Signal<T[K]>
   }
 
-  export function lift<Props>(
+  export function liftComponent<Props>(
     component: React.FunctionComponent<Props>
   ) {
     // TODO(jaked) fast path if no props / children are Signals?
     // TODO(jaked) tighten up types?
 
-    return (props: Lifted<Props>) => {
+    return (props: LiftedProps<Props>) => {
       // memoize on props to avoid recreating on level changes
       const signal = React.useMemo(
         () =>
@@ -648,13 +648,13 @@ module Signal {
     }
   }
 
-  export function liftForwardRef<Ref, Props>(
+  export function liftRefForwardingComponent<Ref, Props>(
     component: React.RefForwardingComponent<Ref, Props>
   ) {
     // create once to avoid remounts
     const memoComponent = React.forwardRef(component);
 
-    return React.forwardRef<Ref, Lifted<Props>>((props, ref) => {
+    return React.forwardRef<Ref, LiftedProps<Props>>((props, ref) => {
       // memoize on props to avoid recreating on level changes
       const signal = React.useMemo(
         () =>
