@@ -132,6 +132,8 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
               selected={props.app.selectedCell}
               setSelected={props.app.setSelected}
               maybeSetSelected={props.app.maybeSetSelected}
+              focusDir={props.app.focusDirCell}
+              setFocusDir={props.app.setFocusDir}
               onNewNote={props.app.onNewNoteSignal}
               focusEditor={focusEditor}
             />

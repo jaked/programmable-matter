@@ -5,26 +5,28 @@ import { ipcRenderer as ipc } from 'electron';
 
 import * as Immutable from 'immutable';
 
-import { bug } from './util/bug';
-import Signal from './util/Signal';
-import * as Name from './util/Name';
-import Filesystem from './files/Filesystem';
+import { bug } from '../util/bug';
+import Signal from '../util/Signal';
+import * as Name from '../util/Name';
+import Filesystem from '../files/Filesystem';
 
-import * as Compile from './lang/Compile';
+import * as Compile from '../lang/Compile';
 
-import Server from './server';
+import Server from '../server';
 
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
-import Main from './components/Main';
-import { Session, emptySession } from './components/react-simple-code-editor';
+import Main from '../components/Main';
+import { Session, emptySession } from '../components/react-simple-code-editor';
 
-import * as GTasks from './integrations/gtasks';
+import * as GTasks from '../integrations/gtasks';
 
-import ghPages from './publish/ghPages';
+import ghPages from '../publish/ghPages';
 
 import Unhandled from 'electron-unhandled';
+
+import mkNewNote from './newNote';
 
 Unhandled();
 
@@ -140,6 +142,11 @@ export class App {
     }
   }
 
+  public focusDirCell = Signal.cellOk<string | null>(null, this.render);
+  public setFocusDir = (focus: string | null) => {
+    this.focusDirCell.setOk(focus);
+  }
+
   public statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
   public setStatus = (status: string | undefined) => {
     this.statusCell.setOk(status);
@@ -212,23 +219,15 @@ export class App {
     };
   });
 
-  public onNewNoteSignal = this.compiledNotesSignal.map(compiledNotes =>
-    (name: string) => {
-      name = Name.normalize(name);
-      if (compiledNotes.has(name)) {
-        for (let i = 1; ; i++) {
-          const newName = `${name} (${i})`;
-          if (!compiledNotes.has(newName)) {
-            name = newName;
-            break;
-          }
-        }
-      }
-      this.filesystem.update(`${name}.mdx`, Buffer.from('', 'utf8'));
+  public onNewNoteSignal = mkNewNote({
+    fsUpdate: this.filesystem.update,
+    notes: this.compiledNotesSignal,
+    focusDir: this.focusDirCell,
+    callback: (name: string) => {
       this.setSelected(name);
       this.setEditName(name);
     }
-  );
+  });
 
   public selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
@@ -320,12 +319,9 @@ export class App {
 
   private reactRender = () => {
     ReactDOM.render(
-      <Signal.level.Provider value={this.level}>
-        <Main
-          ref={this.mainRef}
-          app={this}
-        />
-      </Signal.level.Provider>,
+      React.createElement(Signal.level.Provider, { value: this.level },
+        React.createElement(Main, { ref: this.mainRef, app: this })
+      ),
       document.getElementById('main')
     );
   }

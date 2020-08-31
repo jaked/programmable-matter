@@ -1,6 +1,5 @@
 import React from 'react';
 
-import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 
 import Notes from './Notes';
@@ -13,6 +12,8 @@ type Props = {
   selected: Signal<string | null>;
   setSelected: (s: string | null) => void;
   maybeSetSelected: (s: string) => boolean;
+  focusDir: Signal<string | null>;
+  setFocusDir: (s: string | null) => void;
   onNewNote: Signal<(s: string) => void>;
   focusEditor: () => void;
 }
@@ -35,11 +36,6 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     focusNotes,
   }));
 
-  const focusDirCell = Signal.cellOk<string | null>(null, props.render);
-  const setFocusDir = (focus: string | null) => {
-    focusDirCell.setOk(focus);
-  }
-
   const searchCell = Signal.cellOk<string>('', props.render);
   const setSearch = (search: string) => {
     searchCell.setOk(search);
@@ -51,7 +47,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       // map matching function over individual note signals
       // so we only need to re-match notes that have changed
       props.compiledNotes,
-      focusDirCell,
+      props.focusDir,
       searchCell,
     ).flatMap(([notes, focusDir, search]) => {
       // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
@@ -101,20 +97,10 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     })
   );
 
-  const onNewNote = Signal.join(props.onNewNote, focusDirCell).map(([onNewNote, focusDir]) =>
-    (name: string) => {
-      name = name.trim();
-      if (name === '') name = 'untitled';
-      if (focusDir)
-        name = Name.join(focusDir, name);
-      onNewNote(name);
-    }
-  );
-
   const onKeyDown = Signal.join(
     searchCell,
     matchingNotesSignal,
-    onNewNote,
+    props.onNewNote,
   ).map(([search, matchingNotes, onNewNote]) =>
     (e: React.KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
@@ -148,20 +134,20 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
   return (<>
     <SearchBox
       ref={searchBoxRef}
-      focusDir={focusDirCell}
-      setFocusDir={setFocusDir}
+      focusDir={props.focusDir}
+      setFocusDir={props.setFocusDir}
       search={searchCell}
       onSearch={setSearch}
       onKeyDown={onKeyDown}
-      onNewNote={onNewNote}
+      onNewNote={props.onNewNote}
     />
     <Notes
       ref={notesRef}
       notes={matchingNotesSignal}
       selected={props.selected}
       onSelect={props.setSelected}
-      focusDir={focusDirCell}
-      onFocusDir={setFocusDir}
+      focusDir={props.focusDir}
+      onFocusDir={props.setFocusDir}
       focusEditor={props.focusEditor}
     />
   </>);
