@@ -29,7 +29,7 @@ describe('renderMdx', () => {
         valueEnv,
         exportValue,
       );
-      rendered.reconcile(1);
+      rendered.reconcile();
 
       expect(rendered.value.type).toBe('ok');
     }

@@ -12,7 +12,6 @@ import Signal from './util/Signal';
 import * as Render from './lang/Render';
 
 export default class Server {
-  level: number;
   compiledNotes: Signal<data.CompiledNotes>;
   browserSync: BrowserSync.BrowserSyncInstance;
 
@@ -21,7 +20,6 @@ export default class Server {
   ) {
     this.handle = this.handle.bind(this);
 
-    this.level = 0;
     this.compiledNotes = compiledNotes;
     this.browserSync = BrowserSync.create();
     this.browserSync.init({
@@ -33,9 +31,8 @@ export default class Server {
     });
   }
 
-  reconcile(level: number) {
-    this.compiledNotes.reconcile(this.level)
-    this.level = level;
+  reconcile() {
+    this.compiledNotes.reconcile()
 
     // TODO(jaked)
     // we reload all pages on every change; should only reload
@@ -54,7 +51,7 @@ export default class Server {
     if (name === '.') name = '';
 
     const note = this.compiledNotes.get().get(name);
-    if (note) note.meta.reconcile(this.level);
+    if (note) note.meta.reconcile();
     if (!note || !note.meta.get().publish) {
       res.statusCode = 404;
       res.end(`no note ${name}`);
@@ -62,14 +59,14 @@ export default class Server {
       // TODO(jaked)
       // don't rely on URL here, notes should track their own content type
       if (ext === '.jpeg') {
-        note.exportValue.reconcile(this.level);
+        note.exportValue.reconcile();
         const buffer = note.exportValue.get().buffer;
-        buffer.reconcile(this.level);
+        buffer.reconcile();
         res.setHeader("Content-Type", "image/jpeg");
         res.end(buffer.get());
       } else {
         // TODO(jaked) don't blow up on failed notes
-        note.rendered.reconcile(this.level);
+        note.rendered.reconcile();
         const node = note.rendered.get();
 
         const nodeWithContext =

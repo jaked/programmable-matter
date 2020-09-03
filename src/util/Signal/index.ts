@@ -19,16 +19,10 @@ const unreconciled = Try.err(new Error('unreconciled'));
  * versions of their children, in order to determine if they need to be
  * recomputed.
  *
- * A signal is reconciled with respect to a "level", a
- * monotonically-increasing counter. To reconcile a signal, call
- * `reconcile` with a level larger than any level in the DAG rooted at
- * the signal. A signal's level is no larger than the levels of its
- * children.
- *
- * When `reconcile` is called on a signal, if it is already at the given
- * level then nothing need be done, so signals reached by more than one
+ * When `reconcile` is called on a signal, if it is not dirty
+ * then nothing need be done, so signals reached by more than one
  * path from the root are reconciled only once. Otherwise, the signal's
- * children are reconciled to the given level, and if any of their versions
+ * children are reconciled and if any of their versions
  * have changed, the signal is recomputed.
  *
  * Some nodes in the DAG may not be reached by a call to `reconcile`.
@@ -51,42 +45,76 @@ interface Signal<T> {
   liftToTry(): Signal<Try<T>>;
 
   /**
-   * value of this signal, up-to-date with respect to `level`.
+   * value of this signal
    */
   value: Try<T>;
 
-  // TODO(jaked) how can we make these private to impl?
+  // TODO(jaked) how can we make these private to impl but still testable?
 
   /**
+   * if `isDirty`, signal must be reconciled before `value` is valid
+   */
+  isDirty: boolean;
+
+  /**
+   * add a dependency on this signal.
+   * when the signal is dirtied, `dirty` is called on dependencies and dependencies are removed.
+   * dependencies should call `depend` again if they still depend on signal.
+   */
+  depend: (d: { dirty: () => void }) => void
+
+  /**
+   * remove a dependency on this signal.
+   */
+  undepend: (d: { dirty: () => void }) => void
+
+   /**
    * if a reconciliation changes `value`, `version` is incremented.
    */
   version: number;
 
   /**
-   * level of the last `reconcile` on this signal.
+   * reconcile this signal, recomputing `value` as needed.
    */
-  level: number;
-
-  /**
-   * reconcile this signal to `level`, recomputing `value` as needed.
-   * if signal is already at (or above) `level` it need not be recomputed.
-   *
-   * `reconcile` must be called with monotonically increasing numbers
-   * greater than 0.
-   */
-  reconcile(level: number): void;
+  reconcile(): void;
 }
 
 function equal(v1: any, v2: any): boolean {
   return Immutable.is(v1, v2);
 }
 
+function impl<T>(s: Signal<T>): SignalImpl<T> {
+  if (!(s instanceof SignalImpl))
+    bug(`expected SignalImpl`);
+  return s;
+}
+
 abstract class SignalImpl<T> implements Signal<T> {
   abstract get(): T;
   abstract value: Try<T>;
   abstract version: number;
-  abstract level: number;
-  abstract reconcile(level: number): void;
+  abstract reconcile(): void;
+
+  public isDirty: boolean = true;
+  private deps: (undefined | { dirty: () => void })[] = [];
+  public dirty() {
+    this.isDirty = true;
+    const deps = [...this.deps];
+    this.deps = [];
+    for (let i=0; i < deps.length; i++) {
+      const s = deps[i];
+      if (s) s.dirty();
+    }
+  }
+  public depend(s: { dirty: () => void }) {
+    for (let i=0; i < this.deps.length; i++)
+      if (this.deps[i] === s) return;
+    this.deps.push(s);
+  }
+  public undepend(s: { dirty: () => void }) {
+    for (let i=0; i < this.deps.length; i++)
+      if (this.deps[i] === s) this.deps[i] === undefined;
+  }
 
   map<U>(f: (t: T) => U): Signal<U> { return new Map(this, f); }
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U> { return new FlatMap(this, f); }
@@ -94,6 +122,9 @@ abstract class SignalImpl<T> implements Signal<T> {
 }
 
 class Const<T> extends SignalImpl<T> {
+  // TODO(jaked)
+  // no-op deps to avoid needlessly holding refs
+
   constructor(value: Try<T>) {
     super();
     this.value = value;
@@ -105,9 +136,7 @@ class Const<T> extends SignalImpl<T> {
 
   value: Try<T>;
   get version(): 1 { return 1; }
-  // don't need to track `level` because `reconcile` is a no-op
-  get level(): 0 { return 0; }
-  reconcile(level: number) { }
+  reconcile() { }
 }
 
 interface CellIntf<T> extends Signal<T> {
@@ -130,14 +159,13 @@ class CellImpl<T> extends SignalImpl<T> implements CellIntf<T> {
   value: Try<T>;
   version: number;
   onChange?: () => void;
-  // don't need to track `level` because `reconcile` is a no-op
-  get level(): 0 { return 0; }
-  reconcile(level: number) { }
+  reconcile() { }
 
   set(t: Try<T>) {
     if (equal(t, this.value)) return;
     this.value = t;
     this.version++;
+    this.dirty();
     if (this.onChange) this.onChange();
   }
   setOk(t: T) { this.set(Try.ok(t)); }
@@ -166,9 +194,13 @@ class RefImpl<T> extends SignalImpl<T> implements RefIntf<T> {
 
   get value() { return this.checkedS().value; }
   get version() { return this.checkedS().version; }
-  get level() { return this.checkedS().level; }
-  reconcile(level: number) {
-    this.checkedS().reconcile(level);
+  reconcile() { this.checkedS().reconcile(); }
+  dirty() { impl(this.checkedS()).dirty(); }
+  depend(s: { dirty: () => void }) {
+    impl(this.checkedS()).depend(s);
+  }
+  undepend(s: { dirty: () => void }) {
+    impl(this.checkedS()).undepend(s);
   }
 }
 
@@ -180,7 +212,6 @@ class Map<T, U> extends SignalImpl<U> {
   constructor(s: Signal<T>, f: (t: T) => U) {
     super();
     this.value = unreconciled;
-    this.level = 0;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
@@ -191,11 +222,11 @@ class Map<T, U> extends SignalImpl<U> {
 
   value: Try<U>;
   version: number;
-  level: number;
-  reconcile(level: number) {
-    if (this.level === level) return;
-    this.level = level;
-    this.s.reconcile(level);
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
     const value = this.s.value.map(this.f);
@@ -215,7 +246,6 @@ class FlatMap<T, U> extends SignalImpl<U> {
   constructor(s: Signal<T>, f: (t: T) => Signal<U>) {
     super();
     this.value = unreconciled;
-    this.level = 0;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
@@ -226,15 +256,16 @@ class FlatMap<T, U> extends SignalImpl<U> {
 
   value: Try<U>;
   version: number;
-  level: number;
-  reconcile(level: number) {
-    if (this.level === level) return;
-    this.level = level;
-    this.s.reconcile(level);
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
     let value: Try<U>;
     if (this.sVersion === this.s.version) {
       if (!this.fs) return;
-      this.fs.reconcile(level);
+      impl(this.fs).depend(this);
+      this.fs.reconcile();
       if (this.fs.version === this.fsVersion) return;
       this.fsVersion = this.fs.version;
       value = this.fs.value;
@@ -246,7 +277,8 @@ class FlatMap<T, U> extends SignalImpl<U> {
         } catch (e) {
           this.fs = Signal.err(e);
         }
-        this.fs.reconcile(level);
+        impl(this.fs).depend(this);
+        this.fs.reconcile();
         this.fsVersion = this.fs.version;
         value = this.fs.value;
       } else {
@@ -273,9 +305,15 @@ class LiftToTry<T> extends SignalImpl<Try<T>> {
 
   get value(): Try<Try<T>> { return Try.ok(this.s.value); }
   get version(): number { return this.s.version; }
-  get level(): number { return this.s.level; }
-  reconcile(level: number) {
-    this.s.reconcile(level);
+  reconcile() {
+    this.s.reconcile();
+  }
+  dirty() { impl(this.s).dirty(); }
+  depend(s: { dirty: () => void }) {
+    impl(this.s).depend(s);
+  }
+  undepend(s: { dirty: () => void }) {
+    impl(this.s).undepend(s);
   }
 }
 
@@ -288,7 +326,6 @@ class Join<T> extends SignalImpl<T[]> {
   ) {
     super();
     this.value = unreconciled;
-    this.level = 0;
     this.version = 0;
     this.signals = signals;
     this.versions = signals.map(s => 0);
@@ -298,12 +335,12 @@ class Join<T> extends SignalImpl<T[]> {
 
   value: Try<T[]>;
   version: number;
-  level: number;
-  reconcile(level: number) {
-    if (this.level === level) return;
-    this.level = level;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
     const versions = this.signals.map(s => {
-      s.reconcile(level);
+      impl(s).depend(this);
+      s.reconcile();
       return s.version;
     });
     // equal() here is very slow :(
@@ -328,7 +365,6 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
   ) {
     super();
     this.value = unreconciled;
-    this.level = 0;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
@@ -340,13 +376,16 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
 
   value: Try<Immutable.Map<K, V>>;
   version: number;
-  level: number;
-  reconcile(level: number) {
-    if (this.level === level) return;
-    this.level === level;
-    this.s.reconcile(level);
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
     if (this.sVersion === this.s.version) {
-      this.vsSignals.forEach((v, k) => v.reconcile(level));
+      this.vsSignals.forEach((v, k) => {
+        impl(v).depend(this);
+        v.reconcile();
+      });
       if (this.vsSignals.every((v, k) => {
         const vVersion = this.vsVersions.get(k);
         if (vVersion === undefined) bug(`expected vsVersion for ${k}`);
@@ -363,7 +402,10 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
       this.sVersion = this.s.version
       if (this.s.value.type === 'ok') {
         this.vsSignals = this.s.value.ok;
-        this.vsSignals.forEach(v => v.reconcile(level));
+        this.vsSignals.forEach(v => {
+          impl(v).depend(this);
+          v.reconcile()
+        });
 
         // TODO(jaked)
         // incrementally update value / versions instead of rebuilding from scratch
@@ -393,14 +435,14 @@ class Label<T> extends SignalImpl<T> {
   s: Signal<T>;
   get value() { return this.s.value; }
   get version() { return this.s.version; }
-  get level() { return this.s.level; }
-  reconcile(level: number) {
+  reconcile() {
     const version = this.s.version;
+    const isDirty = this.s.isDirty;
     if (typeof performance !== 'undefined') {
       performance.mark(this.label);
     }
     try {
-      this.s.reconcile(level);
+      this.s.reconcile();
     } catch (e) {
       const err = new Error(this.label);
       err.stack = `${err.stack}\n${e.stack}`;
@@ -408,7 +450,9 @@ class Label<T> extends SignalImpl<T> {
     }
     if (typeof performance !== 'undefined') {
       const measureLabel =
-        this.label + (version !== this.s.version ? ' (changed)' : '');
+        this.label +
+          (isDirty ? ' (isDirty)' : '') +
+          (version !== this.s.version ? ' (changed)' : '');
       try {
         performance.measure(measureLabel, this.label);
       } catch (e) {
@@ -417,6 +461,13 @@ class Label<T> extends SignalImpl<T> {
       performance.clearMarks(this.label);
       performance.clearMeasures(measureLabel);
     }
+  }
+  dirty() { impl(this.s).dirty(); }
+  depend(s: { dirty: () => void }) {
+    impl(this.s).depend(s);
+  }
+  undepend(s: { dirty: () => void }) {
+    impl(this.s).undepend(s);
   }
 }
 
@@ -583,11 +634,14 @@ module Signal {
     return new Label(label, s);
   }
 
-  export const level = React.createContext<number>(0);
-
   export const node = ({ signal }) => {
-    const level = React.useContext(Signal.level);
-    signal.reconcile(level);
+    const [_, update] = React.useState({});
+    const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
+    signal.depend(d);
+    React.useEffect(() => {
+      return () => signal.undepend(d);
+    }, [signal, d]);
+    signal.reconcile();
     // memoize on signal + version to prune render
     return React.useMemo(
       () => {
@@ -629,10 +683,15 @@ module Signal {
               {}
             )
           ),
-        [ ...Object.values(props) ],
+        Object.values(props),
       );
-      const level = React.useContext(Signal.level);
-      signal.reconcile(level);
+      const [_, update] = React.useState({});
+      const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
+      signal.depend(d);
+      React.useEffect(() => {
+        return () => signal.undepend(d);
+      }, [signal, d]);
+      signal.reconcile();
       // memoize on signal + version to prune render
       return React.useMemo(
         () => {
@@ -657,8 +716,8 @@ module Signal {
     return React.forwardRef<Ref, LiftedProps<Props>>((props, ref) => {
       // memoize on props to avoid recreating on level changes
       const signal = React.useMemo(
-        () =>
-          Signal.joinObject(
+        () => {
+          return Signal.joinObject(
             Object.keys(props).reduce<any>(
               (obj, key) => {
                 const value = props[key];
@@ -667,11 +726,17 @@ module Signal {
               },
               {}
             )
-          ),
-        [ Object.values(props) ],
+          )
+        },
+        Object.values(props),
       );
-      const level = React.useContext(Signal.level);
-      signal.reconcile(level);
+      const [_, update] = React.useState({});
+      const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
+      signal.depend(d);
+      React.useEffect(() => {
+        return () => { signal.undepend(d) };
+      }, [signal, d]);
+      signal.reconcile();
       // memoize on signal + version to prune render
       return React.useMemo(
         () => {
@@ -688,8 +753,13 @@ module Signal {
   }
 
   export function useSignal<T>(signal: Signal<T>): T {
-    const level = React.useContext(Signal.level);
-    signal.reconcile(level);
+    const [_, update] = React.useState({});
+    const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
+    signal.depend(d);
+    React.useEffect(() => {
+      return () => signal.undepend(d);
+    }, [signal, d]);
+    signal.reconcile();
     return signal.get();
   }
 }

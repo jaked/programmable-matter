@@ -14,7 +14,7 @@ const mk = (args: {
     focusDir: Signal.ok(args.focusDir ?? null),
     callback: args.callback ?? (() => {}),
   })
-  newNote.reconcile(1);
+  newNote.reconcile();
   return (name: string) => newNote.get()(name);
 }
 

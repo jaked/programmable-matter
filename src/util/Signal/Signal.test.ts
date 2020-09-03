@@ -14,13 +14,13 @@ describe('constant', () => {
 
     it('maps', () => {
       const s2 = s.map(x => x + 1);
-      s2.reconcile(1);
+      s2.reconcile();
       expect(s2.get()).toBe(8);
     });
 
     it('flatMaps', () => {
       const s2 = s.flatMap(x => Signal.ok(x + 1));
-      s2.reconcile(1);
+      s2.reconcile();
       expect(s2.get()).toBe(8);
     });
   });
@@ -34,13 +34,13 @@ describe('constant', () => {
 
     it('maps', () => {
       const s2 = s.map(x => x + 1);
-      s2.reconcile(1);
+      s2.reconcile();
       expect(() => s2.get()).toThrow(err);
     });
 
     it('flatMaps', () => {
       const s2 = s.flatMap(x => Signal.ok(x + 1));
-      s2.reconcile(1);
+      s2.reconcile();
       expect(() => s2.get()).toThrow(err);
     });
   });
@@ -55,28 +55,28 @@ describe('cell', () => {
   it('maps', () => {
     const s = Signal.cellOk(7);
     const s2 = s.map(x => x + 1);
-    s2.reconcile(1);
+    s2.reconcile();
     expect(s2.get()).toBe(8);
   });
 
   it('flatMaps', () => {
     const s = Signal.cellOk(7);
     const s2 = s.flatMap(x => Signal.ok(x + 1));
-    s2.reconcile(1);
+    s2.reconcile();
     expect(s2.get()).toBe(8);
   });
 
   it('setOk', () => {
     const s = Signal.cellOk(7);
     s.setOk(8);
-    s.reconcile(1);
+    s.reconcile();
     expect(s.get()).toBe(8);
   });
 
   it('setErr', () => {
     const s = Signal.cellOk(7);
     s.setErr(err);
-    s.reconcile(1);
+    s.reconcile();
     expect(() => s.get()).toThrow(err);
   });
 
@@ -84,7 +84,7 @@ describe('cell', () => {
     const s = Signal.cellOk(7);
     expect(s.version).toBe(1);
     s.setOk(7);
-    s.reconcile(1);
+    s.reconcile();
     expect(s.version).toBe(1);
     expect(s.get()).toBe(7);
   });
@@ -93,7 +93,7 @@ describe('cell', () => {
     const s = Signal.cellOk(7);
     expect(s.version).toBe(1);
     s.setOk(9);
-    s.reconcile(1);
+    s.reconcile();
     expect(s.version).toBe(2);
     expect(s.get()).toBe(9);
   });
@@ -104,36 +104,48 @@ describe('map', () => {
     let calls = 0;
     const c = Signal.cellOk(7);
     const m = c.map(x => { calls++; return x + 1; })
-    m.reconcile(1);
+    m.reconcile();
 
     expect(m.get()).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(7);
-    m.reconcile(2);
+    m.reconcile();
     expect(m.get()).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    m.reconcile(3);
+    m.reconcile();
     expect(m.get()).toBe(10);
     expect(calls).toBe(2);
+  });
+
+  it('propagates dirty bit', () => {
+    const c = Signal.cellOk(7);
+    const m = c.map(x => x + 1);
+    const n = m.map(x => x + 1);
+    n.reconcile();
+    expect(m.isDirty).toBe(false);
+    expect(n.isDirty).toBe(false);
+    c.setOk(9);
+    expect(m.isDirty).toBe(true);
+    expect(n.isDirty).toBe(true);
   });
 
   it('does not bump version on equal value', () => {
     let calls = 0;
     const c = Signal.cellOk(7);
     const m = c.map(x => { calls++; return x % 2; })
-    m.reconcile(1);
+    m.reconcile();
 
     expect(m.get()).toBe(1);
     expect(calls).toBe(1);
     expect(m.version).toBe(1);
 
     c.setOk(9);
-    m.reconcile(1);
+    m.reconcile();
     expect(m.get()).toBe(1);
-    expect(calls).toBe(1);
+    expect(calls).toBe(2);
     expect(m.version).toBe(1);
   });
 
@@ -141,7 +153,7 @@ describe('map', () => {
     const c = Signal.cellOk(7);
     const m = c.map(x => { throw 'fail' });
 
-    expect(() => m.reconcile(1)).not.toThrow();
+    expect(() => m.reconcile()).not.toThrow();
     expect(() => m.get()).toThrow();
   });
 });
@@ -151,18 +163,18 @@ describe('flatMap', () => {
     let calls = 0;
     const c = Signal.cellOk(7);
     const m = c.flatMap(x => { calls++; return Signal.ok(x + 1); })
-    m.reconcile(1);
+    m.reconcile();
 
     expect(m.get()).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(7);
-    m.reconcile(2);
+    m.reconcile();
     expect(m.get()).toBe(8);
     expect(calls).toBe(1);
 
     c.setOk(9);
-    m.reconcile(3);
+    m.reconcile();
     expect(m.get()).toBe(10);
     expect(calls).toBe(2);
   });
@@ -172,13 +184,13 @@ describe('flatMap', () => {
     const c1 = Signal.cellOk(7);
     const c2 = Signal.cellOk(9);
     const m = c1.flatMap(x => c2.map(y => { calls++; return x + y }))
-    m.reconcile(1);
+    m.reconcile();
 
     expect(m.get()).toBe(16);
     expect(calls).toBe(1);
 
     c2.setOk(11);
-    m.reconcile(2);
+    m.reconcile();
     expect(m.get()).toBe(18);
     expect(calls).toBe(2);
   });
@@ -187,14 +199,14 @@ describe('flatMap', () => {
     let calls = 0;
     const c = Signal.cellOk(7);
     const m = c.flatMap(x => { calls++; return Signal.ok(x % 2); })
-    m.reconcile(1);
+    m.reconcile();
 
     expect(m.get()).toBe(1);
     expect(calls).toBe(1);
     expect(m.version).toBe(1);
 
     c.setOk(9);
-    m.reconcile(2);
+    m.reconcile();
     expect(m.get()).toBe(1);
     expect(calls).toBe(2);
     expect(m.version).toBe(1);
@@ -211,7 +223,7 @@ describe('flatMap', () => {
         return y % 2
       });
     })
-    m.reconcile(1);
+    m.reconcile();
 
     expect(m.get()).toBe(1);
     expect(outerCalls).toBe(1);
@@ -219,7 +231,7 @@ describe('flatMap', () => {
     expect(m.version).toBe(1);
 
     c.setOk(9);
-    m.reconcile(2);
+    m.reconcile();
     expect(m.get()).toBe(1);
     expect(outerCalls).toBe(1);
     expect(innerCalls).toBe(2);
@@ -230,7 +242,7 @@ describe('flatMap', () => {
     const c = Signal.cellOk(7);
     const m = c.flatMap(x => { throw 'fail' });
 
-    expect(() => m.reconcile(1)).not.toThrow();
+    expect(() => m.reconcile()).not.toThrow();
     expect(() => m.get()).toThrow();
   });
 });
@@ -239,7 +251,7 @@ describe('liftToTry', () => {
   it('lifts ok', () => {
     const c = Signal.ok(7);
     const s = c.liftToTry();
-    s.reconcile(1);
+    s.reconcile();
     expect(s.get()).toEqual(Try.ok(7));
   });
 
@@ -247,7 +259,7 @@ describe('liftToTry', () => {
     const err = new Error('error!');
     const c = Signal.err(err);
     const s = c.liftToTry();
-    s.reconcile(1);
+    s.reconcile();
     expect(s.get()).toEqual(Try.err(err));
   });
 });
@@ -257,7 +269,7 @@ describe('join', () => {
     const c1 = Signal.ok(7);
     const c2 = Signal.ok(9);
     const j = Signal.join(c1, c2);
-    j.reconcile(1);
+    j.reconcile();
 
     expect(j.get()).toEqual([7, 9]);
   });
@@ -267,11 +279,11 @@ describe('join', () => {
     const c2 = Signal.ok(9);
 
     const j = Signal.join(Signal.err(err), c2);
-    j.reconcile(1);
+    j.reconcile();
     expect(() => j.get()).toThrow(err);
 
     const j2 = Signal.join(c1, Signal.err(err));
-    j2.reconcile(1);
+    j2.reconcile();
     expect(() => j2.get()).toThrow(err);
   });
 
@@ -280,23 +292,23 @@ describe('join', () => {
     const c1 = Signal.cellOk(7);
     const c2 = Signal.cellOk(9);
     const j = Signal.join(c1, c2).map(([t1, t2]) => { calls++; return [t1, t2] });
-    j.reconcile(1);
+    j.reconcile();
 
     expect(j.get()).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c1.setOk(7);
-    j.reconcile(2);
+    j.reconcile();
     expect(j.get()).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c2.setOk(9);
-    j.reconcile(3);
+    j.reconcile();
     expect(j.get()).toEqual([7, 9]);
     expect(calls).toBe(1);
 
     c1.setOk(11);
-    j.reconcile(4);
+    j.reconcile();
     expect(j.get()).toEqual([11, 9]);
     expect(calls).toBe(2);
   });
@@ -308,7 +320,7 @@ describe('joinImmutableMap', () => {
     const c2 = Signal.ok(9);
     const map = Signal.ok(Immutable.Map({ c1, c2 }));
     const j = Signal.joinImmutableMap(map);
-    j.reconcile(1);
+    j.reconcile();
 
     expect(j.get()).toEqual(Immutable.Map({ c1: 7, c2: 9 }));
   });
@@ -318,7 +330,7 @@ describe('joinImmutableMap', () => {
     const c2 = Signal.err(err);
     const map = Signal.ok(Immutable.Map({ c1, c2 }));
     const j = Signal.joinImmutableMap(map);
-    j.reconcile(1);
+    j.reconcile();
 
     expect(() => j.get()).toThrow(err);
   });
@@ -329,14 +341,14 @@ describe('joinImmutableMap', () => {
     const c2 = Signal.ok(9);
     const map = Signal.cellOk(Immutable.Map({ c1, c2 }));
     const j = Signal.joinImmutableMap(map).map(map => { calls++; return map });
-    j.reconcile(1);
+    j.reconcile();
 
     expect(j.get()).toEqual(Immutable.Map({ c1: 7, c2: 9 }));
     expect(calls).toBe(1);
 
     const c3 = Signal.ok(11);
     map.setOk(Immutable.Map({ c1, c3 }));
-    j.reconcile(2);
+    j.reconcile();
     expect(j.get()).toEqual(Immutable.Map({ c1: 7, c3: 11 }));
     expect(calls).toBe(2);
   });
@@ -347,20 +359,20 @@ describe('joinImmutableMap', () => {
     const c2 = Signal.cellOk(9);
     const map = Signal.ok(Immutable.Map({ c1, c2 }));
     const j = Signal.joinImmutableMap(map).map(map => { calls++; return map });
-    j.reconcile(1);
+    j.reconcile();
 
     expect(j.get()).toEqual(Immutable.Map({ c1: 7, c2: 9 }));
     expect(calls).toBe(1);
 
     c1.setOk(11);
-    j.reconcile(2);
+    j.reconcile();
     expect(j.get()).toEqual(Immutable.Map({ c1: 11, c2: 9 }));
     expect(calls).toBe(2);
   });
 
   it('handles no signals', () => {
     const s = Signal.join(...[]);
-    s.reconcile(1);
+    s.reconcile();
     expect(s.get()).toEqual([]);
   });
 });
@@ -370,23 +382,23 @@ describe('mapImmutableMap', () => {
   function f(x: number) { calls++; return x + 1; }
   const map = Signal.cellOk(Immutable.Map({ a: 7, b: 9 }));
   const fmap = Signal.mapImmutableMap(map, f);
-  fmap.reconcile(1);
+  fmap.reconcile();
 
   expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 10 }));
   expect(calls).toBe(2);
 
   map.setOk(map.get().set('b', 10));
-  fmap.reconcile(2);
+  fmap.reconcile();
   expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 11 }));
   expect(calls).toBe(3);
 
   map.setOk(map.get().set('c', 13));
-  fmap.reconcile(3);
+  fmap.reconcile();
   expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 11, c: 14 }));
   expect(calls).toBe(4);
 
   map.setOk(map.get().delete('a'));
-  fmap.reconcile(4);
+  fmap.reconcile();
   expect(fmap.get()).toEqual(Immutable.Map({ b: 11, c: 14 }));
   expect(calls).toBe(4);
 });
@@ -401,11 +413,11 @@ describe('ref', () => {
     const r = Signal.ref();
     const s = Signal.cellOk('foo');
     r.set(s);
-    r.reconcile(1);
+    r.reconcile();
     expect(r.get()).toBe('foo');
 
     s.setOk('bar');
-    r.reconcile(2);
+    r.reconcile();
     expect(r.get()).toBe('bar');
     expect(r.version).toBe(s.version);
   });

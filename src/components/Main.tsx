@@ -127,7 +127,6 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           <Flex width={sideBarWidth} flexDirection='column'>
             <Sidebar
               ref={sidebarRef}
-              render={props.app.render}
               compiledNotes={props.app.compiledNotesSignal}
               selected={props.app.selectedCell}
               setSelected={props.app.setSelected}

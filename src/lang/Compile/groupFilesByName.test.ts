@@ -8,10 +8,10 @@ it('deletes group when last file is deleted', () => {
     'foo.mdx': new File('foo.mdx', Buffer.from(''))
   }));
   const grouped = groupFilesByName(files);
-  grouped.reconcile(1);
+  grouped.reconcile();
   expect(grouped.get().size).toBe(1);
 
   files.update(files => files.delete('foo.mdx'));
-  grouped.reconcile(2);
+  grouped.reconcile();
   expect(grouped.get().size).toBe(0);
 });

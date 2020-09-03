@@ -33,20 +33,17 @@ Unhandled();
 const debug = false;
 
 export class App {
-  public render = () => {
-    this.level++;
-
+  private render = () => {
     // TODO(jaked)
-    // we need to reconcile explicitly to trigger BrowserSync reload
-    // can this be avoided?
-    this.server.reconcile(this.level);
+    // need to trigger BrowserSync reload on changes
+    // this.server.reconcile();
 
     this.reactRender();
   }
 
   // TODO(jaked) make this configurable
   private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  private filesystem = Filesystem(this.filesPath, this.render);
+  private filesystem = Filesystem(this.filesPath, () => {});
 
   constructor() {
     this.render();
@@ -75,19 +72,19 @@ export class App {
     ipc.on('blur', () => this.filesystem.stop());
   }
 
-  public editNameCell = Signal.cellOk<string | undefined>(undefined, this.render);
+  public editNameCell = Signal.cellOk<string | undefined>(undefined);
   public setEditName = (editName: string | undefined) => this.editNameCell.setOk(editName)
 
   private history: string[] = [];
   private historyIndex: number = -1; // index of current selection, or -1 if none
-  public selectedCell = Signal.cellOk<string | null>(null, this.render);
+  public selectedCell = Signal.cellOk<string | null>(null);
 
   // TODO(jaked)
   // selection + history needs its own module + tests
 
   private rewriteName(name: string | null): string | null {
     if (name === null) return null;
-    this.compiledNotesSignal.reconcile(this.level);
+    this.compiledNotesSignal.reconcile();
     const compiledNotes = this.compiledNotesSignal.get();
     return Name.rewrite(compiledNotes, name);
   }
@@ -114,7 +111,7 @@ export class App {
   }
 
   public historyBack = () => {
-    this.compiledNotesSignal.reconcile(this.level);
+    this.compiledNotesSignal.reconcile();
     const notes = this.compiledNotesSignal.get();
     const selected = this.selectedCell.get();
     let newIndex = this.historyIndex;
@@ -128,7 +125,7 @@ export class App {
     }
   }
   public historyForward = () => {
-    this.compiledNotesSignal.reconcile(this.level);
+    this.compiledNotesSignal.reconcile();
     const notes = this.compiledNotesSignal.get();
     const selected = this.selectedCell.get();
     let newIndex = this.historyIndex;
@@ -142,29 +139,29 @@ export class App {
     }
   }
 
-  public focusDirCell = Signal.cellOk<string | null>(null, this.render);
+  public focusDirCell = Signal.cellOk<string | null>(null);
   public setFocusDir = (focus: string | null) => {
     this.focusDirCell.setOk(focus);
   }
 
-  public statusCell = Signal.cellOk<string | undefined>(undefined, this.render);
+  public statusCell = Signal.cellOk<string | undefined>(undefined);
   public setStatus = (status: string | undefined) => {
     this.statusCell.setOk(status);
   }
 
-  private sideBarVisibleCell = Signal.cellOk<boolean>(true, this.render);
+  private sideBarVisibleCell = Signal.cellOk<boolean>(true);
   public get sideBarVisible() { return this.sideBarVisibleCell.get() }
   public toggleSidebarVisible = () => {
     this.sideBarVisibleCell.update(b => !b);
   };
 
-  private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split', this.render);
+  private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
   public get mainPaneView() { return this.mainPaneViewCell.get() }
   public setMainPaneView = (view: 'code' | 'display' | 'split') => {
     this.mainPaneViewCell.setOk(view);
   }
 
-  public editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx', this.render);
+  public editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx');
   public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
     this.editorViewCell.setOk(view);
   }
@@ -315,13 +312,10 @@ export class App {
     new Server(this.compiledNotesSignal);
 
   private mainRef = React.createRef<Main>();
-  private level = 0;
 
   private reactRender = () => {
     ReactDOM.render(
-      React.createElement(Signal.level.Provider, { value: this.level },
-        React.createElement(Main, { ref: this.mainRef, app: this })
-      ),
+      React.createElement(Main, { ref: this.mainRef, app: this }),
       document.getElementById('main')
     );
   }
@@ -361,9 +355,9 @@ export class App {
   }
 
   publishSite = async () => {
-    this.compiledNotesSignal.reconcile(this.level);
+    this.compiledNotesSignal.reconcile();
     const compiledNotes = this.compiledNotesSignal.get();
-    ghPages(compiledNotes, this.level);
+    ghPages(compiledNotes);
   }
 
   syncGoogleTasks = () => {
@@ -375,3 +369,4 @@ export class App {
 }
 
 const app = new App();
+

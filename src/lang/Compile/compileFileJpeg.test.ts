@@ -18,10 +18,10 @@ it('compiles', () => {
       jpeg,
     ),
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeFalsy();
 
   const buffer = compiled.get().exportValue.buffer;
-  buffer.reconcile(1);
+  buffer.reconcile();
   expect(buffer.get()).toBe(jpeg);
 });

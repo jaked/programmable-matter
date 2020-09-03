@@ -7,7 +7,6 @@ import SearchBox from './SearchBox';
 import * as data from '../../data';
 
 type Props = {
-  render: () => void;
   compiledNotes: Signal<data.CompiledNotes>;
   selected: Signal<string | null>;
   setSelected: (s: string | null) => void;
@@ -36,7 +35,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     focusNotes,
   }));
 
-  const searchCell = Signal.cellOk<string>('', props.render);
+  const searchCell = Signal.cellOk<string>('');
   const setSearch = (search: string) => {
     searchCell.setOk(search);
   }
@@ -75,10 +74,8 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           note.files.meta ? note.files.meta.mtimeMs : Signal.ok(0),
         ).map(mtimeMss => Math.max(...mtimeMss));
 
-        return Signal.label(`match ${note.name}`,
-          Signal.join(matches, mtimeMs)
-          .map(([matches, mtimeMs]) => ({ matches, note, mtimeMs }))
-        );
+        return Signal.join(matches, mtimeMs)
+          .map(([matches, mtimeMs]) => ({ matches, note, mtimeMs }));
       }
 
       // TODO(jaked) wrap this up in a function on Signal

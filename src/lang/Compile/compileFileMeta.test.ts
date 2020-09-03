@@ -9,7 +9,7 @@ it('compiles', () => {
       Buffer.from(`{ }`),
     ),
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeFalsy();
 });
 
@@ -20,7 +20,7 @@ it('succeeds with syntax error', () => {
       Buffer.from(`#Q(*&#$)`),
     ),
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeTruthy();
 });
 
@@ -32,6 +32,6 @@ it('succeeds with type error', () => {
       Buffer.from(`{ foo: 7 }`),
     ),
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeTruthy();
 });

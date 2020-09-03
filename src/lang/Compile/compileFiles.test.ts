@@ -17,10 +17,10 @@ it('compiles mdx', () => {
     )
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(1);
+  compiledNotes.reconcile();
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(1);
+  foo.problems.reconcile();
   expect(foo.problems.get()).toBeFalsy();
 });
 
@@ -32,10 +32,10 @@ it('compiles json', () => {
     )
   }));
   const { compiledNotes } = compileFiles(files,  updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(1);
+  compiledNotes.reconcile();
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(1);
+  foo.problems.reconcile();
   expect(foo.problems.get()).toBeFalsy();
 });
 
@@ -47,10 +47,10 @@ it('compiles meta', () => {
     )
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(1);
+  compiledNotes.reconcile();
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(1);
+  foo.problems.reconcile();
   expect(foo.problems.get()).toBeFalsy();
 });
 
@@ -107,10 +107,10 @@ it('compiles table', () => {
     ),
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(1);
+  compiledNotes.reconcile();
   const cats = compiledNotes.get().get('cats/index');
   if (!cats) bug('expected cats');
-  cats.problems.reconcile(1);
+  cats.problems.reconcile();
   expect(cats.problems.get()).toBeFalsy();
 });
 
@@ -130,15 +130,15 @@ it('compiles mdx + json + meta', () => {
     )
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
-  compiledNotes.reconcile(1);
+  compiledNotes.reconcile();
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
-  foo.problems.reconcile(1);
+  foo.problems.reconcile();
   expect(foo.problems.get()).toBeFalsy();
-  foo.meta.reconcile(1);
+  foo.meta.reconcile();
   expect(foo.meta.get().dataType).toBeTruthy();
   expect(foo.meta.get().title).toBe('foo');
-  foo.exportType.reconcile(1);
+  foo.exportType.reconcile();
   expect(foo.exportType.get().getFieldType('default'))
     .toEqual(Type.object({ bar: Type.number }));
 });

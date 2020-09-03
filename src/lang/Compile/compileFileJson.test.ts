@@ -17,7 +17,7 @@ it('compiles', () => {
     Signal.ok(Immutable.Map()),
     updateFile
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeFalsy();
 });
 
@@ -30,7 +30,7 @@ it('succeeds with syntax error', () => {
     Signal.ok(Immutable.Map()),
     updateFile
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeTruthy();
 });
 
@@ -55,7 +55,7 @@ it('compiles with meta', () => {
     })),
     updateFile
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeFalsy();
 });
 
@@ -76,7 +76,7 @@ it('succeeds with meta error', () => {
     })),
     updateFile
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeFalsy();
 });
 
@@ -102,6 +102,6 @@ it('succeeds with type error', () => {
     })),
     updateFile
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeTruthy();
 });

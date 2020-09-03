@@ -23,7 +23,7 @@ it('succeeds with syntax error', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeTruthy();
 });
 
@@ -40,7 +40,7 @@ it('succeeds with type error', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile(1);
+  compiled.reconcile();
   expect(compiled.get().problems).toBeTruthy();
 });
 
@@ -65,8 +65,8 @@ it('empty table', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile(1);
-  compiled.get().rendered.reconcile(1);
+  compiled.reconcile();
+  compiled.get().rendered.reconcile();
   expect(() => compiled.get().rendered.get()).not.toThrow();
 });
 
@@ -102,7 +102,7 @@ it('non-data note in table dir', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile(1);
-  compiled.get().rendered.reconcile(1);
+  compiled.reconcile();
+  compiled.get().rendered.reconcile();
   expect(() => compiled.get().rendered.get()).not.toThrow();
 });
