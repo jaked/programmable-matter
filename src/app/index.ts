@@ -149,14 +149,12 @@ export class App {
     this.statusCell.setOk(status);
   }
 
-  private sideBarVisibleCell = Signal.cellOk<boolean>(true);
-  public get sideBarVisible() { return this.sideBarVisibleCell.get() }
+  public sideBarVisibleCell = Signal.cellOk<boolean>(true);
   public toggleSidebarVisible = () => {
     this.sideBarVisibleCell.update(b => !b);
   };
 
-  private mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
-  public get mainPaneView() { return this.mainPaneViewCell.get() }
+  public mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
   public setMainPaneView = (view: 'code' | 'display' | 'split') => {
     this.mainPaneViewCell.setOk(view);
   }

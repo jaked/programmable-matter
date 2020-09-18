@@ -96,6 +96,9 @@ type Main = {
 }
 
 const Main = React.forwardRef<Main, Props>((props, ref) => {
+  const sideBarVisible = Signal.useSignal(props.app.sideBarVisibleCell);
+  const mainPaneView = Signal.useSignal(props.app.mainPaneViewCell);
+
   const sidebarRef = React.useRef<Sidebar>(null);
   const editorRef = React.useRef<Editor>(null);
 
@@ -113,10 +116,10 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
   }))
 
   const [sideBarWidth, mainPaneWidth] =
-    props.app.sideBarVisible ? [ 1/5, 4/5 ] : [ 0, 1 ];
+    sideBarVisible ? [ 1/5, 4/5 ] : [ 0, 1 ];
   const [showEditorPane, showDisplayPane] = (
-    props.app.mainPaneView === 'code' ? [true, false] :
-    props.app.mainPaneView === 'display' ? [false, true] :
+    mainPaneView === 'code' ? [true, false] :
+    mainPaneView === 'display' ? [false, true] :
     /* props.app.mainPaneView === 'split' ? */ [true, true]
   );
 
