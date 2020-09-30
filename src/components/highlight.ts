@@ -261,6 +261,9 @@ export default function computeHighlight(
   // TODO(jaked)
   // parsing should always succeed with some AST
   switch (view) {
+    case 'pm':
+      break;
+
     case 'mdx': {
       ast.forEach(ast => computeSpans(ast, annots, spans));
     }

@@ -28,6 +28,7 @@ export default class File {
   private typeOfExt(ext: string): Types {
     switch (ext) {
       case '.meta': return 'meta';
+      case '.pm': return 'pm';
       case '.mdx': return 'mdx';
       case '.json': return 'json';
       case '.table': return 'table';

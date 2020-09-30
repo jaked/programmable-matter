@@ -21,13 +21,13 @@ TabBox.defaultProps = {
 }
 
 type Props = {
-  editorView: 'mdx' | 'json' | 'table' | 'meta',
-  setEditorView: (view: 'mdx' | 'json' | 'table' | 'meta') => void,
-  selectedNoteProblems: { meta?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
+  editorView: 'pm' | 'mdx' | 'json' | 'table' | 'meta',
+  setEditorView: (view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => void,
+  selectedNoteProblems: { meta?: boolean, pm?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
 }
 
 type TabProps = Props & {
-  view: 'mdx' | 'json' | 'table' | 'meta',
+  view: 'pm' | 'mdx' | 'json' | 'table' | 'meta',
   rightmost?: boolean
 }
 
@@ -56,6 +56,7 @@ export default (props: Props) => {
   return (
     <Flex>
       <Tab view={'meta'} {...props} />
+      <Tab view={'pm'} {...props} />
       <Tab view={'mdx'} {...props} />
       <Tab view={'json'} {...props} />
       <Tab rightmost={true} view={'table'} {...props} />

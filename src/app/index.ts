@@ -55,7 +55,7 @@ export class App {
     ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
       this.setMainPaneView(view)
     });
-    ipc.on('set-editor-view', (_, view: 'mdx' | 'json' | 'table' | 'meta') => {
+    ipc.on('set-editor-view', (_, view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => {
       this.setEditorView(view)
     });
     ipc.on('history-back', this.historyBack);
@@ -159,8 +159,8 @@ export class App {
     this.mainPaneViewCell.setOk(view);
   }
 
-  public editorViewCell = Signal.cellOk<'mdx' | 'json' | 'table' | 'meta'>('mdx');
-  public setEditorView = (view: 'mdx' | 'json' | 'table' | 'meta') => {
+  public editorViewCell = Signal.cellOk<'pm' | 'mdx' | 'json' | 'table' | 'meta'>('mdx');
+  public setEditorView = (view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => {
     this.editorViewCell.setOk(view);
   }
 
@@ -229,10 +229,12 @@ export class App {
       if (compiledNote !== null) {
         // TODO(jaked) pass these on note instead of reconstructing
         const meta = compiledFiles.get(Name.pathOfName(compiledNote.name, 'meta')) ?? Signal.ok(undefined);
+        const pm = compiledFiles.get(Name.pathOfName(compiledNote.name, 'pm')) ?? Signal.ok(undefined);
         const mdx = compiledFiles.get(Name.pathOfName(compiledNote.name, 'mdx')) ?? Signal.ok(undefined);
         const table = compiledFiles.get(Name.pathOfName(compiledNote.name, 'table')) ?? Signal.ok(undefined);
         const json = compiledFiles.get(Name.pathOfName(compiledNote.name, 'json')) ?? Signal.ok(undefined);
-        return Signal.join(meta, mdx, table, json).map(([meta, mdx, table, json]) => ({
+        return Signal.join(meta, pm, mdx, table, json).map(([meta, pm, mdx, table, json]) => ({
+          pm: pm?.problems,
           meta: meta?.problems,
           mdx: mdx?.problems,
           table: table?.problems,
@@ -240,7 +242,7 @@ export class App {
         }));
       } else {
         // TODO(jaked) figure out a way to have signals demanded conditionally
-        return Signal.ok({ meta: false, mdx: false, table: false, json: false });
+        return Signal.ok({ meta: false, pm: false, mdx: false, table: false, json: false });
       }
     });
 

@@ -5,7 +5,7 @@ import Try from './util/Try';
 import Type from './lang/Type';
 import File from './files/File';
 
-export type Types = 'meta' | 'mdx' | 'json' | 'jpeg' | 'table';
+export type Types = 'meta' | 'pm' | 'mdx' | 'json' | 'jpeg' | 'table';
 
 export type MetaProps = {
   title?: string,
@@ -29,6 +29,7 @@ export type AstAnnotations = Map<unknown, Type>;
 
 export type NoteFiles = {
   'meta'?: File;
+  'pm'?: File;
   'mdx'?: File;
   'json'?: File;
   'jpeg'?: File;

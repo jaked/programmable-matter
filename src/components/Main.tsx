@@ -31,7 +31,7 @@ const Flex = styled(FlexBase)({
 type EditorPaneProps = {
   content: Signal<string | null>;
   compiledFile: Signal<data.CompiledFile | null>;
-  editorView: Signal<'meta' | 'mdx' | 'json' | 'table'>;
+  editorView: Signal<'meta' | 'pm' | 'mdx' | 'json' | 'table'>;
   session: Signal<Session>;
   status: Signal<string | undefined>;
   onChange: Signal<(updateContent: string, session: Session) => void>;

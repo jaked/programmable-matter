@@ -71,12 +71,13 @@ export function compileFiles(
     // TODO(jaked) Signal.untuple
     const parts =
       Signal.join(
+        compiledFileForType('pm'),
         compiledFileForType('mdx'),
         compiledFileForType('table'),
         compiledFileForType('json'),
         compiledFileForType('jpeg'),
         compiledFileForType('meta'),
-      ).map(([mdx, table, json, jpeg, meta]) => {
+      ).map(([pm, mdx, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Type.ModuleType = Type.module({ });
         let exportValue: { [s: string]: Signal<any> } = {};
@@ -108,8 +109,14 @@ export function compileFiles(
           exportType = mergeModuleType(exportType, mdx.exportType);
           exportValue = mergeModuleValue(exportValue, mdx.exportValue);
         }
+        if (pm) {
+          rendered = pm.rendered;
+          exportType = mergeModuleType(exportType, pm.exportType);
+          exportValue = mergeModuleValue(exportValue, pm.exportValue);
+        }
 
         const problems =
+          (pm ? pm.problems : false) ||
           (mdx ? mdx.problems : false) ||
           (table ? table.problems : false) ||
           (json ? json.problems : false) ||
@@ -129,6 +136,7 @@ export function compileFiles(
         publishedType: parts.map(parts => parts.publishedType),
         meta: metaForPath(Name.pathOfName(name, 'meta'), compiledFiles),
         files: {
+          pm: fileForType('pm'),
           mdx: fileForType('mdx'),
           table: fileForType('table'),
           json: fileForType('json'),

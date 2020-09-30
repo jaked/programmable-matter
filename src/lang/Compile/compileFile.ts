@@ -5,6 +5,7 @@ import * as data from '../../data';
 import File from '../../files/File';
 
 import compileFileMeta from './compileFileMeta';
+import compileFilePm from './compileFilePm';
 import compileFileMdx from './compileFileMdx';
 import compileFileJson from './compileFileJson';
 import compileFileTable from './compileFileTable';
@@ -22,6 +23,9 @@ export default function compileFile(
   switch (file.type) {
     case 'meta':
       return compileFileMeta(file);
+
+    case 'pm':
+      return compileFilePm(file);
 
     case 'mdx':
       return compileFileMdx(file, compiledFiles, compiledNotes, setSelected);
