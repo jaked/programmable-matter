@@ -14,16 +14,15 @@ const renderElement = (props: SlateReact.RenderElementProps) => {
   }
 }
 
-const RichTextEditor = (props: {}) => {
+export type RichTextEditorProps = {
+  value: Slate.Node[],
+  setValue: (nodes: Slate.Node[]) => void,
+}
+
+const RichTextEditor = (props: RichTextEditorProps) => {
   const editor = React.useMemo(() => SlateReact.withReact(Slate.createEditor()), []);
-  const [value, setValue] = React.useState<Slate.Node[]>([
-    {
-      type: 'p',
-      children: [{ text: 'A line of text in a paragraph.' }],
-    },
-  ]);
   return (
-    <SlateReact.Slate editor={editor} value={value} onChange={newValue => setValue(newValue)}>
+    <SlateReact.Slate editor={editor} value={props.value} onChange={props.setValue}>
       <SlateReact.Editable renderElement={renderElement} />
     </SlateReact.Slate>
   );

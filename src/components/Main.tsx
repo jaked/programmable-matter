@@ -2,6 +2,8 @@ import React from 'react';
 import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
+import * as Slate from 'slate';
+import JSON5 from 'json5';
 
 import Signal from '../util/Signal';
 
@@ -40,13 +42,69 @@ type EditorPaneProps = {
   setSelected: (selected: string | null) => void;
 }
 
+type CodeEditorProps = {
+  content: string;
+  compiledFile: data.CompiledFile;
+  editorView: 'meta' | 'pm' | 'mdx' | 'json' | 'table';
+  session: Signal<Session>;
+  onChange: Signal<(updateContent: string, session: Session) => void>;
+  setStatus: (status: string | undefined) => void;
+  setSelected: (selected: string | null) => void;
+}
+
+const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, ref) => {
+  const session = Signal.useSignal(props.session);
+  const onChange = Signal.useSignal(props.onChange);
+
+  return (
+    <Editor
+      ref={ref}
+      view={props.editorView}
+      content={props.content}
+      compiledFile={Signal.ok(props.compiledFile)}
+      session={session}
+      onChange={onChange}
+      setStatus={props.setStatus}
+      setSelected={props.setSelected}
+    />
+  );
+}));
+
+type RichEditorProps = {
+  content: string;
+  session: Signal<Session>;
+  onChange: Signal<(updateContent: string, session: Session) => void>;
+}
+
+const RichEditor = React.memo<RichEditorProps>(props => {
+  const session = Signal.useSignal(props.session);
+  const onChange = Signal.useSignal(props.onChange);
+
+  // TODO(jaked) serialization should go elsewhere
+  // TODO(jaked) don't deserialize / serialize on every edit
+  const value = props.content ?
+    JSON5.parse(props.content) as Slate.Node[] : // TODO(jaked) validate
+    [
+      {
+        type: 'p',
+        children: [{ text: '' }]
+      }
+    ]
+  const setValue = (nodes: Slate.Node[]) => {
+    const json = JSON5.stringify(nodes, undefined, 2);
+    onChange(json, session);
+  }
+
+  return (
+    <RichTextEditor value={value} setValue={setValue} />
+  );
+});
+
 const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) => {
   // TODO(jaked) use Signal.join here? not sure about lifetime
   const content = Signal.useSignal(props.content);
   const compiledFile = Signal.useSignal(props.compiledFile);
   const editorView = Signal.useSignal(props.editorView);
-  const session = Signal.useSignal(props.session);
-  const onChange = Signal.useSignal(props.onChange);
   const status = Signal.useSignal(props.status);
 
   return (
@@ -55,14 +113,18 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
         content === null || compiledFile == null ?
           <Box padding={1}>no note</Box> :
         editorView === 'pm' ?
-          <RichTextEditor /> :
-        <Editor
-            ref={ref}
-            view={editorView}
+          <RichEditor
             content={content}
-            compiledFile={Signal.ok(compiledFile)}
-            session={session}
-            onChange={onChange}
+            session={props.session}
+            onChange={props.onChange}
+          /> :
+          <CodeEditor
+            ref={ref}
+            editorView={editorView}
+            content={content}
+            compiledFile={compiledFile}
+            session={props.session}
+            onChange={props.onChange}
             setStatus={props.setStatus}
             setSelected={props.setSelected}
           />
