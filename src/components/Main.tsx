@@ -3,11 +3,11 @@ import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
 import * as Slate from 'slate';
-import JSON5 from 'json5';
 
 import Signal from '../util/Signal';
 
 import * as data from '../data';
+import * as PMAST from '../PMAST';
 
 import { App } from '../app';
 
@@ -83,7 +83,7 @@ const RichEditor = React.memo<RichEditorProps>(props => {
   // TODO(jaked) serialization should go elsewhere
   // TODO(jaked) don't deserialize / serialize on every edit
   const value = props.content ?
-    JSON5.parse(props.content) as Slate.Node[] : // TODO(jaked) validate
+    PMAST.parse(props.content) :
     [
       {
         type: 'p',
@@ -91,7 +91,7 @@ const RichEditor = React.memo<RichEditorProps>(props => {
       }
     ]
   const setValue = (nodes: Slate.Node[]) => {
-    const json = JSON5.stringify(nodes, undefined, 2);
+    const json = PMAST.stringify(nodes as PMAST.Node[]);
     onChange(json, session);
   }
 

@@ -1,4 +1,3 @@
-import JSON5 from 'json5';
 import React from 'react';
 
 import File from '../../files/File';
@@ -10,10 +9,13 @@ import Type from '../Type';
 
 export const renderNode = (node: PMAST.Node) => {
   if ('text' in node) {
-    return node.text;
+    let text: any = node.text;
+    if (node.bold)
+      text = React.createElement('strong', {}, text);
+    return text;
   } else {
     switch (node.type) {
-      case 'p': return React.createElement('p', {}, node.children.map(renderNode))
+      case 'p': return React.createElement('p', {}, ...node.children.map(renderNode))
     }
   }
 }
@@ -21,7 +23,7 @@ export const renderNode = (node: PMAST.Node) => {
 export default function compileFilePm(
   file: File, // TODO(jaked) take a PMAST.Node[] instead of reparsing
 ): Signal<data.CompiledFile> {
-  const nodes = file.content.map(content => JSON5.parse(content) as PMAST.Node[]);
+  const nodes = file.content.map(content => PMAST.parse(content));
 
   const rendered = nodes.map(nodes => nodes.map(renderNode));
 
