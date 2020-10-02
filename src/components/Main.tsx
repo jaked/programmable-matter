@@ -15,6 +15,7 @@ import { Catch } from './Catch';
 import Sidebar from './search/Sidebar';
 import Header from './Header'
 import Editor from './Editor';
+import RichTextEditor from './editor/RichTextEditor';
 
 interface Props {
   app: App;
@@ -39,37 +40,37 @@ type EditorPaneProps = {
   setSelected: (selected: string | null) => void;
 }
 
-const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) =>
-  <Flex flex={1} minWidth={0} flexDirection='column' >
-    <Box padding={1} flex={1} minHeight={0} >
-      <Signal.node signal={
-        Signal.join(props.content, props.compiledFile).map(([ content, compiledFile ]) =>
-          content !== null && compiledFile !== null ?
-            <Signal.node signal={
-              Signal.join(props.editorView, props.session, props.onChange).map(([ editorView, session, onChange ]) =>
-                <Editor
-                  ref={ref}
-                  view={editorView}
-                  content={content}
-                  compiledFile={Signal.ok(compiledFile)}
-                  session={session}
-                  onChange={onChange}
-                  setStatus={props.setStatus}
-                  setSelected={props.setSelected}
-                />
-              )
-            }/> :
-            <Box padding={1}>no note</Box>
-        )
-      }/>
-    </Box>
-    <Signal.node signal={
-      props.status.map(status =>
-        <div style={{ backgroundColor: '#ffc0c0' }}>{status}</div>
-      )
-    }/>
-  </Flex>
-));
+const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) => {
+  // TODO(jaked) use Signal.join here? not sure about lifetime
+  const content = Signal.useSignal(props.content);
+  const compiledFile = Signal.useSignal(props.compiledFile);
+  const editorView = Signal.useSignal(props.editorView);
+  const session = Signal.useSignal(props.session);
+  const onChange = Signal.useSignal(props.onChange);
+  const status = Signal.useSignal(props.status);
+
+  return (
+    <Flex flex={1} minWidth={0} flexDirection='column' >
+      <Box padding={1} flex={1} minHeight={0} >{
+        content === null || compiledFile == null ?
+          <Box padding={1}>no note</Box> :
+        editorView === 'pm' ?
+          <RichTextEditor /> :
+        <Editor
+            ref={ref}
+            view={editorView}
+            content={content}
+            compiledFile={Signal.ok(compiledFile)}
+            session={session}
+            onChange={onChange}
+            setStatus={props.setStatus}
+            setSelected={props.setSelected}
+          />
+      }</Box>
+      <div style={{ backgroundColor: '#ffc0c0' }}>{status}</div>
+    </Flex>
+  );
+}));
 
 type DisplayPaneProps = {
   compiledNoteSignal: Signal<data.CompiledNote | null>;
