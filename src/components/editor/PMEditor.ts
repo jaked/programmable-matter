@@ -7,6 +7,23 @@ export type PMEditor = Slate.Editor & {
 const toggleMark = (editor: Slate.Editor, mark: 'bold') => {
   if (editor.selection) {
     if (Slate.Range.isExpanded(editor.selection)) {
+      const bolded = [...Slate.Editor.nodes(
+        editor,
+        { match: Slate.Text.isText }
+      )].every(([node, location]) => 'bold' in node && node['bold']);
+      if (bolded) {
+        Slate.Transforms.unsetNodes(
+          editor,
+          'bold',
+          { match: Slate.Text.isText, split: true },
+        );
+      } else {
+        Slate.Transforms.setNodes(
+          editor,
+          { [mark]: true },
+          { match: Slate.Text.isText, split: true },
+        )
+      }
 
     } else {
       // TODO(jaked)
