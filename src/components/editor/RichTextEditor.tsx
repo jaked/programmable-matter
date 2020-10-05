@@ -5,6 +5,8 @@ import * as SlateReact from 'slate-react';
 
 import isHotkey from 'is-hotkey';
 
+import * as PMAST from '../../PMAST';
+
 import * as PMEditor from './PMEditor';
 
 import { bug } from '../../util/bug';
@@ -26,24 +28,27 @@ const renderLeaf = ({ leaf, attributes, children } : SlateReact.RenderLeafProps)
   return <span {...attributes}>{children}</span>
 }
 
-export type RichTextEditorProps = {
-  value: Slate.Node[],
-  setValue: (nodes: Slate.Node[]) => void,
-}
-
-const RichTextEditor = (props: RichTextEditorProps) => {
-  const editor = React.useMemo(() => SlateReact.withReact(PMEditor.withPMEditor(Slate.createEditor())), []);
-  const onKeyDown = React.useMemo(() => (e: React.KeyboardEvent) => {
+export const makeOnKeyDown = (editor: PMEditor.PMEditor) =>
+  (e: React.KeyboardEvent) => {
     if (isHotkey('mod+b', e as unknown as KeyboardEvent)) {
       e.preventDefault();
       editor.toggleBold();
     }
-  }, [editor]);
+  }
+
+export type RichTextEditorProps = {
+  value: PMAST.Node[],
+  setValue: (nodes: PMAST.Node[]) => void,
+}
+
+const RichTextEditor = (props: RichTextEditorProps) => {
+  const editor = React.useMemo(() => SlateReact.withReact(PMEditor.withPMEditor(Slate.createEditor())), []);
+  const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   return (
     <SlateReact.Slate
       editor={editor}
       value={props.value}
-      onChange={props.setValue}
+      onChange={props.setValue as (nodes: Slate.Node[]) => void}
     >
       <SlateReact.Editable
         renderElement={renderElement}
