@@ -19,21 +19,21 @@ const makePMEditor = (props: {
 }
 
 describe('PMEditor', () => {
-  describe('toggleBold', () => {
-    it('toggles bold on at cursor', () => {
+  describe('toggleMark', () => {
+    it('toggles mark on at cursor', () => {
       const editor = makePMEditor();
-      editor.toggleBold();
+      editor.toggleMark('bold');
       expect(editor.marks && 'bold' in editor.marks && editor.marks.bold).toBeTruthy();
     });
 
-    it('toggles bold off at cursor', () => {
+    it('toggles mark off at cursor', () => {
       const editor = makePMEditor();
       editor.addMark('bold', true);
-      editor.toggleBold();
+      editor.toggleMark('bold');
       expect(editor.marks && !('bold' in editor.marks)).toBeTruthy();
     });
 
-    it('toggles bold on when selection is unbolded', () => {
+    it('toggles mark on when selection is unmarked', () => {
       const editor = makePMEditor({
         children: [
           { type: 'p', children: [{ text: 'foobarbaz' }] },
@@ -43,7 +43,7 @@ describe('PMEditor', () => {
           focus: { path: [0, 0], offset: 6 },
         }
       });
-      editor.toggleBold();
+      editor.toggleMark('bold');
       expect(editor.children).toEqual([ { type: 'p', children: [
         { text: 'foo' },
         { text: 'bar', bold: true },
@@ -51,7 +51,7 @@ describe('PMEditor', () => {
       ] } ]);
     });
 
-    it('toggles bold on when selection is partially bolded', () => {
+    it('toggles mark on when selection is partially marked', () => {
       const editor = makePMEditor({
         children: [ { type: 'p', children: [
           { text: 'foo' },
@@ -63,14 +63,14 @@ describe('PMEditor', () => {
           focus: { path: [0, 1], offset: 3 },
         }
       });
-      editor.toggleBold();
+      editor.toggleMark('bold');
       expect(editor.children).toEqual([ { type: 'p', children: [
         { text: 'foobar', bold: true },
         { text: 'baz' },
       ] } ]);
     });
 
-    it('toggles bold off when selection is bolded', () => {
+    it('toggles mark off when selection is marked', () => {
       const editor = makePMEditor({
         children: [ { type: 'p', children: [
           { text: 'foobar', bold: true },
@@ -81,7 +81,7 @@ describe('PMEditor', () => {
           focus: { path: [0, 0], offset: 6 },
         }
       });
-      editor.toggleBold();
+      editor.toggleMark('bold');
       expect(editor.children).toEqual([ { type: 'p', children: [
         { text: 'foobarbaz' },
       ] } ]);

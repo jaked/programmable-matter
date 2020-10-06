@@ -2,8 +2,14 @@ import JSON5 from 'json5';
 
 export type Text = {
   text: string,
-  bold?: boolean,
+  bold?: true,
+  italic?: true,
+  underline?: true,
+  code?: true,
 }
+
+// TODO(jaked) figure out how to compute this from `Text` fields
+export type mark = 'bold' | 'italic' | 'underline' | 'code';
 
 export type P = {
   type: 'p',

@@ -12,6 +12,12 @@ export const renderNode = (node: PMAST.Node) => {
     let text: any = node.text;
     if (node.bold)
       text = React.createElement('strong', {}, text);
+    if (node.italic)
+      text = React.createElement('em', {}, text);
+    if (node.underline)
+      text = React.createElement('u', {}, text);
+    if (node.code)
+      text = React.createElement('code', {}, text);
     return text;
   } else {
     switch (node.type) {

@@ -1,20 +1,21 @@
 import * as Slate from 'slate'
+import * as PMAST from '../../PMAST';
 
 export type PMEditor = Slate.Editor & {
-  toggleBold: () => void
+  toggleMark(mark: PMAST.mark): () => void
 }
 
-const toggleMark = (editor: Slate.Editor, mark: 'bold') => {
+const toggleMark = (editor: Slate.Editor, mark: PMAST.mark) => {
   if (editor.selection) {
     if (Slate.Range.isExpanded(editor.selection)) {
-      const bolded = [...Slate.Editor.nodes(
+      const marked = [...Slate.Editor.nodes(
         editor,
         { match: Slate.Text.isText }
-      )].every(([node, location]) => 'bold' in node && node['bold']);
-      if (bolded) {
+      )].every(([node, _path]) => mark in node);
+      if (marked) {
         Slate.Transforms.unsetNodes(
           editor,
-          'bold',
+          mark,
           { match: Slate.Text.isText, split: true },
         );
       } else {
@@ -30,7 +31,7 @@ const toggleMark = (editor: Slate.Editor, mark: 'bold') => {
       // Editor.marks computes marks from the nearest text
       // is editor.marks already kept in sync with that?
       const marks = Slate.Editor.marks(editor) || {};
-      if (mark in marks && marks[mark]) {
+      if (mark in marks) {
         const newMarks = { ...marks };
         delete newMarks[mark];
         editor.marks = newMarks;
@@ -44,8 +45,8 @@ const toggleMark = (editor: Slate.Editor, mark: 'bold') => {
 }
 
 export const withPMEditor = (editor: Slate.Editor) => {
-  editor.toggleBold = () => {
-    toggleMark(editor, 'bold');
+  editor.toggleMark = (mark: PMAST.mark) => {
+    toggleMark(editor, mark);
   }
   return editor as PMEditor;
 }

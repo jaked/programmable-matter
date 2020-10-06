@@ -27,7 +27,7 @@ it('compiles', () => {
   ]);
 });
 
-it('renders bold mark', () => {
+it('renders marks', () => {
   const compiled = compileFilePm(
     new File(
       'foo.pm',
@@ -37,7 +37,8 @@ it('renders bold mark', () => {
           children: [
             { text: 'foo' },
             { text: 'bar', bold: true },
-            { text: 'baz' }
+            { text: 'baz', underline: true },
+            { text: 'quux', bold: true, italic: true },
           ]
         }
       ])),
@@ -48,10 +49,11 @@ it('renders bold mark', () => {
 
   compiled.get().rendered.reconcile();
   expect(compiled.get().rendered.get()).toEqual([
-    React.createElement('p', {},
-      'foo',
-      React.createElement('strong', {}, 'bar'),
-      'baz',
-    )
+    <p>
+      foo
+      <strong>bar</strong>
+      <u>baz</u>
+      <em><strong>quux</strong></em>
+    </p>
   ]);
 });

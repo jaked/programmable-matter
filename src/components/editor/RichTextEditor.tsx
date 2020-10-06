@@ -11,7 +11,7 @@ import * as PMEditor from './PMEditor';
 
 import { bug } from '../../util/bug';
 
-const renderElement = ({ element, attributes, children }: SlateReact.RenderElementProps) => {
+export const renderElement = ({ element, attributes, children }: SlateReact.RenderElementProps) => {
   switch (element.type) {
     case 'p':
       return <p {...attributes}>{children}</p>
@@ -20,19 +20,34 @@ const renderElement = ({ element, attributes, children }: SlateReact.RenderEleme
   }
 }
 
-const renderLeaf = ({ leaf, attributes, children } : SlateReact.RenderLeafProps) => {
-  if (leaf.bold) {
-    children = <strong>{children}</strong>
-  }
+export const renderLeaf = ({ leaf, attributes, children } : SlateReact.RenderLeafProps) => {
+  if (leaf.bold)
+    children = <strong>{children}</strong>;
+  if (leaf.italic)
+    children = <em>{children}</em>;
+  if (leaf.underline)
+    children = <u>{children}</u>;
+  if (leaf.code)
+    children = <code>{children}</code>;
 
   return <span {...attributes}>{children}</span>
 }
 
+const HOTKEYS = {
+  'mod+b': 'bold',
+  'mod+i': 'italic',
+  'mod+u': 'underline',
+  'mod+`': 'code',
+}
+
 export const makeOnKeyDown = (editor: PMEditor.PMEditor) =>
   (e: React.KeyboardEvent) => {
-    if (isHotkey('mod+b', e as unknown as KeyboardEvent)) {
-      e.preventDefault();
-      editor.toggleBold();
+    for (const hotkey in HOTKEYS) {
+      if (isHotkey(hotkey, e as unknown as KeyboardEvent)) {
+        e.preventDefault();
+        const mark = HOTKEYS[hotkey];
+        editor.toggleMark(mark);
+      }
     }
   }
 
