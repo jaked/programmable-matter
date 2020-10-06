@@ -2,7 +2,8 @@ import * as Slate from 'slate'
 import * as PMAST from '../../PMAST';
 
 export type PMEditor = Slate.Editor & {
-  toggleMark(mark: PMAST.mark): () => void
+  toggleMark(mark: PMAST.mark): void;
+  setType(type: PMAST.type): void;
 }
 
 const toggleMark = (editor: Slate.Editor, mark: PMAST.mark) => {
@@ -44,9 +45,16 @@ const toggleMark = (editor: Slate.Editor, mark: PMAST.mark) => {
   }
 }
 
+const setType = (editor: Slate.Editor, type: PMAST.type) => {
+  Slate.Transforms.setNodes(editor, { type });
+}
+
 export const withPMEditor = (editor: Slate.Editor) => {
   editor.toggleMark = (mark: PMAST.mark) => {
     toggleMark(editor, mark);
+  }
+  editor.setType = (type: PMAST.type) => {
+    setType(editor, type);
   }
   return editor as PMEditor;
 }

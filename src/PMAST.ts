@@ -11,12 +11,14 @@ export type Text = {
 // TODO(jaked) figure out how to compute this from `Text` fields
 export type mark = 'bold' | 'italic' | 'underline' | 'code';
 
-export type P = {
-  type: 'p',
+export type type = 'p' | 'h1' | 'h2' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+export type Block = {
+  type: type,
   children: Node[],
 }
 
-export type Node = Text | P
+export type Node = Text | Block
 
 export function parse(pm: string): Node[] {
   const nodes = JSON5.parse(pm);

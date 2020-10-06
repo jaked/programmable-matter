@@ -87,4 +87,34 @@ describe('PMEditor', () => {
       ] } ]);
     });
   });
+
+  describe('setType', () => {
+    it('sets header type at cursor', () => {
+      const editor = makePMEditor();
+      editor.setType('h1');
+      expect(editor.children).toEqual([
+        { type: 'h1', children: [ { text: ''} ] }
+      ]);
+    });
+
+    it('sets header type in selection', () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'p', children: [ { text: 'foo'} ]},
+          { type: 'p', children: [ { text: 'bar'} ]},
+          { type: 'p', children: [ { text: 'baz'} ]},
+        ],
+        selection: {
+          anchor: { path: [1, 0], offset: 0 },
+          focus: { path: [2, 0], offset: 1 },
+        }
+      });
+      editor.setType('h1');
+      expect(editor.children).toEqual([
+        { type: 'p', children: [ { text: 'foo' } ] },
+        { type: 'h1', children: [ { text: 'bar'} ] },
+        { type: 'h1', children: [ { text: 'baz'} ] },
+      ]);
+    });
+  });
 });
