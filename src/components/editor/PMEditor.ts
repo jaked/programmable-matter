@@ -46,7 +46,16 @@ const toggleMark = (editor: Slate.Editor, mark: PMAST.mark) => {
 }
 
 const setType = (editor: Slate.Editor, type: PMAST.type) => {
-  Slate.Transforms.setNodes(editor, { type });
+  Slate.Transforms.unwrapNodes(editor, {
+    match: node => node.type === 'ol' || node.type === 'ul',
+    split: true,
+  });
+  if (type === 'ol' || type === 'ul') {
+    Slate.Transforms.wrapNodes(editor, { type, children: [] });
+    Slate.Transforms.setNodes(editor, { type: 'li' });
+  } else {
+    Slate.Transforms.setNodes(editor, { type });
+  }
 }
 
 export const withPMEditor = (editor: Slate.Editor) => {

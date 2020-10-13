@@ -71,14 +71,16 @@ describe('compileFilePm', () => {
     );
   });
 
-  it('renders headers', () => {
+  it('renders elements', () => {
     const compiled = compileFilePm(
       new File(
         'foo.pm',
         Buffer.from(PMAST.stringify([
           { type: 'p', children: [{ text: 'foo' }] },
           { type: 'h1', children: [{ text: 'bar' }] },
-          { type: 'h2', children: [{ text: 'baz', bold: true }] },
+          { type: 'ul', children: [
+            { type: 'li', children: [{ text: 'baz', bold: true }] }
+          ] },
         ])),
       ),
     );
@@ -91,7 +93,7 @@ describe('compileFilePm', () => {
       <>
         <p><span>foo</span></p>
         <h1><span>bar</span></h1>
-        <h2><span><strong>baz</strong></span></h2>
+        <ul><li><span><strong>baz</strong></span></li></ul>
       </>
     );
   });
