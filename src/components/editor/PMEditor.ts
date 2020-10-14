@@ -83,5 +83,31 @@ export const withPMEditor = (editor: Slate.Editor) => {
     normalizeNode([node, path]);
   }
 
+  const { deleteBackward } = editor;
+  editor.deleteBackward = (unit: 'character' | 'word' | 'line' | 'block') => {
+    const { selection } = editor;
+    if (selection && Slate.Range.isCollapsed(selection)) {
+      const match = Slate.Editor.above(editor, {
+        match: n => Slate.Editor.isBlock(editor, n)
+      });
+      if (match) {
+        const [block, path] = match;
+        const start = Slate.Editor.start(editor, path);
+        if (Slate.Point.equals(selection.anchor, start) && block.type !== 'p') {
+          if (block.type === 'li') {
+            Slate.Transforms.unwrapNodes(editor, {
+              match: node => node.type === 'ol' || node.type === 'ul',
+              split: true,
+            });
+          }
+          Slate.Transforms.setNodes(editor, { type: 'p' });
+          return;
+        }
+      }
+    }
+
+    deleteBackward(unit);
+  }
+
   return editor as PMEditor;
 }
