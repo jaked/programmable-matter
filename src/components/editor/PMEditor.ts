@@ -65,5 +65,23 @@ export const withPMEditor = (editor: Slate.Editor) => {
   editor.setType = (type: PMAST.type) => {
     setType(editor, type);
   }
+
+  const { normalizeNode } = editor;
+  editor.normalizeNode = ([node, path]: [Slate.Node, Slate.Path]) => {
+    if (!Slate.Text.isText(node)) {
+      let prevType: PMAST.type | undefined = undefined;
+      for (const [child, childPath] of Slate.Node.children(editor, path)) {
+        if (child.type === prevType && (prevType === 'ol' || prevType === 'ul')) {
+          Slate.Transforms.mergeNodes(editor, {
+            at: childPath,
+          });
+          return;
+        }
+        prevType = child.type as PMAST.type;
+      }
+    }
+    normalizeNode([node, path]);
+  }
+
   return editor as PMEditor;
 }

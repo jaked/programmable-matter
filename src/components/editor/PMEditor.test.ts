@@ -199,4 +199,30 @@ describe('PMEditor', () => {
       ] },
     ]);
   });
+
+  it(`merges adjacent lists`, () => {
+    const editor = makePMEditor({
+      children: [
+        { type: 'ul', children: [
+          { type: 'li', children: [ { text: 'foo' } ] },
+        ] },
+        { type: 'p', children: [ { text: 'bar' } ] },
+        { type: 'ul', children: [
+          { type: 'li', children: [ { text: 'baz' } ] },
+        ] },
+      ],
+      selection: {
+        anchor: { path: [1, 0], offset: 0 },
+        focus: { path: [1, 0], offset: 0 },
+      }
+    });
+    editor.setType('ul');
+    expect(editor.children).toEqual([
+      { type: 'ul', children: [
+        { type: 'li', children: [ { text: 'foo' } ] },
+        { type: 'li', children: [ { text: 'bar' } ] },
+        { type: 'li', children: [ { text: 'baz' } ] },
+      ] }
+  ]);
+  });
 });
