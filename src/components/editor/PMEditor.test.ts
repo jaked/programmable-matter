@@ -116,157 +116,275 @@ describe('PMEditor', () => {
         { type: 'h1', children: [ { text: 'baz' } ] },
       ]);
     });
-  });
 
-  it('wraps list type', () => {
-    const editor = makePMEditor({
-      children: [
+    it('wraps list type', () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'p', children: [ { text: 'foo' } ] },
+        ],
+        selection: {
+          anchor: { path: [0, 0], offset: 0 },
+          focus: { path: [0, 0], offset: 0 },
+        }
+      });
+      editor.setType('ul');
+      expect(editor.children).toEqual([
+        { type: 'ul', children: [
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+          ] },
+        ] }
+      ]);
+    });
+
+    it(`doesn't wrap list type more than once`, () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+            ] },
+          ] }
+        ],
+        selection: {
+          anchor: { path: [0, 0, 0, 0], offset: 0 },
+          focus: { path: [0, 0, 0, 0], offset: 0 },
+        }
+      });
+      editor.setType('ol');
+      expect(editor.children).toEqual([
+        { type: 'ol', children: [
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+          ] },
+        ] }
+      ]);
+    });
+
+    it('unwraps list type', () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+            ] },
+          ] }
+        ],
+        selection: {
+          anchor: { path: [0, 0, 0, 0], offset: 0 },
+          focus: { path: [0, 0, 0, 0], offset: 0 },
+        }
+      });
+      editor.setType('p');
+      expect(editor.children).toEqual([
         { type: 'p', children: [ { text: 'foo' } ] },
-      ],
-      selection: {
-        anchor: { path: [0, 0], offset: 0 },
-        focus: { path: [0, 0], offset: 0 },
-      }
+      ]);
     });
-    editor.setType('ul');
-    expect(editor.children).toEqual([
-      { type: 'ul', children: [
-        { type: 'li', children: [ { text: 'foo' } ] },
-      ] }
-    ]);
-  });
 
-  it(`doesn't wrap list type more than once`, () => {
-    const editor = makePMEditor({
-      children: [
+    it(`splits and unwraps multi-item list`, () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'bar' } ] },
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'baz' } ] },
+            ] },
+          ] }
+        ],
+        selection: {
+          anchor: { path: [0, 1, 0, 0], offset: 0 },
+          focus: { path: [0, 1, 0, 0], offset: 0 },
+        }
+      });
+      editor.setType('p');
+      expect(editor.children).toEqual([
         { type: 'ul', children: [
-          { type: 'li', children: [ { text: 'foo' } ] },
-        ] }
-      ],
-      selection: {
-        anchor: { path: [0, 0], offset: 0 },
-        focus: { path: [0, 0], offset: 0 },
-      }
-    });
-    editor.setType('ol');
-    expect(editor.children).toEqual([
-      { type: 'ol', children: [
-        { type: 'li', children: [ { text: 'foo' } ] },
-      ] }
-    ]);
-  });
-
-  it('unwraps list type', () => {
-    const editor = makePMEditor({
-      children: [
-        { type: 'ul', children: [
-          { type: 'li', children: [ { text: 'foo' } ] },
-        ] }
-      ],
-      selection: {
-        anchor: { path: [0, 0], offset: 0 },
-        focus: { path: [0, 0], offset: 0 },
-      }
-    });
-    editor.setType('p');
-    expect(editor.children).toEqual([
-      { type: 'p', children: [ { text: 'foo' } ] },
-    ]);
-  });
-
-  it(`splits and unwraps multi-item list`, () => {
-    const editor = makePMEditor({
-      children: [
-        { type: 'ul', children: [
-          { type: 'li', children: [ { text: 'foo' } ] },
-          { type: 'li', children: [ { text: 'bar' } ] },
-          { type: 'li', children: [ { text: 'baz' } ] },
-        ] }
-      ],
-      selection: {
-        anchor: { path: [0, 1], offset: 0 },
-        focus: { path: [0, 1], offset: 0 },
-      }
-    });
-    editor.setType('p');
-    expect(editor.children).toEqual([
-      { type: 'ul', children: [
-        { type: 'li', children: [ { text: 'foo' } ] },
-      ] },
-      { type: 'p', children: [ { text: 'bar' } ] },
-      { type: 'ul', children: [
-        { type: 'li', children: [ { text: 'baz' } ] },
-      ] },
-    ]);
-  });
-
-  it(`merges adjacent lists`, () => {
-    const editor = makePMEditor({
-      children: [
-        { type: 'ul', children: [
-          { type: 'li', children: [ { text: 'foo' } ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+          ] },
         ] },
         { type: 'p', children: [ { text: 'bar' } ] },
         { type: 'ul', children: [
-          { type: 'li', children: [ { text: 'baz' } ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'baz' } ] },
+          ] },
         ] },
-      ],
-      selection: {
-        anchor: { path: [1, 0], offset: 0 },
-        focus: { path: [1, 0], offset: 0 },
-      }
+      ]);
     });
-    editor.setType('ul');
-    expect(editor.children).toEqual([
-      { type: 'ul', children: [
-        { type: 'li', children: [ { text: 'foo' } ] },
-        { type: 'li', children: [ { text: 'bar' } ] },
-        { type: 'li', children: [ { text: 'baz' } ] },
-      ] }
-    ]);
-  });
-});
 
-describe('deleteBackward', () => {
-  it(`converts to 'p' on delete`, () => {
-    const editor = makePMEditor({
-      children: [
-        { type: 'h1', children: [ { text: 'foo' } ] },
-      ],
-      selection: {
-        anchor: { path: [0, 0], offset: 0 },
-        focus: { path: [0, 0], offset: 0 },
-      }
-    });
-    editor.deleteBackward('character');
-    expect(editor.children).toEqual([
-      { type: 'p', children: [ { text: 'foo' } ] },
-    ]);
-  });
-
-  it(`unwraps list on delete`, () => {
-    const editor = makePMEditor({
-      children: [
+    it(`merges adjacent lists`, () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+            ] },
+          ] },
+          { type: 'p', children: [ { text: 'bar' } ] },
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'baz' } ] },
+            ] },
+          ] },
+        ],
+        selection: {
+          anchor: { path: [1, 0], offset: 0 },
+          focus: { path: [1, 0], offset: 0 },
+        }
+      });
+      editor.setType('ul');
+      expect(editor.children).toEqual([
         { type: 'ul', children: [
-          { type: 'li', children: [ { text: 'foo' } ] },
-          { type: 'li', children: [ { text: 'bar' } ] },
-          { type: 'li', children: [ { text: 'baz' } ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+          ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'bar' } ] },
+          ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'baz' } ] },
+          ] },
         ] }
-      ],
-      selection: {
-        anchor: { path: [0, 1, 0], offset: 0 },
-        focus: { path: [0, 1, 0], offset: 0 },
-      }
+      ]);
     });
-    editor.deleteBackward('character');
-    expect(editor.children).toEqual([
-      { type: 'ul', children: [
-        { type: 'li', children: [ { text: 'foo' } ] },
-      ] },
-      { type: 'p', children: [ { text: 'bar' } ] },
-      { type: 'ul', children: [
-        { type: 'li', children: [ { text: 'baz' } ] },
-      ] },
-    ]);
+  });
+
+  describe('deleteBackward', () => {
+    it(`dedents when cursor is at start of element`, () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'h1', children: [ { text: 'foo' } ] },
+        ],
+        selection: {
+          anchor: { path: [0, 0], offset: 0 },
+          focus: { path: [0, 0], offset: 0 },
+        }
+      });
+      editor.deleteBackward('character');
+      expect(editor.children).toEqual([
+        { type: 'p', children: [ { text: 'foo' } ] },
+      ]);
+    });
+  });
+
+  describe('indent', () => {
+    it('nests list item', () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'bar' } ] },
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'baz' } ] },
+            ] },
+          ] }
+        ],
+        selection: {
+          anchor: { path: [0, 1, 0, 0], offset: 0 },
+          focus: { path: [0, 1, 0, 0], offset: 0 },
+        }
+      });
+      editor.indent();
+      expect(editor.children).toEqual([
+        { type: 'ul', children: [
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+            { type: 'ul', children: [
+              { type: 'li', children: [
+                { type: 'p', children: [ { text: 'bar' } ]},
+              ] },
+            ]},
+          ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'baz' } ] },
+          ] },
+        ] },
+      ]);
+    });
+  });
+
+  describe('dedent', () => {
+    it('unnests list item', () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+              { type: 'ul', children: [
+                { type: 'li', children: [
+                  { type: 'p', children: [ { text: 'bar' } ]},
+                ] },
+              ]},
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'baz' } ] },
+            ] },
+          ] },
+        ],
+        selection: {
+          anchor: { path: [0, 0, 1, 0, 0, 0], offset: 0 },
+          focus: { path: [0, 0, 1, 0, 0, 0], offset: 0 },
+        }
+      });
+      editor.dedent();
+      expect(editor.children).toEqual([
+        { type: 'ul', children: [
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+          ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'bar' } ] },
+          ] },
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'baz' } ] },
+          ] },
+        ] }
+      ]);
+    });
+
+    it('unwraps top-level list item', () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'ul', children: [
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'foo' } ] },
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'bar' } ] },
+            ] },
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'baz' } ] },
+            ] },
+          ] }
+        ],
+        selection: {
+          anchor: { path: [0, 1, 0, 0], offset: 0 },
+          focus: { path: [0, 1, 0, 0], offset: 0 },
+        }
+      });
+      editor.dedent();
+      expect(editor.children).toEqual([
+        { type: 'ul', children: [
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'foo' } ] },
+          ] },
+        ] },
+        { type: 'p', children: [ { text: 'bar' } ] },
+        { type: 'ul', children: [
+          { type: 'li', children: [
+            { type: 'p', children: [ { text: 'baz' } ] },
+          ] },
+        ] },
+      ]);
+    });
   });
 });

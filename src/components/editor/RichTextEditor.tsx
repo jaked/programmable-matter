@@ -46,6 +46,12 @@ const TYPE_HOTKEYS ={
 
 export const makeOnKeyDown = (editor: PMEditor.PMEditor) =>
   (e: React.KeyboardEvent) => {
+    if (isHotkey('tab', e as unknown as KeyboardEvent)) {
+      editor.indent();
+    }
+    if (isHotkey('shift+tab', e as unknown as KeyboardEvent)) {
+      editor.dedent();
+    }
     for (const hotkey in MARK_HOTKEYS) {
       if (isHotkey(hotkey, e as unknown as KeyboardEvent)) {
         e.preventDefault();

@@ -16,21 +16,28 @@ function makeKeyboardEvent(hotkey: string) {
 
 describe('RichTextEditor', () => {
   describe('onKeyDown', () => {
-    function expectMarkOnHotkey(hotkey: string, mark: PMAST.mark) {
+    function expectCallOnKey(hotkey: string, methodName: string, ...args: unknown[]) {
       const editor = PMEditor.withPMEditor(Slate.createEditor());
-      // TODO(jaked) not sure why `spyOn` type doesn't check
-      const toggleMark = jest.spyOn(editor as any, 'toggleMark');
+      const method = jest.spyOn(editor as any, methodName);
       const onKeyDown = RichTextEditor.makeOnKeyDown(editor);
       const ev = makeKeyboardEvent(hotkey);
       onKeyDown(ev);
-      expect(toggleMark).toHaveBeenCalledWith(mark);
+      expect(method).toHaveBeenCalledWith(...args);
     }
 
     it('toggles marks on hotkeys', () => {
-      expectMarkOnHotkey('mod+b', 'bold');
-      expectMarkOnHotkey('mod+i', 'italic');
-      expectMarkOnHotkey('mod+u', 'underline');
-      expectMarkOnHotkey('mod+`', 'code');
+      expectCallOnKey('mod+b', 'toggleMark', 'bold');
+      expectCallOnKey('mod+i', 'toggleMark', 'italic');
+      expectCallOnKey('mod+u', 'toggleMark', 'underline');
+      expectCallOnKey('mod+`', 'toggleMark', 'code');
+    });
+
+    it('indents on tab', () => {
+      expectCallOnKey('tab', 'indent');
+    });
+
+    it('dedents on shift+tab', () => {
+      expectCallOnKey('shift+tab', 'dedent');
     });
   });
 
