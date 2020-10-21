@@ -1,5 +1,6 @@
 import * as Slate from 'slate'
 import * as PMAST from '../../PMAST';
+import { bug } from '../../util/bug';
 
 export type PMEditor = Slate.Editor & {
   toggleMark(mark: PMAST.mark): void;
@@ -30,6 +31,17 @@ const inListItem = (editor: Slate.Editor, options: { at?: Slate.Path } = {}): un
       }
     }
   }
+}
+
+const atStartOfBlock = (editor: Slate.Editor) => {
+  const above = Slate.Editor.above(editor);
+  if (!editor.selection || Slate.Range.isExpanded(editor.selection) || !above)
+    return false;
+  const [, path] = above;
+  const start = Slate.Editor.start(editor, path);
+  if (Slate.Point.equals(editor.selection.anchor, start))
+    return true;
+  return false;
 }
 
 export const toggleMark = (editor: Slate.Editor, mark: PMAST.mark) => {
@@ -130,25 +142,42 @@ export const indent = (editor: Slate.Editor) => {
 }
 
 export const dedent = (editor: Slate.Editor) => {
-  if (!editor.selection) return;
+  Slate.Editor.withoutNormalizing(editor, () => {
+    if (!editor.selection) return;
 
-  if (Slate.Range.isExpanded(editor.selection)) {
+    if (Slate.Range.isExpanded(editor.selection)) {
 
-  } else {
-    const inListItemResult = inListItem(editor);
-    if (inListItemResult) {
-      const { itemPath, listPath } = inListItemResult;
-      if (inListItem(editor, { at: listPath })) {
-        Slate.Transforms.liftNodes(editor, { at: itemPath });
-        Slate.Transforms.liftNodes(editor, { at: listPath });
-      } else {
-        Slate.Transforms.unwrapNodes(editor, { at: itemPath });
-        Slate.Transforms.liftNodes(editor, { at: itemPath });
-      }
     } else {
-      Slate.Transforms.setNodes(editor, { type: 'p' });
+      const inListItemResult = inListItem(editor);
+      if (inListItemResult) {
+        const { itemNode, itemPath, listNode, listPath } = inListItemResult;
+        if (inListItem(editor, { at: listPath })) {
+          const itemPos = itemPath[itemPath.length - 1];
+          // if there are items in the list below the one we're dedenting...
+          if (itemPos < listNode.children.length - 1) {
+            // split them into a new list...
+            const nextRef = Slate.Editor.pathRef(editor, Slate.Path.next(itemPath));
+            Slate.Transforms.splitNodes(editor, { at: nextRef.current! });
+            // move the new list under the item we're dedenting
+            const newListPath = Slate.Path.parent(nextRef.current!);
+            // TODO(jaked) what if itemNode contains a list of a different type?
+            const nestedListPath = itemPath.concat(itemNode.children.length);
+            Slate.Transforms.moveNodes(editor, { at: newListPath, to: nestedListPath });
+            nextRef.unref();
+          }
+          const itemRef = Slate.Editor.pathRef(editor, itemPath);
+          Slate.Transforms.liftNodes(editor, { at: itemRef.current! });
+          Slate.Transforms.liftNodes(editor, { at: itemRef.current! });
+          itemRef.unref();
+        } else {
+          Slate.Transforms.unwrapNodes(editor, { at: itemPath });
+          Slate.Transforms.liftNodes(editor, { at: itemPath });
+        }
+      } else {
+        Slate.Transforms.setNodes(editor, { type: 'p' });
+      }
     }
-  }
+  });
 }
 
 export const withPMEditor = (editor: Slate.Editor) => {
@@ -178,20 +207,28 @@ export const withPMEditor = (editor: Slate.Editor) => {
 
   const { deleteBackward } = editor;
   editor.deleteBackward = (unit: 'character' | 'word' | 'line' | 'block') => {
-    const { selection } = editor;
-    if (selection && Slate.Range.isCollapsed(selection)) {
-      const above = Slate.Editor.above(editor);
-      if (above) {
-        const [node, path] = above;
-        const start = Slate.Editor.start(editor, path);
-        if (Slate.Point.equals(selection.anchor, start)) {
-          dedent(editor);
-          return;
-        }
-      }
+    if (atStartOfBlock(editor)) {
+      dedent(editor);
+      return;
     }
 
     deleteBackward(unit);
+  }
+
+  const { insertBreak } = editor;
+  editor.insertBreak = () => {
+    if (inListItem(editor)) {
+      insertBreak();
+      const above = Slate.Editor.above(editor);
+      if (above) {
+        const [, path] = above;
+        Slate.Transforms.wrapNodes(editor, { type: 'li', children: [] }, { at: path });
+        Slate.Transforms.liftNodes(editor, { at: path });
+      }
+      return;
+    }
+
+    insertBreak();
   }
 
   editor.indent = () => indent(editor);
