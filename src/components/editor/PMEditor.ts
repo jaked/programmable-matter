@@ -44,6 +44,16 @@ const atStartOfBlock = (editor: Slate.Editor) => {
   return false;
 }
 
+const blockIsEmpty = (editor: Slate.Editor) => {
+  const above = Slate.Editor.above(editor);
+  if (above) {
+    const [node, path] = above;
+    if (node.children.length === 1 && node.children[0].text === '')
+      return true;
+  }
+  return false;
+}
+
 export const toggleMark = (editor: Slate.Editor, mark: PMAST.mark) => {
   if (!editor.selection) return;
 
@@ -207,7 +217,7 @@ export const withPMEditor = (editor: Slate.Editor) => {
 
   const { deleteBackward } = editor;
   editor.deleteBackward = (unit: 'character' | 'word' | 'line' | 'block') => {
-    if (atStartOfBlock(editor)) {
+    if (atStartOfBlock(editor) && !blockIsEmpty(editor)) {
       dedent(editor);
       return;
     }
@@ -218,12 +228,16 @@ export const withPMEditor = (editor: Slate.Editor) => {
   const { insertBreak } = editor;
   editor.insertBreak = () => {
     if (inListItem(editor)) {
-      insertBreak();
-      const above = Slate.Editor.above(editor);
-      if (above) {
-        const [, path] = above;
-        Slate.Transforms.wrapNodes(editor, { type: 'li', children: [] }, { at: path });
-        Slate.Transforms.liftNodes(editor, { at: path });
+      if (blockIsEmpty(editor)) {
+        dedent(editor);
+      } else {
+        insertBreak();
+        const above = Slate.Editor.above(editor);
+        if (above) {
+          const [, path] = above;
+          Slate.Transforms.wrapNodes(editor, { type: 'li', children: [] }, { at: path });
+          Slate.Transforms.liftNodes(editor, { at: path });
+        }
       }
       return;
     }

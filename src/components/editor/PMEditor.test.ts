@@ -255,7 +255,7 @@ describe('PMEditor', () => {
   });
 
   describe('deleteBackward', () => {
-    it(`dedents when cursor is at start of element`, () => {
+    it(`dedents when cursor is at start of element and block is not empty`, () => {
       const editor = makePMEditor({
         children: [
           { type: 'h1', children: [ { text: 'foo' } ] },
@@ -263,6 +263,23 @@ describe('PMEditor', () => {
         selection: {
           anchor: { path: [0, 0], offset: 0 },
           focus: { path: [0, 0], offset: 0 },
+        }
+      });
+      editor.deleteBackward('character');
+      expect(editor.children).toEqual([
+        { type: 'p', children: [ { text: 'foo' } ] },
+      ]);
+    });
+
+    it(`deletes backward when block is empty`, () => {
+      const editor = makePMEditor({
+        children: [
+          { type: 'p', children: [ { text: 'foo' } ] },
+          { type: 'p', children: [ { text: '' } ] },
+        ],
+        selection: {
+          anchor: { path: [1, 0], offset: 0 },
+          focus: { path: [1, 0], offset: 0 },
         }
       });
       editor.deleteBackward('character');
@@ -473,31 +490,53 @@ describe('PMEditor', () => {
   });
 
   describe('insertBreak', () => {
-    it('makes a new item when cursor in list item', () => {
-      const editor = makePMEditor({
-        children: [
+    describe('in list item', () => {
+      it('splits item', () => {
+        const editor = makePMEditor({
+          children: [
+            { type: 'ul', children: [
+              { type: 'li', children: [
+                { type: 'p', children: [ { text: 'foobar' } ] },
+              ] },
+            ] }
+          ],
+          selection: {
+            anchor: { path: [0, 0, 0, 0], offset: 3 },
+            focus: { path: [0, 0, 0, 0], offset: 3 },
+          }
+        });
+        editor.insertBreak();
+        expect(editor.children).toEqual([
           { type: 'ul', children: [
             { type: 'li', children: [
-              { type: 'p', children: [ { text: 'foobar' } ] },
+              { type: 'p', children: [ { text: 'foo' } ] },
             ] },
-          ] }
-        ],
-        selection: {
-          anchor: { path: [0, 0, 0, 0], offset: 3 },
-          focus: { path: [0, 0, 0, 0], offset: 3 },
-        }
+            { type: 'li', children: [
+              { type: 'p', children: [ { text: 'bar' } ] },
+            ] },
+          ] },
+        ]);
       });
-      editor.insertBreak();
-      expect(editor.children).toEqual([
-        { type: 'ul', children: [
-          { type: 'li', children: [
-            { type: 'p', children: [ { text: 'foo' } ] },
-          ] },
-          { type: 'li', children: [
-            { type: 'p', children: [ { text: 'bar' } ] },
-          ] },
-        ] },
-      ]);
+
+      it('dedents when item is empty', () => {
+        const editor = makePMEditor({
+          children: [
+            { type: 'ul', children: [
+              { type: 'li', children: [
+                { type: 'p', children: [ { text: '' } ] },
+              ] },
+            ] }
+          ],
+          selection: {
+            anchor: { path: [0, 0, 0, 0], offset: 0 },
+            focus: { path: [0, 0, 0, 0], offset: 0 },
+          }
+        });
+        editor.insertBreak();
+        expect(editor.children).toEqual([
+          { type: 'p', children: [ { text: '' } ] },
+        ]);
+      });
     });
   });
 });
