@@ -4,7 +4,7 @@ import * as SlateReact from 'slate-react';
 import isHotkey from 'is-hotkey';
 
 import * as PMAST from '../../PMAST';
-import * as PMEditor from './PMEditor';
+import * as PMEditor from '../../editor/PMEditor';
 
 export const renderElement = ({ element, attributes, children }: SlateReact.RenderElementProps) => {
   const block = element as PMAST.Block;

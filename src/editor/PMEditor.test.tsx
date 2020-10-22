@@ -1,9 +1,9 @@
 /** @jsx jsx */
 
 import * as Slate from 'slate';
-import { jsx } from '../../util/slate-hyperscript-jsx';
+import { jsx } from '../util/slate-hyperscript-jsx';
 
-import * as PMAST from '../../PMAST';
+import * as PMAST from '../PMAST';
 import * as PMEditor from './PMEditor';
 
 const makePMEditor = (props: {

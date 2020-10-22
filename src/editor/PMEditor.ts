@@ -1,6 +1,6 @@
 import { Editor, Element, Node, Path, Point, Range, Text, Transforms } from 'slate';
-import * as PMAST from '../../PMAST';
-import { bug } from '../../util/bug';
+import * as PMAST from '../PMAST';
+import { bug } from '../util/bug';
 
 export type PMEditor = Editor & {
   toggleMark(mark: PMAST.mark): void;
