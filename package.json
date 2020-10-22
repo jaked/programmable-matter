@@ -29,6 +29,7 @@
     "electron-rebuild": "^1.8.6",
     "jest": "^26.0.1",
     "jsx-loader": "^0.13.2",
+    "slate-hyperscript": "^0.59.0",
     "source-map-loader": "^0.2.4",
     "ts-jest": "^26.0.0",
     "ts-loader": "^5.4.5",
