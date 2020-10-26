@@ -6,6 +6,7 @@ import { deleteBackward } from './deleteBackward';
 import { indent } from './indent';
 import { insertBreak } from './insertBreak';
 import { insertText } from './insertText';
+import { isInline } from './isInline';
 import { normalizeNode } from './normalizeNode';
 import { setType } from './setType';
 import { toggleMark } from './toggleMark';
@@ -29,6 +30,7 @@ export const withPMEditor = (editor: Editor) => {
   editor.deleteBackward = deleteBackward(editor);
   editor.insertBreak = insertBreak(editor);
   editor.insertText = insertText(editor);
+  editor.isInline = isInline(editor);
 
   editor.indent = () => indent(editor);
   editor.dedent = () => dedent(editor);

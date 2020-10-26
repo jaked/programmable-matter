@@ -14,14 +14,36 @@ export type mark = 'bold' | 'italic' | 'underline' | 'code';
 export type type =
   'p' |
   'h1' | 'h2' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' |
-  'ul' | 'ol' | 'li';
+  'ul' | 'ol' | 'li' |
+  'a';
 
-export type Block = {
-  type: type,
+export type Paragraph = {
+  type: 'p',
   children: Node[],
 }
 
-export type Node = Text | Block
+export type Header = {
+  type: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6',
+  children: Node[],
+}
+
+export type List = {
+  type: 'ul' | 'ol' | 'li',
+  children: Node[],
+}
+
+export type Link = {
+  type: 'a',
+  href: string,
+  children: Node[],
+}
+
+// TODO(jaked)
+// should this type encode more validation of tree?
+// e.g. prohibition on headers appearing in lists
+export type Element = Paragraph | Header | List | Link;
+
+export type Node = Text | Paragraph | Header | List | Link;
 
 export function parse(pm: string): Node[] {
   const nodes = JSON5.parse(pm);

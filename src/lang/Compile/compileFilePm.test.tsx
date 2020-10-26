@@ -97,4 +97,29 @@ describe('compileFilePm', () => {
       </>
     );
   });
+
+  it('renders links', () => {
+    const compiled = compileFilePm(
+      new File(
+        'foo.pm',
+        Buffer.from(PMAST.stringify([
+          { type: 'p', children: [
+            { type: 'a', href: 'https://foo.bar', children: [
+              { text: 'foo' }
+            ] },
+          ]},
+        ])),
+      ),
+    );
+    compiled.reconcile();
+    expect(compiled.get().problems).toBeFalsy();
+
+    compiled.get().rendered.reconcile();
+    expectRenderEqual(
+      compiled.get().rendered.get(),
+      <>
+        <p><a href='https://foo.bar'><span>foo</span></a></p>
+      </>
+    );
+  });
 });

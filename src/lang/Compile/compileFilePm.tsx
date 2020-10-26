@@ -29,7 +29,11 @@ export const renderNode = (node: PMAST.Node) => {
     return <span key={key}>{text}</span>;
   } else {
     const children = node.children.map(renderNode);
-    return React.createElement(node.type, { key }, ...children);
+    if (node.type === 'a') {
+      return React.createElement(node.type, { key, href: node.href }, ...children);
+    } else {
+      return React.createElement(node.type, { key }, ...children);
+    }
   }
 }
 

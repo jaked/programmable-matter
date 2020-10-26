@@ -7,8 +7,12 @@ import * as PMAST from '../../PMAST';
 import * as PMEditor from '../../editor/PMEditor';
 
 export const renderElement = ({ element, attributes, children }: SlateReact.RenderElementProps) => {
-  const block = element as PMAST.Block;
-  return React.createElement(block.type, attributes, children);
+  const pmElement = element as PMAST.Element;
+  if (pmElement.type === 'a') {
+    return React.createElement('a', { ...attributes, href: pmElement.href }, children);
+  } else {
+    return React.createElement(pmElement.type, attributes, children);
+  }
 }
 
 export const renderLeaf = ({ leaf, attributes, children } : SlateReact.RenderLeafProps) => {
