@@ -1,5 +1,6 @@
 import * as Url from 'url';
 import { Editor, Range, Transforms } from 'slate';
+import { matchStringBefore } from './matchStringBefore';
 import { setType } from './setType';
 
 const SHORTCUTS = {
@@ -17,7 +18,11 @@ const SHORTCUTS = {
 
 const isUrl = (text: string) => {
   const url = Url.parse(text);
-  return url.protocol && url.slashes && url.hostname;
+  return !!(
+    (url.protocol === 'http:' || url.protocol === 'https:') &&
+    url.slashes &&
+    url.hostname
+  );
 }
 
 const inLink = (editor: Editor) => {
@@ -60,8 +65,7 @@ export const insertText = (editor: Editor) => {
       const above = Editor.above(editor);
       if (above) {
         const [, path] = above;
-        const start = Editor.start(editor, path);
-        const range = { anchor: selection.anchor, focus: start };
+        const range = { anchor: Editor.start(editor, path), focus: selection.anchor };
         const beforeText = Editor.string(editor, range);
         const type = SHORTCUTS[beforeText];
 
@@ -69,6 +73,16 @@ export const insertText = (editor: Editor) => {
           Transforms.delete(editor, { at: range });
           setType(editor, type);
           return;
+        }
+
+        const matchUrl = matchStringBefore(editor, range, isUrl);
+        if (matchUrl) {
+          const { match: url, at } = matchUrl;
+          Transforms.wrapNodes(
+            editor,
+            { type: 'a', href: url, children: [] },
+            { at, split: true }
+          );
         }
       }
     }
