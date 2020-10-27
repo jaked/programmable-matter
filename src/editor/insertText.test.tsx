@@ -14,6 +14,20 @@ describe('Markdown shortcuts', () => {
       <h1><stext></stext></h1>
     ]);
   });
+
+  it('sets mark to bold on ** / **', () => {
+    const editor = <editor>
+      <p>foo**bar**<cursor /></p>
+    </editor> as unknown as Editor;
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <p>
+        foo
+        <stext bold={true}>bar</stext>
+        <stext> </stext>
+      </p>
+    ]);
+  });
 });
 
 describe('urls', () => {

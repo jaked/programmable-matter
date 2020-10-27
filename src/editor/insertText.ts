@@ -1,5 +1,6 @@
 import * as Url from 'url';
-import { Editor, Range, Transforms } from 'slate';
+import { Editor, Range, Text, Transforms } from 'slate';
+import { bug } from '../util/bug';
 import { matchStringBefore } from './matchStringBefore';
 import { setType } from './setType';
 
@@ -52,6 +53,45 @@ const wrapLink = (editor: Editor, url: string) => {
   }
 }
 
+const handleDelimitedShortcut = (
+  editor: Editor,
+  at: Range,
+  delim: string,
+  mark: string,
+): boolean => {
+  const matchEnd = matchStringBefore(editor, at, s => s === delim);
+  if (matchEnd) {
+    const startAt = { anchor: at.anchor, focus: matchEnd.at.anchor }
+    const matchStart = matchStringBefore(editor, startAt, s => s.startsWith(delim));
+    if (matchStart) {
+      const startAnchorRef = Editor.pointRef(editor, matchStart.at.anchor);
+      const startFocus = Editor.after(editor, matchStart.at.anchor, { distance: delim.length }) || bug('expected after');
+      const startFocusRef = Editor.pointRef(editor, startFocus);
+      const endAnchorRef = Editor.pointRef(editor, matchEnd.at.anchor);
+      const endFocusRef = Editor.pointRef(editor, matchEnd.at.focus);
+      Transforms.delete(editor, { at: { anchor: startAnchorRef.current!, focus: startFocusRef.current! } });
+      Transforms.delete(editor, { at: { anchor: endAnchorRef.current!, focus: endFocusRef.current! } });
+      // TODO(jaked) setMark?
+      Transforms.setNodes(
+        editor,
+        { [mark]: true },
+        {
+          at: { anchor: startFocusRef.current!, focus: endAnchorRef.current! },
+          match: Text.isText,
+          split: true
+        },
+      );
+      startAnchorRef.unref();
+      startFocusRef.unref();
+      endAnchorRef.unref();
+      endFocusRef.unref();
+
+      return true;
+    }
+  }
+  return false;
+}
+
 export const insertText = (editor: Editor) => {
   const { insertText } = editor;
   return (text: string) => {
@@ -61,11 +101,13 @@ export const insertText = (editor: Editor) => {
     }
 
     const { selection } = editor;
-    if (text === ' ' && selection && Range.isCollapsed(selection)) {
-      const above = Editor.above(editor);
-      if (above) {
-        const [, path] = above;
-        const range = { anchor: Editor.start(editor, path), focus: selection.anchor };
+    const above = Editor.above(editor);
+    if (above && selection && Range.isCollapsed(selection)) {
+      const [, path] = above;
+      const start = Editor.start(editor, path);
+      const range = { anchor: start, focus: selection.anchor };
+
+      if (text === ' ') {
         const beforeText = Editor.string(editor, range);
         const type = SHORTCUTS[beforeText];
 
@@ -73,6 +115,23 @@ export const insertText = (editor: Editor) => {
           Transforms.delete(editor, { at: range });
           setType(editor, type);
           return;
+        }
+
+        // TODO(jaked)
+        // might be nice to handle these without requiring a trailing space
+        // but it creates an ambiguity between e.g. * and **
+        for (const [delim, mark] of [
+          ['**', 'bold'],
+          ['__', 'bold'],
+          ['*', 'italic'],
+          ['_', 'italic'],
+          ['`', 'code'],
+        ]) {
+          if (handleDelimitedShortcut(editor, range, delim, mark)) {
+            Editor.removeMark(editor, mark); // else mark is copied to space
+            insertText(text);
+            return;
+          }
         }
 
         const matchUrl = matchStringBefore(editor, range, isUrl);
@@ -83,6 +142,8 @@ export const insertText = (editor: Editor) => {
             { type: 'a', href: url, children: [] },
             { at, split: true }
           );
+          insertText(text);
+          return;
         }
       }
     }
