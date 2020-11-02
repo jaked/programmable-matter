@@ -11,6 +11,8 @@ import { normalizeNode } from './normalizeNode';
 import { setType } from './setType';
 import { toggleMark } from './toggleMark';
 
+export * from './softBreak';
+
 export type PMEditor = Editor & {
   toggleMark(mark: PMAST.mark): void;
   setType(type: PMAST.type): void;

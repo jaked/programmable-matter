@@ -49,22 +49,29 @@ const TYPE_HOTKEYS ={
 }
 
 export const makeOnKeyDown = (editor: PMEditor.PMEditor) =>
-  (e: React.KeyboardEvent) => {
-    if (isHotkey('tab', e as unknown as KeyboardEvent)) {
+  (re: React.KeyboardEvent) => {
+    const e = re as unknown as KeyboardEvent;
+    if (isHotkey('tab', e)) {
+      e.preventDefault();
       editor.indent();
     }
-    if (isHotkey('shift+tab', e as unknown as KeyboardEvent)) {
+    if (isHotkey('shift+tab', e)) {
+      e.preventDefault();
       editor.dedent();
     }
+    if (isHotkey('shift+enter', e)) {
+      e.preventDefault();
+      PMEditor.softBreak(editor);
+    }
     for (const hotkey in MARK_HOTKEYS) {
-      if (isHotkey(hotkey, e as unknown as KeyboardEvent)) {
+      if (isHotkey(hotkey, e)) {
         e.preventDefault();
         const mark = MARK_HOTKEYS[hotkey];
         editor.toggleMark(mark);
       }
     }
     for (const hotkey in TYPE_HOTKEYS) {
-      if (isHotkey(hotkey, e as unknown as KeyboardEvent)) {
+      if (isHotkey(hotkey, e)) {
         e.preventDefault();
         const type = TYPE_HOTKEYS[hotkey];
         editor.setType(type);

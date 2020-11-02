@@ -26,7 +26,7 @@ export const renderNode = (node: PMAST.Node) => {
     if (node.italic)    text = <em>{text}</em>;
     if (node.underline) text = <u>{text}</u>;
     if (node.code)      text = <code>{text}</code>;
-    return <span key={key}>{text}</span>;
+    return <span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>;
   } else {
     const children = node.children.map(renderNode);
     if (node.type === 'a') {

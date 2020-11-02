@@ -5,11 +5,30 @@ import File from '../../files/File';
 
 import compileFilePm from './compileFilePm';
 
+// TODO(jaked)
+// we might want to test styles; find a better way to handle this
+function stripStyles(node: any) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    node.forEach(stripStyles);
+  }
+  if ('props' in node) {
+    const props = node.props;
+    if ('style' in props) {
+      delete props.style;
+    }
+  }
+  if ('children' in node) {
+    node.children.forEach(stripStyles);
+  }
+}
+
 function expectRenderEqual(
   a: React.ReactNode, // TODO(jaked) fix in `rendered` API
   b: React.ReactElement,
 ) {
   const aRendered = TestRenderer.create(a as React.ReactElement).toJSON();
+  stripStyles(aRendered);
   const bRendered = TestRenderer.create(b).toJSON();
   expect(aRendered).toEqual(bRendered);
 }
