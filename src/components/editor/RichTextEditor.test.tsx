@@ -15,29 +15,9 @@ function makeKeyboardEvent(hotkey: string) {
 
 describe('RichTextEditor', () => {
   describe('onKeyDown', () => {
-    function expectCallOnKey(hotkey: string, methodName: string, ...args: unknown[]) {
-      const editor = PMEditor.withPMEditor(Slate.createEditor());
-      const method = jest.spyOn(editor as any, methodName);
-      const onKeyDown = RichTextEditor.makeOnKeyDown(editor);
-      const ev = makeKeyboardEvent(hotkey);
-      onKeyDown(ev);
-      expect(method).toHaveBeenCalledWith(...args);
-    }
-
-    it('toggles marks on hotkeys', () => {
-      expectCallOnKey('mod+b', 'toggleMark', 'bold');
-      expectCallOnKey('mod+i', 'toggleMark', 'italic');
-      expectCallOnKey('mod+u', 'toggleMark', 'underline');
-      expectCallOnKey('mod+`', 'toggleMark', 'code');
-    });
-
-    it('indents on tab', () => {
-      expectCallOnKey('tab', 'indent');
-    });
-
-    it('dedents on shift+tab', () => {
-      expectCallOnKey('shift+tab', 'dedent');
-    });
+    // TODO(jaked)
+    // figure out how to test
+    // use Jest mocking, or pass an explicit PMEditor mock to RichTextEditor
   });
 
   describe('renderLeaf', () => {

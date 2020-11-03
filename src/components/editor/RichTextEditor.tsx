@@ -1,12 +1,12 @@
 import React from 'react';
-import * as Slate from 'slate';
-import * as SlateReact from 'slate-react';
+import { createEditor, Editor, Node } from 'slate';
+import { withReact, Editable, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import isHotkey from 'is-hotkey';
 
 import * as PMAST from '../../PMAST';
 import * as PMEditor from '../../editor/PMEditor';
 
-export const renderElement = ({ element, attributes, children }: SlateReact.RenderElementProps) => {
+export const renderElement = ({ element, attributes, children }: RenderElementProps) => {
   const pmElement = element as PMAST.Element;
   if (pmElement.type === 'a') {
     return React.createElement('a', { ...attributes, href: pmElement.href }, children);
@@ -15,7 +15,7 @@ export const renderElement = ({ element, attributes, children }: SlateReact.Rend
   }
 }
 
-export const renderLeaf = ({ leaf, attributes, children } : SlateReact.RenderLeafProps) => {
+export const renderLeaf = ({ leaf, attributes, children } : RenderLeafProps) => {
   const text = leaf as PMAST.Text;
   if (text.bold)
     children = <strong>{children}</strong>;
@@ -48,16 +48,16 @@ const TYPE_HOTKEYS ={
   'mod+opt+8': 'ol',
 }
 
-export const makeOnKeyDown = (editor: PMEditor.PMEditor) =>
+export const makeOnKeyDown = (editor: Editor) =>
   (re: React.KeyboardEvent) => {
     const e = re as unknown as KeyboardEvent;
     if (isHotkey('tab', e)) {
       e.preventDefault();
-      editor.indent();
+      PMEditor.indent(editor);
     }
     if (isHotkey('shift+tab', e)) {
       e.preventDefault();
-      editor.dedent();
+      PMEditor.dedent(editor);
     }
     if (isHotkey('shift+enter', e)) {
       e.preventDefault();
@@ -67,14 +67,14 @@ export const makeOnKeyDown = (editor: PMEditor.PMEditor) =>
       if (isHotkey(hotkey, e)) {
         e.preventDefault();
         const mark = MARK_HOTKEYS[hotkey];
-        editor.toggleMark(mark);
+        PMEditor.toggleMark(editor, mark);
       }
     }
     for (const hotkey in TYPE_HOTKEYS) {
       if (isHotkey(hotkey, e)) {
         e.preventDefault();
         const type = TYPE_HOTKEYS[hotkey];
-        editor.setType(type);
+        PMEditor.setType(editor, type);
       }
     }
   }
@@ -85,20 +85,20 @@ export type RichTextEditorProps = {
 }
 
 const RichTextEditor = (props: RichTextEditorProps) => {
-  const editor = React.useMemo(() => SlateReact.withReact(PMEditor.withPMEditor(Slate.createEditor())), []);
+  const editor = React.useMemo(() => withReact(PMEditor.withPMEditor(createEditor())), []);
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   return (
-    <SlateReact.Slate
+    <Slate
       editor={editor}
       value={props.value}
-      onChange={props.setValue as (nodes: Slate.Node[]) => void}
+      onChange={props.setValue as (nodes: Node[]) => void}
     >
-      <SlateReact.Editable
+      <Editable
         renderElement={renderElement}
         renderLeaf={renderLeaf}
         onKeyDown={onKeyDown}
       />
-    </SlateReact.Slate>
+    </Slate>
   );
 }
 
