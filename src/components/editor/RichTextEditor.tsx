@@ -67,6 +67,10 @@ export const makeOnKeyDown = (editor: Editor) =>
       e.preventDefault();
       PMEditor.softBreak(editor);
     }
+    if (isHotkey('mod+enter', e)) {
+      e.preventDefault();
+      PMEditor.exitBreak(editor);
+    }
     for (const hotkey in MARK_HOTKEYS) {
       if (isHotkey(hotkey, e)) {
         e.preventDefault();

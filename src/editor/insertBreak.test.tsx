@@ -50,11 +50,11 @@ describe('in header', () => {
 describe('in code', () => {
   it('inserts soft break', () => {
     const editor = <editor>
-      <code>foo<cursor /></code>
+      <code>foo<cursor />bar</code>
     </editor> as unknown as Editor;
     insertBreak(editor)();
     expect(editor.children).toEqual([
-      <code>foo{'\n'}</code>,
+      <code>foo{'\n'}bar</code>,
     ])
   });
 });

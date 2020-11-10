@@ -14,16 +14,14 @@ export const insertBreak = (editor: Editor) => {
     const blockEntry = blockAbove(editor);
     if (blockEntry) {
       const [node] = blockEntry;
-      if (cursorAtBlockEnd(editor)) {
-        if (PMAST.isHeader(node)) {
-          // TODO(jaked) should we apply marks here?
-          Transforms.insertNodes(editor, { type: 'p', children: [ { text: '' } ]})
-          return;
-        }
-        if (node.type === 'code') {
-          softBreak(editor);
-          return;
-        }
+      if (PMAST.isHeader(node) && cursorAtBlockEnd(editor)) {
+        // TODO(jaked) should we apply marks here?
+        Transforms.insertNodes(editor, { type: 'p', children: [ { text: '' } ]})
+        return;
+      }
+      if (node.type === 'code') {
+        softBreak(editor);
+        return;
       }
     }
 

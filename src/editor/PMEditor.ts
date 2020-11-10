@@ -7,6 +7,7 @@ import { isInline } from './isInline';
 import { normalizeNode } from './normalizeNode';
 
 export * from './dedent';
+export * from './exitBreak';
 export * from './indent';
 export * from './setType';
 export * from './softBreak';
