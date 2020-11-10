@@ -15,6 +15,16 @@ describe('Markdown shortcuts', () => {
     ]);
   });
 
+  it('sets type to code on {{{', () => {
+    const editor = <editor>
+      <p>{'{{{'}<cursor /></p>
+    </editor> as unknown as Editor;
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <code><stext></stext></code>
+    ]);
+  });
+
   it('sets mark to bold on ** / **', () => {
     const editor = <editor>
       <p>foo**bar**<cursor /></p>

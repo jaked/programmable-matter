@@ -15,6 +15,7 @@ const SHORTCUTS = {
   '####': 'h4',
   '#####': 'h5',
   '######': 'h6',
+  '{{{': 'code',
 }
 
 const isUrl = (text: string) => {
