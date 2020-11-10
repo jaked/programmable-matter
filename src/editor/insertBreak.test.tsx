@@ -33,3 +33,28 @@ describe('in list item', () => {
     ]);
   });
 });
+
+describe('in header', () => {
+  it('breaks to paragraph block', () => {
+    const editor = <editor>
+      <h1>foo<cursor /></h1>
+    </editor> as unknown as Editor;
+    insertBreak(editor)();
+    expect(editor.children).toEqual([
+      <h1>foo</h1>,
+      <p><stext/></p>
+    ])
+  });
+});
+
+describe('in code', () => {
+  it('inserts soft break', () => {
+    const editor = <editor>
+      <code>foo<cursor /></code>
+    </editor> as unknown as Editor;
+    insertBreak(editor)();
+    expect(editor.children).toEqual([
+      <code>foo{'\n'}</code>,
+    ])
+  });
+});

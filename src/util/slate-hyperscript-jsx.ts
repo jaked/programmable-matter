@@ -26,6 +26,7 @@ export const jsx = createHyperscript({
     'ol': { type: 'ol' },
     'ul': { type: 'ul' },
     'a': { type: 'a' },
+    'code': { type: 'code' },
   },
   creators: {
     'stext': (tag, attrs, ...children) => jsx('text', attrs, ...children)

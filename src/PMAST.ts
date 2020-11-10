@@ -38,12 +38,19 @@ export type Link = {
   children: Node[],
 }
 
+export type Code = {
+  type: 'code',
+  children: Node[],
+}
+
+export type Block = Paragraph | Header | List | Code;
+export type Inline = Link;
+
 // TODO(jaked)
 // should this type encode more validation of tree?
 // e.g. prohibition on headers appearing in lists
-export type Element = Paragraph | Header | List | Link;
-
-export type Node = Text | Paragraph | Header | List | Link;
+export type Element = Block | Inline;
+export type Node = Text | Element;
 
 export function parse(pm: string): Node[] {
   const nodes = JSON5.parse(pm);
@@ -53,4 +60,21 @@ export function parse(pm: string): Node[] {
 
 export function stringify(nodes: Node[]): string {
   return JSON5.stringify(nodes, undefined, 2);
+}
+
+export function isHeader(node: Node): boolean {
+  if (node && `type` in node) {
+    switch (node.type) {
+      case 'h1':
+      case 'h2':
+      case 'h3':
+      case 'h4':
+      case 'h5':
+      case 'h6':
+        return true;
+      default:
+        return false;
+    }
+  }
+  return false;
 }

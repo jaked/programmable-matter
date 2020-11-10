@@ -10,6 +10,10 @@ export const renderElement = ({ element, attributes, children }: RenderElementPr
   const pmElement = element as PMAST.Element;
   if (pmElement.type === 'a') {
     return React.createElement('a', { ...attributes, href: pmElement.href }, children);
+  } else if (pmElement.type === 'code') {
+    return React.createElement('pre', attributes,
+      React.createElement('code', {}, children)
+    );
   } else {
     return React.createElement(pmElement.type, attributes, children);
   }
