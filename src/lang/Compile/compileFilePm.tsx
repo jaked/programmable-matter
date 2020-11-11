@@ -31,7 +31,7 @@ export const renderNode = (node: PMAST.Node) => {
     const children = node.children.map(renderNode);
     if (node.type === 'a') {
       return React.createElement(node.type, { key, href: node.href }, ...children);
-    } else if (node.type === 'code') {
+    } else if (node.type === 'code' || node.type === 'inlineCode') {
       return null;
     } else {
       return React.createElement(node.type, { key }, ...children);

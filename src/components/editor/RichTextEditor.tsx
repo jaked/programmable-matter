@@ -14,6 +14,8 @@ export const renderElement = ({ element, attributes, children }: RenderElementPr
     return React.createElement('pre', attributes,
       React.createElement('code', {}, children)
     );
+  } else if (pmElement.type === 'inlineCode') {
+    return React.createElement('code', {}, children);
   } else {
     return React.createElement(pmElement.type, attributes, children);
   }

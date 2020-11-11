@@ -38,6 +38,21 @@ describe('Markdown shortcuts', () => {
       </p>
     ]);
   });
+
+  it('sets type to inlineCode on { / }', () => {
+    const editor = <editor>
+      <p>foo{'{bar}'}<cursor /></p>
+    </editor> as unknown as Editor;
+    editor.isInline = isInline(editor);
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <p>
+        foo
+        <inlineCode>bar</inlineCode>
+        <stext> </stext>
+      </p>
+    ]);
+  });
 });
 
 describe('urls', () => {

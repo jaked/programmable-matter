@@ -5,6 +5,7 @@ export const isInline = (editor: Editor) => {
   return (element: Element) => {
     switch (element.type) {
       case 'a':
+      case 'inlineCode':
         return true;
 
       default:

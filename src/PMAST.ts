@@ -43,8 +43,13 @@ export type Code = {
   children: Node[],
 }
 
+export type InlineCode = {
+  type: 'inlineCode',
+  children: Node[],
+}
+
 export type Block = Paragraph | Header | List | Code;
-export type Inline = Link;
+export type Inline = Link | InlineCode;
 
 // TODO(jaked)
 // should this type encode more validation of tree?

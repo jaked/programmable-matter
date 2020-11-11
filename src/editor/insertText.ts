@@ -57,31 +57,23 @@ const wrapLink = (editor: Editor, url: string) => {
 const handleDelimitedShortcut = (
   editor: Editor,
   at: Range,
-  delim: string,
-  mark: string,
+  startDelim: string,
+  endDelim: string,
+  handle: (r: Range) => void,
 ): boolean => {
-  const matchEnd = matchStringBefore(editor, at, s => s === delim);
+  const matchEnd = matchStringBefore(editor, at, s => s === endDelim);
   if (matchEnd) {
     const startAt = { anchor: at.anchor, focus: matchEnd.at.anchor }
-    const matchStart = matchStringBefore(editor, startAt, s => s.startsWith(delim));
+    const matchStart = matchStringBefore(editor, startAt, s => s.startsWith(startDelim));
     if (matchStart) {
       const startAnchorRef = Editor.pointRef(editor, matchStart.at.anchor);
-      const startFocus = Editor.after(editor, matchStart.at.anchor, { distance: delim.length }) || bug('expected after');
+      const startFocus = Editor.after(editor, matchStart.at.anchor, { distance: startDelim.length }) || bug('expected after');
       const startFocusRef = Editor.pointRef(editor, startFocus);
       const endAnchorRef = Editor.pointRef(editor, matchEnd.at.anchor);
       const endFocusRef = Editor.pointRef(editor, matchEnd.at.focus);
       Transforms.delete(editor, { at: { anchor: startAnchorRef.current!, focus: startFocusRef.current! } });
       Transforms.delete(editor, { at: { anchor: endAnchorRef.current!, focus: endFocusRef.current! } });
-      // TODO(jaked) setMark?
-      Transforms.setNodes(
-        editor,
-        { [mark]: true },
-        {
-          at: { anchor: startFocusRef.current!, focus: endAnchorRef.current! },
-          match: Text.isText,
-          split: true
-        },
-      );
+      handle({ anchor: startFocusRef.current!, focus: endAnchorRef.current! });
       startAnchorRef.unref();
       startFocusRef.unref();
       endAnchorRef.unref();
@@ -128,11 +120,40 @@ export const insertText = (editor: Editor) => {
           ['_', 'italic'],
           ['`', 'code'],
         ]) {
-          if (handleDelimitedShortcut(editor, range, delim, mark)) {
+          if (handleDelimitedShortcut(editor, range, delim, delim, range => {
+            // TODO(jaked) setMark?
+            Transforms.setNodes(
+              editor,
+              { [mark]: true },
+              {
+                at: range,
+                match: Text.isText,
+                split: true
+              },
+            );
+          })) {
             Editor.removeMark(editor, mark); // else mark is copied to space
             insertText(text);
             return;
           }
+        }
+
+        if (handleDelimitedShortcut(editor, range, '{', '}', range => {
+          Transforms.wrapNodes(
+            editor,
+            { type: 'inlineCode', children: [] },
+            {
+              at: range,
+              match: Text.isText,
+              split: true
+            }
+          );
+        })) {
+          const selection = editor.selection || bug('expected selection');
+          const after = Editor.after(editor, selection.anchor) || bug('expected after');
+          Transforms.select(editor, after);
+          insertText(text);
+          return;
         }
 
         const matchUrl = matchStringBefore(editor, range, isUrl);
