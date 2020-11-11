@@ -149,9 +149,6 @@ export const insertText = (editor: Editor) => {
             }
           );
         })) {
-          const selection = editor.selection || bug('expected selection');
-          const after = Editor.after(editor, selection.anchor) || bug('expected after');
-          Transforms.select(editor, after);
           insertText(text);
           return;
         }
