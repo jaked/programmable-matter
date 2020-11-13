@@ -1,10 +1,12 @@
 import React from 'react';
 
+import { bug } from '../../util/bug';
 import File from '../../files/File';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import * as data from '../../data';
 import * as PMAST from '../../PMAST';
+import * as Parse from '../Parse';
 import Type from '../Type';
 
 let nextKey = 0;
@@ -39,11 +41,34 @@ export const renderNode = (node: PMAST.Node) => {
   }
 }
 
+const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) => {
+  if (parsedCode.has(node)) return;
+
+  if (PMAST.isCode(node) || PMAST.isInlineCode(node)) {
+    // TODO(jaked) don't reparse if text hasn't changed
+    // TODO(jaked) enforce tree constraints in editor
+    if (!(node.children.length === 1)) bug('expected 1 child');
+    const child = node.children[0];
+    if (!(PMAST.isText(child))) bug('expected text');
+    if (PMAST.isCode(node)) {
+      const ast = Try.apply(() => Parse.parseProgram(child.text));
+      parsedCode.set(node, ast);
+    } else {
+      const ast = Try.apply(() => Parse.parseExpression(child.text));
+      parsedCode.set(node, ast);
+    }
+  } else if (PMAST.isElement(node)) {
+    node.children.map(child => parseCode(child, parsedCode));
+  }
+}
+
 export default function compileFilePm(
   file: File, // TODO(jaked) take a PMAST.Node[] instead of reparsing
 ): Signal<data.CompiledFile> {
   const nodes = file.content.map(content => PMAST.parse(content));
-
+  const parsedCode = new WeakMap<PMAST.Node, unknown>();
+  nodes.map(nodes => nodes.forEach(node => parseCode(node, parsedCode)));
+  const ast = { nodes, parsedCode }; // TODO(jaked) handle parse errors
   const rendered = nodes.map(nodes => nodes.map(renderNode));
 
   return Signal.ok({
@@ -51,6 +76,6 @@ export default function compileFilePm(
     exportValue: { },
     rendered,
     problems: false,
-    ast: Try.err(new Error('unimplemented')),
+    ast: Try.ok(ast),
   });
 }

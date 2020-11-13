@@ -67,6 +67,22 @@ export function stringify(nodes: Node[]): string {
   return JSON5.stringify(nodes, undefined, 2);
 }
 
+export function isText(node: Node): node is Text {
+  return node && 'text' in node;
+}
+
+export function isElement(node: Node): node is Element {
+  return node && 'type' in node;
+}
+
+export function isCode(node: Node): node is Code {
+  return isElement(node) && node.type === 'code';
+}
+
+export function isInlineCode(node: Node): node is InlineCode {
+  return isElement(node) && node.type === 'inlineCode';
+}
+
 export function isHeader(node: Node): boolean {
   if (node && `type` in node) {
     switch (node.type) {
