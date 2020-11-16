@@ -65,17 +65,20 @@ const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) =
 export default function compileFilePm(
   file: File, // TODO(jaked) take a PMAST.Node[] instead of reparsing
 ): Signal<data.CompiledFile> {
+  // TODO(jaked) handle parse errors
   const nodes = file.content.map(content => PMAST.parse(content));
-  const parsedCode = new WeakMap<PMAST.Node, unknown>();
-  nodes.map(nodes => nodes.forEach(node => parseCode(node, parsedCode)));
-  const ast = { nodes, parsedCode }; // TODO(jaked) handle parse errors
+  const ast = nodes.map(nodes => {
+    const parsedCode = new WeakMap<PMAST.Node, unknown>();
+    nodes.forEach(node => parseCode(node, parsedCode));
+    return { nodes, parsedCode }
+  });
   const rendered = nodes.map(nodes => nodes.map(renderNode));
 
-  return Signal.ok({
+  return ast.map(ast => ({
     exportType: Type.module({}),
     exportValue: { },
     rendered,
     problems: false,
     ast: Try.ok(ast),
-  });
+  }));
 }

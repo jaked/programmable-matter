@@ -1,11 +1,18 @@
 import JSON5 from 'json5';
+import * as Highlight from './lang/highlight';
 
+// TODO(jaked) split into Text / Code leaf types?
 export type Text = {
   text: string,
   bold?: true,
   italic?: true,
   underline?: true,
   code?: true,
+
+  // decorations
+  highlight?: Highlight.tag,
+  status?: string,
+  link?: string,
 }
 
 // TODO(jaked) figure out how to compute this from `Text` fields

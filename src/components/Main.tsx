@@ -73,29 +73,24 @@ type RichEditorProps = {
   content: string;
   session: Signal<Session>;
   onChange: Signal<(updateContent: string, session: Session) => void>;
+  compiledFile: data.CompiledFile;
 }
 
 const RichEditor = React.memo<RichEditorProps>(props => {
   const session = Signal.useSignal(props.session);
   const onChange = Signal.useSignal(props.onChange);
-
-  // TODO(jaked) serialization should go elsewhere
-  // TODO(jaked) don't deserialize / serialize on every edit
-  const value: PMAST.Node[] = props.content ?
-    PMAST.parse(props.content) :
-    [
-      {
-        type: 'p',
-        children: [{ text: '' }]
-      }
-    ]
+  const { nodes } = props.compiledFile.ast.get(); // TODO(jaked) fix get
   const setValue = (nodes: PMAST.Node[]) => {
     const json = PMAST.stringify(nodes);
     onChange(json, session);
   }
 
   return (
-    <RichTextEditor value={value} setValue={setValue} />
+    <RichTextEditor
+      value={nodes}
+      setValue={setValue}
+      compiledFile={props.compiledFile}
+    />
   );
 });
 
@@ -116,6 +111,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
             content={content}
             session={props.session}
             onChange={props.onChange}
+            compiledFile={compiledFile}
           /> :
           <CodeEditor
             ref={ref}

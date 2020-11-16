@@ -1,10 +1,51 @@
 import React from 'react';
-import { createEditor, Editor, Node } from 'slate';
+import { createEditor, Editor, Node, Path, Point } from 'slate';
 import { withReact, Editable, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import isHotkey from 'is-hotkey';
+import styled from 'styled-components';
 
+import Try from '../../util/Try';
+import * as data from '../../data';
 import * as PMAST from '../../PMAST';
+import * as ESTree from '../../lang/ESTree';
 import * as PMEditor from '../../editor/PMEditor';
+import * as Highlight from '../../lang/highlight';
+
+const okComponents =
+{
+  default:    styled.span({ color: '#000000' }),
+  atom:       styled.span({ color: '#221199' }),
+  number:     styled.span({ color: '#116644' }),
+  string:     styled.span({ color: '#aa1111' }),
+  keyword:    styled.span({ color: '#770088' }),
+  definition: styled.span({ color: '#0000ff' }),
+  variable:   styled.span({ color: '#268bd2' }),
+  property:   styled.span({ color: '#b58900' }),
+  // TODO(jaked)
+  // hover doesn't work because enclosing pre is not on top
+  link:       styled.span`
+    :hover {
+      cursor: pointer;
+    }
+    color: #aa1111;
+    text-decoration: underline;
+  `,
+}
+
+const errStyle = { backgroundColor: '#ffc0c0' };
+
+const errComponents =
+{
+  default:    styled(okComponents.default)(errStyle),
+  atom:       styled(okComponents.atom)(errStyle),
+  number:     styled(okComponents.number)(errStyle),
+  string:     styled(okComponents.string)(errStyle),
+  keyword:    styled(okComponents.keyword)(errStyle),
+  definition: styled(okComponents.definition)(errStyle),
+  variable:   styled(okComponents.variable)(errStyle),
+  property:   styled(okComponents.property)(errStyle),
+  link:       styled(okComponents.link)(errStyle),
+}
 
 export const renderElement = ({ element, attributes, children }: RenderElementProps) => {
   const pmElement = element as PMAST.Element;
@@ -23,17 +64,57 @@ export const renderElement = ({ element, attributes, children }: RenderElementPr
 
 export const renderLeaf = ({ leaf, attributes, children } : RenderLeafProps) => {
   const text = leaf as PMAST.Text;
-  if (text.bold)
-    children = <strong>{children}</strong>;
-  if (text.italic)
-    children = <em>{children}</em>;
-  if (text.underline)
-    children = <u>{children}</u>;
-  if (text.code)
-    children = <code>{children}</code>;
+  if (text.highlight) {
+    const component = text.status ? errComponents[text.highlight] : okComponents[text.highlight];
+    return React.createElement(
+      component as any,
+      {...attributes, 'data-status': text.status, 'data-link': text.link },
+      children
+    );
 
-  return <span {...attributes}>{children}</span>
+  } else {
+    if (text.bold)
+      children = <strong>{children}</strong>;
+    if (text.italic)
+      children = <em>{children}</em>;
+    if (text.underline)
+      children = <u>{children}</u>;
+    if (text.code)
+      children = <code>{children}</code>;
+
+    return <span {...attributes}>{children}</span>;
+  }
 }
+
+type Range = {
+  anchor: Point;
+  focus: Point;
+  highlight: Highlight.tag;
+  status?: string;
+  link?: string;
+}
+
+export const makeDecorate =
+  ({ parsedCode }: { parsedCode: WeakMap<Node, unknown> }) =>
+  ([node, path]: [Node, Path]) => {
+    // TODO(jaked) cache decorations
+    const ranges: Range[] = [];
+    const code = parsedCode.get(node) as Try<ESTree.Node>;
+    if (code && code.type === 'ok') {
+      const spans: Highlight.Span[] = [];
+      Highlight.computeJsSpans(code.ok, undefined, spans);
+      for (const span of spans) {
+        ranges.push({
+          anchor: { path, offset: span.start },
+          focus: { path, offset: span.end },
+          highlight: span.tag,
+          status: span.status,
+          link: span.link
+        });
+      }
+    }
+    return ranges;
+  }
 
 const MARK_HOTKEYS = {
   'mod+b': 'bold',
@@ -90,13 +171,18 @@ export const makeOnKeyDown = (editor: Editor) =>
   }
 
 export type RichTextEditorProps = {
-  value: PMAST.Node[],
-  setValue: (nodes: PMAST.Node[]) => void,
+  value: PMAST.Node[];
+  setValue: (nodes: PMAST.Node[]) => void;
+  compiledFile: data.CompiledFile;
 }
 
 const RichTextEditor = (props: RichTextEditorProps) => {
   const editor = React.useMemo(() => withReact(PMEditor.withPMEditor(createEditor())), []);
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
+  const decorate = React.useMemo(
+    () => makeDecorate(props.compiledFile.ast.get()), // TODO(jaked) fix get
+    [props.compiledFile]
+  );
   return (
     <Slate
       editor={editor}
@@ -106,6 +192,7 @@ const RichTextEditor = (props: RichTextEditorProps) => {
       <Editable
         renderElement={renderElement}
         renderLeaf={renderLeaf}
+        decorate={decorate}
         onKeyDown={onKeyDown}
       />
     </Slate>
