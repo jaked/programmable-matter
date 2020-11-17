@@ -121,8 +121,8 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
         function matchesSearch(note: data.CompiledNote): Signal<[boolean, data.CompiledNote]> {
           return Signal.label(note.name,
             Signal.join(
-              note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-              note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
+              note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx as string)) : Signal.ok(false),
+              note.files.json ? note.files.json.content.map(json => regexp.test(json as string)) : Signal.ok(false),
               note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
               Signal.ok(regexp.test(note.name)),
             ).map(bools => [bools.some(bool => bool), note])

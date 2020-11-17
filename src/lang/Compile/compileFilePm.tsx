@@ -1,10 +1,9 @@
 import React from 'react';
 
 import { bug } from '../../util/bug';
-import File from '../../files/File';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import * as data from '../../data';
+import { Content, CompiledFile } from '../../data';
 import * as PMAST from '../../PMAST';
 import * as Parse from '../Parse';
 import Type from '../Type';
@@ -63,10 +62,10 @@ const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) =
 }
 
 export default function compileFilePm(
-  file: File, // TODO(jaked) take a PMAST.Node[] instead of reparsing
-): Signal<data.CompiledFile> {
+  file: Content, // TODO(jaked) take a PMAST.Node[] instead of reparsing
+): Signal<CompiledFile> {
   // TODO(jaked) handle parse errors
-  const nodes = file.content.map(content => PMAST.parse(content));
+  const nodes = file.content.map(content => PMAST.parse(content as string));
   const ast = nodes.map(nodes => {
     const parsedCode = new WeakMap<PMAST.Node, unknown>();
     nodes.forEach(node => parseCode(node, parsedCode));

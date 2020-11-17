@@ -63,10 +63,10 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           focusDir && !note.name.startsWith(focusDir + '/') ? Signal.ok(false) :
           search ? Signal.join(
             // TODO(jaked) should search text only
-            note.files.pm ? note.files.pm.content.map(pm => regexp.test(pm)) : Signal.ok(false),
+            note.files.pm ? note.files.pm.content.map(pm => regexp.test(pm as string)) : Signal.ok(false),
 
-            note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx)) : Signal.ok(false),
-            note.files.json ? note.files.json.content.map(json => regexp.test(json)) : Signal.ok(false),
+            note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx as string)) : Signal.ok(false),
+            note.files.json ? note.files.json.content.map(json => regexp.test(json as string)) : Signal.ok(false),
             note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
             Signal.ok(regexp.test(note.name)),
           ).map(bools => bools.some(bool => bool)) :

@@ -1,12 +1,10 @@
-import * as Path from 'path';
 import * as Immutable from 'immutable';
 import React from 'react';
 
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
-import * as data from '../../data';
-import File from '../../files/File';
+import { Content, Contents, CompiledFile, CompiledNotes, Types } from '../../data';
 
 import compileFile from './compileFile';
 import groupFilesByName from './groupFilesByName';
@@ -30,17 +28,17 @@ function mergeModuleValue(
 }
 
 export function compileFiles(
-  files: Signal<data.Files>,
+  files: Signal<Contents>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
   setSelected: (name: string) => void,
-): { compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>, compiledNotes: Signal<data.CompiledNotes> } {
+): { compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>, compiledNotes: Signal<CompiledNotes> } {
 
   const filesByName = groupFilesByName(files);
 
-  const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<data.CompiledFile>>>();
+  const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<CompiledFile>>>();
 
-  const compiledNotesRef = Signal.ref<data.CompiledNotes>();
+  const compiledNotesRef = Signal.ref<CompiledNotes>();
 
   const compiledFiles = Signal.mapImmutableMap(files, file =>
     Signal.label(
@@ -50,13 +48,13 @@ export function compileFiles(
   );
   compiledFilesRef.set(compiledFiles);
 
-  const compiledNotes: Signal<data.CompiledNotes> = Signal.mapImmutableMap(filesByName, (files, name) => {
-    function fileForType(type: data.Types): File | undefined {
+  const compiledNotes: Signal<CompiledNotes> = Signal.mapImmutableMap(filesByName, (files, name) => {
+    function fileForType(type: Types): Content | undefined {
       // TODO(jaked) fix names for index files, then just use name here instead of files
       return files.find(file => file.type === type);
     }
 
-    function compiledFileForType(type: data.Types): Signal<data.CompiledFile | undefined> {
+    function compiledFileForType(type: Types): Signal<CompiledFile | undefined> {
       // TODO(jaked) fix names for index files, then just use name here instead of files
       const file = files.find(file => file.type === type);
       if (file) {

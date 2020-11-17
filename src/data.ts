@@ -28,12 +28,12 @@ export type Meta = Immutable.RecordOf<MetaProps>;
 export type AstAnnotations = Map<unknown, Type>;
 
 export type NoteFiles = {
-  'meta'?: File;
-  'pm'?: File;
-  'mdx'?: File;
-  'json'?: File;
-  'jpeg'?: File;
-  'table'?: File;
+  'meta'?: Content;
+  'pm'?: Content;
+  'mdx'?: Content;
+  'json'?: Content;
+  'jpeg'?: Content;
+  'table'?: Content;
 }
 
 export type TableFieldBase = {
@@ -82,8 +82,17 @@ export type CompiledNote = {
   exportValue: Signal<{ [s: string]: Signal<any> }>;
 }
 
+// file decoded / parsed into an editable / compilable representation
+export type Content = {
+  type: Types,
+  path: string,
+  content: Signal<unknown>,
+  mtimeMs: Signal<number>, // TODO(jaked) drop
+}
+
 // indexed by path
 export type Files = Immutable.Map<string, File>;
+export type Contents = Immutable.Map<string, Content>;
 
 // indexed by name
 export type CompiledNotes = Immutable.Map<string, CompiledNote>;

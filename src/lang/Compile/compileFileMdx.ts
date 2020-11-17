@@ -10,8 +10,7 @@ import * as MDXHAST from '../mdxhast';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import sortMdx from './sortMdx';
-import * as data from '../../data';
-import File from '../../files/File';
+import { Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
 
 import metaForPath from './metaForPath';
 
@@ -49,16 +48,16 @@ function findImports(ast: MDXHAST.Node) {
 }
 
 export default function compileFileMdx(
-  file: File,
-  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
-  compiledNotes: Signal<data.CompiledNotes>,
+  file: Content,
+  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
+  compiledNotes: Signal<CompiledNotes>,
   setSelected: (note: string) => void,
-): Signal<data.CompiledFile> {
+): Signal<CompiledFile> {
   const mdxName = Name.nameOfPath(file.path);
 
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content =>
-    sortMdx(Parse.parse(content))
+    sortMdx(Parse.parse(content as string))
   );
 
   const meta = metaForPath(file.path, compiledFiles);
@@ -67,7 +66,7 @@ export default function compileFileMdx(
   // TODO(jaked) push note errors into envs so they're surfaced in editor?
   const noteEnv =
     Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) =>
-      Immutable.Map<string, data.CompiledNote>().withMutations(noteEnv => {
+      Immutable.Map<string, CompiledNote>().withMutations(noteEnv => {
         imports.forEach(name => {
           // TODO(jaked)
           // we do this resolution here, in Synth, and in Render

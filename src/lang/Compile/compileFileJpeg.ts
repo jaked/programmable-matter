@@ -3,8 +3,7 @@ import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as Render from '../Render';
-import * as data from '../../data';
-import File from '../../files/File';
+import { Content, Compiled, CompiledFile } from '../../data';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
 
@@ -31,7 +30,7 @@ const styleType = Type.undefinedOr(Type.object({
 
 function compileJpeg(
   buffer: Buffer,
-): data.Compiled {
+): Compiled {
   // TODO(jaked) these URLs need to be freed
   // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
   const objectUrl = URL.createObjectURL(new Blob([buffer.buffer]));
@@ -82,8 +81,8 @@ function compileJpeg(
 }
 
 export default function compileFileJpeg(
-  file: File
-): Signal<data.CompiledFile> {
-  return file.buffer.map(buffer => compileJpeg(buffer))
+  file: Content
+): Signal<CompiledFile> {
+  return file.content.map(buffer => compileJpeg(buffer as Buffer))
     .map(compiled => ({ ...compiled, ast: Try.ok(null) }));
 }

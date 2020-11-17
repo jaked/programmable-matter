@@ -12,8 +12,8 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
+import { AstAnnotations, Content, Compiled, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
 import * as data from '../../data';
-import File from '../../files/File';
 import { Table, Field as TableField } from '../../components/Table';
 import lensType from './lensType';
 
@@ -51,7 +51,7 @@ const tableType =
 
 function computeTableConfig(
   ast: ESTree.Expression,
-  annots: data.AstAnnotations,
+  annots: AstAnnotations,
 ): data.Table {
   // TODO(jaked)
   // blows up if a type string cannot be parsed
@@ -87,7 +87,7 @@ function computeTable(
   tableConfig: data.Table,
   tableDataType: Type.ObjectType,
   tableName: string,
-  noteEnv: Immutable.Map<string, data.CompiledNote>,
+  noteEnv: Immutable.Map<string, CompiledNote>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ) {
@@ -202,11 +202,11 @@ function computeFields(
 function compileTable(
   ast: ESTree.Expression,
   tableName: string,
-  noteEnv: Immutable.Map<string, data.CompiledNote>,
+  noteEnv: Immutable.Map<string, CompiledNote>,
   setSelected: (name: string) => void,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
-): data.Compiled {
+): Compiled {
   const annots = new Map<unknown, Type>();
   Typecheck.check(ast, Typecheck.env(), tableType, annots);
   const problems = [...annots.values()].some(t => t.kind === 'Error');
@@ -245,21 +245,21 @@ function compileTable(
 }
 
 export default function compileFileTable(
-  file: File,
-  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
-  compiledNotes: Signal<data.CompiledNotes>,
+  file: Content,
+  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
+  compiledNotes: Signal<CompiledNotes>,
   setSelected: (name: string) => void,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
-): Signal<data.CompiledFile> {
+): Signal<CompiledFile> {
 
   const tableName = Name.nameOfPath(file.path);
 
-  const ast = file.content.map(Parse.parseExpression);
+  const ast = file.content.map(content => Parse.parseExpression(content as string));
 
   // TODO(jaked) support non-index foo.table
   // TODO(jaked) Signal.filter
-  const noteEnv = Signal.mapWithPrev<data.CompiledNotes, data.CompiledNotes>(
+  const noteEnv = Signal.mapWithPrev<CompiledNotes, CompiledNotes>(
     compiledNotes,
     (compiledNotes, prevCompiledNotes, prevNoteEnv) => {
       return prevNoteEnv.withMutations(noteEnv => {

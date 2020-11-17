@@ -10,8 +10,7 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import * as data from '../../data';
-import File from '../../files/File';
+import { Content, Compiled, CompiledFile, Meta } from '../../data';
 import { Record } from '../../components/Record';
 import lensType from './lensType';
 import lensValue from './lensValue';
@@ -79,11 +78,11 @@ function fieldComponent(field: string, type: Type) {
 }
 
 function compileJson(
-  file: File,
+  file: Content,
   ast: ESTree.Expression,
-  meta: data.Meta,
+  meta: Meta,
   updateFile: (path: string, buffer: Buffer) => void
-): data.Compiled {
+): Compiled {
   const annots = new Map<unknown, Type>();
   let type =
     meta.dataType ?
@@ -136,11 +135,11 @@ function compileJson(
 }
 
 export default function compileFileJson(
-  file: File,
-  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
+  file: Content,
+  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
   updateFile: (path: string, buffer: Buffer) => void,
-): Signal<data.CompiledFile> {
-  const ast = file.content.map(Parse.parseExpression);
+): Signal<CompiledFile> {
+  const ast = file.content.map(content => Parse.parseExpression(content as string));
 
   // TODO(jaked) support typechecking from index.table file
 
