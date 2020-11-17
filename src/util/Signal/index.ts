@@ -139,14 +139,16 @@ class Const<T> extends SignalImpl<T> {
   reconcile() { }
 }
 
-interface CellIntf<T> extends Signal<T> {
+export interface WritableSignal<T> extends Signal<T> {
   set(t: Try<T>): void;
   setOk(t: T): void;
   setErr(err: Error): void;
   update(fn: (t: T) => T): void;
+
+  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableSignal<U>;
 }
 
-class CellImpl<T> extends SignalImpl<T> implements CellIntf<T> {
+class CellImpl<T> extends SignalImpl<T> implements WritableSignal<T> {
   constructor(value: Try<T>, onChange?: () => void) {
     super();
     this.value = value;
@@ -171,6 +173,7 @@ class CellImpl<T> extends SignalImpl<T> implements CellIntf<T> {
   setOk(t: T) { this.set(Try.ok(t)); }
   setErr(err: Error) { this.set(Try.err(err)); }
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
+  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableSignal<U> { return new MapWritable(this, f, fInv); }
 }
 
 interface RefIntf<T> extends Signal<T> {
@@ -234,6 +237,61 @@ class Map<T, U> extends SignalImpl<U> {
     this.value = value;
     this.version++;
   }
+}
+
+class MapWritable<T, U> extends SignalImpl<U> implements WritableSignal<U> {
+  s: WritableSignal<T>;
+  sVersion: number;
+  f: (t: T) => U;
+  fInv: (u: U) => T;
+
+  constructor(s: WritableSignal<T>, f: (t: T) => U, fInv: (u: U) => T) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.f = f;
+    this.fInv = fInv;
+  }
+
+  get() { return this.value.get(); }
+
+  value: Try<U>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) return;
+    this.sVersion = this.s.version;
+    const value = this.s.value.map(this.f);
+    if (equal(value, this.value)) return;
+    this.value = value;
+    this.version++;
+  }
+
+  set(u: Try<U>) {
+    if (equal(u, this.value)) return;
+    if (u.type === 'ok') {
+      const t = Try.apply(() => this.fInv(u.ok));
+      this.s.set(t);
+    } else {
+      this.s.set(u as unknown as Try<T>);
+    }
+    // call to s.set dirties this and clears the dependency
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.sVersion = this.s.version;
+    this.value = u;
+    this.version++;
+  }
+
+  setOk(u: U) { this.set(Try.ok(u)); }
+  setErr(err: Error) { this.set(Try.err(err)); }
+  update(fn: (t: U) => U) { this.setOk(fn(this.get())); }
+  mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableSignal<V> { return new MapWritable(this, f, fInv); }
 }
 
 class FlatMap<T, U> extends SignalImpl<U> {
@@ -484,7 +542,7 @@ module Signal {
     return constant(Try.err(err));
   }
 
-  export type Cell<T> = CellIntf<T>;
+  export type Cell<T> = WritableSignal<T>;
 
   export function cell<T>(t: Try<T>, onChange?: () => void): Cell<T> {
     return new CellImpl(t, onChange);

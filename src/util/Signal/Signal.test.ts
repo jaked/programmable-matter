@@ -428,3 +428,18 @@ describe('ref', () => {
     expect(() => r.set(Signal.ok('bar'))).toThrow();
   });
 });
+
+describe('mapWritable', () => {
+  it('set pushes down inverse mapping', () => {
+    const cell = Signal.cellOk(7);
+    const plus = cell.mapWritable(x => x + 1, x => x - 1);
+    const plusplus = plus.map(x => x + 1);
+    plus.reconcile();
+    plus.setOk(9);
+    expect(cell.get()).toBe(8);
+    expect(plus.isDirty).toBe(false);
+    // plusplus was dirties even though plus is clean
+    plusplus.reconcile();
+    expect(plusplus.get()).toBe(10);
+  });
+});
