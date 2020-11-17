@@ -1,8 +1,7 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
-import * as PMAST from '../../PMAST';
-import File from '../../files/File';
 
+import Signal from '../../util/Signal';
 import compileFilePm from './compileFilePm';
 
 // TODO(jaked)
@@ -35,19 +34,19 @@ function expectRenderEqual(
 
 describe('compileFilePm', () => {
   it('compiles', () => {
-    const compiled = compileFilePm(
-      new File(
-        'foo.pm',
-        Buffer.from(PMAST.stringify([
-          {
-            type: 'p',
-            children: [
-              { text: 'foo' }
-            ]
-          }
-        ])),
-      ),
-    );
+    const compiled = compileFilePm({
+      type: 'pm',
+      path: 'foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        {
+          type: 'p',
+          children: [
+            { text: 'foo' }
+          ]
+        }
+      ]),
+    });
     compiled.reconcile();
     expect(compiled.get().problems).toBeFalsy();
 
@@ -59,22 +58,22 @@ describe('compileFilePm', () => {
   });
 
   it('renders marks', () => {
-    const compiled = compileFilePm(
-      new File(
-        'foo.pm',
-        Buffer.from(PMAST.stringify([
-          {
-            type: 'p',
-            children: [
-              { text: 'foo' },
-              { text: 'bar', bold: true },
-              { text: 'baz', underline: true },
-              { text: 'quux', bold: true, italic: true },
-            ]
-          }
-        ])),
-      ),
-    );
+    const compiled = compileFilePm({
+      type: 'pm',
+      path: 'foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        {
+          type: 'p',
+          children: [
+            { text: 'foo' },
+            { text: 'bar', bold: true },
+            { text: 'baz', underline: true },
+            { text: 'quux', bold: true, italic: true },
+          ]
+        }
+      ]),
+    });
     compiled.reconcile();
     expect(compiled.get().problems).toBeFalsy();
 
@@ -91,18 +90,18 @@ describe('compileFilePm', () => {
   });
 
   it('renders elements', () => {
-    const compiled = compileFilePm(
-      new File(
-        'foo.pm',
-        Buffer.from(PMAST.stringify([
-          { type: 'p', children: [{ text: 'foo' }] },
-          { type: 'h1', children: [{ text: 'bar' }] },
-          { type: 'ul', children: [
-            { type: 'li', children: [{ text: 'baz', bold: true }] }
-          ] },
-        ])),
-      ),
-    );
+    const compiled = compileFilePm({
+      type: 'pm',
+      path: 'foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        { type: 'p', children: [{ text: 'foo' }] },
+        { type: 'h1', children: [{ text: 'bar' }] },
+        { type: 'ul', children: [
+          { type: 'li', children: [{ text: 'baz', bold: true }] }
+        ] },
+      ]),
+    });
     compiled.reconcile();
     expect(compiled.get().problems).toBeFalsy();
 
@@ -118,18 +117,18 @@ describe('compileFilePm', () => {
   });
 
   it('renders links', () => {
-    const compiled = compileFilePm(
-      new File(
-        'foo.pm',
-        Buffer.from(PMAST.stringify([
-          { type: 'p', children: [
-            { type: 'a', href: 'https://foo.bar', children: [
-              { text: 'foo' }
-            ] },
-          ]},
-        ])),
-      ),
-    );
+    const compiled = compileFilePm({
+      type: 'pm',
+      path: 'foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        { type: 'p', children: [
+          { type: 'a', href: 'https://foo.bar', children: [
+            { text: 'foo' }
+          ] },
+        ]},
+      ]),
+    });
     compiled.reconcile();
     expect(compiled.get().problems).toBeFalsy();
 

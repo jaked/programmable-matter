@@ -31,7 +31,7 @@ const Flex = styled(FlexBase)({
 }, borders);
 
 type EditorPaneProps = {
-  content: Signal<string | null>;
+  content: Signal<unknown | null>;
   compiledFile: Signal<data.CompiledFile | null>;
   editorView: Signal<'meta' | 'pm' | 'mdx' | 'json' | 'table'>;
   session: Signal<Session>;
@@ -70,7 +70,7 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
 }));
 
 type RichEditorProps = {
-  content: string;
+  content: PMAST.Node[];
   session: Signal<Session>;
   onChange: Signal<(updateContent: string, session: Session) => void>;
   compiledFile: data.CompiledFile;
@@ -79,7 +79,7 @@ type RichEditorProps = {
 const RichEditor = React.memo<RichEditorProps>(props => {
   const session = Signal.useSignal(props.session);
   const onChange = Signal.useSignal(props.onChange);
-  const { nodes } = props.compiledFile.ast.get(); // TODO(jaked) fix get
+  const nodes = props.content as PMAST.Node[];
   const setValue = (nodes: PMAST.Node[]) => {
     const json = PMAST.stringify(nodes);
     onChange(json, session);
@@ -108,7 +108,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <Box padding={1}>no note</Box> :
         editorView === 'pm' ?
           <RichEditor
-            content={content}
+            content={content as PMAST.Node[]}
             session={props.session}
             onChange={props.onChange}
             compiledFile={compiledFile}
@@ -116,7 +116,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <CodeEditor
             ref={ref}
             editorView={editorView}
-            content={content}
+            content={content as string}
             compiledFile={compiledFile}
             session={props.session}
             onChange={props.onChange}

@@ -2,7 +2,6 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import * as data from '../../data';
-import File from '../../files/File';
 
 import compileFileTable from './compileFileTable';
 
@@ -13,10 +12,12 @@ const deleteFile = (s: string) => {}
 it('succeeds with syntax error', () => {
   console.log = jest.fn();
   const compiled = compileFileTable(
-    new File(
-      'foo.table',
-      Buffer.from(`#Q(*&#$)`),
-    ),
+    {
+      type: 'table',
+      path: 'foo.table',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`#Q(*&#$)`),
+    },
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
     setSelected,
@@ -30,10 +31,12 @@ it('succeeds with syntax error', () => {
 it('succeeds with type error', () => {
   console.log = jest.fn();
   const compiled = compileFileTable(
-    new File(
-      'foo.table',
-      Buffer.from(`{ }`),
-    ),
+    {
+      type: 'table',
+      path: 'foo.table',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ }`),
+    },
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
     setSelected,
@@ -46,9 +49,11 @@ it('succeeds with type error', () => {
 
 it('empty table', () => {
   const compiled = compileFileTable(
-    new File(
-      'foo.table',
-      Buffer.from(`{
+    {
+      type: 'table',
+      path: 'foo.table',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{
         fields: [
           {
             name: 'foo',
@@ -58,7 +63,7 @@ it('empty table', () => {
           }
         ]
       }`),
-    ),
+    },
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
     setSelected,
@@ -72,9 +77,11 @@ it('empty table', () => {
 
 it('non-data note in table dir', () => {
   const compiled = compileFileTable(
-    new File(
-      '/foo/index.table',
-      Buffer.from(`{
+    {
+      type: 'table',
+      path: '/foo/index.table',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{
         fields: [
           {
             name: 'foo',
@@ -84,7 +91,7 @@ it('non-data note in table dir', () => {
           }
         ]
       }`),
-    ),
+    },
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map({
       '/foo/bar': {

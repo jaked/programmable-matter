@@ -5,6 +5,7 @@ import { ipcRenderer as ipc } from 'electron';
 
 import * as Immutable from 'immutable';
 
+import * as PMAST from '../PMAST';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 import * as Name from '../util/Name';
@@ -179,9 +180,32 @@ export class App {
     });
   }
 
+  private contents = Signal.mapImmutableMap(this.filesystem.files, file => {
+    const { type, path, mtimeMs } = file;
+    let content;
+    switch (type) {
+      case 'pm':
+        content = file.buffer.map(buffer =>
+          // TODO(jaked) handle parse errors
+          PMAST.parse(buffer.toString('utf8'))
+        );
+        break;
+
+      case 'jpeg':
+        content = file.buffer;
+        break;
+
+      default:
+        content = file.buffer.map(buffer =>
+          buffer.toString('utf8')
+        );
+    }
+    return { type, path, mtimeMs, content };
+  });
+
   private compiledFilesSignalNotesSignal =
     Compile.compileFiles(
-      this.filesystem.files,
+      this.contents,
       this.filesystem.update,
       this.filesystem.remove,
       this.setSelected,
@@ -250,7 +274,7 @@ export class App {
     Signal.join(
       this.compiledNoteSignal,
       this.editorViewCell,
-      this.filesystem.files,
+      this.contents,
     ).map(([compiledNote, view, files]) => {
       if (compiledNote) {
         const path = Name.pathOfName(compiledNote.name, view);
@@ -294,17 +318,13 @@ export class App {
     Signal.join(
       this.selectedFileSignal,
       this.sessionsCell,
-      this.filesystem.files,
-    ).flatMap(([file, sessions, files]) => {
-      const noop = Signal.ok((updateContent: string, session: Session) => {});
+    ).map(([file, sessions]) => {
+      const noop = (updateContent: string, session: Session) => {};
       if (!file) return noop;
-      return file.content.map(content =>
-        (updateContent: string, session: Session) => {
-          this.sessionsCell.setOk(sessions.set(file.path, session));
-          if (updateContent === content) return; // TODO(jaked) still needed?
-          this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
-        }
-      );
+      return (updateContent: string, session: Session) => {
+        this.sessionsCell.setOk(sessions.set(file.path, session));
+        this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
+      };
     })
   );
 

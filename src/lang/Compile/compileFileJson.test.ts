@@ -2,7 +2,6 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import Type from '../Type';
-import File from '../../files/File';
 
 import compileFileJson from './compileFileJson';
 
@@ -10,10 +9,12 @@ const updateFile = (s: string, b: Buffer) => {}
 
 it('compiles', () => {
   const compiled = compileFileJson(
-    new File(
-      'foo.json',
-      Buffer.from(`{ foo: 7 }`),
-    ),
+    {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ foo: 7 }`),
+    },
     Signal.ok(Immutable.Map()),
     updateFile
   );
@@ -23,10 +24,12 @@ it('compiles', () => {
 
 it('succeeds with syntax error', () => {
   const compiled = compileFileJson(
-    new File(
-      'foo.json',
-      Buffer.from(`#Q(*&#$)`),
-    ),
+    {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`#Q(*&#$)`),
+    },
     Signal.ok(Immutable.Map()),
     updateFile
   );
@@ -36,10 +39,12 @@ it('succeeds with syntax error', () => {
 
 it('compiles with meta', () => {
   const compiled = compileFileJson(
-    new File(
-      'foo.json',
-      Buffer.from(`{ foo: 7 }`),
-    ),
+    {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ foo: 7 }`),
+    },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
         exportType: Type.module({ }),
@@ -61,10 +66,12 @@ it('compiles with meta', () => {
 
 it('succeeds with meta error', () => {
   const compiled = compileFileJson(
-    new File(
-      'foo.json',
-      Buffer.from(`{ foo: 7 }`),
-    ),
+    {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ foo: 7 }`),
+    },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
         exportType: Type.module({ }),
@@ -83,10 +90,12 @@ it('succeeds with meta error', () => {
 it('succeeds with type error', () => {
   console.log = jest.fn();
   const compiled = compileFileJson(
-    new File(
-      'foo.json',
-      Buffer.from(`{ foo: 7 }`),
-    ),
+    {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ foo: 7 }`),
+    },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
         exportType: Type.module({ }),

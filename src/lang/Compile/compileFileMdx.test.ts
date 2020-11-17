@@ -4,7 +4,6 @@ import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as data from '../../data';
-import File from '../../files/File';
 
 import compileFileMdx from './compileFileMdx';
 
@@ -12,10 +11,12 @@ const setSelected = (s: string) => {}
 
 it('compiles', () => {
   const compiled = compileFileMdx(
-    new File(
-      'foo.mdx',
-      Buffer.from(`foo`)
-    ),
+    {
+      type: 'mdx',
+      path: 'foo.mdx',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`foo`)
+    },
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
     setSelected
@@ -34,10 +35,12 @@ it('compiles', () => {
 
 it('compiles `a` tag', () => {
   const compiled = compileFileMdx(
-    new File(
-      'foo.mdx',
-      Buffer.from(`<a href='foo'>bar</a>`)
-    ),
+    {
+      type: 'mdx',
+      path: 'foo.mdx',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`<a href='foo'>bar</a>`)
+    },
     Signal.ok(Immutable.Map()),
     Signal.ok(Immutable.Map()),
     setSelected
@@ -56,10 +59,12 @@ it('compiles `a` tag', () => {
 
 it('compiles referencing data / table', () => {
   const compiled = compileFileMdx(
-    new File(
-      'foo.mdx',
-      Buffer.from(`foo <>{data.bar}</> <>{table.baz}</>`)
-    ),
+    {
+      type: 'mdx',
+      path: 'foo.mdx',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`foo <>{data.bar}</> <>{table.baz}</>`)
+    },
     Signal.ok(Immutable.Map({
       'foo.json': Signal.ok({
         exportType: Type.module({ mutable: Type.object({ bar: Type.string }) }),
@@ -95,10 +100,12 @@ it('compiles with layout', () => {
   console.error = jest.fn(); // suppress React warning about key props
 
   const compiled = compileFileMdx(
-    new File(
-      'foo.mdx',
-      Buffer.from(`foo`)
-    ),
+    {
+      type: 'mdx',
+      path: 'foo.mdx',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`foo`)
+    },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
         exportType: Type.module({ }),

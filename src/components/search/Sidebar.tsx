@@ -1,4 +1,5 @@
 import React from 'react';
+import { createEditor, Node, Editor } from 'slate';
 
 import Signal from '../../util/Signal';
 
@@ -63,7 +64,16 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           focusDir && !note.name.startsWith(focusDir + '/') ? Signal.ok(false) :
           search ? Signal.join(
             // TODO(jaked) should search text only
-            note.files.pm ? note.files.pm.content.map(pm => regexp.test(pm as string)) : Signal.ok(false),
+            note.files.pm ? note.files.pm.content.map(pm => {
+              // TODO(jaked)
+              // avoid reconstructing string on every search
+              // could search nodes individually?
+              // could incrementally search nodes as they change?
+              const editor = createEditor();
+              editor.children = pm as Node[];
+              const string = Editor.string(editor, []);
+              return regexp.test(string);
+             }) : Signal.ok(false),
 
             note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx as string)) : Signal.ok(false),
             note.files.json ? note.files.json.content.map(json => regexp.test(json as string)) : Signal.ok(false),

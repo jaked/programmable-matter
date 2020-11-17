@@ -44,7 +44,6 @@ const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) =
   if (parsedCode.has(node)) return;
 
   if (PMAST.isCode(node) || PMAST.isInlineCode(node)) {
-    // TODO(jaked) don't reparse if text hasn't changed
     // TODO(jaked) enforce tree constraints in editor
     if (!(node.children.length === 1)) bug('expected 1 child');
     const child = node.children[0];
@@ -62,11 +61,11 @@ const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) =
 }
 
 export default function compileFilePm(
-  file: Content, // TODO(jaked) take a PMAST.Node[] instead of reparsing
+  file: Content,
 ): Signal<CompiledFile> {
-  // TODO(jaked) handle parse errors
-  const nodes = file.content.map(content => PMAST.parse(content as string));
+  const nodes = file.content as Signal<PMAST.Node[]>;
   const ast = nodes.map(nodes => {
+    // TODO(jaked) don't reparse when code hasn't changed
     const parsedCode = new WeakMap<PMAST.Node, unknown>();
     nodes.forEach(node => parseCode(node, parsedCode));
     return { nodes, parsedCode }

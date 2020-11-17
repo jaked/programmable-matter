@@ -2,19 +2,21 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import { bug } from '../../util/bug';
-import File from '../../files/File';
 import { compileFiles } from './index';
+import { Contents } from '../../data';
 
 const updateFile = (s: string, b: Buffer) => {}
 const deleteFile = (s: string) => {}
 const setSelected = (s: string) => {}
 
 it('compiles mdx', () => {
-  const files = Signal.ok(Immutable.Map({
-    'foo.mdx': new File(
-      'foo.mdx',
-      Buffer.from("foo")
-    )
+  const files = Signal.ok<Contents>(Immutable.Map({
+    'foo.mdx': {
+      type: 'mdx',
+      path: 'foo.mdx',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok("foo"),
+    }
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile();
@@ -25,11 +27,13 @@ it('compiles mdx', () => {
 });
 
 it('compiles json', () => {
-  const files = Signal.ok(Immutable.Map({
-    'foo.json': new File(
-      'foo.json',
-      Buffer.from("{ }")
-    )
+  const files = Signal.ok<Contents>(Immutable.Map({
+    'foo.json': {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok('{ }'),
+    }
   }));
   const { compiledNotes } = compileFiles(files,  updateFile, deleteFile, setSelected);
   compiledNotes.reconcile();
@@ -40,11 +44,13 @@ it('compiles json', () => {
 });
 
 it('compiles meta', () => {
-  const files = Signal.ok(Immutable.Map({
-    'foo.meta': new File(
-      'foo.meta',
-      Buffer.from("{ }")
-    )
+  const files = Signal.ok<Contents>(Immutable.Map({
+    'foo.meta': {
+      type: 'meta',
+      path: 'foo.meta',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok('{ }'),
+    }
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile();
@@ -55,20 +61,24 @@ it('compiles meta', () => {
 });
 
 it('compiles table', () => {
-  const files = Signal.ok(Immutable.Map({
-    'cats/index.meta': new File(
-      'cats/index.meta',
-      Buffer.from(`
+  const files = Signal.ok<Contents>(Immutable.Map({
+    'cats/index.meta': {
+      type: 'meta',
+      path: 'cats/index.meta',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`
         {
           dirMeta: {
             dataType: '{ name: string, breed: string }'
           }
         }
-      `)
-    ),
-    'cats/index.table': new File(
-      'cats/index.table',
-      Buffer.from(`
+      `),
+    },
+    'cats/index.table': {
+      type: 'table',
+      path: 'cats/index.table',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`
         {
           fields: [
             {
@@ -86,25 +96,29 @@ it('compiles table', () => {
           ]
         }
       `)
-    ),
-    'cats/smokey.json': new File(
-      'cats/smokey.json',
-      Buffer.from(`
+    },
+    'cats/smokey.json': {
+      type: 'json',
+      path: 'cats/smokey.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`
         {
           name: 'Smokey',
           breed: 'Ocicat',
         }
       `),
-    ),
-    'cats/danny.json': new File(
-      'cats/danny.json',
-      Buffer.from(`
+    },
+    'cats/danny.json': {
+      type: 'json',
+      path: 'cats/danny.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`
         {
           name: 'Danny',
           breed: 'American shorthair',
         }
       `),
-    ),
+    },
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile();
@@ -115,19 +129,25 @@ it('compiles table', () => {
 });
 
 it('compiles mdx + json + meta', () => {
-  const files = Signal.ok(Immutable.Map({
-    'foo.mdx': new File(
-      'foo.mdx',
-      Buffer.from("foo <>data.bar</>")
-    ),
-    'foo.meta': new File(
-      'foo.meta',
-      Buffer.from(`{ dataType: '{ bar: number }' }`)
-    ),
-    'foo.json': new File(
-      'foo.json',
-      Buffer.from(`{ bar: 7 }`)
-    )
+  const files = Signal.ok<Contents>(Immutable.Map({
+    'foo.mdx': {
+      type: 'mdx',
+      path: 'foo.mdx',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok("foo <>data.bar</>"),
+    },
+    'foo.meta': {
+      type: 'meta',
+      path: 'foo.meta',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ dataType: '{ bar: number }' }`),
+    },
+    'foo.json': {
+      type: 'json',
+      path: 'foo.json',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok(`{ bar: 7 }`),
+    }
   }));
   const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
   compiledNotes.reconcile();
