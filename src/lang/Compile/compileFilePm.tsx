@@ -40,7 +40,15 @@ export const renderNode = (node: PMAST.Node) => {
   }
 }
 
-const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) => {
+// Slate guarantees fresh objects for changed nodes
+// so it's safe to keep a global weak map (I think?)
+const parsedCode = new WeakMap<PMAST.Node, unknown>();
+
+// TODO(jaked)
+// seems like we should be able to avoid traversing the whole node tree
+// similarly to how slate-react avoids it
+// i.e. track old tree and traverse only changed parts
+const parseCode = (node: PMAST.Node) => {
   if (parsedCode.has(node)) return;
 
   if (PMAST.isCode(node) || PMAST.isInlineCode(node)) {
@@ -56,7 +64,7 @@ const parseCode = (node: PMAST.Node, parsedCode: WeakMap<PMAST.Node, unknown>) =
       parsedCode.set(node, ast);
     }
   } else if (PMAST.isElement(node)) {
-    node.children.map(child => parseCode(child, parsedCode));
+    node.children.map(child => parseCode(child));
   }
 }
 
@@ -65,9 +73,7 @@ export default function compileFilePm(
 ): Signal<CompiledFile> {
   const nodes = file.content as Signal<PMAST.Node[]>;
   const ast = nodes.map(nodes => {
-    // TODO(jaked) don't reparse when code hasn't changed
-    const parsedCode = new WeakMap<PMAST.Node, unknown>();
-    nodes.forEach(node => parseCode(node, parsedCode));
+    nodes.forEach(parseCode);
     return { nodes, parsedCode }
   });
   const rendered = nodes.map(nodes => nodes.map(renderNode));
