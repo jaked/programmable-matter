@@ -5,8 +5,30 @@ import * as Immutable from 'immutable';
 import nsfw from 'nsfw';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
-import * as data from '../data';
-import File from './File';
+
+// TODO(jaked) should handle type elsewhere maybe
+import { Types } from '../data';
+
+function typeOfPath(path: string): Types {
+  const ext = Path.parse(path).ext;
+  switch (ext) {
+    case '.meta': return 'meta';
+    case '.pm': return 'pm';
+    case '.mdx': return 'mdx';
+    case '.json': return 'json';
+    case '.table': return 'table';
+    case '.jpeg': return 'jpeg';
+    default:
+      throw new Error(`unhandled extension '${ext}' for '${path}'`);
+  }
+}
+
+type File = {
+  path: string;
+  buffer: Signal.Writable<Buffer>;
+  mtimeMs: Signal.Writable<number>;
+  type: Types;
+}
 
 type FileMetadata = {
   writing: boolean; // true if we are in the middle of writing the file
@@ -76,7 +98,7 @@ type Nsfw = (
 }>
 
 type Filesystem = {
-  files: Signal<data.Files>,
+  files: Signal<Immutable.Map<string, File>>,
   update: (path: string, buffer: Buffer) => void,
   remove: (path: string) => void,
   rename: (oldPath: string, newPath: string) => void,
@@ -87,15 +109,33 @@ type Filesystem = {
 
 function make(
   filesPath: string,
-  onChange: () => void,
   Now: Now = Date,
   Timers: Timers = timers,
   Fs: Fs = fs.promises,
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
-  const filesCell = Signal.cellOk(Immutable.Map<string, File>(), onChange);
+  const filesCell = Signal.cellOk(Immutable.Map<string, File>());
   const filesMetadata = new Map<string, FileMetadata>();
   let timeout: null | NodeJS.Timeout = null;
+
+  const makeFile = (
+    path: string,
+    buffer: Buffer,
+    mtimeMs: number,
+    lastUpdateMs: number,
+    lastWriteMs: number
+  ) => {
+    const fileMetadata = { lastUpdateMs, lastWriteMs, writing: false };
+    filesMetadata.set(path, fileMetadata);
+    const mtimeMsCell = Signal.cellOk(mtimeMs);
+    const bufferCell = Signal.cellOk(buffer, () => {
+      const lastUpdateMs = Now.now();
+      fileMetadata.lastUpdateMs = lastUpdateMs;
+      mtimeMsCell.setOk(lastUpdateMs);
+    });
+    const type = typeOfPath(path);
+    return { path, buffer: bufferCell, mtimeMs: mtimeMsCell, type }
+  }
 
   const updateFiles = (
     updater: (files: Immutable.Map<string, File>) => Immutable.Map<string, File>
@@ -138,10 +178,7 @@ function make(
       return files;
     } else {
       if (debug) console.log(`adding ${path}`);
-      const fileMetadata =
-        { lastUpdateMs: mtimeMs, lastWriteMs: mtimeMs, writing: false };
-      filesMetadata.set(path, fileMetadata);
-      const file = new File(path, buffer, mtimeMs, onChange);
+      const file = makeFile(path, buffer, mtimeMs, mtimeMs, mtimeMs);
       return files.set(path, file);
     }
   }
@@ -222,22 +259,17 @@ function make(
       const oldFile = files.get(path);
       const lastUpdateMs = Now.now();
       if (oldFile) {
-        const fileMetadata = filesMetadata.get(path) || bug(`expected metadata for ${path}`);
         if (buffer.equals(oldFile.buffer.get())) {
           if (debug) console.log(`${path} has not changed`);
           return files;
         } else {
           if (debug) console.log(`updating file path=${path}`);
-          fileMetadata.lastUpdateMs = lastUpdateMs;
           oldFile.buffer.setOk(buffer);
-          oldFile.mtimeMs.setOk(lastUpdateMs);
           return files;
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
-        const fileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
-        filesMetadata.set(path, fileMetadata);
-        const file = new File(path, buffer, lastUpdateMs, onChange);
+        const file = makeFile(path, buffer, lastUpdateMs, lastUpdateMs, 0);
         return files.set(path, file);
       }
     });
@@ -269,9 +301,7 @@ function make(
         newFile.buffer.setOk(oldFile.buffer.get());
         newFile.mtimeMs.setOk(newFile.mtimeMs.get());
       } else {
-        const newFileMetadata = { lastUpdateMs, lastWriteMs: 0, writing: false };
-        filesMetadata.set(newPath, newFileMetadata);
-        const newFile = new File(newPath, oldFile.buffer.get(), oldFile.mtimeMs.get(), onChange);
+        const newFile = makeFile(newPath, oldFile.buffer.get(), oldFile.mtimeMs.get(), lastUpdateMs, 0)
         files = files.set(newPath, newFile);
       }
 

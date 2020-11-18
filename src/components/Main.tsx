@@ -31,35 +31,40 @@ const Flex = styled(FlexBase)({
 }, borders);
 
 type EditorPaneProps = {
-  content: Signal<unknown | null>;
+  selectedFile: Signal<data.WritableContent | null>;
   compiledFile: Signal<data.CompiledFile | null>;
   editorView: Signal<'meta' | 'pm' | 'mdx' | 'json' | 'table'>;
   session: Signal<Session>;
   status: Signal<string | undefined>;
-  onChange: Signal<(updateContent: string, session: Session) => void>;
+  setSession: Signal<(session: Session) => void>;
   setStatus: (status: string | undefined) => void;
   setSelected: (selected: string | null) => void;
 }
 
 type CodeEditorProps = {
-  content: string;
+  content: Signal.Writable<string>;
   compiledFile: data.CompiledFile;
   editorView: 'meta' | 'pm' | 'mdx' | 'json' | 'table';
   session: Signal<Session>;
-  onChange: Signal<(updateContent: string, session: Session) => void>;
+  setSession: Signal<(session: Session) => void>;
   setStatus: (status: string | undefined) => void;
   setSelected: (selected: string | null) => void;
 }
 
 const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, ref) => {
+  const content = Signal.useSignal(props.content);
   const session = Signal.useSignal(props.session);
-  const onChange = Signal.useSignal(props.onChange);
+  const setSession = Signal.useSignal(props.setSession);
+  const onChange = (content: string, session: Session) => {
+    setSession(session);
+    props.content.setOk(content);
+  }
 
   return (
     <Editor
       ref={ref}
       view={props.editorView}
-      content={props.content}
+      content={content}
       compiledFile={Signal.ok(props.compiledFile)}
       session={session}
       onChange={onChange}
@@ -70,19 +75,14 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
 }));
 
 type RichEditorProps = {
-  content: PMAST.Node[];
-  session: Signal<Session>;
-  onChange: Signal<(updateContent: string, session: Session) => void>;
+  content: Signal.Writable<PMAST.Node[]>;
   compiledFile: data.CompiledFile;
 }
 
 const RichEditor = React.memo<RichEditorProps>(props => {
-  const session = Signal.useSignal(props.session);
-  const onChange = Signal.useSignal(props.onChange);
-  const nodes = props.content as PMAST.Node[];
+  const nodes = Signal.useSignal(props.content);
   const setValue = (nodes: PMAST.Node[]) => {
-    const json = PMAST.stringify(nodes);
-    onChange(json, session);
+    props.content.setOk(nodes);
   }
 
   return (
@@ -96,7 +96,7 @@ const RichEditor = React.memo<RichEditorProps>(props => {
 
 const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) => {
   // TODO(jaked) use Signal.join here? not sure about lifetime
-  const content = Signal.useSignal(props.content);
+  const selectedFile = Signal.useSignal(props.selectedFile);
   const compiledFile = Signal.useSignal(props.compiledFile);
   const editorView = Signal.useSignal(props.editorView);
   const status = Signal.useSignal(props.status);
@@ -104,22 +104,20 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   return (
     <Flex flex={1} minWidth={0} flexDirection='column' >
       <Box padding={1} flex={1} minHeight={0} >{
-        content === null || compiledFile == null ?
+        selectedFile === null || compiledFile == null ?
           <Box padding={1}>no note</Box> :
         editorView === 'pm' ?
           <RichEditor
-            content={content as PMAST.Node[]}
-            session={props.session}
-            onChange={props.onChange}
+            content={selectedFile.content as Signal.Writable<PMAST.Node[]>}
             compiledFile={compiledFile}
           /> :
           <CodeEditor
             ref={ref}
             editorView={editorView}
-            content={content as string}
+            content={selectedFile.content as Signal.Writable<string>}
             compiledFile={compiledFile}
             session={props.session}
-            onChange={props.onChange}
+            setSession={props.setSession}
             setStatus={props.setStatus}
             setSelected={props.setSelected}
           />
@@ -219,12 +217,12 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
             <Catch>
               <EditorPane
                 ref={editorRef}
-                content={props.app.contentSignal}
+                selectedFile={props.app.selectedFileSignal}
                 compiledFile={props.app.compiledFileSignal}
                 editorView={props.app.editorViewCell}
                 session={props.app.sessionSignal}
                 status={props.app.statusCell}
-                onChange={props.app.setContentAndSessionSignal}
+                setSession={props.app.setSessionSignal}
                 setStatus={props.app.setStatus}
                 setSelected={props.app.setSelected}
               />

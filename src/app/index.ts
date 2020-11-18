@@ -44,7 +44,7 @@ export class App {
 
   // TODO(jaked) make this configurable
   private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  private filesystem = Filesystem(this.filesPath, () => {});
+  private filesystem = Filesystem(this.filesPath);
 
   constructor() {
     this.render();
@@ -182,12 +182,13 @@ export class App {
 
   private contents = Signal.mapImmutableMap(this.filesystem.files, file => {
     const { type, path, mtimeMs } = file;
-    let content;
+    let content: Signal.Writable<unknown>;
     switch (type) {
       case 'pm':
-        content = file.buffer.map(buffer =>
+        content = file.buffer.mapWritable(
           // TODO(jaked) handle parse errors
-          PMAST.parse(buffer.toString('utf8'))
+          buffer => PMAST.parse(buffer.toString('utf8')),
+          nodes => Buffer.from(PMAST.stringify(nodes), 'utf8')
         );
         break;
 
@@ -196,8 +197,9 @@ export class App {
         break;
 
       default:
-        content = file.buffer.map(buffer =>
-          buffer.toString('utf8')
+        content = file.buffer.mapWritable(
+          buffer => buffer.toString('utf8'),
+          string => Buffer.from(string, 'utf8')
         );
     }
     return { type, path, mtimeMs, content };
@@ -270,7 +272,7 @@ export class App {
       }
     });
 
-  private selectedFileSignal =
+  public selectedFileSignal =
     Signal.join(
       this.compiledNoteSignal,
       this.editorViewCell,
@@ -294,13 +296,6 @@ export class App {
     })
   );
 
-  // TODO(jaked) bundle data we need for editor in CompiledFile
-  public contentSignal: Signal<string | null> =
-    this.selectedFileSignal.flatMap(file => {
-      if (file) return file.content;
-      else return Signal.ok(null);
-    });
-
   private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
   public sessionSignal = Signal.label('session',
     Signal.join(this.selectedFileSignal, this.sessionsCell).map(([file, sessions]) => {
@@ -314,16 +309,15 @@ export class App {
     })
   );
 
-  public setContentAndSessionSignal = Signal.label('setContentAndSession',
+  public setSessionSignal = Signal.label('setSession',
     Signal.join(
       this.selectedFileSignal,
       this.sessionsCell,
     ).map(([file, sessions]) => {
-      const noop = (updateContent: string, session: Session) => {};
+      const noop = (session: Session) => {};
       if (!file) return noop;
-      return (updateContent: string, session: Session) => {
+      return (session: Session) => {
         this.sessionsCell.setOk(sessions.set(file.path, session));
-        this.filesystem.update(file.path, Buffer.from(updateContent, 'utf8'));
       };
     })
   );

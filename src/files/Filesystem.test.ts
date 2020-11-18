@@ -48,7 +48,6 @@ test('makes dir on update if needed', async () => {
 
   const filesystem = Filesystem(
     '/',
-    () => { },
     Now,
     Timers,
     Fs,
@@ -56,7 +55,7 @@ test('makes dir on update if needed', async () => {
   );
 
   await filesystem.start();
-  filesystem.update('/foo/bar', Buffer.from('foo bar'));
+  filesystem.update('/foo/bar.json', Buffer.from('foo bar'));
   theNow = 2000;
   runScheduled();
   await filesystem.stop();

@@ -3,7 +3,6 @@ import React from 'react';
 import Signal from './util/Signal';
 import Try from './util/Try';
 import Type from './lang/Type';
-import File from './files/File';
 
 export type Types = 'meta' | 'pm' | 'mdx' | 'json' | 'jpeg' | 'table';
 
@@ -89,9 +88,14 @@ export type Content = {
   content: Signal<unknown>,
   mtimeMs: Signal<number>, // TODO(jaked) drop
 }
+export type WritableContent = {
+  type: Types,
+  path: string,
+  content: Signal.Writable<unknown>
+  mtimeMs: Signal<number>, // TODO(jaked) drop
+}
 
 // indexed by path
-export type Files = Immutable.Map<string, File>;
 export type Contents = Immutable.Map<string, Content>;
 
 // indexed by name

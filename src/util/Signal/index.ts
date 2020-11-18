@@ -139,16 +139,16 @@ class Const<T> extends SignalImpl<T> {
   reconcile() { }
 }
 
-export interface WritableSignal<T> extends Signal<T> {
+interface WritableIntf<T> extends Signal<T> {
   set(t: Try<T>): void;
   setOk(t: T): void;
   setErr(err: Error): void;
   update(fn: (t: T) => T): void;
 
-  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableSignal<U>;
+  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
 }
 
-class CellImpl<T> extends SignalImpl<T> implements WritableSignal<T> {
+class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
   constructor(value: Try<T>, onChange?: () => void) {
     super();
     this.value = value;
@@ -173,7 +173,7 @@ class CellImpl<T> extends SignalImpl<T> implements WritableSignal<T> {
   setOk(t: T) { this.set(Try.ok(t)); }
   setErr(err: Error) { this.set(Try.err(err)); }
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
-  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableSignal<U> { return new MapWritable(this, f, fInv); }
+  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
 }
 
 interface RefIntf<T> extends Signal<T> {
@@ -239,13 +239,13 @@ class Map<T, U> extends SignalImpl<U> {
   }
 }
 
-class MapWritable<T, U> extends SignalImpl<U> implements WritableSignal<U> {
-  s: WritableSignal<T>;
+class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
+  s: WritableIntf<T>;
   sVersion: number;
   f: (t: T) => U;
   fInv: (u: U) => T;
 
-  constructor(s: WritableSignal<T>, f: (t: T) => U, fInv: (u: U) => T) {
+  constructor(s: WritableIntf<T>, f: (t: T) => U, fInv: (u: U) => T) {
     super();
     this.value = unreconciled;
     this.version = 0;
@@ -291,7 +291,7 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableSignal<U> {
   setOk(u: U) { this.set(Try.ok(u)); }
   setErr(err: Error) { this.set(Try.err(err)); }
   update(fn: (t: U) => U) { this.setOk(fn(this.get())); }
-  mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableSignal<V> { return new MapWritable(this, f, fInv); }
+  mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableIntf<V> { return new MapWritable(this, f, fInv); }
 }
 
 class FlatMap<T, U> extends SignalImpl<U> {
@@ -542,17 +542,17 @@ module Signal {
     return constant(Try.err(err));
   }
 
-  export type Cell<T> = WritableSignal<T>;
+  export type Writable<T> = WritableIntf<T>;
 
-  export function cell<T>(t: Try<T>, onChange?: () => void): Cell<T> {
+  export function cell<T>(t: Try<T>, onChange?: () => void): Writable<T> {
     return new CellImpl(t, onChange);
   }
 
-  export function cellOk<T>(t: T, onChange?: () => void): Cell<T> {
+  export function cellOk<T>(t: T, onChange?: () => void): Writable<T> {
     return cell(Try.ok(t), onChange);
   }
 
-  export function cellErr<T>(err: Error, onChange: () => void): Cell<T> {
+  export function cellErr<T>(err: Error, onChange: () => void): Writable<T> {
     return cell<T>(Try.err(err), onChange);
   }
 
