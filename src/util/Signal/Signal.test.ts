@@ -89,6 +89,15 @@ describe('cell', () => {
     expect(s.get()).toBe(7);
   });
 
+  it('unchanged value + force', () => {
+    const s = Signal.cellOk(7);
+    expect(s.version).toBe(1);
+    s.setOk(7, true);
+    s.reconcile();
+    expect(s.version).toBe(2);
+    expect(s.get()).toBe(7);
+  });
+
   it('changed value', () => {
     const s = Signal.cellOk(7);
     expect(s.version).toBe(1);
@@ -441,5 +450,25 @@ describe('mapWritable', () => {
     // plusplus was dirties even though plus is clean
     plusplus.reconcile();
     expect(plusplus.get()).toBe(10);
+  });
+
+  it('unchanged value', () => {
+    const cell = Signal.cellOk(7);
+    expect(cell.version).toBe(1);
+    const plus = cell.mapWritable(x => x + 1, x => x - 1);
+    plus.reconcile();
+    plus.setOk(8);
+    expect(cell.version).toBe(1);
+    expect(cell.get()).toBe(7);
+  });
+
+  it('unchanged value + force', () => {
+    const cell = Signal.cellOk(7);
+    expect(cell.version).toBe(1);
+    const plus = cell.mapWritable(x => x + 1, x => x - 1);
+    plus.reconcile();
+    plus.setOk(8, true);
+    expect(cell.version).toBe(2);
+    expect(cell.get()).toBe(7);
   });
 });

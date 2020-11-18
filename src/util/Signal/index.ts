@@ -140,9 +140,9 @@ class Const<T> extends SignalImpl<T> {
 }
 
 interface WritableIntf<T> extends Signal<T> {
-  set(t: Try<T>): void;
-  setOk(t: T): void;
-  setErr(err: Error): void;
+  set(t: Try<T>, force?: boolean): void;
+  setOk(t: T, force?: boolean): void;
+  setErr(err: Error, force?: boolean): void;
   update(fn: (t: T) => T): void;
 
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
@@ -163,15 +163,15 @@ class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
   onChange?: () => void;
   reconcile() { }
 
-  set(t: Try<T>) {
-    if (equal(t, this.value)) return;
+  set(t: Try<T>, force?: boolean) {
+    if (!force && equal(t, this.value)) return;
     this.value = t;
     this.version++;
     this.dirty();
     if (this.onChange) this.onChange();
   }
-  setOk(t: T) { this.set(Try.ok(t)); }
-  setErr(err: Error) { this.set(Try.err(err)); }
+  setOk(t: T, force?: boolean) { this.set(Try.ok(t), force); }
+  setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
 }
@@ -272,13 +272,13 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
     this.version++;
   }
 
-  set(u: Try<U>) {
-    if (equal(u, this.value)) return;
+  set(u: Try<U>, force?: boolean) {
+    if (!force && equal(u, this.value)) return;
     if (u.type === 'ok') {
       const t = Try.apply(() => this.fInv(u.ok));
-      this.s.set(t);
+      this.s.set(t, force);
     } else {
-      this.s.set(u as unknown as Try<T>);
+      this.s.set(u as unknown as Try<T>, force);
     }
     // call to s.set dirties this and clears the dependency
     this.isDirty = false;
@@ -288,8 +288,8 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
     this.version++;
   }
 
-  setOk(u: U) { this.set(Try.ok(u)); }
-  setErr(err: Error) { this.set(Try.err(err)); }
+  setOk(u: U, force?: boolean) { this.set(Try.ok(u), force); }
+  setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
   update(fn: (t: U) => U) { this.setOk(fn(this.get())); }
   mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableIntf<V> { return new MapWritable(this, f, fInv); }
 }
