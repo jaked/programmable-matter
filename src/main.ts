@@ -11,7 +11,10 @@ function createWindow () {
     width: 1440,
     height: 800,
     webPreferences: {
-      nodeIntegration: true
+      // TODO(jaked)
+      // need to remove these for security
+      nodeIntegration: true,
+      enableRemoteModule: true, // needed by electron-is-dev
     }
   })
 
