@@ -2,11 +2,10 @@ import * as fs from "fs";
 import * as Path from 'path';
 import { remote } from 'electron';
 import util from 'util';
-import rimrafCallback from 'rimraf';
 import GHPages from 'gh-pages';
-const rimraf = util.promisify(rimrafCallback);
 const writeFile = util.promisify(fs.writeFile);
 const mkdir = util.promisify(fs.mkdir);
+const rmdir = util.promisify(fs.rmdir;
 const ghPagesPublish = util.promisify(GHPages.publish);
 
 import * as React from 'react';
@@ -22,8 +21,7 @@ export default async function ghPages(
 
   // TODO(jaked) generate random dir name?
   const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-  // fs.rmdir(tempdir, { recursive: true }); // TODO(jaked) Node 12.10.0
-  await rimraf(tempdir, { glob: false })
+  rmdir(tempdir, { recursive: true } as any);
   await mkdir(tempdir);
   await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
   await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");

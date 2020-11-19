@@ -61,7 +61,6 @@
     "remark-wiki-link": "0.0.4",
     "retext": "^7.0.0",
     "retext-smartypants": "^3.0.3",
-    "rimraf": "^3.0.0",
     "slate": "^0.59.0",
     "slate-react": "^0.59.0",
     "styled-components": "^5.1.0",
