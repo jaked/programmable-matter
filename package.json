@@ -39,7 +39,6 @@
     "@babel/parser": "^7.6.4",
     "@mdx-js/mdx": "^1.4.5",
     "browser-sync": "^2.26.7",
-    "electron-unhandled": "^2.2.0",
     "gh-pages": "^2.1.1",
     "googleapis": "^46.0.0",
     "immutable": "^4.0.0-rc.12",

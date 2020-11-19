@@ -25,11 +25,7 @@ import * as GTasks from '../integrations/gtasks';
 
 import ghPages from '../publish/ghPages';
 
-import Unhandled from 'electron-unhandled';
-
 import mkNewNote from './newNote';
-
-Unhandled();
 
 const debug = false;
 
