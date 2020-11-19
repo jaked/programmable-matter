@@ -122,7 +122,7 @@ function narrowExpression(
         case '!':
           return env;
         default:
-          return bug(`unexpected AST ${ast.operator}`);
+          return bug(`unexpected AST ${(ast as any).operator}`);
       }
     }
 
@@ -154,7 +154,7 @@ export function narrowEnvironment(
           // typeof always returns a truthy value
           return env;
         default:
-          return bug(`unexpected AST ${ast.operator}`);
+          return bug(`unexpected AST ${(ast as any).operator}`);
       }
 
     case 'LogicalExpression':
@@ -170,7 +170,7 @@ export function narrowEnvironment(
             return narrowEnvironment(env, ast.right, false, annots);
           } else return env;
         default:
-          return bug(`unexpected AST ${ast.operator}`);
+          return bug(`unexpected AST ${(ast as any).operator}`);
       }
 
     case 'BinaryExpression':

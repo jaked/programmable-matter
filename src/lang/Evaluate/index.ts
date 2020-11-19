@@ -131,7 +131,7 @@ export function evaluateExpression(
       switch (ast.operator) {
         case '!': return !v;
         case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
-        default: throw new Error(`unhandled ast ${ast.operator}`);
+        default: throw new Error(`unhandled ast ${(ast as any).operator}`);
       }
     }
 
@@ -142,7 +142,7 @@ export function evaluateExpression(
         case '&&':
           return evaluateExpression(ast.left, annots, env) && evaluateExpression(ast.right, annots, env);
         default:
-          throw new Error(`unexpected binary operator ${ast.operator}`)
+          throw new Error(`unexpected binary operator ${(ast as any).operator}`)
       }
     }
 
