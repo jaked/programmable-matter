@@ -1,5 +1,4 @@
 import * as Immutable from 'immutable';
-import Recast from 'recast/main';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';

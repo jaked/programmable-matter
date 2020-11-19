@@ -1,25 +1,10 @@
-import Recast from 'recast/main';
-
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';
 
-class LocatedError extends Error {
-  location: ESTree.Node;
-
-  constructor(msg: string, location: ESTree.Node) {
-    super(msg);
-    this.location = location;
-  }
-
-  toString() {
-    return this.message + ' at ' + Recast.print(this.location).code;
-  }
-}
-
 export function withLocation(ast: ESTree.Node, msg, annots?: AstAnnotations): never {
-  const err = new LocatedError(msg, ast);
+  const err = new Error(msg);
   if (annots) annots.set(ast, Type.error(err));
   throw err;
 }

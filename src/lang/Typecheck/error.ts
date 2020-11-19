@@ -1,5 +1,3 @@
-import Recast from 'recast/main';
-
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';
