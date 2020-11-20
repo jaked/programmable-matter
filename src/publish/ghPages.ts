@@ -5,7 +5,7 @@ import util from 'util';
 import GHPages from 'gh-pages';
 const writeFile = util.promisify(fs.writeFile);
 const mkdir = util.promisify(fs.mkdir);
-const rmdir = util.promisify(fs.rmdir;
+const rmdir = util.promisify(fs.rmdir);
 const ghPagesPublish = util.promisify(GHPages.publish);
 
 import * as React from 'react';
