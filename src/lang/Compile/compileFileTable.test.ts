@@ -25,7 +25,8 @@ it('succeeds with syntax error', () => {
     deleteFile,
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeTruthy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeTruthy();
 });
 
 it('succeeds with type error', () => {
@@ -44,7 +45,13 @@ it('succeeds with type error', () => {
     deleteFile,
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeTruthy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeTruthy();
+  const annots = compiled.get().astAnnotations;
+  expect(annots).toBeDefined();
+  if (!annots) throw 'bug';
+  annots.reconcile();
+  expect(() => annots.get()).not.toThrow();
 });
 
 it('empty table', () => {

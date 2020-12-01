@@ -10,7 +10,8 @@ it('compiles', () => {
     content: Signal.ok(`{ }`),
   });
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 });
 
 it('succeeds with syntax error', () => {
@@ -21,7 +22,8 @@ it('succeeds with syntax error', () => {
     content: Signal.ok(`#Q(*&#$)`),
   });
   compiled.reconcile();
-  expect(compiled.get().problems).toBeTruthy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeTruthy();
 });
 
 it('succeeds with type error', () => {
@@ -33,5 +35,6 @@ it('succeeds with type error', () => {
     content: Signal.ok(`{ foo: 7 }`),
   });
   compiled.reconcile();
-  expect(compiled.get().problems).toBeTruthy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeTruthy();
 });

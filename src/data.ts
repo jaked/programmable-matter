@@ -52,16 +52,13 @@ export type Table = {
   fields: TableField[];
 }
 
-// TODO(jaked)
-// break this up so it's easier to return partial failure
-// e.g. parse OK, typecheck OK, render OK
 export interface CompiledFile {
-  exportType: Type.ModuleType;
-  exportValue: { [s: string]: Signal<any> };
+  ast: Signal<unknown>;
+  exportType: Signal<Type.ModuleType>;
+  astAnnotations?: Signal<AstAnnotations>;
+  problems: Signal<boolean>;
+  exportValue: Signal<{ [s: string]: Signal<any> }>;
   rendered: Signal<React.ReactNode>;
-  astAnnotations?: AstAnnotations;
-  problems: boolean;
-  ast: Try<any>; // TODO(jaked)
 }
 
 export type CompiledNote = {

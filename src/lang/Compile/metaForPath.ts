@@ -1,30 +1,26 @@
 import * as Path from 'path';
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
 import * as Name from '../../util/Name';
 import Type from '../Type';
 import * as data from '../../data';
 
 function extractMeta(meta: Signal<data.CompiledFile>): Signal<data.Meta> {
   return meta.flatMap(meta =>
-    meta.exportValue.default.liftToTry().map(metaTry => {
-      switch (metaTry.type) {
-        case 'ok':
-          return metaTry.ok;
-        case 'err':
-          return {};
-      }
-    })
+    meta.exportValue.flatMap(exportValue =>
+      exportValue.default
+    )
+  ).liftToTry().map(metaTry =>
+    metaTry.type === 'ok' ? metaTry.ok : {}
   );
 }
 
 const emptyMeta: Signal<data.CompiledFile> = Signal.ok({
-  exportType: Type.module({ }),
-  exportValue: { default: Signal.ok(data.Meta({})) },
+  exportType: Signal.ok(Type.module({ })),
+  exportValue: Signal.ok({ default: Signal.ok(data.Meta({})) }),
   rendered: Signal.ok(null),
-  problems: false,
-  ast: Try.ok(null),
+  problems: Signal.ok(false),
+  ast: Signal.ok(null),
 })
 
 export default function metaForPath(

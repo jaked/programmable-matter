@@ -14,7 +14,7 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
 import * as data from '../../data';
-import { Table, Field as TableField } from '../../components/Table';
+import { Table } from '../../components/Table';
 import lensType from './lensType';
 
 // see Typescript-level types in data.ts
@@ -232,66 +232,58 @@ export default function compileFileTable(
     Immutable.Map()
   );
 
-  return ast.liftToTry().flatMap<CompiledFile>(astTry => {
-    const astTryOrig = astTry;
-    switch (astTry.type) {
-      case 'ok':
-        return noteEnv.map(noteEnv => {
-          const ast = astTry.ok;
-          const annots = new Map<unknown, Type>();
-          Typecheck.check(ast, Typecheck.env(), tableType, annots);
-          const problems = [...annots.values()].some(t => t.kind === 'Error');
+  const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
+    const annots = new Map<unknown, Type>();
+    const error = Typecheck.check(ast, Typecheck.env(), tableType, annots);
+    const problems = [...annots.values()].some(t => t.kind === 'Error');
 
-          if (problems) {
-            return {
-              exportType: Type.module({ }),
-              exportValue: { },
-              rendered: Signal.ok(null),
-              astAnnotations: annots,
-              problems,
-              ast: astTryOrig,
-            }
-          }
-
-          const tableConfig = computeTableConfig(ast, annots);
-          const tableDataType = computeTableDataType(tableConfig);
-
-          const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
-
-          const fields = computeFields(tableConfig);
-
-          const exportType = Type.module({
-            // TODO(jaked) should include non-data table fields
-            default: lensType(Type.map(Type.string, tableDataType))
-          });
-          const exportValue = {
-            default: table
-          }
-
-          const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
-
-          const rendered = table.map(table =>
-            React.createElement(Table, { data: table(), fields, onSelect })
-          );
-          return {
-            exportType,
-            exportValue,
-            rendered,
-            astAnnotations: annots,
-            problems,
-            ast: astTryOrig,
-          };
-        });
-
-      case 'err': {
-        return Signal.ok({
-          exportType: Type.module({}),
-          exportValue: {},
-          rendered: Signal.constant(astTry),
-          problems: true,
-          ast: astTryOrig
-        })
+    if (error.kind === 'Error') {
+      return {
+        // TODO(jaked) these should be Signal.err
+        exportType: Type.module({ default: error }),
+        exportValue: { default: Signal.ok(error.err) },
+        rendered: Signal.ok(null),
+        annots,
+        problems,
       }
     }
+    const tableConfig = computeTableConfig(ast, annots);
+    const tableDataType = computeTableDataType(tableConfig);
+
+    const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
+
+    const fields = computeFields(tableConfig);
+
+    const exportType = Type.module({
+      // TODO(jaked) should include non-data table fields
+      default: lensType(Type.map(Type.string, tableDataType))
+    });
+    const exportValue = {
+      default: table
+    }
+
+    const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
+
+    const rendered = table.map(table =>
+      React.createElement(Table, { data: table(), fields, onSelect })
+    );
+    return {
+      exportType,
+      exportValue,
+      rendered,
+      annots,
+      problems,
+    };
+  });
+
+  return Signal.ok({
+    ast,
+    exportType: compiled.map(({ exportType }) => exportType),
+    astAnnotations: compiled.map(({ annots }) => annots),
+    problems: compiled.liftToTry().map(compiled =>
+      compiled.type === 'ok' ? compiled.ok.problems : true
+    ),
+    exportValue: compiled.map(({ exportValue }) => exportValue),
+    rendered: compiled.flatMap(({ rendered }) => rendered),
   });
 }

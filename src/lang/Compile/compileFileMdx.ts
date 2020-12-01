@@ -2,7 +2,6 @@ import Path from 'path';
 import * as Immutable from 'immutable';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
 import { bug } from '../../util/bug';
 import * as Parse from '../Parse';
 import * as Render from '../Render';
@@ -92,23 +91,46 @@ export default function compileFileMdx(
 
   const jsonType = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
-    if (json) return json.map(json => json.exportType.getFieldType('mutable'));
-    else return Signal.ok(undefined);
+    if (json)
+      return json.flatMap(json =>
+        json.exportType.map(exportType =>
+          exportType.getFieldType('mutable')
+        )
+      );
+    else
+      return Signal.ok(undefined);
   });
   const jsonValue = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
-    if (json) return json.flatMap(json => json.exportValue['mutable'] ?? Signal.ok(undefined));
-    else return Signal.ok(undefined);
+    if (json)
+      return json.flatMap(json =>
+        json.exportValue.flatMap(exportValue =>
+          exportValue['mutable'] ?? Signal.ok(undefined)
+        )
+      );
+    else
+      return Signal.ok(undefined);
   });
   const tableType = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
-    if (table) return table.map(table => table.exportType.getFieldType('default'));
-    else return Signal.ok(undefined);
+    if (table)
+      return table.flatMap(table =>
+        table.exportType.map(exportType =>
+          exportType.getFieldType('default')
+        )
+      );
+    else
+      return Signal.ok(undefined);
   });
   const tableValue = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
-    if (table) return table.flatMap(table => table.exportValue['default'] ?? Signal.ok(undefined));
-    else return Signal.ok(undefined);
+    if (table) return table.flatMap(table =>
+      table.exportValue.flatMap(exportValue =>
+        exportValue['default'] ?? Signal.ok(undefined)
+      )
+    );
+    else
+      return Signal.ok(undefined);
   });
 
   const typecheck = Signal.label("typecheck", Signal.join(
@@ -182,17 +204,22 @@ export default function compileFileMdx(
     }
   }));
 
-  return Signal.join(ast, typecheck).flatMap(([ast, typecheck]) =>
-      render.map(render => ({
-        exportType: typecheck.exportType,
-        exportValue: render.exportValue,
-        rendered:
-          Signal.join(render.rendered, meta, layoutFunction).map(([rendered, meta, layoutFunction]) =>
-            layoutFunction ? layoutFunction({ children: rendered, meta }) : rendered
-          ),
-        astAnnotations: typecheck.astAnnotations,
-        problems: typecheck.problems,
-        ast: Try.ok(ast),
-      }))
+  const rendered = Signal.join(render, meta, layoutFunction).flatMap(([render, meta, layoutFunction]) =>
+    render.rendered.map(rendered =>
+      layoutFunction ?
+        layoutFunction({ children: rendered, meta }) :
+        rendered
+    )
   );
+
+  return Signal.ok({
+    ast,
+    exportType: typecheck.map(({ exportType }) => exportType),
+    astAnnotations: typecheck.map(({ astAnnotations }) => astAnnotations),
+    problems: typecheck.liftToTry().map(compiled =>
+      compiled.type === 'ok' ? compiled.ok.problems : true
+    ),
+    exportValue: render.map(({ exportValue }) => exportValue),
+    rendered
+  });
 }

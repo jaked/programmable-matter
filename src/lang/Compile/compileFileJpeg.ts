@@ -31,7 +31,7 @@ const styleType = Type.undefinedOr(Type.object({
 export default function compileFileJpeg(
   file: Content
 ): Signal<CompiledFile> {
-  return file.content.map(content => {
+  const compiled = file.content.map(content => {
     const buffer = content as Buffer;
     // TODO(jaked) these URLs need to be freed
     // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
@@ -73,18 +73,29 @@ export default function compileFileJpeg(
     };
 
     const rendered =
-      Signal.ok(component({
+      component({
         style: {
           maxWidth: '100%',
           objectFit: 'contain' // ???
         }
-      }));
+      });
+
     return {
       exportType,
       exportValue,
       rendered,
       problems: false,
-      ast: Try.ok(null)
+      ast: Signal.ok(null)
     };
+  });
+
+  return Signal.ok({
+    ast: Signal.ok(null),
+    exportType: compiled.map(({ exportType }) => exportType),
+    problems: compiled.liftToTry().map(compiled =>
+      compiled.type === 'ok' ? compiled.ok.problems : true
+    ),
+    exportValue: compiled.map(({ exportValue }) => exportValue),
+    rendered: compiled.map(({ rendered }) => rendered)
   });
 }

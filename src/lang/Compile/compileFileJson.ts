@@ -87,86 +87,80 @@ export default function compileFileJson(
 
   const meta = metaForPath(file.path, compiledFiles);
 
-  return ast.liftToTry().flatMap<CompiledFile>(astTry => {
-    const astTryOrig = astTry;
-    switch (astTry.type) {
-      case 'ok':
-        const ast = astTry.ok;
-        return meta.map(meta => {
-          const annots = new Map<unknown, Type>();
-          let type =
-            meta.dataType ?
-              Typecheck.check(ast, Typecheck.env(), meta.dataType, annots) :
-              Typecheck.synth(ast, Typecheck.env(), annots);
-          const problems = [...annots.values()].some(t => t.kind === 'Error');
+  const compiled = Signal.join(ast, meta).map(([ast, meta]) => {
+    const annots = new Map<unknown, Type>();
+    let type =
+      meta.dataType ?
+        Typecheck.check(ast, Typecheck.env(), meta.dataType, annots) :
+        Typecheck.synth(ast, Typecheck.env(), annots);
+    const problems = [...annots.values()].some(t => t.kind === 'Error');
 
-          if (type.kind === 'Error') {
-            const exportType = Type.module({
-              default: type,
-              mutable: type,
-            });
-            const exportValue = {
-              default: Signal.ok(type.err),
-              mutable: Signal.ok(type.err),
-            };
-            const rendered = Signal.ok(false);
-            return {
-              exportType,
-              exportValue,
-              rendered,
-              astAnnotations: annots,
-              problems,
-              ast: astTryOrig,
-            };
-          } else {
-            type = meta.dataType ? meta.dataType : type;
-          }
+    if (type.kind === 'Error') {
+      // TODO(jaked) these should be Signal.err
+      const exportType = Type.module({
+        default: type,
+        mutable: type,
+      });
+      const exportValue = {
+        default: Signal.ok(type.err),
+        mutable: Signal.ok(type.err),
+      };
+      const rendered = null;
+      return {
+        exportType,
+        exportValue,
+        rendered,
+        annots,
+        problems,
+      }
+    } else {
+      type = meta.dataType ? meta.dataType : type;
 
-          // TODO(jaked) handle other JSON types
-          if (type.kind !== 'Object') bug(`expected Object type`);
-          const typeObject = type;
+      // TODO(jaked) handle other JSON types
+      if (type.kind !== 'Object') bug(`expected Object type`);
+      const typeObject = type;
 
-          const exportType = Type.module({
-            default: type,
-            mutable: lensType(type),
-          });
-          const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
-          const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
-          const lens = lensValue(value, setValue, type);
-          const exportValue = {
-            default: Signal.ok(value),
-            mutable: Signal.ok(lens)
-          };
+      const exportType = Type.module({
+        default: type,
+        mutable: lensType(type),
+      });
+      const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
+      const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
+      const lens = lensValue(value, setValue, type);
+      const exportValue = {
+        default: Signal.ok(value),
+        mutable: Signal.ok(lens)
+      };
 
-          const rendered = Signal.constant(Try.apply(() => {
-            const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
-              label: name,
-              accessor: (o: object) => o[name],
-              component: fieldComponent(name, type)
-            }));
+      const rendered = Signal.constant(Try.apply(() => {
+        const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
+          label: name,
+          accessor: (o: object) => o[name],
+          component: fieldComponent(name, type)
+        }));
 
-            // TODO(json) handle arrays of records (with Table)
-            return React.createElement(Record, { object: lens, fields: fields.toArray() })
-          }));
+        // TODO(json) handle arrays of records (with Table)
+        return React.createElement(Record, { object: lens, fields: fields.toArray() })
+      }));
 
-          return {
-            exportType,
-            exportValue,
-            rendered,
-            astAnnotations: annots,
-            problems: false,
-            ast: astTryOrig,
-          };
-        });
-
-      case 'err':
-        return Signal.ok({
-          exportType: Type.module({}),
-          exportValue: {},
-          rendered: Signal.constant(astTry),
-          problems: true,
-          ast: astTryOrig,
-        });
+      return {
+        exportType,
+        exportValue,
+        rendered,
+        annots,
+        problems: false,
+      };
     }
+  });
+
+  return Signal.ok({
+    ast,
+    exportType: compiled.map(({ exportType }) => exportType),
+    astAnnotations: compiled.map(({ annots }) => annots),
+    problems: compiled.liftToTry().map(compiled =>
+      compiled.type === 'ok' ? compiled.ok.problems : true
+    ),
+    exportValue: compiled.map(({ exportValue }) => exportValue),
+    rendered: compiled.map(({ rendered }) => rendered),
   });
 }

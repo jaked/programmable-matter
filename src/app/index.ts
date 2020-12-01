@@ -5,6 +5,7 @@ import { ipcRenderer as ipc } from 'electron';
 
 import * as Immutable from 'immutable';
 
+import * as data from '../data';
 import * as PMAST from '../PMAST';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
@@ -248,24 +249,29 @@ export class App {
 
   public selectedNoteProblemsSignal =
     Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
-      if (compiledNote !== null) {
-        // TODO(jaked) pass these on note instead of reconstructing
-        const meta = compiledFiles.get(Name.pathOfName(compiledNote.name, 'meta')) ?? Signal.ok(undefined);
-        const pm = compiledFiles.get(Name.pathOfName(compiledNote.name, 'pm')) ?? Signal.ok(undefined);
-        const mdx = compiledFiles.get(Name.pathOfName(compiledNote.name, 'mdx')) ?? Signal.ok(undefined);
-        const table = compiledFiles.get(Name.pathOfName(compiledNote.name, 'table')) ?? Signal.ok(undefined);
-        const json = compiledFiles.get(Name.pathOfName(compiledNote.name, 'json')) ?? Signal.ok(undefined);
-        return Signal.join(meta, pm, mdx, table, json).map(([meta, pm, mdx, table, json]) => ({
-          pm: pm?.problems,
-          meta: meta?.problems,
-          mdx: mdx?.problems,
-          table: table?.problems,
-          json: json?.problems,
-        }));
-      } else {
-        // TODO(jaked) figure out a way to have signals demanded conditionally
-        return Signal.ok({ meta: false, pm: false, mdx: false, table: false, json: false });
+      // TODO(jaked)
+      // selectedNoteProblemsSignal is reconciled even when compiledNote is null
+      // why?
+      if (compiledNote === null) return Signal.ok({
+        pm: false, meta: false, mdx: false, table: false, json: false,
+      });
+
+      const name = compiledNote.name;
+      function problem(type: data.Types) {
+        const compiledFile = compiledFiles.get(Name.pathOfName(name, type));
+        if (!compiledFile) return Signal.ok(false);
+        return compiledFile.flatMap(({ problems }) => problems);
       }
+      // TODO(jaked) pass these on note instead of reconstructing
+      return Signal.join(
+        problem('pm'),
+        problem('meta'),
+        problem('mdx'),
+        problem('table'),
+        problem('json'),
+      ).map(([pm, meta, mdx, table, json]) => ({
+        pm, meta, mdx, table, json
+      }));
     });
 
   public selectedFileSignal =

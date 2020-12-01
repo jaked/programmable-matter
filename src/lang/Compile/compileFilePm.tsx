@@ -78,11 +78,11 @@ export default function compileFilePm(
   });
   const rendered = nodes.map(nodes => nodes.map(renderNode));
 
-  return ast.map(ast => ({
-    exportType: Type.module({}),
-    exportValue: { },
+  return Signal.ok({
+    ast,
+    exportType: Signal.ok(Type.module({})),
+    exportValue: Signal.ok({ }),
     rendered,
-    problems: false,
-    ast: Try.ok(ast),
-  }));
+    problems: Signal.ok(false),
+  });
 }

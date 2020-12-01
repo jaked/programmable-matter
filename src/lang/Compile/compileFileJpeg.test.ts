@@ -18,9 +18,11 @@ it('compiles', () => {
     content: Signal.ok(jpeg),
   });
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 
-  const buffer = compiled.get().exportValue.buffer;
+  compiled.get().exportValue.reconcile();
+  const buffer = compiled.get().exportValue.get().buffer;
   buffer.reconcile();
   expect(buffer.get()).toBe(jpeg);
 });

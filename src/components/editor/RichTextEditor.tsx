@@ -5,6 +5,7 @@ import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
 
 import Try from '../../util/Try';
+import Signal from '../../util/Signal';
 import * as data from '../../data';
 import * as PMAST from '../../PMAST';
 import * as ESTree from '../../lang/ESTree';
@@ -179,9 +180,10 @@ export type RichTextEditorProps = {
 const RichTextEditor = (props: RichTextEditorProps) => {
   const editor = React.useMemo(() => withReact(PMEditor.withPMEditor(createEditor())), []);
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
+  const ast = Signal.useSignal(props.compiledFile.ast) as { parsedCode: WeakMap<Node, unknown> };
   const decorate = React.useMemo(
-    () => makeDecorate(props.compiledFile.ast.get()), // TODO(jaked) fix get
-    [props.compiledFile]
+    () => makeDecorate(ast),
+    [ast]
   );
   return (
     <Slate

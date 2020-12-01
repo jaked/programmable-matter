@@ -1,6 +1,7 @@
 import * as React from 'react';
 
-import Try from '../util/Try';
+import * as MDXHAST from '../lang/mdxhast';
+import * as ESTree from '../lang/ESTree';
 import * as Highlight from '../lang/highlight';
 import * as data from '../data';
 
@@ -21,7 +22,7 @@ export type components = {
 export default function computeHighlight(
   view: data.Types,
   content: string,
-  ast: Try<any>,
+  ast: unknown,
   annots: data.AstAnnotations | undefined,
   okComps: components,
   errComps: components,
@@ -35,14 +36,14 @@ export default function computeHighlight(
       break;
 
     case 'mdx': {
-      ast.forEach(ast => Highlight.computeMdxSpans(ast, annots, spans));
+      Highlight.computeMdxSpans(ast as MDXHAST.Node, annots, spans);
     }
     break;
 
     case 'json':
     case 'table':
     case 'meta': {
-      ast.forEach(ast => Highlight.computeJsSpans(ast, annots, spans));
+      Highlight.computeJsSpans(ast as ESTree.Node, annots, spans);
     }
     break;
   }

@@ -1,7 +1,6 @@
 import * as Immutable from 'immutable';
 import React from 'react';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
 import Type from '../Type';
 import * as data from '../../data';
 
@@ -22,7 +21,8 @@ it('compiles', () => {
     setSelected
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 
   compiled.get().rendered.reconcile();
   expect(compiled.get().rendered.get()).toEqual(
@@ -46,7 +46,8 @@ it('compiles `a` tag', () => {
     setSelected
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 
   compiled.get().rendered.reconcile();
   expect(compiled.get().rendered.get()).toEqual(
@@ -67,25 +68,26 @@ it('compiles referencing data / table', () => {
     },
     Signal.ok(Immutable.Map({
       'foo.json': Signal.ok({
-        exportType: Type.module({ mutable: Type.object({ bar: Type.string }) }),
-        exportValue: { mutable: Signal.ok({ bar: 'bar' }) },
+        exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
+        exportValue: Signal.ok({ mutable: Signal.ok({ bar: 'bar' }) }),
         rendered: Signal.ok(null),
-        problems: false,
-        ast: Try.err(new Error(`unimplemented`))
+        problems: Signal.ok(false),
+        ast: Signal.err(new Error(`unimplemented`))
       }),
       'foo.table': Signal.ok({
-        exportType: Type.module({ default: Type.object({ baz: Type.number }) }),
-        exportValue: { default: Signal.ok({ baz: 7 }) },
+        exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
+        exportValue: Signal.ok({ default: Signal.ok({ baz: 7 }) }),
         rendered: Signal.ok(null),
-        problems: false,
-        ast: Try.err(new Error(`unimplemented`))
+        problems: Signal.ok(false),
+        ast: Signal.err(new Error(`unimplemented`))
       })
     })),
     Signal.ok(Immutable.Map()),
     setSelected
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 
   compiled.get().rendered.reconcile();
   expect(compiled.get().rendered.get()).toEqual(
@@ -108,11 +110,11 @@ it('compiles with layout', () => {
     },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
-        exportType: Type.module({ }),
-        exportValue: { default: Signal.ok({ layout: 'layout' }) },
+        exportType: Signal.ok(Type.module({ })),
+        exportValue: Signal.ok({ default: Signal.ok({ layout: 'layout' }) }),
         rendered: Signal.ok(null),
-        problems: false,
-        ast: Try.err(new Error(`unimplemented`))
+        problems: Signal.ok(false),
+        ast: Signal.err(new Error(`unimplemented`))
       }),
     })),
     Signal.ok(Immutable.Map({
@@ -136,7 +138,8 @@ it('compiles with layout', () => {
     setSelected
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 
   compiled.get().rendered.reconcile();
   expect(compiled.get().rendered.get()).toEqual(

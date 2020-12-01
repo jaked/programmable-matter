@@ -11,20 +11,22 @@ import groupFilesByName from './groupFilesByName';
 import metaForPath from './metaForPath';
 
 function mergeModuleType(
-  t1: Type.ModuleType,
-  t2: Type.ModuleType,
-): Type.ModuleType {
-  return Type.module({
+  t1: Signal<Type.ModuleType>,
+  t2: Signal<Type.ModuleType>,
+): Signal<Type.ModuleType> {
+  return Signal.join(t1, t2).map(([t1, t2]) =>
+    Type.module({
     ...t1.fields.reduce((obj, { _1: field, _2: type }) => ({ ...obj, [field]: type }), {}),
     ...t2.fields.reduce((obj, { _1: field, _2: type }) => ({ ...obj, [field]: type }), {}),
-  });
+    })
+  );
 }
 
 function mergeModuleValue(
-  v1: { [s: string]: Signal<any> },
-  v2: { [s: string]: Signal<any> },
-): { [s: string]: Signal<any> } {
-  return { ...v1, ...v2 }
+  v1: Signal<{ [s: string]: Signal<any> }>,
+  v2: Signal<{ [s: string]: Signal<any> }>,
+): Signal<{ [s: string]: Signal<any> }> {
+  return Signal.join(v1, v2).map(([v1, v2]) => ({ ...v1, ...v2 }));
 }
 
 export function compileFiles(
@@ -77,8 +79,8 @@ export function compileFiles(
         compiledFileForType('meta'),
       ).map(([pm, mdx, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
-        let exportType: Type.ModuleType = Type.module({ });
-        let exportValue: { [s: string]: Signal<any> } = {};
+        let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
+        let exportValue: Signal<{ [s: string]: Signal<any> }> = Signal.ok({});
         let publishedType: 'html' | 'jpeg' = 'html';
 
         if (meta) {
@@ -113,13 +115,17 @@ export function compileFiles(
           exportValue = mergeModuleValue(exportValue, pm.exportValue);
         }
 
-        const problems =
-          (pm ? pm.problems : false) ||
-          (mdx ? mdx.problems : false) ||
-          (table ? table.problems : false) ||
-          (json ? json.problems : false) ||
-          (jpeg ? jpeg.problems : false) ||
-          (meta ? meta.problems : false);
+        // TODO(jaked) ugh optional Signal-valued fields are a pain
+        const problems = Signal.join(
+          (pm ? pm.problems : Signal.ok(false)),
+          (mdx ? mdx.problems : Signal.ok(false)),
+          (table ? table.problems : Signal.ok(false)),
+          (json ? json.problems : Signal.ok(false)),
+          (jpeg ? jpeg.problems : Signal.ok(false)),
+          (meta ? meta.problems : Signal.ok(false))
+        ).map(([pm, mdx, table, json, jpeg, meta]) =>
+          pm || mdx || table || json || jpeg || meta
+        );
 
         return {
           problems,
@@ -141,10 +147,10 @@ export function compileFiles(
           jpeg: fileForType('jpeg'),
           meta: fileForType('meta'),
         },
-        problems: parts.map(parts => parts.problems),
+        problems: parts.flatMap(parts => parts.problems),
         rendered: parts.flatMap(parts => parts.rendered),
-        exportType: parts.map(parts => parts.exportType),
-        exportValue: parts.map(parts => parts.exportValue),
+        exportType: parts.flatMap(parts => parts.exportType),
+        exportValue: parts.flatMap(parts => parts.exportValue),
       };
   });
   compiledNotesRef.set(compiledNotes);

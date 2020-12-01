@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 
 // import { FixedSizeList } from 'react-window';
@@ -105,14 +104,16 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
     }
   }
 
-  const highlighted = props.compiledFile.map(compiledFile =>
-    highlight(
-      props.view,
-      props.content,
-      compiledFile.ast,
-      compiledFile.astAnnotations,
-      okComponents,
-      errComponents
+  const highlighted = props.compiledFile.flatMap(compiledFile =>
+    Signal.join(compiledFile.ast, compiledFile.astAnnotations ?? Signal.ok(undefined)).map(([ast, annots]) =>
+      highlight(
+        props.view,
+        props.content,
+        ast,
+        annots,
+        okComponents,
+        errComponents
+      )
     )
   );
 

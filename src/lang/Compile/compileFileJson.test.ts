@@ -1,6 +1,5 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
 import Type from '../Type';
 
 import compileFileJson from './compileFileJson';
@@ -19,7 +18,8 @@ it('compiles', () => {
     updateFile
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 });
 
 it('succeeds with syntax error', () => {
@@ -34,7 +34,8 @@ it('succeeds with syntax error', () => {
     updateFile
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeTruthy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeTruthy();
 });
 
 it('compiles with meta', () => {
@@ -47,21 +48,22 @@ it('compiles with meta', () => {
     },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
-        exportType: Type.module({ }),
-        exportValue: {
+        exportType: Signal.ok(Type.module({ })),
+        exportValue: Signal.ok({
           default: Signal.ok({
             dataType: Type.object({ foo: Type.number })
           })
-        },
+        }),
         rendered: Signal.ok(null),
-        problems: false,
-        ast: Try.ok(null),
+        problems: Signal.ok(false),
+        ast: Signal.ok(null),
       })
     })),
     updateFile
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 });
 
 it('succeeds with meta error', () => {
@@ -74,17 +76,18 @@ it('succeeds with meta error', () => {
     },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
-        exportType: Type.module({ }),
-        exportValue: { default: Signal.err(new Error('bad meta')) },
+        exportType: Signal.ok(Type.module({ })),
+        exportValue: Signal.ok({ default: Signal.err(new Error('bad meta')) }),
         rendered: Signal.ok(null),
-        problems: false,
-        ast: Try.ok(null),
+        problems: Signal.ok(false),
+        ast: Signal.ok(null),
       })
     })),
     updateFile
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeFalsy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeFalsy();
 });
 
 it('succeeds with type error', () => {
@@ -98,19 +101,20 @@ it('succeeds with type error', () => {
     },
     Signal.ok(Immutable.Map({
       'foo.meta': Signal.ok({
-        exportType: Type.module({ }),
-        exportValue: {
+        exportType: Signal.ok(Type.module({ })),
+        exportValue: Signal.ok({
           default: Signal.ok({
             dataType: Type.object({ foo: Type.string })
           })
-        },
+        }),
         rendered: Signal.ok(null),
-        problems: false,
-        ast: Try.ok(null),
+        problems: Signal.ok(false),
+        ast: Signal.ok(null),
       })
     })),
     updateFile
   );
   compiled.reconcile();
-  expect(compiled.get().problems).toBeTruthy();
+  compiled.get().problems.reconcile();
+  expect(compiled.get().problems.get()).toBeTruthy();
 });
