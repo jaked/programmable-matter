@@ -3,7 +3,7 @@ import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as Render from '../Render';
-import { Content, Compiled, CompiledFile } from '../../data';
+import { Content, CompiledFile } from '../../data';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
 
@@ -28,61 +28,63 @@ const styleType = Type.undefinedOr(Type.object({
   padding: Type.undefinedOrString,
 }));
 
-function compileJpeg(
-  buffer: Buffer,
-): Compiled {
-  // TODO(jaked) these URLs need to be freed
-  // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
-  const objectUrl = URL.createObjectURL(new Blob([buffer.buffer]));
-
-  const component = ({ width, height, style }: { width?, height?, style? }) =>
-    React.createElement(Render.context.Consumer, {
-      children: context => {
-        switch (context) {
-          case 'screen':
-            return React.createElement('img', { src: objectUrl, width, height, style });
-
-          case 'server': {
-            const src = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-            return React.createElement('img', { src, width, height, style });
-          }
-        }
-      }
-    })
-
-  const imgType = componentType({
-    width: Type.undefinedOrNumber,
-    height: Type.undefinedOrNumber,
-    style: styleType,
-  });
-
-  // TODO(jaked) parse JPEG file and return metadata
-  const exportType = Type.module({
-    buffer: Type.abstract('Buffer'),
-    objectUrl: Type.string,
-    img: imgType,
-    default: imgType,
-  });
-  const exportValue = {
-    buffer: Signal.ok(buffer),
-    objectUrl: Signal.ok(objectUrl),
-    img: Signal.ok(component),
-    default: Signal.ok(component),
-  };
-
-  const rendered =
-    Signal.ok(component({
-      style: {
-        maxWidth: '100%',
-        objectFit: 'contain' // ???
-      }
-    }));
-  return { exportType, exportValue, rendered, problems: false };
-}
-
 export default function compileFileJpeg(
   file: Content
 ): Signal<CompiledFile> {
-  return file.content.map(buffer => compileJpeg(buffer as Buffer))
-    .map(compiled => ({ ...compiled, ast: Try.ok(null) }));
+  return file.content.map(content => {
+    const buffer = content as Buffer;
+    // TODO(jaked) these URLs need to be freed
+    // https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
+    const objectUrl = URL.createObjectURL(new Blob([buffer.buffer]));
+
+    const component = ({ width, height, style }: { width?, height?, style? }) =>
+      React.createElement(Render.context.Consumer, {
+        children: context => {
+          switch (context) {
+            case 'screen':
+              return React.createElement('img', { src: objectUrl, width, height, style });
+
+            case 'server': {
+              const src = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+              return React.createElement('img', { src, width, height, style });
+            }
+          }
+        }
+      })
+
+    const imgType = componentType({
+      width: Type.undefinedOrNumber,
+      height: Type.undefinedOrNumber,
+      style: styleType,
+    });
+
+    // TODO(jaked) parse JPEG file and return metadata
+    const exportType = Type.module({
+      buffer: Type.abstract('Buffer'),
+      objectUrl: Type.string,
+      img: imgType,
+      default: imgType,
+    });
+    const exportValue = {
+      buffer: Signal.ok(buffer),
+      objectUrl: Signal.ok(objectUrl),
+      img: Signal.ok(component),
+      default: Signal.ok(component),
+    };
+
+    const rendered =
+      Signal.ok(component({
+        style: {
+          maxWidth: '100%',
+          objectFit: 'contain' // ???
+        }
+      }));
+    return {
+      exportType,
+      exportValue,
+      rendered,
+      problems: false,
+      ast: Try.ok(null)
+    };
+  });
 }

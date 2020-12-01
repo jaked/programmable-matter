@@ -12,7 +12,7 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { AstAnnotations, Content, Compiled, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
+import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
 import * as data from '../../data';
 import { Table, Field as TableField } from '../../components/Table';
 import lensType from './lensType';
@@ -199,51 +199,6 @@ function computeFields(
   });
 }
 
-function compileTable(
-  ast: ESTree.Expression,
-  tableName: string,
-  noteEnv: Immutable.Map<string, CompiledNote>,
-  setSelected: (name: string) => void,
-  updateFile: (path: string, buffer: Buffer) => void,
-  deleteFile: (path: string) => void,
-): Compiled {
-  const annots = new Map<unknown, Type>();
-  Typecheck.check(ast, Typecheck.env(), tableType, annots);
-  const problems = [...annots.values()].some(t => t.kind === 'Error');
-
-  if (problems) {
-    return {
-      exportType: Type.module({ }),
-      exportValue: { },
-      rendered: Signal.ok(null),
-      astAnnotations: annots,
-      problems,
-    }
-  }
-
-  const tableConfig = computeTableConfig(ast, annots);
-  const tableDataType = computeTableDataType(tableConfig);
-
-  const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
-
-  const fields = computeFields(tableConfig);
-
-  const exportType = Type.module({
-    // TODO(jaked) should include non-data table fields
-    default: lensType(Type.map(Type.string, tableDataType))
-  });
-  const exportValue = {
-    default: table
-  }
-
-  const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
-
-  const rendered = table.map(table =>
-    React.createElement(Table, { data: table(), fields, onSelect })
-  );
-  return { exportType, exportValue, rendered, astAnnotations: annots, problems };
-}
-
 export default function compileFileTable(
   file: Content,
   compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
@@ -277,13 +232,55 @@ export default function compileFileTable(
     Immutable.Map()
   );
 
-  return ast.liftToTry().flatMap(astTry => {
+  return ast.liftToTry().flatMap<CompiledFile>(astTry => {
     const astTryOrig = astTry;
     switch (astTry.type) {
       case 'ok':
         return noteEnv.map(noteEnv => {
-          const compiled = compileTable(astTry.ok, tableName, noteEnv, setSelected, updateFile, deleteFile);
-          return { ...compiled, ast: astTryOrig };
+          const ast = astTry.ok;
+          const annots = new Map<unknown, Type>();
+          Typecheck.check(ast, Typecheck.env(), tableType, annots);
+          const problems = [...annots.values()].some(t => t.kind === 'Error');
+
+          if (problems) {
+            return {
+              exportType: Type.module({ }),
+              exportValue: { },
+              rendered: Signal.ok(null),
+              astAnnotations: annots,
+              problems,
+              ast: astTryOrig,
+            }
+          }
+
+          const tableConfig = computeTableConfig(ast, annots);
+          const tableDataType = computeTableDataType(tableConfig);
+
+          const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
+
+          const fields = computeFields(tableConfig);
+
+          const exportType = Type.module({
+            // TODO(jaked) should include non-data table fields
+            default: lensType(Type.map(Type.string, tableDataType))
+          });
+          const exportValue = {
+            default: table
+          }
+
+          const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
+
+          const rendered = table.map(table =>
+            React.createElement(Table, { data: table(), fields, onSelect })
+          );
+          return {
+            exportType,
+            exportValue,
+            rendered,
+            astAnnotations: annots,
+            problems,
+            ast: astTryOrig,
+          };
         });
 
       case 'err': {

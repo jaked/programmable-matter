@@ -5,12 +5,11 @@ import styled from 'styled-components';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import { bug } from '../../util/bug';
-import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { Content, Compiled, CompiledFile, Meta } from '../../data';
+import { Content, CompiledFile } from '../../data';
 import { Record } from '../../components/Record';
 import lensType from './lensType';
 import lensValue from './lensValue';
@@ -77,63 +76,6 @@ function fieldComponent(field: string, type: Type) {
   }
 }
 
-function compileJson(
-  file: Content,
-  ast: ESTree.Expression,
-  meta: Meta,
-  updateFile: (path: string, buffer: Buffer) => void
-): Compiled {
-  const annots = new Map<unknown, Type>();
-  let type =
-    meta.dataType ?
-      Typecheck.check(ast, Typecheck.env(), meta.dataType, annots) :
-      Typecheck.synth(ast, Typecheck.env(), annots);
-  const problems = [...annots.values()].some(t => t.kind === 'Error');
-
-  if (type.kind === 'Error') {
-    const exportType = Type.module({
-      default: type,
-      mutable: type,
-    });
-    const exportValue = {
-      default: Signal.ok(type.err),
-      mutable: Signal.ok(type.err),
-    };
-    const rendered = Signal.ok(false);
-    return { exportType, exportValue, rendered, astAnnotations: annots, problems };
-  } else {
-    type = meta.dataType ? meta.dataType : type;
-  }
-
-  // TODO(jaked) handle other JSON types
-  if (type.kind !== 'Object') bug(`expected Object type`);
-  const typeObject = type;
-
-  const exportType = Type.module({
-    default: type,
-    mutable: lensType(type),
-  });
-  const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
-  const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
-  const lens = lensValue(value, setValue, type);
-  const exportValue = {
-    default: Signal.ok(value),
-    mutable: Signal.ok(lens)
-  };
-
-  const rendered = Signal.constant(Try.apply(() => {
-    const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
-      label: name,
-      accessor: (o: object) => o[name],
-      component: fieldComponent(name, type)
-    }));
-
-    // TODO(json) handle arrays of records (with Table)
-    return React.createElement(Record, { object: lens, fields: fields.toArray() })
-  }));
-  return { exportType, exportValue, rendered, astAnnotations: annots, problems: false };
-}
-
 export default function compileFileJson(
   file: Content,
   compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
@@ -145,13 +87,76 @@ export default function compileFileJson(
 
   const meta = metaForPath(file.path, compiledFiles);
 
-  return ast.liftToTry().flatMap(astTry => {
+  return ast.liftToTry().flatMap<CompiledFile>(astTry => {
     const astTryOrig = astTry;
     switch (astTry.type) {
       case 'ok':
+        const ast = astTry.ok;
         return meta.map(meta => {
-          const compiled = compileJson(file, astTry.ok, meta, updateFile);
-          return { ...compiled, ast: astTryOrig };
+          const annots = new Map<unknown, Type>();
+          let type =
+            meta.dataType ?
+              Typecheck.check(ast, Typecheck.env(), meta.dataType, annots) :
+              Typecheck.synth(ast, Typecheck.env(), annots);
+          const problems = [...annots.values()].some(t => t.kind === 'Error');
+
+          if (type.kind === 'Error') {
+            const exportType = Type.module({
+              default: type,
+              mutable: type,
+            });
+            const exportValue = {
+              default: Signal.ok(type.err),
+              mutable: Signal.ok(type.err),
+            };
+            const rendered = Signal.ok(false);
+            return {
+              exportType,
+              exportValue,
+              rendered,
+              astAnnotations: annots,
+              problems,
+              ast: astTryOrig,
+            };
+          } else {
+            type = meta.dataType ? meta.dataType : type;
+          }
+
+          // TODO(jaked) handle other JSON types
+          if (type.kind !== 'Object') bug(`expected Object type`);
+          const typeObject = type;
+
+          const exportType = Type.module({
+            default: type,
+            mutable: lensType(type),
+          });
+          const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
+          const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
+          const lens = lensValue(value, setValue, type);
+          const exportValue = {
+            default: Signal.ok(value),
+            mutable: Signal.ok(lens)
+          };
+
+          const rendered = Signal.constant(Try.apply(() => {
+            const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
+              label: name,
+              accessor: (o: object) => o[name],
+              component: fieldComponent(name, type)
+            }));
+
+            // TODO(json) handle arrays of records (with Table)
+            return React.createElement(Record, { object: lens, fields: fields.toArray() })
+          }));
+
+          return {
+            exportType,
+            exportValue,
+            rendered,
+            astAnnotations: annots,
+            problems: false,
+            ast: astTryOrig,
+          };
         });
 
       case 'err':
@@ -160,7 +165,7 @@ export default function compileFileJson(
           exportValue: {},
           rendered: Signal.constant(astTry),
           problems: true,
-          ast: astTryOrig
+          ast: astTryOrig,
         });
     }
   });

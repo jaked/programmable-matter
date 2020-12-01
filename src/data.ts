@@ -55,15 +55,12 @@ export type Table = {
 // TODO(jaked)
 // break this up so it's easier to return partial failure
 // e.g. parse OK, typecheck OK, render OK
-export interface Compiled {
+export interface CompiledFile {
   exportType: Type.ModuleType;
   exportValue: { [s: string]: Signal<any> };
   rendered: Signal<React.ReactNode>;
   astAnnotations?: AstAnnotations;
   problems: boolean;
-}
-
-export type CompiledFile = Compiled & {
   ast: Try<any>; // TODO(jaked)
 }
 

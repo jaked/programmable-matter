@@ -1,11 +1,10 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { Content, Compiled, CompiledFile, Meta } from '../../data';
+import { Content, CompiledFile, Meta } from '../../data';
 
 // TODO(jaked)
 // make Type part of the type system and convert?
@@ -27,24 +26,6 @@ function convertMeta(obj: any): Meta {
   return Meta({ ...obj, ...dataType, ...dirMeta });
 }
 
-function compileMeta(
-  ast: ESTree.Expression
-): Compiled {
-  const annots = new Map<unknown, Type>();
-  const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, annots);
-  const problems = [...annots.values()].some(t => t.kind === 'Error');
-
-  const value =
-    error.kind === 'Error' ?
-      Signal.err(error.err) :
-      Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
-
-  const exportType = Type.module({ default: Type.metaType });
-  const exportValue = { default: value }
-  const rendered = Signal.ok(null);
-  return { exportType, exportValue, rendered, astAnnotations: annots, problems };
-}
-
 export default function compileFileMeta(
   file: Content,
 ): Signal<CompiledFile> {
@@ -53,8 +34,27 @@ export default function compileFileMeta(
   return ast.liftToTry().map(astTry => {
     switch (astTry.type) {
       case 'ok': {
-        const compiled = compileMeta(astTry.ok);
-        return { ...compiled, ast: astTry };
+        const ast = astTry.ok;
+        const annots = new Map<unknown, Type>();
+        const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, annots);
+        const problems = [...annots.values()].some(t => t.kind === 'Error');
+
+        const value =
+          error.kind === 'Error' ?
+            Signal.err(error.err) :
+            Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
+
+        const exportType = Type.module({ default: Type.metaType });
+        const exportValue = { default: value }
+        const rendered = Signal.ok(null);
+        return {
+          exportType,
+          exportValue,
+          rendered,
+          astAnnotations: annots,
+          problems,
+          ast: astTry
+        };
       }
       // TODO(jaked) consolidate with compileMeta error case
       case 'err': {
