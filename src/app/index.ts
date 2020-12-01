@@ -82,7 +82,6 @@ export class App {
 
   private rewriteName(name: string | null): string | null {
     if (name === null) return null;
-    this.compiledNotesSignal.reconcile();
     const compiledNotes = this.compiledNotesSignal.get();
     return Name.rewrite(compiledNotes, name);
   }
@@ -109,7 +108,6 @@ export class App {
   }
 
   public historyBack = () => {
-    this.compiledNotesSignal.reconcile();
     const notes = this.compiledNotesSignal.get();
     const selected = this.selectedCell.get();
     let newIndex = this.historyIndex;
@@ -123,7 +121,6 @@ export class App {
     }
   }
   public historyForward = () => {
-    this.compiledNotesSignal.reconcile();
     const notes = this.compiledNotesSignal.get();
     const selected = this.selectedCell.get();
     let newIndex = this.historyIndex;
@@ -369,7 +366,6 @@ export class App {
   }
 
   publishSite = async () => {
-    this.compiledNotesSignal.reconcile();
     const compiledNotes = this.compiledNotesSignal.get();
     ghPages(compiledNotes);
   }

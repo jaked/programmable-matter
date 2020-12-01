@@ -193,7 +193,7 @@ class RefImpl<T> extends SignalImpl<T> implements RefIntf<T> {
     else return this.s;
   }
 
-  get() { return this.checkedS().get(); }
+  get() { this.reconcile(); return this.checkedS().get(); }
 
   get value() { return this.checkedS().value; }
   get version() { return this.checkedS().version; }
@@ -221,7 +221,7 @@ class Map<T, U> extends SignalImpl<U> {
     this.f = f;
   }
 
-  get() { return this.value.get(); }
+  get() { this.reconcile(); return this.value.get(); }
 
   value: Try<U>;
   version: number;
@@ -255,7 +255,7 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
     this.fInv = fInv;
   }
 
-  get() { return this.value.get(); }
+  get() { this.reconcile(); return this.value.get(); }
 
   value: Try<U>;
   version: number;
@@ -290,7 +290,7 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
 
   setOk(u: U, force?: boolean) { this.set(Try.ok(u), force); }
   setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
-  update(fn: (t: U) => U) { this.setOk(fn(this.get())); }
+  update(fn: (t: U) => U) { this.setOk(fn(this.value.get())); }
   mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableIntf<V> { return new MapWritable(this, f, fInv); }
 }
 
@@ -310,7 +310,7 @@ class FlatMap<T, U> extends SignalImpl<U> {
     this.f = f;
   }
 
-  get() { return this.value.get(); }
+  get() { this.reconcile(); return this.value.get(); }
 
   value: Try<U>;
   version: number;
@@ -359,7 +359,7 @@ class LiftToTry<T> extends SignalImpl<Try<T>> {
     this.s = s;
   }
 
-  get() { return this.s.value; }
+  get() { this.reconcile(); return this.s.value; }
 
   get value(): Try<Try<T>> { return Try.ok(this.s.value); }
   get version(): number { return this.s.version; }
@@ -389,7 +389,7 @@ class Join<T> extends SignalImpl<T[]> {
     this.versions = signals.map(s => 0);
   }
 
-  get() { return this.value.get(); }
+  get() { this.reconcile(); return this.value.get(); }
 
   value: Try<T[]>;
   version: number;
@@ -430,7 +430,7 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
     this.vsVersions = Immutable.Map();
   }
 
-  get() { return this.value.get(); }
+  get() { this.reconcile(); return this.value.get(); }
 
   value: Try<Immutable.Map<K, V>>;
   version: number;
@@ -487,7 +487,7 @@ class Label<T> extends SignalImpl<T> {
     this.s = s;
   }
 
-  get() { return this.s.get(); }
+  get() { this.reconcile(); return this.s.get(); }
 
   label: string;
   s: Signal<T>;
@@ -817,7 +817,6 @@ module Signal {
     React.useEffect(() => {
       return () => signal.undepend(d);
     }, [signal, d]);
-    signal.reconcile();
     return signal.get();
   }
 }

@@ -28,25 +28,20 @@ export default async function ghPages(
   await Promise.all(compiledNotes.map(async note => {
     // TODO(jaked) don't blow up on failed notes
 
-    note.meta.reconcile();
     if (!note.meta.get().publish) return
-    note.publishedType.reconcile();
     const publishedType = note.publishedType.get();
 
     if (publishedType === 'jpeg') {
       const path = Path.resolve(tempdir, note.name) + '.jpeg';
 
       await mkdir(Path.dirname(path), { recursive: true });
-      note.exportValue.reconcile();
       const exportValue = note.exportValue.get();
-      exportValue.buffer.reconcile();
       const buffer = exportValue.buffer.get();
       await writeFile(path, buffer);
 
     } else if (publishedType === 'html') {
       const path = Path.resolve(tempdir, note.name) + '.html';
 
-      note.rendered.reconcile();
       const rendered = note.rendered.get();
       if (!rendered) return;
 

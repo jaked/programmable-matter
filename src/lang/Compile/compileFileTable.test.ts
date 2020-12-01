@@ -24,7 +24,6 @@ it('succeeds with syntax error', () => {
     updateFile,
     deleteFile,
   );
-  compiled.problems.reconcile();
   expect(compiled.problems.get()).toBeTruthy();
 });
 
@@ -43,12 +42,10 @@ it('succeeds with type error', () => {
     updateFile,
     deleteFile,
   );
-  compiled.problems.reconcile();
   expect(compiled.problems.get()).toBeTruthy();
   const annots = compiled.astAnnotations;
   expect(annots).toBeDefined();
   if (!annots) throw 'bug';
-  annots.reconcile();
   expect(() => annots.get()).not.toThrow();
 });
 
@@ -75,7 +72,6 @@ it('empty table', () => {
     updateFile,
     deleteFile,
   );
-  compiled.rendered.reconcile();
   expect(() => compiled.rendered.get()).not.toThrow();
 });
 
@@ -113,6 +109,5 @@ it('non-data note in table dir', () => {
     updateFile,
     deleteFile,
   );
-  compiled.rendered.reconcile();
   expect(() => compiled.rendered.get()).not.toThrow();
 });

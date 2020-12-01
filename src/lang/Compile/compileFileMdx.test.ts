@@ -20,10 +20,7 @@ it('compiles', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.problems.reconcile();
   expect(compiled.problems.get()).toBeFalsy();
-
-  compiled.rendered.reconcile();
   expect(compiled.rendered.get()).toEqual(
     [
       null, null, null, null, // TODO(jaked) not sure where these come from
@@ -44,10 +41,7 @@ it('compiles `a` tag', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.problems.reconcile();
   expect(compiled.problems.get()).toBeFalsy();
-
-  compiled.rendered.reconcile();
   expect(compiled.rendered.get()).toEqual(
     [
       null, null, null, null, // TODO(jaked) not sure where these come from
@@ -83,10 +77,7 @@ it('compiles referencing data / table', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.problems.reconcile();
   expect(compiled.problems.get()).toBeFalsy();
-
-  compiled.rendered.reconcile();
   expect(compiled.rendered.get()).toEqual(
     [
       null, null, null, null,
@@ -134,10 +125,7 @@ it('compiles with layout', () => {
     })),
     setSelected
   );
-  compiled.problems.reconcile();
   expect(compiled.problems.get()).toBeFalsy();
-
-  compiled.rendered.reconcile();
   expect(compiled.rendered.get()).toEqual(
     React.createElement('div', {},
       null, null, null, null,

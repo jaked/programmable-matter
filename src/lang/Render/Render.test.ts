@@ -29,9 +29,8 @@ describe('renderMdx', () => {
         valueEnv,
         exportValue,
       );
-      rendered.reconcile();
 
-      expect(rendered.value.type).toBe('ok');
+      expect(() => rendered.get()).not.toThrow();
     }
 
     it('survives missing module', () => {

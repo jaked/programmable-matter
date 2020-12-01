@@ -47,10 +47,7 @@ describe('compileFilePm', () => {
         }
       ]),
     });
-    compiled.problems.reconcile();
     expect(compiled.problems.get()).toBeFalsy();
-
-    compiled.rendered.reconcile();
     expectRenderEqual(
       compiled.rendered.get(),
       <p><span>foo</span></p>,
@@ -74,10 +71,7 @@ describe('compileFilePm', () => {
         }
       ]),
     });
-    compiled.problems.reconcile();
     expect(compiled.problems.get()).toBeFalsy();
-
-    compiled.rendered.reconcile();
     expectRenderEqual(
       compiled.rendered.get(),
       <p>
@@ -102,10 +96,7 @@ describe('compileFilePm', () => {
         ] },
       ]),
     });
-    compiled.problems.reconcile();
     expect(compiled.problems.get()).toBeFalsy();
-
-    compiled.rendered.reconcile();
     expectRenderEqual(
       compiled.rendered.get(),
       <>
@@ -129,10 +120,7 @@ describe('compileFilePm', () => {
         ]},
       ]),
     });
-    compiled.problems.reconcile();
     expect(compiled.problems.get()).toBeFalsy();
-
-    compiled.rendered.reconcile();
     expectRenderEqual(
       compiled.rendered.get(),
       <>
