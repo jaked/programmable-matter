@@ -17,12 +17,11 @@ it('compiles', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.ok(jpeg),
   });
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 
-  compiled.get().exportValue.reconcile();
-  const buffer = compiled.get().exportValue.get().buffer;
+  compiled.exportValue.reconcile();
+  const buffer = compiled.exportValue.get().buffer;
   buffer.reconcile();
   expect(buffer.get()).toBe(jpeg);
 });

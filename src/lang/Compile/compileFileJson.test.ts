@@ -17,9 +17,8 @@ it('compiles', () => {
     Signal.ok(Immutable.Map()),
     updateFile
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 });
 
 it('succeeds with syntax error', () => {
@@ -33,9 +32,8 @@ it('succeeds with syntax error', () => {
     Signal.ok(Immutable.Map()),
     updateFile
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeTruthy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeTruthy();
 });
 
 it('compiles with meta', () => {
@@ -47,7 +45,7 @@ it('compiles with meta', () => {
       content: Signal.ok(`{ foo: 7 }`),
     },
     Signal.ok(Immutable.Map({
-      'foo.meta': Signal.ok({
+      'foo.meta': {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({
           default: Signal.ok({
@@ -57,13 +55,12 @@ it('compiles with meta', () => {
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),
-      })
+      }
     })),
     updateFile
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 });
 
 it('succeeds with meta error', () => {
@@ -75,19 +72,18 @@ it('succeeds with meta error', () => {
       content: Signal.ok(`{ foo: 7 }`),
     },
     Signal.ok(Immutable.Map({
-      'foo.meta': Signal.ok({
+      'foo.meta': {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({ default: Signal.err(new Error('bad meta')) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),
-      })
+      }
     })),
     updateFile
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 });
 
 it('succeeds with type error', () => {
@@ -100,7 +96,7 @@ it('succeeds with type error', () => {
       content: Signal.ok(`{ foo: 7 }`),
     },
     Signal.ok(Immutable.Map({
-      'foo.meta': Signal.ok({
+      'foo.meta': {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({
           default: Signal.ok({
@@ -110,11 +106,10 @@ it('succeeds with type error', () => {
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),
-      })
+      }
     })),
     updateFile
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeTruthy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeTruthy();
 });

@@ -1,7 +1,6 @@
 import Immutable from 'immutable';
 import React from 'react';
 import Signal from './util/Signal';
-import Try from './util/Try';
 import Type from './lang/Type';
 
 export type Types = 'meta' | 'pm' | 'mdx' | 'json' | 'jpeg' | 'table';

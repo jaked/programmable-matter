@@ -257,18 +257,16 @@ export class App {
       });
 
       const name = compiledNote.name;
-      function problem(type: data.Types) {
-        const compiledFile = compiledFiles.get(Name.pathOfName(name, type));
-        if (!compiledFile) return Signal.ok(false);
-        return compiledFile.flatMap(({ problems }) => problems);
+      function problems(type: data.Types) {
+        return compiledFiles.get(Name.pathOfName(name, type))?.problems ?? Signal.ok(false);
       }
       // TODO(jaked) pass these on note instead of reconstructing
       return Signal.join(
-        problem('pm'),
-        problem('meta'),
-        problem('mdx'),
-        problem('table'),
-        problem('json'),
+        problems('pm'),
+        problems('meta'),
+        problems('mdx'),
+        problems('table'),
+        problems('json'),
       ).map(([pm, meta, mdx, table, json]) => ({
         pm, meta, mdx, table, json
       }));
@@ -289,12 +287,12 @@ export class App {
     });
 
   public compiledFileSignal = Signal.label('compiledFile',
-    Signal.join(this.selectedFileSignal, this.compiledFilesSignal).flatMap(([file, compiledFiles]) => {
+    Signal.join(this.selectedFileSignal, this.compiledFilesSignal).map(([file, compiledFiles]) => {
       if (file) {
         const compiledFile = compiledFiles.get(file.path) ?? bug(`expected compiled file for ${file.path}`);
         return compiledFile;
       }
-      return Signal.ok(null);
+      return null;
     })
   );
 

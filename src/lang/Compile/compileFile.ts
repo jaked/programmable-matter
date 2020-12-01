@@ -12,12 +12,12 @@ import compileFileJpeg from './compileFileJpeg';
 
 export default function compileFile(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
+  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
   compiledNotes: Signal<CompiledNotes>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
   setSelected: (note: string) => void,
-): Signal<CompiledFile> {
+): CompiledFile {
 
   switch (file.type) {
     case 'meta':

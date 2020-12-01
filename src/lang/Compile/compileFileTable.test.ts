@@ -24,9 +24,8 @@ it('succeeds with syntax error', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeTruthy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeTruthy();
 });
 
 it('succeeds with type error', () => {
@@ -44,10 +43,9 @@ it('succeeds with type error', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeTruthy();
-  const annots = compiled.get().astAnnotations;
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeTruthy();
+  const annots = compiled.astAnnotations;
   expect(annots).toBeDefined();
   if (!annots) throw 'bug';
   annots.reconcile();
@@ -77,9 +75,8 @@ it('empty table', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile();
-  compiled.get().rendered.reconcile();
-  expect(() => compiled.get().rendered.get()).not.toThrow();
+  compiled.rendered.reconcile();
+  expect(() => compiled.rendered.get()).not.toThrow();
 });
 
 it('non-data note in table dir', () => {
@@ -116,7 +113,6 @@ it('non-data note in table dir', () => {
     updateFile,
     deleteFile,
   );
-  compiled.reconcile();
-  compiled.get().rendered.reconcile();
-  expect(() => compiled.get().rendered.get()).not.toThrow();
+  compiled.rendered.reconcile();
+  expect(() => compiled.rendered.get()).not.toThrow();
 });

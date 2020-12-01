@@ -31,7 +31,7 @@ const rendered = Signal.ok(null);
 
 export default function compileFileMeta(
   file: Content,
-): Signal<CompiledFile> {
+): CompiledFile {
   const compiled = file.content.map(content => {
     const ast = Parse.parseExpression(content as string);
     const annots = new Map<unknown, Type>();
@@ -48,7 +48,7 @@ export default function compileFileMeta(
       exportValue,
     }
   });
-  return Signal.ok({
+  return {
     ast: compiled.map(({ ast }) => ast),
     exportType,
     astAnnotations: compiled.map(({ annots }) => annots),
@@ -57,5 +57,5 @@ export default function compileFileMeta(
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
     rendered
-  });
+  };
 }

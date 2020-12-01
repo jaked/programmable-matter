@@ -201,12 +201,12 @@ function computeFields(
 
 export default function compileFileTable(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
+  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
   compiledNotes: Signal<CompiledNotes>,
   setSelected: (name: string) => void,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
-): Signal<CompiledFile> {
+): CompiledFile {
 
   const tableName = Name.nameOfPath(file.path);
 
@@ -276,7 +276,7 @@ export default function compileFileTable(
     };
   });
 
-  return Signal.ok({
+  return {
     ast,
     exportType: compiled.map(({ exportType }) => exportType),
     astAnnotations: compiled.map(({ annots }) => annots),
@@ -285,5 +285,5 @@ export default function compileFileTable(
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
     rendered: compiled.flatMap(({ rendered }) => rendered),
-  });
+  };
 }

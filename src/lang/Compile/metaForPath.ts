@@ -5,27 +5,24 @@ import * as Name from '../../util/Name';
 import Type from '../Type';
 import * as data from '../../data';
 
-function extractMeta(meta: Signal<data.CompiledFile>): Signal<data.Meta> {
-  return meta.flatMap(meta =>
-    meta.exportValue.flatMap(exportValue =>
-      exportValue.default
-    )
-  ).liftToTry().map(metaTry =>
-    metaTry.type === 'ok' ? metaTry.ok : {}
-  );
+function extractMeta(meta: data.CompiledFile): Signal<data.Meta> {
+  return meta.exportValue.flatMap(exportValue => exportValue.default)
+    .liftToTry().map(metaTry =>
+      metaTry.type === 'ok' ? metaTry.ok : {}
+    );
 }
 
-const emptyMeta: Signal<data.CompiledFile> = Signal.ok({
+const emptyMeta: data.CompiledFile = {
   exportType: Signal.ok(Type.module({ })),
   exportValue: Signal.ok({ default: Signal.ok(data.Meta({})) }),
   rendered: Signal.ok(null),
   problems: Signal.ok(false),
   ast: Signal.ok(null),
-})
+}
 
 export default function metaForPath(
   path: string,
-  compiledFiles: Signal<Immutable.Map<string, Signal<data.CompiledFile>>>,
+  compiledFiles: Signal<Immutable.Map<string, data.CompiledFile>>,
 ): Signal<data.Meta> {
   const pathParsed = Path.parse(path);
   const indexMetaPath = Path.format({ ...pathParsed, base: undefined, name: 'index', ext: '.meta' });

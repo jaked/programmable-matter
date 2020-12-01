@@ -48,10 +48,10 @@ function findImports(ast: MDXHAST.Node) {
 
 export default function compileFileMdx(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
+  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
   compiledNotes: Signal<CompiledNotes>,
   setSelected: (note: string) => void,
-): Signal<CompiledFile> {
+): CompiledFile {
   const mdxName = Name.nameOfPath(file.path);
 
   // TODO(jaked) handle parse errors
@@ -92,10 +92,8 @@ export default function compileFileMdx(
   const jsonType = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
     if (json)
-      return json.flatMap(json =>
-        json.exportType.map(exportType =>
-          exportType.getFieldType('mutable')
-        )
+      return json.exportType.map(exportType =>
+        exportType.getFieldType('mutable')
       );
     else
       return Signal.ok(undefined);
@@ -103,10 +101,8 @@ export default function compileFileMdx(
   const jsonValue = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
     if (json)
-      return json.flatMap(json =>
-        json.exportValue.flatMap(exportValue =>
-          exportValue['mutable'] ?? Signal.ok(undefined)
-        )
+      return json.exportValue.flatMap(exportValue =>
+        exportValue['mutable'] ?? Signal.ok(undefined)
       );
     else
       return Signal.ok(undefined);
@@ -114,21 +110,18 @@ export default function compileFileMdx(
   const tableType = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
     if (table)
-      return table.flatMap(table =>
-        table.exportType.map(exportType =>
-          exportType.getFieldType('default')
-        )
+      return table.exportType.map(exportType =>
+        exportType.getFieldType('default')
       );
     else
       return Signal.ok(undefined);
   });
   const tableValue = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
-    if (table) return table.flatMap(table =>
-      table.exportValue.flatMap(exportValue =>
+    if (table)
+      return table.exportValue.flatMap(exportValue =>
         exportValue['default'] ?? Signal.ok(undefined)
-      )
-    );
+      );
     else
       return Signal.ok(undefined);
   });
@@ -212,7 +205,7 @@ export default function compileFileMdx(
     )
   );
 
-  return Signal.ok({
+  return {
     ast,
     exportType: typecheck.map(({ exportType }) => exportType),
     astAnnotations: typecheck.map(({ astAnnotations }) => astAnnotations),
@@ -221,5 +214,5 @@ export default function compileFileMdx(
     ),
     exportValue: render.map(({ exportValue }) => exportValue),
     rendered
-  });
+  };
 }

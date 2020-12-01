@@ -34,19 +34,16 @@ export function compileFiles(
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
   setSelected: (name: string) => void,
-): { compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>, compiledNotes: Signal<CompiledNotes> } {
+): { compiledFiles: Signal<Immutable.Map<string, CompiledFile>>, compiledNotes: Signal<CompiledNotes> } {
 
   const filesByName = groupFilesByName(files);
 
-  const compiledFilesRef = Signal.ref<Immutable.Map<string, Signal<CompiledFile>>>();
+  const compiledFilesRef = Signal.ref<Immutable.Map<string, CompiledFile>>();
 
   const compiledNotesRef = Signal.ref<CompiledNotes>();
 
   const compiledFiles = Signal.mapImmutableMap(files, file =>
-    Signal.label(
-      file.path,
-      compileFile(file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
-    )
+    compileFile(file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
   );
   compiledFilesRef.set(compiledFiles);
 
@@ -60,9 +57,7 @@ export function compileFiles(
       // TODO(jaked) fix names for index files, then just use name here instead of files
       const file = files.find(file => file.type === type);
       if (file) {
-        return compiledFiles.flatMap(compiledFiles =>
-          compiledFiles.get(file.path) ?? Signal.ok(undefined)
-        );
+        return compiledFiles.map(compiledFiles => compiledFiles.get(file.path));
       } else {
         return Signal.ok(undefined);
       }

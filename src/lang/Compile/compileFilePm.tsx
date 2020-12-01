@@ -70,7 +70,7 @@ const parseCode = (node: PMAST.Node) => {
 
 export default function compileFilePm(
   file: Content,
-): Signal<CompiledFile> {
+): CompiledFile {
   const nodes = file.content as Signal<PMAST.Node[]>;
   const ast = nodes.map(nodes => {
     nodes.forEach(parseCode);
@@ -78,11 +78,11 @@ export default function compileFilePm(
   });
   const rendered = nodes.map(nodes => nodes.map(renderNode));
 
-  return Signal.ok({
+  return {
     ast,
     exportType: Signal.ok(Type.module({})),
     exportValue: Signal.ok({ }),
     rendered,
     problems: Signal.ok(false),
-  });
+  };
 }

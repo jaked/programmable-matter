@@ -9,9 +9,8 @@ it('compiles', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.ok(`{ }`),
   });
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 });
 
 it('succeeds with syntax error', () => {
@@ -21,9 +20,8 @@ it('succeeds with syntax error', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.ok(`#Q(*&#$)`),
   });
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeTruthy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeTruthy();
 });
 
 it('succeeds with type error', () => {
@@ -34,7 +32,6 @@ it('succeeds with type error', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.ok(`{ foo: 7 }`),
   });
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeTruthy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeTruthy();
 });

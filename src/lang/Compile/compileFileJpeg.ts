@@ -30,7 +30,7 @@ const styleType = Type.undefinedOr(Type.object({
 
 export default function compileFileJpeg(
   file: Content
-): Signal<CompiledFile> {
+): CompiledFile {
   const compiled = file.content.map(content => {
     const buffer = content as Buffer;
     // TODO(jaked) these URLs need to be freed
@@ -89,7 +89,7 @@ export default function compileFileJpeg(
     };
   });
 
-  return Signal.ok({
+  return {
     ast: Signal.ok(null),
     exportType: compiled.map(({ exportType }) => exportType),
     problems: compiled.liftToTry().map(compiled =>
@@ -97,5 +97,5 @@ export default function compileFileJpeg(
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
     rendered: compiled.map(({ rendered }) => rendered)
-  });
+  };
 }

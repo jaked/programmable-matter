@@ -20,12 +20,11 @@ it('compiles', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 
-  compiled.get().rendered.reconcile();
-  expect(compiled.get().rendered.get()).toEqual(
+  compiled.rendered.reconcile();
+  expect(compiled.rendered.get()).toEqual(
     [
       null, null, null, null, // TODO(jaked) not sure where these come from
       React.createElement('p', {}, 'foo')
@@ -45,12 +44,11 @@ it('compiles `a` tag', () => {
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 
-  compiled.get().rendered.reconcile();
-  expect(compiled.get().rendered.get()).toEqual(
+  compiled.rendered.reconcile();
+  expect(compiled.rendered.get()).toEqual(
     [
       null, null, null, null, // TODO(jaked) not sure where these come from
       React.createElement('a', { href: 'foo' }, 'bar')
@@ -67,30 +65,29 @@ it('compiles referencing data / table', () => {
       content: Signal.ok(`foo <>{data.bar}</> <>{table.baz}</>`)
     },
     Signal.ok(Immutable.Map({
-      'foo.json': Signal.ok({
+      'foo.json': {
         exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
         exportValue: Signal.ok({ mutable: Signal.ok({ bar: 'bar' }) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
-      }),
-      'foo.table': Signal.ok({
+      },
+      'foo.table': {
         exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
         exportValue: Signal.ok({ default: Signal.ok({ baz: 7 }) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
-      })
+      }
     })),
     Signal.ok(Immutable.Map()),
     setSelected
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 
-  compiled.get().rendered.reconcile();
-  expect(compiled.get().rendered.get()).toEqual(
+  compiled.rendered.reconcile();
+  expect(compiled.rendered.get()).toEqual(
     [
       null, null, null, null,
       React.createElement('p', {}, 'foo ', [ 'bar' ], ' ', [ 7 ])
@@ -109,13 +106,13 @@ it('compiles with layout', () => {
       content: Signal.ok(`foo`)
     },
     Signal.ok(Immutable.Map({
-      'foo.meta': Signal.ok({
+      'foo.meta': {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({ default: Signal.ok({ layout: 'layout' }) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
-      }),
+      },
     })),
     Signal.ok(Immutable.Map({
       'layout': {
@@ -137,16 +134,14 @@ it('compiles with layout', () => {
     })),
     setSelected
   );
-  compiled.reconcile();
-  compiled.get().problems.reconcile();
-  expect(compiled.get().problems.get()).toBeFalsy();
+  compiled.problems.reconcile();
+  expect(compiled.problems.get()).toBeFalsy();
 
-  compiled.get().rendered.reconcile();
-  expect(compiled.get().rendered.get()).toEqual(
+  compiled.rendered.reconcile();
+  expect(compiled.rendered.get()).toEqual(
     React.createElement('div', {},
       null, null, null, null,
       React.createElement('p', {}, 'foo')
     )
   );
 });
-

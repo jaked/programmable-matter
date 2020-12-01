@@ -78,9 +78,9 @@ function fieldComponent(field: string, type: Type) {
 
 export default function compileFileJson(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, Signal<CompiledFile>>>,
+  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
   updateFile: (path: string, buffer: Buffer) => void,
-): Signal<CompiledFile> {
+): CompiledFile {
   const ast = file.content.map(content => Parse.parseExpression(content as string));
 
   // TODO(jaked) support typechecking from index.table file
@@ -153,7 +153,7 @@ export default function compileFileJson(
     }
   });
 
-  return Signal.ok({
+  return {
     ast,
     exportType: compiled.map(({ exportType }) => exportType),
     astAnnotations: compiled.map(({ annots }) => annots),
@@ -162,5 +162,5 @@ export default function compileFileJson(
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
     rendered: compiled.map(({ rendered }) => rendered),
-  });
+  };
 }

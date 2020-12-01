@@ -47,13 +47,12 @@ describe('compileFilePm', () => {
         }
       ]),
     });
-    compiled.reconcile();
-    compiled.get().problems.reconcile();
-    expect(compiled.get().problems.get()).toBeFalsy();
+    compiled.problems.reconcile();
+    expect(compiled.problems.get()).toBeFalsy();
 
-    compiled.get().rendered.reconcile();
+    compiled.rendered.reconcile();
     expectRenderEqual(
-      compiled.get().rendered.get(),
+      compiled.rendered.get(),
       <p><span>foo</span></p>,
     );
   });
@@ -75,13 +74,12 @@ describe('compileFilePm', () => {
         }
       ]),
     });
-    compiled.reconcile();
-    compiled.get().problems.reconcile();
-    expect(compiled.get().problems.get()).toBeFalsy();
+    compiled.problems.reconcile();
+    expect(compiled.problems.get()).toBeFalsy();
 
-    compiled.get().rendered.reconcile();
+    compiled.rendered.reconcile();
     expectRenderEqual(
-      compiled.get().rendered.get(),
+      compiled.rendered.get(),
       <p>
         <span>foo</span>
         <span><strong>bar</strong></span>
@@ -104,13 +102,12 @@ describe('compileFilePm', () => {
         ] },
       ]),
     });
-    compiled.reconcile();
-    compiled.get().problems.reconcile();
-    expect(compiled.get().problems.get()).toBeFalsy();
+    compiled.problems.reconcile();
+    expect(compiled.problems.get()).toBeFalsy();
 
-    compiled.get().rendered.reconcile();
+    compiled.rendered.reconcile();
     expectRenderEqual(
-      compiled.get().rendered.get(),
+      compiled.rendered.get(),
       <>
         <p><span>foo</span></p>
         <h1><span>bar</span></h1>
@@ -132,13 +129,12 @@ describe('compileFilePm', () => {
         ]},
       ]),
     });
-    compiled.reconcile();
-    compiled.get().problems.reconcile();
-    expect(compiled.get().problems.get()).toBeFalsy();
+    compiled.problems.reconcile();
+    expect(compiled.problems.get()).toBeFalsy();
 
-    compiled.get().rendered.reconcile();
+    compiled.rendered.reconcile();
     expectRenderEqual(
-      compiled.get().rendered.get(),
+      compiled.rendered.get(),
       <>
         <p><a href='https://foo.bar'><span>foo</span></a></p>
       </>
