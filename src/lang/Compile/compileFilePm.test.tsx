@@ -1,8 +1,11 @@
+import * as Immutable from 'immutable';
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
 import Signal from '../../util/Signal';
 import compileFilePm from './compileFilePm';
+
+const setSelected = (s: string) => {}
 
 // TODO(jaked)
 // we might want to test styles; find a better way to handle this
@@ -34,19 +37,24 @@ function expectRenderEqual(
 
 describe('compileFilePm', () => {
   it('compiles', () => {
-    const compiled = compileFilePm({
-      type: 'pm',
-      path: 'foo.pm',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok([
-        {
-          type: 'p',
-          children: [
-            { text: 'foo' }
-          ]
-        }
-      ]),
-    });
+    const compiled = compileFilePm(
+      {
+        type: 'pm',
+        path: 'foo.pm',
+        mtimeMs: Signal.ok(0),
+        content: Signal.ok([
+          {
+            type: 'p',
+            children: [
+              { text: 'foo' }
+            ]
+          }
+        ]),
+      },
+      Signal.ok(Immutable.Map()),
+      Signal.ok(Immutable.Map()),
+      setSelected
+    );
     expect(compiled.problems.get()).toBeFalsy();
     expectRenderEqual(
       compiled.rendered.get(),
@@ -55,22 +63,27 @@ describe('compileFilePm', () => {
   });
 
   it('renders marks', () => {
-    const compiled = compileFilePm({
-      type: 'pm',
-      path: 'foo.pm',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok([
-        {
-          type: 'p',
-          children: [
-            { text: 'foo' },
-            { text: 'bar', bold: true },
-            { text: 'baz', underline: true },
-            { text: 'quux', bold: true, italic: true },
-          ]
-        }
-      ]),
-    });
+    const compiled = compileFilePm(
+      {
+        type: 'pm',
+        path: 'foo.pm',
+        mtimeMs: Signal.ok(0),
+        content: Signal.ok([
+          {
+            type: 'p',
+            children: [
+              { text: 'foo' },
+              { text: 'bar', bold: true },
+              { text: 'baz', underline: true },
+              { text: 'quux', bold: true, italic: true },
+            ]
+          }
+        ]),
+      },
+      Signal.ok(Immutable.Map()),
+      Signal.ok(Immutable.Map()),
+      setSelected
+    );
     expect(compiled.problems.get()).toBeFalsy();
     expectRenderEqual(
       compiled.rendered.get(),
@@ -84,18 +97,23 @@ describe('compileFilePm', () => {
   });
 
   it('renders elements', () => {
-    const compiled = compileFilePm({
-      type: 'pm',
-      path: 'foo.pm',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok([
-        { type: 'p', children: [{ text: 'foo' }] },
-        { type: 'h1', children: [{ text: 'bar' }] },
-        { type: 'ul', children: [
-          { type: 'li', children: [{ text: 'baz', bold: true }] }
-        ] },
-      ]),
-    });
+    const compiled = compileFilePm(
+      {
+        type: 'pm',
+        path: 'foo.pm',
+        mtimeMs: Signal.ok(0),
+        content: Signal.ok([
+          { type: 'p', children: [{ text: 'foo' }] },
+          { type: 'h1', children: [{ text: 'bar' }] },
+          { type: 'ul', children: [
+            { type: 'li', children: [{ text: 'baz', bold: true }] }
+          ] },
+        ]),
+      },
+      Signal.ok(Immutable.Map()),
+      Signal.ok(Immutable.Map()),
+      setSelected
+    );
     expect(compiled.problems.get()).toBeFalsy();
     expectRenderEqual(
       compiled.rendered.get(),
@@ -108,18 +126,23 @@ describe('compileFilePm', () => {
   });
 
   it('renders links', () => {
-    const compiled = compileFilePm({
-      type: 'pm',
-      path: 'foo.pm',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok([
-        { type: 'p', children: [
-          { type: 'a', href: 'https://foo.bar', children: [
-            { text: 'foo' }
-          ] },
-        ]},
-      ]),
-    });
+    const compiled = compileFilePm(
+      {
+        type: 'pm',
+        path: 'foo.pm',
+        mtimeMs: Signal.ok(0),
+        content: Signal.ok([
+          { type: 'p', children: [
+            { type: 'a', href: 'https://foo.bar', children: [
+              { text: 'foo' }
+            ] },
+          ]},
+        ]),
+      },
+      Signal.ok(Immutable.Map()),
+      Signal.ok(Immutable.Map()),
+      setSelected
+    );
     expect(compiled.problems.get()).toBeFalsy();
     expectRenderEqual(
       compiled.rendered.get(),

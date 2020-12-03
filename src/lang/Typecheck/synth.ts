@@ -830,21 +830,21 @@ export function synth(
   return type;
 }
 
-function extendEnvWithImport(
-  mdxName: string,
+export function extendEnvWithImport(
+  moduleName: string,
   decl: ESTree.ImportDeclaration,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
   annots?: AstAnnotations,
 ): Env {
-  const moduleName = Name.rewriteResolve(moduleEnv, mdxName, decl.source.value);
-  if (!moduleName) {
+  const importedModuleName = Name.rewriteResolve(moduleEnv, moduleName, decl.source.value);
+  if (!importedModuleName) {
     const error = Error.withLocation(decl.source, `no module '${decl.source.value}'`, annots);
     decl.specifiers.forEach(spec => {
       env = env.set(spec.local.name, error);
     });
   } else {
-    const module = moduleEnv.get(moduleName) ?? bug(`expected module '${moduleName}'`);
+    const module = moduleEnv.get(importedModuleName) ?? bug(`expected module '${importedModuleName}'`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -879,7 +879,7 @@ function extendEnvWithImport(
   return env;
 }
 
-function extendEnvWithNamedExport(
+export function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
@@ -913,7 +913,7 @@ function extendEnvWithNamedExport(
   return env;
 }
 
-function extendEnvWithDefaultExport(
+export function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
@@ -925,7 +925,7 @@ function extendEnvWithDefaultExport(
 
 // TODO(jaked) this interface is a little weird
 export function synthMdx(
-  mdxName: string,
+  moduleName: string,
   ast: MDXHAST.Node,
   moduleEnv: Immutable.Map<string, Type.ModuleType>,
   env: Env,
@@ -936,7 +936,7 @@ export function synthMdx(
     case 'root':
     case 'element':
       ast.children.forEach(child =>
-        env = synthMdx(mdxName, child, moduleEnv, env, exportTypes, annots)
+        env = synthMdx(moduleName, child, moduleEnv, env, exportTypes, annots)
       );
       return env;
 
@@ -954,7 +954,7 @@ export function synthMdx(
       ast.declarations.forEach(decls => decls.forEach(decl => {
         switch (decl.type) {
           case 'ImportDeclaration':
-            env = extendEnvWithImport(mdxName, decl, moduleEnv, env, annots);
+            env = extendEnvWithImport(moduleName, decl, moduleEnv, env, annots);
             break;
 
           case 'ExportNamedDeclaration':

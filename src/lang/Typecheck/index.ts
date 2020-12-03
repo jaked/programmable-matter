@@ -7,6 +7,9 @@ module Typecheck {
   export const env = Env.env;
   export const synth = Synth.synth;
   export const synthMdx = Synth.synthMdx;
+  export const extendEnvWithImport = Synth.extendEnvWithImport;
+  export const extendEnvWithNamedExport = Synth.extendEnvWithNamedExport;
+  export const extendEnvWithDefaultExport = Synth.extendEnvWithDefaultExport;
   export const check = Check.check;
 }
 

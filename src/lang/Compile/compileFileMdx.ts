@@ -52,7 +52,7 @@ export default function compileFileMdx(
   compiledNotes: Signal<CompiledNotes>,
   setSelected: (note: string) => void,
 ): CompiledFile {
-  const mdxName = Name.nameOfPath(file.path);
+  const moduleName = Name.nameOfPath(file.path);
 
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content =>
@@ -70,7 +70,7 @@ export default function compileFileMdx(
           // TODO(jaked)
           // we do this resolution here, in Synth, and in Render
           // could rewrite or annotate the AST to do it just once
-          const resolvedName = Name.rewriteResolve(compiledNotes, mdxName, name);
+          const resolvedName = Name.rewriteResolve(compiledNotes, moduleName, name);
           if (resolvedName) {
             const note = compiledNotes.get(resolvedName) ?? bug(`expected module '${resolvedName}'`);
             noteEnv.set(resolvedName, note);
@@ -140,7 +140,7 @@ export default function compileFileMdx(
 
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
-    Typecheck.synthMdx(mdxName, ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations);
+    Typecheck.synthMdx(moduleName, ast, moduleTypeEnv, typeEnv, exportTypes, astAnnotations);
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
     const exportType = Type.module(exportTypes);
     return { exportType, astAnnotations, problems }
@@ -189,7 +189,7 @@ export default function compileFileMdx(
     // TODO(jaked) clean up mess with errors
     try {
       const exportValue: { [s: string]: Signal<any> } = {};
-      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, mdxName, moduleValueEnv, valueEnv, exportValue);
+      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, moduleName, moduleValueEnv, valueEnv, exportValue);
 
       return { exportValue, rendered };
     } catch (e) {

@@ -24,7 +24,7 @@ export default function compileFile(
       return compileFileMeta(file);
 
     case 'pm':
-      return compileFilePm(file);
+      return compileFilePm(file, compiledFiles, compiledNotes, setSelected);
 
     case 'mdx':
       return compileFileMdx(file, compiledFiles, compiledNotes, setSelected);

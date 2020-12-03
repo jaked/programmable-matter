@@ -96,23 +96,28 @@ type Range = {
 }
 
 export const makeDecorate =
-  ({ parsedCode }: { parsedCode: WeakMap<Node, unknown> }) =>
+  (
+    parsedCode: WeakMap<Node, unknown>,
+    astAnnotations?: data.AstAnnotations,
+  ) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
     const ranges: Range[] = [];
     const code = parsedCode.get(node) as Try<ESTree.Node>;
-    if (code && code.type === 'ok') {
-      const spans: Highlight.Span[] = [];
-      Highlight.computeJsSpans(code.ok, undefined, spans);
-      for (const span of spans) {
-        ranges.push({
-          anchor: { path, offset: span.start },
-          focus: { path, offset: span.end },
-          highlight: span.tag,
-          status: span.status,
-          link: span.link
-        });
-      }
+    if (code) {
+      code.forEach(code => {
+        const spans: Highlight.Span[] = [];
+        Highlight.computeJsSpans(code, astAnnotations, spans);
+        for (const span of spans) {
+          ranges.push({
+            anchor: { path, offset: span.start },
+            focus: { path, offset: span.end },
+            highlight: span.tag,
+            status: span.status,
+            link: span.link
+          });
+        }
+      })
     }
     return ranges;
   }
@@ -181,9 +186,12 @@ const RichTextEditor = (props: RichTextEditorProps) => {
   const editor = React.useMemo(() => withReact(PMEditor.withPMEditor(createEditor())), []);
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   const ast = Signal.useSignal(props.compiledFile.ast) as { parsedCode: WeakMap<Node, unknown> };
+  // TODO(jaked) can we use astAnnotations conditionally? breaks the rules of hooks but does it matter?
+  const astAnnotations = Signal.useSignal(props.compiledFile.astAnnotations ?? Signal.ok(undefined));
+  const { parsedCode } = ast;
   const decorate = React.useMemo(
-    () => makeDecorate(ast),
-    [ast]
+    () => makeDecorate(parsedCode, astAnnotations),
+    [ast] // must depend on ast; parsedCode is a singleton. TODO(jaked) clean up somehow
   );
   return (
     <Slate
