@@ -108,7 +108,34 @@ const parseCode = (node: PMAST.Node) => {
   }
 }
 
-export const renderNode = (node: PMAST.Node) => {
+export function renderNodes(
+  nodes: PMAST.Node[],
+  parsedCode: WeakMap<PMAST.Node, Try<ESTree.Node>>,
+  annots: AstAnnotations,
+  moduleName: string,
+  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  env: Render.Env,
+  exportValue: { [s: string]: Signal<any> }
+): { env: Render.Env, rendered: Signal<React.ReactNode[]> } {
+  const rendered: Signal<React.ReactNode>[] = [];
+  for (const node of nodes) {
+    const render =
+      renderNode(node, parsedCode, annots, moduleName, moduleEnv, env, exportValue);
+    env = render.env;
+    rendered.push(render.rendered);
+  }
+  return { env, rendered: Signal.join(...rendered) };
+}
+
+export function renderNode(
+  node: PMAST.Node,
+  parsedCode: WeakMap<PMAST.Node, Try<ESTree.Node>>,
+  annots: AstAnnotations,
+  moduleName: string,
+  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  env: Render.Env,
+  exportValue: { [s: string]: Signal<any> }
+): { env: Render.Env, rendered: Signal<React.ReactNode> } {
   const key = findKey(node);
   if ('text' in node) {
     let text: any = node.text;
@@ -116,15 +143,71 @@ export const renderNode = (node: PMAST.Node) => {
     if (node.italic)    text = <em>{text}</em>;
     if (node.underline) text = <u>{text}</u>;
     if (node.code)      text = <code>{text}</code>;
-    return <span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>;
+    return {
+      env,
+      rendered: Signal.ok(<span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>)
+    };
   } else {
-    const children = node.children.map(renderNode);
-    if (node.type === 'a') {
-      return React.createElement(node.type, { key, href: node.href }, ...children);
-    } else if (node.type === 'code' || node.type === 'inlineCode') {
-      return null;
+    if (node.type === 'code') {
+      const code = parsedCode.get(node) ?? bug(`expected code`);
+      if (code.type === 'ok') {
+        const rendered: Signal<React.ReactNode>[] = [];
+        for (const node of (code.ok as ESTree.Program).body) {
+          switch (node.type) {
+            case 'ImportDeclaration':
+              env = Render.extendEnvWithImport(moduleName, node, annots, moduleEnv, env);
+              break;
+
+            case 'ExportNamedDeclaration':
+              env = Render.extendEnvWithNamedExport(node, annots, env, exportValue);
+              break;
+
+            case 'ExportDefaultDeclaration':
+              env = Render.extendEnvWithDefaultExport(node, annots, env, exportValue);
+              break;
+
+            case 'VariableDeclaration':
+              break; // TODO(jaked) ???
+
+            case 'ExpressionStatement':
+              rendered.push(Render.evaluateExpressionSignal(node.expression, annots, env));
+              break;
+          }
+        }
+        return { env, rendered: Signal.join(...rendered) }
+      }
+      return { env, rendered: Signal.ok(null) };
+
+    } else if (node.type === 'inlineCode') {
+      const code = parsedCode.get(node) ?? bug(`expected code`);
+      if (code.type === 'ok') {
+        const type = annots.get(code.ok) ?? bug(`expected type`);
+        if (type.kind !== 'Error') {
+          return {
+            env,
+            rendered: Render.evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env)
+          }
+        }
+      }
+      return { env, rendered: Signal.ok(null) };
+
     } else {
-      return React.createElement(node.type, { key }, ...children);
+      const children = renderNodes(node.children, parsedCode, annots, moduleName, moduleEnv, env, exportValue);
+      if (node.type === 'a') {
+        return {
+          env: children.env,
+          rendered: children.rendered.map(children =>
+            React.createElement(node.type, { key, href: node.href }, ...children)
+          )
+        };
+      } else {
+        return {
+          env: children.env,
+          rendered: children.rendered.map(children =>
+            React.createElement(node.type, { key }, ...children)
+          )
+        };
+      }
     }
   }
 }
@@ -179,21 +262,42 @@ export default function compileFilePm(
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
     nodes.forEach(node =>
-      synthPm(moduleName, node, moduleTypeEnv, typeEnv, exportTypes, astAnnotations)
+      typeEnv = synthPm(moduleName, node, moduleTypeEnv, typeEnv, exportTypes, astAnnotations)
     );
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
     const exportType = Type.module(exportTypes);
     return { exportType, astAnnotations, problems }
   });
 
-  const rendered = nodes.map(nodes => nodes.map(renderNode));
+  const render = Signal.join(
+    nodes,
+    ast,
+    typecheck,
+    moduleValueEnv,
+  ).map(([nodes, { parsedCode }, typecheck, moduleValueEnv]) => {
+    // TODO(jaked) pass in these envs from above?
+    let valueEnv = Render.initValueEnv(setSelected);
+
+    const exportValue: { [s: string]: Signal<any> } = {};
+    const { rendered } = renderNodes(
+      nodes,
+      parsedCode,
+      typecheck.astAnnotations,
+      moduleName,
+      moduleValueEnv,
+      valueEnv,
+      exportValue,
+    );
+
+    return { exportValue, rendered };
+   });
 
   return {
     ast,
     exportType: typecheck.map(({ exportType }) => exportType),
     astAnnotations: typecheck.map(({ astAnnotations }) => astAnnotations),
     exportValue: Signal.ok({ }),
-    rendered,
+    rendered: render.flatMap(({ rendered }) => rendered),
     problems: Signal.ok(false),
   };
 }

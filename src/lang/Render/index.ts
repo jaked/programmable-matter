@@ -22,7 +22,7 @@ export type Env = Immutable.Map<string, Signal<any>>;
 
 export const context = React.createContext<'screen' | 'server'>('screen');
 
-function evaluateExpressionSignal(
+export function evaluateExpressionSignal(
   ast: ESTree.Expression,
   annots: AstAnnotations,
   env: Env
@@ -39,7 +39,7 @@ function evaluateExpressionSignal(
   });
 }
 
-function extendEnvWithImport(
+export function extendEnvWithImport(
   mdxName: string,
   decl: ESTree.ImportDeclaration,
   annots: AstAnnotations,
@@ -96,7 +96,7 @@ function extendEnvWithImport(
   return env;
 }
 
-function extendEnvWithNamedExport(
+export function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
   annots: AstAnnotations,
   env: Env,
@@ -119,7 +119,7 @@ function extendEnvWithNamedExport(
   return env;
 }
 
-function extendEnvWithDefaultExport(
+export function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
   annots: AstAnnotations,
   env: Env,
@@ -237,9 +237,6 @@ export function renderMdx(
         }
         case 'err':
           return [env, Signal.ok(null)];
-        default:
-          // not sure why TS can't see that ok / err is exhaustive
-          throw new Error('unreachable');
       }
 
     case 'import':
