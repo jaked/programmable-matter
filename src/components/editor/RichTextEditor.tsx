@@ -63,7 +63,7 @@ export const renderElement = ({ element, attributes, children }: RenderElementPr
   }
 }
 
-export const renderLeaf = ({ leaf, attributes, children } : RenderLeafProps) => {
+export const makeRenderLeaf = () => ({ leaf, attributes, children } : RenderLeafProps) => {
   const text = leaf as PMAST.Text;
   if (text.highlight) {
     const component = text.status ? errComponents[text.highlight] : okComponents[text.highlight];
@@ -191,8 +191,15 @@ const RichTextEditor = (props: RichTextEditorProps) => {
   const { parsedCode } = ast;
   const decorate = React.useMemo(
     () => makeDecorate(parsedCode, astAnnotations),
-    [ast] // must depend on ast; parsedCode is a singleton. TODO(jaked) clean up somehow
+    [astAnnotations],
   );
+
+  // work around Slate bug where decorations are not considered in memoizing Text
+  // https://github.com/ianstormtaylor/slate/issues/3447
+  // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
+  // could avoid typechecking (and rebuilding astAnnotations / decorate) when code hasn't changed
+  const renderLeaf = React.useMemo(makeRenderLeaf, [decorate]);
+
   return (
     <Slate
       editor={editor}

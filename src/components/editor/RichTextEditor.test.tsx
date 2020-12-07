@@ -23,7 +23,7 @@ describe('RichTextEditor', () => {
   describe('renderLeaf', () => {
     it('renders marks', () => {
       const text = { text: 'foo', bold: true, underline: true };
-      const rendered = RichTextEditor.renderLeaf({
+      const rendered = RichTextEditor.makeRenderLeaf()({
         leaf: text,
         attributes: {},
         children: text.text,
