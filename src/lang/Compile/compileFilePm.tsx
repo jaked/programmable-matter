@@ -252,16 +252,30 @@ export default function compileFilePm(
   const moduleValueEnv =
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
 
+  // typechecking depends only on code nodes
+  const codeNodes = ast.map(({ nodes }) =>
+    Immutable.List<PMAST.Node>().withMutations(codeNodes => {
+      function find(node: PMAST.Node) {
+        if (PMAST.isCode(node) || PMAST.isInlineCode(node)) {
+          codeNodes.push(node);
+        } else if (PMAST.isElement(node)) {
+          node.children.forEach(find);
+        }
+      }
+      nodes.forEach(find);
+    })
+  );
+
   const typecheck = Signal.join(
-    ast,
+    codeNodes,
     moduleTypeEnv
-  ).map(([{ nodes }, moduleTypeEnv]) => {
+  ).map(([codeNodes, moduleTypeEnv]) => {
     // TODO(jaked) pass in these envs from above?
     let typeEnv = Render.initTypeEnv;
 
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
-    nodes.forEach(node =>
+    codeNodes.forEach(node =>
       typeEnv = synthPm(moduleName, node, moduleTypeEnv, typeEnv, exportTypes, astAnnotations)
     );
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');

@@ -197,7 +197,8 @@ const RichTextEditor = (props: RichTextEditorProps) => {
   // work around Slate bug where decorations are not considered in memoizing Text
   // https://github.com/ianstormtaylor/slate/issues/3447
   // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
-  // could avoid typechecking (and rebuilding astAnnotations / decorate) when code hasn't changed
+  // avoiding typechecking when code hasn't changed helps
+  // but we still rerender all leaves on every code edit
   const renderLeaf = React.useMemo(makeRenderLeaf, [decorate]);
 
   return (
