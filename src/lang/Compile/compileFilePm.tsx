@@ -29,14 +29,6 @@ function findKey(node: PMAST.Node): string {
 // TODO(jaked) could separate inline / block code for better type safety
 const parsedCode = new WeakMap<PMAST.Node, Try<ESTree.Node>>();
 
-function findImports(
-  nodes: PMAST.Node[]
-) {
-  const imports = Immutable.Set<string>().asMutable();
-  // TODO(jaked)
-  return imports.asImmutable();
-}
-
 export function synthPm(
   moduleName: string,
   node: PMAST.Node,
@@ -46,8 +38,7 @@ export function synthPm(
   annots?: AstAnnotations,
 ): Typecheck.Env {
   if (PMAST.isCode(node)) {
-    const code = parsedCode.get(node);
-    if (!code) bug('expected parsed code');
+    const code = parsedCode.get(node) ?? bug('expected parsed code');
     code.forEach(code => {
       (code as ESTree.Program).body.forEach(node => {
         switch (node.type) {
@@ -70,8 +61,7 @@ export function synthPm(
       });
     })
   } else if (PMAST.isInlineCode(node)) {
-    const code = parsedCode.get(node);
-    if (!code) bug('expected parsed code');
+    const code = parsedCode.get(node) ?? bug('expected parsed code');
     code.forEach(code =>
       Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, annots)
     );
@@ -110,7 +100,6 @@ const parseCode = (node: PMAST.Node) => {
 
 export function renderNodes(
   nodes: PMAST.Node[],
-  parsedCode: WeakMap<PMAST.Node, Try<ESTree.Node>>,
   annots: AstAnnotations,
   moduleName: string,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
@@ -120,7 +109,7 @@ export function renderNodes(
   const rendered: Signal<React.ReactNode>[] = [];
   for (const node of nodes) {
     const render =
-      renderNode(node, parsedCode, annots, moduleName, moduleEnv, env, exportValue);
+      renderNode(node, annots, moduleName, moduleEnv, env, exportValue);
     env = render.env;
     rendered.push(render.rendered);
   }
@@ -129,7 +118,6 @@ export function renderNodes(
 
 export function renderNode(
   node: PMAST.Node,
-  parsedCode: WeakMap<PMAST.Node, Try<ESTree.Node>>,
   annots: AstAnnotations,
   moduleName: string,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
@@ -149,7 +137,7 @@ export function renderNode(
     };
   } else {
     if (node.type === 'code') {
-      const code = parsedCode.get(node) ?? bug(`expected code`);
+      const code = parsedCode.get(node) ?? bug(`expected parsed code`);
       if (code.type === 'ok') {
         const rendered: Signal<React.ReactNode>[] = [];
         for (const node of (code.ok as ESTree.Program).body) {
@@ -179,7 +167,7 @@ export function renderNode(
       return { env, rendered: Signal.ok(null) };
 
     } else if (node.type === 'inlineCode') {
-      const code = parsedCode.get(node) ?? bug(`expected code`);
+      const code = parsedCode.get(node) ?? bug(`expected parsed code`);
       if (code.type === 'ok') {
         const type = annots.get(code.ok) ?? bug(`expected type`);
         if (type.kind !== 'Error') {
@@ -192,7 +180,7 @@ export function renderNode(
       return { env, rendered: Signal.ok(null) };
 
     } else {
-      const children = renderNodes(node.children, parsedCode, annots, moduleName, moduleEnv, env, exportValue);
+      const children = renderNodes(node.children, annots, moduleName, moduleEnv, env, exportValue);
       if (node.type === 'a') {
         return {
           env: children.env,
@@ -214,23 +202,50 @@ export function renderNode(
 
 export default function compileFilePm(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
-  compiledNotes: Signal<CompiledNotes>,
-  setSelected: (note: string) => void,
+  compiledFiles: Signal<Immutable.Map<string, CompiledFile>> = Signal.ok(Immutable.Map()),
+  compiledNotes: Signal<CompiledNotes> = Signal.ok(Immutable.Map()),
+  setSelected: (note: string) => void = (note: string) => { },
 ): CompiledFile {
   const moduleName = Name.nameOfPath(file.path);
 
   const nodes = file.content as Signal<PMAST.Node[]>;
-  const ast = nodes.map(nodes => {
-    nodes.forEach(parseCode);
-    return { nodes, parsedCode }
-  });
 
-  // depend on ast so that parsedCode is filled in
-  const imports = ast.map(({ nodes }) => findImports(nodes));
+  // typechecking, imports depend only on code nodes
+  const codeNodes = nodes.map(nodes =>
+    Immutable.List<PMAST.Node>().withMutations(codeNodes => {
+      function find(node: PMAST.Node) {
+        if (PMAST.isCode(node) || PMAST.isInlineCode(node)) {
+          parseCode(node);
+          codeNodes.push(node);
+        } else if (PMAST.isElement(node)) {
+          node.children.forEach(find);
+        }
+      }
+      nodes.forEach(find);
+    })
+  );
 
-    // TODO(jaked) push note errors into envs so they're surfaced in editor?
-    const noteEnv =
+  const imports = codeNodes.map(codeNodes =>
+    Immutable.List<string>().withMutations(imports => {
+      codeNodes.forEach(node => {
+        if (PMAST.isCode(node)) {
+          const code = (parsedCode.get(node)) ?? bug(`expected parsed code`);
+          code.forEach(code =>
+            (code as ESTree.Program).body.forEach(node => {
+              switch (node.type) {
+                case 'ImportDeclaration':
+                  imports.push(node.source.value);
+                  break;
+              }
+            })
+          );
+        }
+      });
+    })
+  );
+
+  // TODO(jaked) push note errors into envs so they're surfaced in editor?
+  const noteEnv =
     Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) =>
       Immutable.Map<string, CompiledNote>().withMutations(noteEnv => {
         imports.forEach(name => {
@@ -252,20 +267,8 @@ export default function compileFilePm(
   const moduleValueEnv =
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
 
-  // typechecking depends only on code nodes
-  const codeNodes = ast.map(({ nodes }) =>
-    Immutable.List<PMAST.Node>().withMutations(codeNodes => {
-      function find(node: PMAST.Node) {
-        if (PMAST.isCode(node) || PMAST.isInlineCode(node)) {
-          codeNodes.push(node);
-        } else if (PMAST.isElement(node)) {
-          node.children.forEach(find);
-        }
-      }
-      nodes.forEach(find);
-    })
-  );
-
+  // TODO(jaked)
+  // exportType could depend only on `code` nodes, since `inlineCode` nodes can't define bindings
   const typecheck = Signal.join(
     codeNodes,
     moduleTypeEnv
@@ -283,19 +286,23 @@ export default function compileFilePm(
     return { exportType, astAnnotations, problems }
   });
 
+  const ast = codeNodes.map(_ => parsedCode);
+
+  // TODO(jaked)
+  // exportValue could depend only on codeNodes, don't need all rendered nodes
+  // exportValue could depend only on `code` nodes, since `inlineCode` nodes can't defined bindings
   const render = Signal.join(
     nodes,
-    ast,
+    ast, // dependency to ensure parsedCode is up to date
     typecheck,
     moduleValueEnv,
-  ).map(([nodes, { parsedCode }, typecheck, moduleValueEnv]) => {
+  ).map(([nodes, _ast, typecheck, moduleValueEnv]) => {
     // TODO(jaked) pass in these envs from above?
     let valueEnv = Render.initValueEnv(setSelected);
 
     const exportValue: { [s: string]: Signal<any> } = {};
     const { rendered } = renderNodes(
       nodes,
-      parsedCode,
       typecheck.astAnnotations,
       moduleName,
       moduleValueEnv,
@@ -310,8 +317,10 @@ export default function compileFilePm(
     ast,
     exportType: typecheck.map(({ exportType }) => exportType),
     astAnnotations: typecheck.map(({ astAnnotations }) => astAnnotations),
-    exportValue: Signal.ok({ }),
+    problems: typecheck.liftToTry().map(compiled =>
+      compiled.type === 'ok' ? compiled.ok.problems : true
+    ),
+    exportValue: render.map(({ exportValue }) => exportValue),
     rendered: render.flatMap(({ rendered }) => rendered),
-    problems: Signal.ok(false),
   };
 }

@@ -3,9 +3,8 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
 import Signal from '../../util/Signal';
+import Type from '../Type';
 import compileFilePm from './compileFilePm';
-
-const setSelected = (s: string) => {}
 
 // TODO(jaked)
 // we might want to test styles; find a better way to handle this
@@ -35,120 +34,201 @@ function expectRenderEqual(
   expect(aRendered).toEqual(bRendered);
 }
 
-describe('compileFilePm', () => {
-  it('compiles', () => {
-    const compiled = compileFilePm(
+it('compiles', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
       {
-        type: 'pm',
-        path: 'foo.pm',
-        mtimeMs: Signal.ok(0),
-        content: Signal.ok([
-          {
-            type: 'p',
-            children: [
-              { text: 'foo' }
-            ]
-          }
-        ]),
-      },
-      Signal.ok(Immutable.Map()),
-      Signal.ok(Immutable.Map()),
-      setSelected
-    );
-    expect(compiled.problems.get()).toBeFalsy();
-    expectRenderEqual(
-      compiled.rendered.get(),
-      <p><span>foo</span></p>,
-    );
+        type: 'p',
+        children: [
+          { text: 'foo' }
+        ]
+      }
+    ]),
   });
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <p><span>foo</span></p>,
+  );
+});
 
-  it('renders marks', () => {
-    const compiled = compileFilePm(
+it('compiles exports', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
       {
-        type: 'pm',
-        path: 'foo.pm',
-        mtimeMs: Signal.ok(0),
-        content: Signal.ok([
-          {
-            type: 'p',
-            children: [
-              { text: 'foo' },
-              { text: 'bar', bold: true },
-              { text: 'baz', underline: true },
-              { text: 'quux', bold: true, italic: true },
-            ]
-          }
-        ]),
-      },
-      Signal.ok(Immutable.Map()),
-      Signal.ok(Immutable.Map()),
-      setSelected
-    );
-    expect(compiled.problems.get()).toBeFalsy();
-    expectRenderEqual(
-      compiled.rendered.get(),
-      <p>
-        <span>foo</span>
-        <span><strong>bar</strong></span>
-        <span><u>baz</u></span>
-        <span><em><strong>quux</strong></em></span>
-      </p>
-    );
+        type: 'code',
+        children: [
+          { text: 'export const foo = 7' }
+        ]
+      }
+    ]),
   });
+  expect(compiled.problems.get()).toBeFalsy();
+  expect(compiled.exportType.get().getFieldType('foo')).toEqual(Type.singleton(7));
+  expect(compiled.exportValue.get()['foo'].get()).toEqual(7);
+});
 
-  it('renders elements', () => {
-    const compiled = compileFilePm(
+it('reports errors', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
       {
-        type: 'pm',
-        path: 'foo.pm',
-        mtimeMs: Signal.ok(0),
-        content: Signal.ok([
-          { type: 'p', children: [{ text: 'foo' }] },
-          { type: 'h1', children: [{ text: 'bar' }] },
-          { type: 'ul', children: [
-            { type: 'li', children: [{ text: 'baz', bold: true }] }
-          ] },
-        ]),
-      },
-      Signal.ok(Immutable.Map()),
-      Signal.ok(Immutable.Map()),
-      setSelected
-    );
-    expect(compiled.problems.get()).toBeFalsy();
-    expectRenderEqual(
-      compiled.rendered.get(),
-      <>
-        <p><span>foo</span></p>
-        <h1><span>bar</span></h1>
-        <ul><li><span><strong>baz</strong></span></li></ul>
-      </>
-    );
+        type: 'code',
+        children: [
+          { text: 'x' }
+        ]
+      }
+    ]),
   });
+  expect(compiled.problems.get()).toBeTruthy();
+});
 
-  it('renders links', () => {
-    const compiled = compileFilePm(
+it('renders marks', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
       {
-        type: 'pm',
-        path: 'foo.pm',
-        mtimeMs: Signal.ok(0),
-        content: Signal.ok([
-          { type: 'p', children: [
-            { type: 'a', href: 'https://foo.bar', children: [
-              { text: 'foo' }
-            ] },
+        type: 'p',
+        children: [
+          { text: 'foo' },
+          { text: 'bar', bold: true },
+          { text: 'baz', underline: true },
+          { text: 'quux', bold: true, italic: true },
+        ]
+      }
+    ]),
+  });
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <p>
+      <span>foo</span>
+      <span><strong>bar</strong></span>
+      <span><u>baz</u></span>
+      <span><em><strong>quux</strong></em></span>
+    </p>
+  );
+});
+
+it('renders elements', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
+      { type: 'p', children: [{ text: 'foo' }] },
+      { type: 'h1', children: [{ text: 'bar' }] },
+      { type: 'ul', children: [
+        { type: 'li', children: [{ text: 'baz', bold: true }] }
+      ] },
+    ]),
+  });
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <>
+      <p><span>foo</span></p>
+      <h1><span>bar</span></h1>
+      <ul><li><span><strong>baz</strong></span></li></ul>
+    </>
+  );
+});
+
+it('renders links', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
+      { type: 'p', children: [
+        { type: 'a', href: 'https://foo.bar', children: [
+          { text: 'foo' }
+        ] },
+      ]},
+    ]),
+  });
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <>
+      <p><a href='https://foo.bar'><span>foo</span></a></p>
+    </>
+  );
+});
+
+it('compiles code', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.ok([
+      { type: 'code', children: [
+        { text: 'export const foo = 7' }
+      ]},
+      { type: 'p', children: [
+        { text: 'foo is '},
+        { type: 'inlineCode', children: [
+          { text: 'foo' }
+        ]},
+      ]}
+    ]),
+  });
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <>
+      <p><span>foo is </span>7</p>
+    </>
+  );
+});
+
+it('compiles with import', () => {
+  const compiled = compileFilePm(
+    {
+      type: 'pm',
+      path: '/foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        { type: 'code', children: [
+          { text: `import { bar } from '/baz'` }
+        ]},
+        { type: 'p', children: [
+          { text: 'bar is '},
+          { type: 'inlineCode', children: [
+            { text: 'bar' }
           ]},
-        ]),
+        ]}
+      ])
+    },
+    Signal.ok(Immutable.Map()),
+    Signal.ok(Immutable.Map({
+      '/baz': {
+        name: '/baz',
+        meta: Signal.err(new Error('meta')),
+        files: {},
+        problems: Signal.err(new Error('problems')),
+        rendered: Signal.err(new Error('rendered')),
+        publishedType: Signal.err(new Error('publishedType')),
+        exportType: Signal.ok(Type.module({ bar: Type.number })),
+        exportValue: Signal.ok({ bar: Signal.ok(9) }),
       },
-      Signal.ok(Immutable.Map()),
-      Signal.ok(Immutable.Map()),
-      setSelected
-    );
-    expect(compiled.problems.get()).toBeFalsy();
-    expectRenderEqual(
-      compiled.rendered.get(),
-      <>
-        <p><a href='https://foo.bar'><span>foo</span></a></p>
-      </>
-    );
-  });
+    })),
+  );
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <>
+      <p><span>bar is </span>9</p>
+    </>
+  );
 });

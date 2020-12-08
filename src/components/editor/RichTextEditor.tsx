@@ -185,10 +185,9 @@ export type RichTextEditorProps = {
 const RichTextEditor = (props: RichTextEditorProps) => {
   const editor = React.useMemo(() => withReact(PMEditor.withPMEditor(createEditor())), []);
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
-  const ast = Signal.useSignal(props.compiledFile.ast) as { parsedCode: WeakMap<Node, unknown> };
+  const parsedCode = Signal.useSignal(props.compiledFile.ast) as WeakMap<Node, unknown>;
   // TODO(jaked) can we use astAnnotations conditionally? breaks the rules of hooks but does it matter?
   const astAnnotations = Signal.useSignal(props.compiledFile.astAnnotations ?? Signal.ok(undefined));
-  const { parsedCode } = ast;
   const decorate = React.useMemo(
     () => makeDecorate(parsedCode, astAnnotations),
     [astAnnotations],
