@@ -109,22 +109,18 @@ export function compileCode(
   return env;
 }
 
-export function renderNodes(
-  nodes: PMAST.Node[],
-  annots: AstAnnotations,
-  env: Render.Env,
-): Signal<React.ReactNode[]> {
-  const rendered: Signal<React.ReactNode>[] = [];
-  for (const node of nodes)
-    rendered.push(renderNode(node, annots, env));
-  return Signal.join(...rendered);
-}
+// memo table of rendered static nodes
+// code nodes or nodes containing code nodes are not memoized
+// since their rendering may depend on typechecking etc.
+const renderedNode = new WeakMap<PMAST.Node, Signal<React.ReactNode>>();
 
 export function renderNode(
   node: PMAST.Node,
   annots: AstAnnotations,
   env: Render.Env,
 ): Signal<React.ReactNode> {
+  const rendered = renderedNode.get(node);
+  if (rendered) return rendered;
   const key = findKey(node);
   if ('text' in node) {
     let text: any = node.text;
@@ -132,7 +128,9 @@ export function renderNode(
     if (node.italic)    text = <em>{text}</em>;
     if (node.underline) text = <u>{text}</u>;
     if (node.code)      text = <code>{text}</code>;
-    return Signal.ok(<span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>);
+    const rendered = Signal.ok(<span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>);
+    renderedNode.set(node, rendered);
+    return rendered;
   } else {
     if (node.type === 'code') {
       const code = parsedCode.get(node) ?? bug(`expected parsed code`);
@@ -155,16 +153,20 @@ export function renderNode(
       return Render.evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env);
 
     } else {
-      const children = renderNodes(node.children, annots,env);
+      const children = node.children.map(child => renderNode(child, annots,env));
+      let rendered;
       if (node.type === 'a') {
-        return children.map(children =>
+        rendered = Signal.join(...children).map(children =>
           React.createElement(node.type, { key, href: node.href }, ...children)
         );
       } else {
-        return children.map(children =>
+        rendered = Signal.join(...children).map(children =>
           React.createElement(node.type, { key }, ...children)
         );
       }
+      if (node.children.every(node => renderedNode.has(node)))
+        renderedNode.set(node, rendered);
+      return rendered;
     }
   }
 }
@@ -319,7 +321,7 @@ export default function compileFilePm(
     compile,
     typecheckInlineCode,
   ).flatMap(([nodes, _ast, { env }, { astAnnotations }]) =>
-    renderNodes(nodes, astAnnotations, env)
+    Signal.join(...nodes.map(node => renderNode(node, astAnnotations, env)))
   );
 
   return {
