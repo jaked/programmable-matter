@@ -48,16 +48,28 @@ const errComponents =
   link:       styled(okComponents.link)(errStyle),
 }
 
+const Pre = styled.pre`
+  background-color: #eeeeee;
+  border-radius: 10px;
+  padding: 10px;
+`;
+
+const Code = styled.code`
+  background-color: #eeeeee;
+  border-radius: 5px;
+  padding: 5px;
+`;
+
 export const renderElement = ({ element, attributes, children }: RenderElementProps) => {
   const pmElement = element as PMAST.Element;
   if (pmElement.type === 'a') {
     return React.createElement('a', { ...attributes, href: pmElement.href }, children);
   } else if (pmElement.type === 'code') {
-    return React.createElement('pre', attributes,
-      React.createElement('code', {}, children)
-    );
+    return <Pre {...attributes}>
+      <code>{children}</code>
+    </Pre>
   } else if (pmElement.type === 'inlineCode') {
-    return React.createElement('code', {}, children);
+    return <Code {...attributes}>{children}</Code>
   } else {
     return React.createElement(pmElement.type, attributes, children);
   }
