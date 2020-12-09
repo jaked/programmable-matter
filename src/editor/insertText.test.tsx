@@ -54,6 +54,16 @@ describe('Markdown shortcuts', () => {
     ]);
   });
 
+  it('ignores shortcuts inside code', () => {
+    const editor = <editor>
+      <code>foo{'{bar}'}<cursor /></code>
+    </editor> as unknown as Editor;
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <code>foo{'{bar}'} </code>
+    ]);
+  });
+
   it('sets type to inlineCode on { / } with no trailing text', () => {
     const editor = <editor>
       <p>foo{'{bar}'}<cursor /></p>

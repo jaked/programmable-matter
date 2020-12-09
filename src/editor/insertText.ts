@@ -15,6 +15,8 @@ const SHORTCUTS = {
   '####': 'h4',
   '#####': 'h5',
   '######': 'h6',
+
+  // TODO(jaked) this would be more usable if it fired on enter not space
   '{{{': 'code',
 }
 
@@ -88,83 +90,82 @@ const handleDelimitedShortcut = (
 export const insertText = (editor: Editor) => {
   const { insertText } = editor;
   return (text: string) => {
-    if (isUrl(text)) {
-      wrapLink(editor, text);
-      return;
-    }
+    const above = Editor.above(editor);
+    if (!above) return insertText(text);
+
+    const [node, path] = above;
+    if (node.type === 'code' || node.type === 'inlineCode')
+      return insertText(text);
+
+    if (isUrl(text)) return wrapLink(editor, text);
 
     const { selection } = editor;
-    const above = Editor.above(editor);
-    if (above && selection && Range.isCollapsed(selection)) {
-      const [, path] = above;
-      const start = Editor.start(editor, path);
-      const range = { anchor: start, focus: selection.anchor };
+    if (!selection || !Range.isCollapsed(selection))
+      return insertText(text);
 
-      if (text === ' ') {
-        const beforeText = Editor.string(editor, range);
-        const type = SHORTCUTS[beforeText];
+    const start = Editor.start(editor, path);
+    const range = { anchor: start, focus: selection.anchor };
 
-        if (type) {
-          Transforms.delete(editor, { at: range });
-          setType(editor, type);
-          return;
-        }
+    if (text === ' ') {
+      const beforeText = Editor.string(editor, range);
+      const type = SHORTCUTS[beforeText];
 
-        // TODO(jaked)
-        // might be nice to handle these without requiring a trailing space
-        // but it creates an ambiguity between e.g. * and **
-        for (const [delim, mark] of [
-          ['**', 'bold'],
-          ['__', 'bold'],
-          ['*', 'italic'],
-          ['_', 'italic'],
-          ['~~', 'strikethrough'],
-          ['`', 'code'],
-        ]) {
-          if (handleDelimitedShortcut(editor, range, delim, delim, range => {
-            // TODO(jaked) setMark?
-            Transforms.setNodes(
-              editor,
-              { [mark]: true },
-              {
-                at: range,
-                match: Text.isText,
-                split: true
-              },
-            );
-          })) {
-            Editor.removeMark(editor, mark); // else mark is copied to space
-            insertText(text);
-            return;
-          }
-        }
+      if (type) {
+        Transforms.delete(editor, { at: range });
+        return setType(editor, type);
+      }
 
-        if (handleDelimitedShortcut(editor, range, '{', '}', range => {
-          Transforms.wrapNodes(
+      // TODO(jaked)
+      // might be nice to handle these without requiring a trailing space
+      // but it creates an ambiguity between e.g. * and **
+      for (const [delim, mark] of [
+        ['**', 'bold'],
+        ['__', 'bold'],
+        ['*', 'italic'],
+        ['_', 'italic'],
+        ['~~', 'strikethrough'],
+        ['`', 'code'],
+      ]) {
+        if (handleDelimitedShortcut(editor, range, delim, delim, range => {
+          // TODO(jaked) setMark?
+          Transforms.setNodes(
             editor,
-            { type: 'inlineCode', children: [] },
+            { [mark]: true },
             {
               at: range,
               match: Text.isText,
               split: true
-            }
+            },
           );
         })) {
-          insertText(text);
-          return;
+          Editor.removeMark(editor, mark); // else mark is copied to space
+          return insertText(text);
         }
+      }
 
-        const matchUrl = matchStringBefore(editor, range, isUrl);
-        if (matchUrl) {
-          const { match: url, at } = matchUrl;
-          Transforms.wrapNodes(
-            editor,
-            { type: 'a', href: url, children: [] },
-            { at, split: true }
-          );
-          insertText(text);
-          return;
-        }
+      if (handleDelimitedShortcut(editor, range, '{', '}', range => {
+        Transforms.wrapNodes(
+          editor,
+          { type: 'inlineCode', children: [] },
+          {
+            at: range,
+            match: Text.isText,
+            split: true
+          }
+        );
+      })) {
+        return insertText(text);
+      }
+
+      const matchUrl = matchStringBefore(editor, range, isUrl);
+      if (matchUrl) {
+        const { match: url, at } = matchUrl;
+        Transforms.wrapNodes(
+          editor,
+          { type: 'a', href: url, children: [] },
+          { at, split: true }
+        );
+        return insertText(text);
       }
     }
 
