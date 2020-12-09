@@ -27,8 +27,7 @@ function findKey(node: PMAST.Node): string {
 
 // Slate guarantees fresh objects for changed nodes
 // so it's safe to keep a global weak map (I think?)
-const parsedCode = new WeakMap<PMAST.Code, Try<ESTree.Program>>();
-const parsedInlineCode = new WeakMap<PMAST.InlineCode, Try<ESTree.Expression>>();
+const parsedCode = new WeakMap<PMAST.Node, Try<ESTree.Node>>();
 
 export function synthCode(
   moduleName: string,
@@ -40,7 +39,7 @@ export function synthCode(
 ): Typecheck.Env {
   const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code => {
-    code.body.forEach(node => {
+    (code as ESTree.Program).body.forEach(node => {
       switch (node.type) {
         case 'ExportDefaultDeclaration':
           env = Typecheck.extendEnvWithDefaultExport(node, exportTypes, env, annots);
@@ -68,9 +67,9 @@ export function synthInlineCode(
   env: Typecheck.Env,
   annots?: AstAnnotations,
 ) {
-  const code = parsedInlineCode.get(node) ?? bug('expected parsed code');
+  const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code =>
-    Typecheck.check(code, env, Type.reactNodeType, annots)
+    Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, annots)
   );
 }
 
@@ -84,7 +83,7 @@ export function compileCode(
 ): Render.Env {
   const code = parsedCode.get(node) ?? bug(`expected parsed code`);
   code.forEach(code => {
-    for (const node of code.body) {
+    for (const node of (code as ESTree.Program).body) {
       switch (node.type) {
         case 'ImportDeclaration':
           env = Render.extendEnvWithImport(moduleName, node, annots, moduleEnv, env);
@@ -134,7 +133,7 @@ export function renderNode(
       const code = parsedCode.get(node) ?? bug(`expected parsed code`);
       if (code.type !== 'ok') return Signal.ok(null);
       const rendered: Signal<React.ReactNode>[] = [];
-      for (const node of code.ok.body) {
+      for (const node of (code.ok as ESTree.Program).body) {
         switch (node.type) {
           case 'ExpressionStatement':
             rendered.push(Render.evaluateExpressionSignal(node.expression, annots, env));
@@ -144,7 +143,7 @@ export function renderNode(
       return Signal.join(...rendered);
 
     } else if (node.type === 'inlineCode') {
-      const code = parsedInlineCode.get(node) ?? bug(`expected parsed code`);
+      const code = parsedCode.get(node) ?? bug(`expected parsed code`);
       if (code.type !== 'ok') return Signal.ok(null);
       const type = annots.get(code.ok) ?? bug(`expected type`);
       if (type.kind === 'Error') return Signal.ok(null);
@@ -207,13 +206,13 @@ export default function compileFilePm(
       function parseInlineCode(node: PMAST.Node) {
         if (PMAST.isInlineCode(node)) {
           inlineCodeNodes.push(node);
-          if (!parsedInlineCode.has(node)) {
+          if (!parsedCode.has(node)) {
               // TODO(jaked) enforce tree constraints in editor
             if (!(node.children.length === 1)) bug('expected 1 child');
             const child = node.children[0];
             if (!(PMAST.isText(child))) bug('expected text');
             const ast = Try.apply(() => Parse.parseExpression(child.text));
-            parsedInlineCode.set(node, ast);
+            parsedCode.set(node, ast);
           }
         } else if (PMAST.isElement(node)) {
           node.children.forEach(parseInlineCode);
