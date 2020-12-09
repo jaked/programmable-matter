@@ -118,6 +118,7 @@ export const insertText = (editor: Editor) => {
           ['__', 'bold'],
           ['*', 'italic'],
           ['_', 'italic'],
+          ['~~', 'strikethrough'],
           ['`', 'code'],
         ]) {
           if (handleDelimitedShortcut(editor, range, delim, delim, range => {

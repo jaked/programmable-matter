@@ -7,6 +7,9 @@ export type Text = {
   bold?: true,
   italic?: true,
   underline?: true,
+  strikethrough?: true,
+
+  // TODO(jaked) code should suppress other styling
   code?: true,
 
   // decorations

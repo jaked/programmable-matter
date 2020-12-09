@@ -92,6 +92,8 @@ export const makeRenderLeaf = () => ({ leaf, attributes, children } : RenderLeaf
       children = <em>{children}</em>;
     if (text.underline)
       children = <u>{children}</u>;
+    if (text.strikethrough)
+      children = <del>{children}</del>;
     if (text.code)
       children = <code>{children}</code>;
 

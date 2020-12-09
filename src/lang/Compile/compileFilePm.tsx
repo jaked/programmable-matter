@@ -120,10 +120,11 @@ export function renderNode(
   const key = findKey(node);
   if ('text' in node) {
     let text: any = node.text;
-    if (node.bold)      text = <strong>{text}</strong>;
-    if (node.italic)    text = <em>{text}</em>;
-    if (node.underline) text = <u>{text}</u>;
-    if (node.code)      text = <code>{text}</code>;
+    if (node.bold)          text = <strong>{text}</strong>;
+    if (node.italic)        text = <em>{text}</em>;
+    if (node.underline)     text = <u>{text}</u>;
+    if (node.strikethrough) text = <del>{text}</del>;
+    if (node.code)          text = <code>{text}</code>;
     const rendered = Signal.ok(<span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>);
     renderedNode.set(node, rendered);
     return rendered;
