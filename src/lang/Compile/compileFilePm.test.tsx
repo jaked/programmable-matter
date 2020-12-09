@@ -232,3 +232,44 @@ it('compiles with import', () => {
     </>
   );
 });
+
+it('compiles referencing data / table', () => {
+  const compiled = compileFilePm(
+    {
+      type: 'pm',
+      path: '/foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        { type: 'p', children: [
+          { text: 'foo ' },
+          { type: 'inlineCode', children: [{ text: 'data.bar' }]},
+          { text: ' ' },
+          { type: 'inlineCode', children: [{ text: 'table.baz' }]},
+        ]},
+      ])
+    },
+    Signal.ok(Immutable.Map({
+      '/foo.json': {
+        exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
+        exportValue: Signal.ok({ mutable: Signal.ok({ bar: 'bar' }) }),
+        rendered: Signal.ok(null),
+        problems: Signal.ok(false),
+        ast: Signal.err(new Error(`unimplemented`))
+      },
+      '/foo.table': {
+        exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
+        exportValue: Signal.ok({ default: Signal.ok({ baz: 7 }) }),
+        rendered: Signal.ok(null),
+        problems: Signal.ok(false),
+        ast: Signal.err(new Error(`unimplemented`))
+      }
+    })),
+  );
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <>
+      <p><span>foo </span>bar<span> </span>7</p>
+    </>
+  );
+});

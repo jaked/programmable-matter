@@ -1,3 +1,4 @@
+import Path from 'path';
 import * as Immutable from 'immutable';
 import React from 'react';
 
@@ -262,12 +263,60 @@ export default function compileFilePm(
   const moduleValueEnv =
     noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
 
+  const pathParsed = Path.parse(file.path);
+  const jsonPath = Path.format({ ...pathParsed, base: undefined, ext: '.json' });
+  const tablePath = Path.format({ ...pathParsed, base: undefined, ext: '.table' });
+
+  const jsonType = compiledFiles.flatMap(compiledFiles => {
+    const json = compiledFiles.get(jsonPath);
+    if (json)
+      return json.exportType.map(exportType =>
+        exportType.getFieldType('mutable')
+      );
+    else
+      return Signal.ok(undefined);
+  });
+  const jsonValue = compiledFiles.flatMap(compiledFiles => {
+    const json = compiledFiles.get(jsonPath);
+    if (json)
+      return json.exportValue.flatMap(exportValue =>
+        exportValue['mutable'] ?? Signal.ok(undefined)
+      );
+    else
+      return Signal.ok(undefined);
+  });
+  const tableType = compiledFiles.flatMap(compiledFiles => {
+    const table = compiledFiles.get(tablePath);
+    if (table)
+      return table.exportType.map(exportType =>
+        exportType.getFieldType('default')
+      );
+    else
+      return Signal.ok(undefined);
+  });
+  const tableValue = compiledFiles.flatMap(compiledFiles => {
+    const table = compiledFiles.get(tablePath);
+    if (table)
+      return table.exportValue.flatMap(exportValue =>
+        exportValue['default'] ?? Signal.ok(undefined)
+      );
+    else
+      return Signal.ok(undefined);
+  });
+
+  // TODO(jaked)
+  // finer-grained deps so we don't rebuild all code e.g. when json changes
   const typecheckCode = Signal.join(
     codeNodes,
+    jsonType,
+    tableType,
     moduleTypeEnv
-  ).map(([codeNodes, moduleTypeEnv]) => {
+  ).map(([codeNodes, jsonType, tableType, moduleTypeEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let env = Render.initTypeEnv;
+
+    if (jsonType) env = env.set('data', jsonType);
+    if (tableType) env = env.set('table', tableType);
 
     const exportTypes: { [s: string]: Type.Type } = {};
     const astAnnotations = new Map<unknown, Type>();
@@ -294,13 +343,20 @@ export default function compileFilePm(
 
   const ast = Signal.join(codeNodes, inlineCodeNodes).map(_ => parsedCode);
 
+  // TODO(jaked)
+  // finer-grained deps so we don't rebuild all code e.g. when json changes
   const compile = Signal.join(
     codeNodes,
     typecheckCode,
+    jsonValue,
+    tableValue,
     moduleValueEnv,
-  ).map(([codeNodes, { astAnnotations }, moduleValueEnv]) => {
+  ).map(([codeNodes, { astAnnotations }, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let env = Render.initValueEnv(setSelected);
+
+    if (jsonValue) env = env.set('data', Signal.ok(jsonValue));
+    if (tableValue) env = env.set('table', Signal.ok(tableValue));
 
     const exportValue: { [s: string]: Signal<any> } = {};
     codeNodes.forEach(node =>
