@@ -22,8 +22,7 @@ const okComponents =
   definition: styled.span({ color: '#0000ff' }),
   variable:   styled.span({ color: '#268bd2' }),
   property:   styled.span({ color: '#b58900' }),
-  // TODO(jaked)
-  // hover doesn't work because enclosing pre is not on top
+
   link:       styled.span`
     :hover {
       cursor: pointer;
@@ -75,29 +74,50 @@ export const renderElement = ({ element, attributes, children }: RenderElementPr
   }
 }
 
-export const makeRenderLeaf = () => ({ leaf, attributes, children } : RenderLeafProps) => {
-  const text = leaf as PMAST.Text;
-  if (text.highlight) {
-    const component = text.status ? errComponents[text.highlight] : okComponents[text.highlight];
-    return React.createElement(
-      component as any,
-      {...attributes, 'data-status': text.status, 'data-link': text.link },
-      children
-    );
+export const makeRenderLeaf = (
+  setStatus: (status: string | undefined) => void = () => { },
+  setSelected: (name: string) => void = () => { },
+) => {
+  const onMouseLeave = () => { setStatus(undefined) };
 
-  } else {
-    if (text.bold)
-      children = <strong>{children}</strong>;
-    if (text.italic)
-      children = <em>{children}</em>;
-    if (text.underline)
-      children = <u>{children}</u>;
-    if (text.strikethrough)
-      children = <del>{children}</del>;
-    if (text.code)
-      children = <code>{children}</code>;
+  return ({ leaf, attributes, children } : RenderLeafProps) => {
+    const text = leaf as PMAST.Text;
+    if (text.highlight) {
+      let onClick: (() => void) | undefined = undefined;
+      if (text.link) {
+        const link = text.link;
+        onClick = () => { setSelected(link) };
+      }
 
-    return <span {...attributes}>{children}</span>;
+      if (text.status) {
+        const onMouseEnter = () => { setStatus(text.status) };
+        return React.createElement(
+          errComponents[text.highlight] as any,
+          { ...attributes, onClick, onMouseEnter, onMouseLeave },
+          children
+        );
+      } else {
+        return React.createElement(
+          okComponents[text.highlight] as any,
+          { ...attributes, onClick },
+          children
+        );
+      }
+
+    } else {
+      if (text.bold)
+        children = <strong>{children}</strong>;
+      if (text.italic)
+        children = <em>{children}</em>;
+      if (text.underline)
+        children = <u>{children}</u>;
+      if (text.strikethrough)
+        children = <del>{children}</del>;
+      if (text.code)
+        children = <code>{children}</code>;
+
+      return <span {...attributes}>{children}</span>;
+    }
   }
 }
 
@@ -194,6 +214,9 @@ export type RichTextEditorProps = {
   value: PMAST.Node[];
   setValue: (nodes: PMAST.Node[]) => void;
   compiledFile: data.CompiledFile;
+
+  setStatus: (status: string | undefined) => void;
+  setSelected: (name: string) => void;
 }
 
 const RichTextEditor = (props: RichTextEditorProps) => {
@@ -207,12 +230,17 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [astAnnotations],
   );
 
-  // work around Slate bug where decorations are not considered in memoizing Text
-  // https://github.com/ianstormtaylor/slate/issues/3447
-  // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
-  // avoiding typechecking when code hasn't changed helps
-  // but we still rerender all leaves on every code edit
-  const renderLeaf = React.useMemo(makeRenderLeaf, [decorate]);
+  const renderLeaf = React.useMemo(() => makeRenderLeaf(props.setStatus, props.setSelected), [
+    props.setStatus,
+    props.setSelected,
+
+    // work around Slate bug where decorations are not considered in memoizing Text
+    // https://github.com/ianstormtaylor/slate/issues/3447
+    // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
+    // avoiding typechecking when code hasn't changed helps
+    // but we still rerender all leaves on every code edit
+    decorate,
+  ]);
 
   return (
     <Slate

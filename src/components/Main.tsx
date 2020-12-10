@@ -77,6 +77,8 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
 type RichEditorProps = {
   content: Signal.Writable<PMAST.Node[]>;
   compiledFile: data.CompiledFile;
+  setStatus: (status: string | undefined) => void;
+  setSelected: (selected: string | null) => void;
 }
 
 const RichEditor = React.memo<RichEditorProps>(props => {
@@ -90,6 +92,8 @@ const RichEditor = React.memo<RichEditorProps>(props => {
       value={nodes}
       setValue={setValue}
       compiledFile={props.compiledFile}
+      setStatus={props.setStatus}
+      setSelected={props.setSelected}
     />
   );
 });
@@ -110,6 +114,8 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <RichEditor
             content={selectedFile.content as Signal.Writable<PMAST.Node[]>}
             compiledFile={compiledFile}
+            setStatus={props.setStatus}
+            setSelected={props.setSelected}
           /> :
           <CodeEditor
             ref={ref}
