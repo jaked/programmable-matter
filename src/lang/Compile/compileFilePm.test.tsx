@@ -91,6 +91,33 @@ it('reports errors', () => {
   expect(compiled.problems.get()).toBeTruthy();
 });
 
+it('recovers from fixed errors in inline code', () => {
+  const content = Signal.cellOk([
+    {
+      type: 'inlineCode',
+      children: [
+        { text: 'x' }
+      ]
+    }
+  ]);
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content
+  });
+  expect(compiled.problems.get()).toBeTruthy();
+  content.setOk([
+    {
+      type: 'inlineCode',
+      children: [
+        { text: '7' }
+      ]
+    }
+  ])
+  expect(compiled.problems.get()).toBeFalsy();
+});
+
 it('renders marks', () => {
   const compiled = compileFilePm({
     type: 'pm',

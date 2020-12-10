@@ -333,6 +333,10 @@ export default function compileFilePm(
     typecheckCode,
     inlineCodeNodes,
   ).map(([{ astAnnotations, env }, inlineCodeNodes]) => {
+    // clone to avoid polluting annotations between versions
+    // TODO(jaked) works fine but not very clear
+    astAnnotations = new Map(astAnnotations);
+
     inlineCodeNodes.forEach(node =>
       synthInlineCode(node, env, astAnnotations)
     );
@@ -379,11 +383,6 @@ export default function compileFilePm(
   return {
     ast,
     exportType: typecheckCode.map(({ exportType }) => exportType),
-    // TODO(jaked)
-    // because astAnnotations is reused from typecheckCode and mutated
-    // this signal won't update when only inlineCode annotations have changed
-    // so decorations won't be updated
-    // it happens to work anyway, but astAnnotations should be immutable
     astAnnotations: typecheckInlineCode.map(({ astAnnotations }) => astAnnotations),
     problems: typecheckInlineCode.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
