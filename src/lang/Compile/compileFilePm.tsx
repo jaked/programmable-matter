@@ -14,6 +14,8 @@ import * as Render from '../Render';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 
+import metaForPath from './metaForPath';
+
 let nextKey = 0;
 const KEYS = new WeakMap<PMAST.Node, string>();
 function findKey(node: PMAST.Node): string {
@@ -380,6 +382,46 @@ export default function compileFilePm(
     Signal.join(...nodes.map(node => renderNode(node, astAnnotations, env)))
   );
 
+  const debug = false;
+  const meta = metaForPath(file.path, compiledFiles);
+  const layoutFunction = Signal.join(
+   meta,
+   compiledNotes,
+ ).flatMap(([meta, compiledNotes]) => {
+   if (meta.layout) {
+     if (debug) console.log(`meta.layout`);
+     const layoutModule = compiledNotes.get(meta.layout);
+     if (layoutModule) {
+       if (debug) console.log(`layoutModule`);
+       return layoutModule.exportType.flatMap(exportType => {
+         const defaultType = exportType.getFieldType('default');
+         if (defaultType) {
+           if (debug) console.log(`defaultType`);
+           if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
+             if (debug) console.log(`isSubtype`);
+             return layoutModule.exportValue.flatMap(exportValue =>
+               exportValue['default']
+             );
+           }
+         }
+         return Signal.ok(undefined);
+       });
+     }
+   }
+   return Signal.ok(undefined);
+ });
+
+ const renderedWithLayout = Signal.join(
+    rendered,
+    meta,
+    layoutFunction,
+  ).map(([rendered, meta, layoutFunction]) => {
+    if (layoutFunction)
+      return layoutFunction({ children: rendered, meta });
+    else
+      return rendered
+  });
+
   return {
     ast,
     exportType: typecheckCode.map(({ exportType }) => exportType),
@@ -388,6 +430,6 @@ export default function compileFilePm(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compile.map(({ exportValue }) => exportValue),
-    rendered,
+    rendered: renderedWithLayout,
   };
 }

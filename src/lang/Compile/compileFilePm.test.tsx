@@ -2,6 +2,7 @@ import * as Immutable from 'immutable';
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
+import * as data from '../../data';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import compileFilePm from './compileFilePm';
@@ -297,6 +298,57 @@ it('compiles referencing data / table', () => {
     compiled.rendered.get(),
     <>
       <p><span>foo </span>bar<span> </span>7</p>
+    </>
+  );
+});
+
+it('compiles with layout', () => {
+  // console.error = jest.fn(); // suppress React warning about key props
+
+  const compiled = compileFilePm(
+    {
+      type: 'pm',
+      path: '/foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.ok([
+        { type: 'p', children: [ { text: 'foo' } ]}
+      ])
+    },
+    Signal.ok(Immutable.Map({
+      '/foo.meta': {
+        exportType: Signal.ok(Type.module({ })),
+        exportValue: Signal.ok({ default: Signal.ok({ layout: '/layout' }) }),
+        rendered: Signal.ok(null),
+        problems: Signal.ok(false),
+        ast: Signal.err(new Error(`unimplemented`))
+      },
+    })),
+    Signal.ok(Immutable.Map({
+      '/layout': {
+        name: '/layout',
+        meta: Signal.ok(data.Meta({})),
+        files: {},
+        problems: Signal.ok(false),
+        rendered: Signal.ok(null),
+        publishedType: Signal.ok('html' as const),
+        exportType: Signal.ok(Type.module({
+          default: Type.layoutFunctionType,
+        })),
+        exportValue: Signal.ok({
+          default: Signal.ok((props: { children: React.ReactNode, meta: data.Meta }) =>
+            React.createElement('div', {}, props.children)
+          )
+        })
+      }
+    })),
+  );
+  expect(compiled.problems.get()).toBeFalsy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <>
+      <div>
+        <p><span>foo</span></p>
+      </div>
     </>
   );
 });
