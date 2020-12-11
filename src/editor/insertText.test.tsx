@@ -150,4 +150,19 @@ describe('urls', () => {
       </p>
     ])
   });
+
+  it('inserts link on [[ / ]]', () => {
+    const editor = <editor>
+      <p>[[/foo]]<cursor /></p>
+    </editor> as unknown as Editor;
+    editor.isInline = isInline(editor);
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <p>
+        <stext></stext>
+        <a href='/foo'>/foo</a>
+        <stext> </stext>
+      </p>
+    ]);
+  });
 });

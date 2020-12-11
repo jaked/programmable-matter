@@ -61,7 +61,7 @@ const handleDelimitedShortcut = (
   at: Range,
   startDelim: string,
   endDelim: string,
-  handle: (r: Range) => void,
+  handle: (r: Range, s: string) => void,
 ): boolean => {
   const matchEnd = matchStringBefore(editor, at, s => s === endDelim);
   if (matchEnd) {
@@ -75,7 +75,9 @@ const handleDelimitedShortcut = (
       const endFocusRef = Editor.pointRef(editor, matchEnd.at.focus);
       Transforms.delete(editor, { at: { anchor: startAnchorRef.current!, focus: startFocusRef.current! } });
       Transforms.delete(editor, { at: { anchor: endAnchorRef.current!, focus: endFocusRef.current! } });
-      handle({ anchor: startFocusRef.current!, focus: endAnchorRef.current! });
+      const range = { anchor: startFocusRef.current!, focus: endAnchorRef.current! };
+      const text = Editor.string(editor, range);
+      handle(range, text);
       startAnchorRef.unref();
       startFocusRef.unref();
       endAnchorRef.unref();
@@ -147,6 +149,20 @@ export const insertText = (editor: Editor) => {
         Transforms.wrapNodes(
           editor,
           { type: 'inlineCode', children: [] },
+          {
+            at: range,
+            match: Text.isText,
+            split: true
+          }
+        );
+      })) {
+        return insertText(text);
+      }
+
+      if (handleDelimitedShortcut(editor, range, '[[', ']]', (range, text) => {
+        Transforms.wrapNodes(
+          editor,
+          { type: 'a', href: text, children: [] },
           {
             at: range,
             match: Text.isText,
