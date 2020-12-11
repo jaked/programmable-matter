@@ -193,8 +193,6 @@ export const initTypeEnv = Typecheck.env({
     className: Type.undefinedOrString,
   }),
 
-  'Link': componentType({ to: Type.string }),
-
   'Tweet': componentType({ tweetId: Type.string }),
   'YouTube': componentType({ videoId: Type.string }),
   'Gist': componentType({ id: Type.string }),

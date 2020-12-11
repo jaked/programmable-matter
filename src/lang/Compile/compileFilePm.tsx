@@ -14,6 +14,7 @@ import * as Render from '../Render';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 
+import makeLink from '../../components/makeLink';
 import metaForPath from './metaForPath';
 
 let nextKey = 0;
@@ -116,6 +117,7 @@ export function renderNode(
   node: PMAST.Node,
   annots: AstAnnotations,
   env: Render.Env,
+  Link: React.FunctionComponent<{ href: string }> = () => null,
 ): Signal<React.ReactNode> {
   const rendered = renderedNode.get(node);
   if (rendered) return rendered;
@@ -152,11 +154,11 @@ export function renderNode(
       return Render.evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env);
 
     } else {
-      const children = node.children.map(child => renderNode(child, annots,env));
+      const children = node.children.map(child => renderNode(child, annots, env, Link));
       let rendered;
       if (node.type === 'a') {
         rendered = Signal.join(...children).map(children =>
-          React.createElement(node.type, { key, href: node.href }, ...children)
+          React.createElement(Link, { key, href: node.href }, ...children)
         );
       } else {
         rendered = Signal.join(...children).map(children =>
@@ -370,7 +372,8 @@ export default function compileFilePm(
     return { env, exportValue };
    });
 
-  // TODO(jaked)
+  const Link = makeLink(moduleName, setSelected);
+   // TODO(jaked)
   // re-render only nodes that have changed since previous render
   // or when env changes
   const rendered = Signal.join(
@@ -378,9 +381,9 @@ export default function compileFilePm(
     ast, // dependency to ensure parsedCode is up to date
     compile,
     typecheckInlineCode,
-  ).flatMap(([nodes, _ast, { env }, { astAnnotations }]) =>
-    Signal.join(...nodes.map(node => renderNode(node, astAnnotations, env)))
-  );
+  ).flatMap(([nodes, _ast, { env }, { astAnnotations }]) => {
+    return Signal.join(...nodes.map(node => renderNode(node, astAnnotations, env, Link)))
+  });
 
   const debug = false;
   const meta = metaForPath(file.path, compiledFiles);

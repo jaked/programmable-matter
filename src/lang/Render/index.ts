@@ -136,7 +136,8 @@ export function renderMdx(
   mdxName: string,
   moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
-  exportValue: { [s: string]: Signal<any> }
+  exportValue: { [s: string]: Signal<any> },
+  Link: React.FunctionComponent<{ href: string }> = () => null,
 ): [Env, Signal<React.ReactNode>] {
   // TODO(jaked)
   // definitions can only appear at the top level (I think?)
@@ -145,7 +146,7 @@ export function renderMdx(
     case 'root': {
       const childNodes: Array<Signal<React.ReactNode>> = [];
       ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue);
+        const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue, Link);
         env = env2;
         childNodes.push(childNode);
       });
@@ -187,19 +188,13 @@ export function renderMdx(
         case 'a': {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue, Link);
             env = env2;
             childNodes.push(childNode);
           });
-          // TODO(jaked)
-          // passing via env is a hack to get Link bound to setSelected
-          // fix it somehow
-          const Link = env.get('Link') || bug(`expected 'Link'`);
-          const dir = Name.dirname(mdxName);
-          const to = ast.properties['href'];
-          const properties = { ...ast.properties, dir, to };
-          const node = Signal.join(Link, Signal.join(...childNodes)).map(([ Link, childNodes ]) =>
-            React.createElement(Link, properties, ...childNodes)
+
+          const node = Signal.join(...childNodes).map(childNodes =>
+            React.createElement(Link, { href: ast.properties['href'] }, ...childNodes)
           );
           return [env, node];
         }
@@ -207,7 +202,7 @@ export function renderMdx(
         default: {
           const childNodes: Array<Signal<React.ReactNode>> = [];
           ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue);
+            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue, Link);
             env = env2;
             childNodes.push(childNode);
           });

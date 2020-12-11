@@ -11,6 +11,7 @@ import * as PMAST from '../../PMAST';
 import * as ESTree from '../../lang/ESTree';
 import * as PMEditor from '../../editor/PMEditor';
 import * as Highlight from '../../lang/highlight';
+import makeLink from '../../components/makeLink';
 
 const okComponents =
 {
@@ -59,18 +60,25 @@ const Code = styled.code`
   padding: 5px;
 `;
 
-export const renderElement = ({ element, attributes, children }: RenderElementProps) => {
-  const pmElement = element as PMAST.Element;
-  if (pmElement.type === 'a') {
-    return React.createElement('a', { ...attributes, href: pmElement.href }, children);
-  } else if (pmElement.type === 'code') {
-    return <Pre {...attributes}>
-      <code>{children}</code>
-    </Pre>
-  } else if (pmElement.type === 'inlineCode') {
-    return <Code {...attributes}>{children}</Code>
-  } else {
-    return React.createElement(pmElement.type, attributes, children);
+function makeRenderElement(
+  moduleName: string,
+  setSelected: (note: string) => void,
+) {
+  const Link = makeLink(moduleName, setSelected);
+
+  return ({ element, attributes, children }: RenderElementProps) => {
+    const pmElement = element as PMAST.Element;
+    if (pmElement.type === 'a') {
+      return React.createElement(Link, { ...attributes, href: pmElement.href }, children);
+    } else if (pmElement.type === 'code') {
+      return <Pre {...attributes}>
+        <code>{children}</code>
+      </Pre>
+    } else if (pmElement.type === 'inlineCode') {
+      return <Code {...attributes}>{children}</Code>
+    } else {
+      return React.createElement(pmElement.type, attributes, children);
+    }
   }
 }
 
@@ -213,6 +221,7 @@ export const makeOnKeyDown = (editor: Editor) =>
 export type RichTextEditorProps = {
   value: PMAST.Node[];
   setValue: (nodes: PMAST.Node[]) => void;
+  moduleName: string;
   compiledFile: data.CompiledFile;
 
   setStatus: (status: string | undefined) => void;
@@ -230,17 +239,25 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [astAnnotations],
   );
 
-  const renderLeaf = React.useMemo(() => makeRenderLeaf(props.setStatus, props.setSelected), [
-    props.setStatus,
-    props.setSelected,
+  const renderLeaf = React.useMemo(
+    () => makeRenderLeaf(props.setStatus, props.setSelected),
+    [
+      props.setStatus,
+      props.setSelected,
 
-    // work around Slate bug where decorations are not considered in memoizing Text
-    // https://github.com/ianstormtaylor/slate/issues/3447
-    // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
-    // avoiding typechecking when code hasn't changed helps
-    // but we still rerender all leaves on every code edit
-    decorate,
-  ]);
+      // work around Slate bug where decorations are not considered in memoizing Text
+      // https://github.com/ianstormtaylor/slate/issues/3447
+      // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
+      // avoiding typechecking when code hasn't changed helps
+      // but we still rerender all leaves on every code edit
+      decorate,
+    ]
+  );
+
+  const renderElement = React.useMemo(
+    () => makeRenderElement(props.moduleName, props.setSelected),
+    [props.moduleName, props.setSelected]
+  );
 
   return (
     <Slate

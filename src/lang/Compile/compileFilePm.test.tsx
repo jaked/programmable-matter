@@ -8,20 +8,23 @@ import Type from '../Type';
 import compileFilePm from './compileFilePm';
 
 // TODO(jaked)
-// we might want to test styles; find a better way to handle this
-function stripStyles(node: any) {
+// we should test styles / handlers; find a better way to deal with this
+const stripProps = ['className', 'onClick', 'style'];
+function stripRendered(node: any) {
   if (!node || typeof node !== 'object') return;
   if (Array.isArray(node)) {
-    node.forEach(stripStyles);
+    node.forEach(stripRendered);
   }
   if ('props' in node) {
     const props = node.props;
-    if ('style' in props) {
-      delete props.style;
-    }
+    stripProps.forEach(prop => {
+      if (prop in props) {
+        delete props[prop];
+      }
+    });
   }
   if ('children' in node) {
-    node.children.forEach(stripStyles);
+    node.children.forEach(stripRendered);
   }
 }
 
@@ -30,7 +33,7 @@ function expectRenderEqual(
   b: React.ReactElement,
 ) {
   const aRendered = TestRenderer.create(a as React.ReactElement).toJSON();
-  stripStyles(aRendered);
+  stripRendered(aRendered);
   const bRendered = TestRenderer.create(b).toJSON();
   expect(aRendered).toEqual(bRendered);
 }
@@ -303,8 +306,6 @@ it('compiles referencing data / table', () => {
 });
 
 it('compiles with layout', () => {
-  // console.error = jest.fn(); // suppress React warning about key props
-
   const compiled = compileFilePm(
     {
       type: 'pm',

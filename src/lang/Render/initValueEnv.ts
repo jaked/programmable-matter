@@ -1,9 +1,4 @@
-import { remote } from 'electron';
-import * as Url from 'url';
-
 import * as Immutable from 'immutable';
-
-import * as React from 'react';
 
 import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
@@ -17,36 +12,8 @@ import { InlineMath, BlockMath } from 'react-katex';
 
 import HighlightedCode from '../HighlightedCode';
 
-import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import { Env } from './index';
-
-function Link(
-  setSelected: (note: string) => void,
-) {
-  return function ({ dir, to, children }: { dir: string, to: string, children: React.ReactNodeArray }) {
-    // TODO(jaked) validate URL
-    const url = Url.parse(to);
-    if (url.protocol && url.slashes && url.hostname) {
-      const onClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        remote.shell.openExternal(to);
-      }
-      return React.createElement('a', { href: to, onClick }, children);
-    } else {
-      const onClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        setSelected(Name.resolve(dir, to));
-      }
-      // this href is used when note is rendered statically
-      // TODO(jaked)
-      // handle path components properly
-      // handle mounting note tree somewhere other than / ?
-      const href = `/${encodeURIComponent(to)}`;
-      return React.createElement('a', { href: href, onClick }, children);
-    }
-  }
-}
 
 export function initValueEnv(
   setSelected: (note: string) => void,
@@ -78,7 +45,6 @@ export function initValueEnv(
     title: 'title',
     ul: 'ul',
 
-    Link: Link(setSelected),
     Inspector: Inspector,
     Tweet: TwitterTweetEmbed,
     YouTube: YouTube,

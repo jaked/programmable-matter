@@ -11,6 +11,7 @@ import Typecheck from '../Typecheck';
 import sortMdx from './sortMdx';
 import { Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
 
+import makeLink from '../../components/makeLink';
 import metaForPath from './metaForPath';
 
 const debug = false;
@@ -182,6 +183,7 @@ export default function compileFileMdx(
   ).map(([ast, typecheck, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass in these envs from above?
     let valueEnv = Render.initValueEnv(setSelected);
+    const Link = makeLink(moduleName, setSelected);
 
     if (jsonValue) valueEnv = valueEnv.set('data', Signal.ok(jsonValue));
     if (tableValue) valueEnv = valueEnv.set('table', Signal.ok(tableValue));
@@ -189,7 +191,7 @@ export default function compileFileMdx(
     // TODO(jaked) clean up mess with errors
     try {
       const exportValue: { [s: string]: Signal<any> } = {};
-      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, moduleName, moduleValueEnv, valueEnv, exportValue);
+      const [_, rendered] = Render.renderMdx(ast, typecheck.astAnnotations, moduleName, moduleValueEnv, valueEnv, exportValue, Link);
 
       return { exportValue, rendered };
     } catch (e) {
