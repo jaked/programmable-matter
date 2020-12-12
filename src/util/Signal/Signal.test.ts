@@ -346,25 +346,27 @@ describe('joinImmutableMap', () => {
 });
 
 describe('mapImmutableMap', () => {
-  let calls = 0;
-  function f(x: number) { calls++; return x + 1; }
-  const map = Signal.cellOk(Immutable.Map({ a: 7, b: 9 }));
-  const fmap = Signal.mapImmutableMap(map, f);
+  it('maps', () => {
+    let calls = 0;
+    function f(x: number) { calls++; return x + 1; }
+    const map = Signal.cellOk(Immutable.Map({ a: 7, b: 9 }));
+    const fmap = Signal.mapImmutableMap(map, f);
 
-  expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 10 }));
-  expect(calls).toBe(2);
+    expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 10 }));
+    expect(calls).toBe(2);
 
-  map.setOk(map.get().set('b', 10));
-  expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 11 }));
-  expect(calls).toBe(3);
+    map.setOk(map.get().set('b', 10));
+    expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 11 }));
+    expect(calls).toBe(3);
 
-  map.setOk(map.get().set('c', 13));
-  expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 11, c: 14 }));
-  expect(calls).toBe(4);
+    map.setOk(map.get().set('c', 13));
+    expect(fmap.get()).toEqual(Immutable.Map({ a: 8, b: 11, c: 14 }));
+    expect(calls).toBe(4);
 
-  map.setOk(map.get().delete('a'));
-  expect(fmap.get()).toEqual(Immutable.Map({ b: 11, c: 14 }));
-  expect(calls).toBe(4);
+    map.setOk(map.get().delete('a'));
+    expect(fmap.get()).toEqual(Immutable.Map({ b: 11, c: 14 }));
+    expect(calls).toBe(4);
+  });
 });
 
 describe('ref', () => {

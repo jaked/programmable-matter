@@ -673,19 +673,18 @@ module Signal {
     input: Signal<Immutable.Map<K, V>>,
     f: (v: V, k: K, coll: Immutable.Map<K, V>) => U
   ): Signal<Immutable.Map<K, U>> {
-    let prevInput: Immutable.Map<K, V> = Immutable.Map();
-    let prevOutput: Immutable.Map<K, U> = Immutable.Map();
-    return input.map(input => {
-      const output = prevOutput.withMutations(output => {
-        const { added, changed, deleted } = diffMap(prevInput, input);
-        deleted.forEach(key => { output = output.delete(key) });
-        changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr, key, input)) });
-        added.forEach((v, key) => { output = output.set(key, f(v, key, input)) });
-      });
-      prevInput = input;
-      prevOutput = output;
-      return output;
-    })
+    return mapWithPrev<Immutable.Map<K, V>, Immutable.Map<K, U>>(
+      input,
+      (input, prevInput, prevOutput) =>
+        prevOutput.withMutations(output => {
+          const { added, changed, deleted } = diffMap(prevInput, input);
+          deleted.forEach(key => { output = output.delete(key) });
+          changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr, key, input)) });
+          added.forEach((v, key) => { output = output.set(key, f(v, key, input)) });
+        }),
+      Immutable.Map(),
+      Immutable.Map(),
+    )
   }
 
   export function label<T>(label: string, s: Signal<T>): Signal<T> {
