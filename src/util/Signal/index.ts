@@ -1,5 +1,6 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import Try from '../Try';
 import { diffMap } from '../immutable/Map';
 import { bug } from '../bug';
@@ -167,7 +168,9 @@ class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
     if (!force && equal(t, this.value)) return;
     this.value = t;
     this.version++;
-    this.dirty();
+    ReactDOM.unstable_batchedUpdates(() => {
+      this.dirty();
+    });
     if (this.onChange) this.onChange();
   }
   setOk(t: T, force?: boolean) { this.set(Try.ok(t), force); }
