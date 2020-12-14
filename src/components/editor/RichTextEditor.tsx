@@ -229,7 +229,27 @@ export type RichTextEditorProps = {
 }
 
 const RichTextEditor = (props: RichTextEditorProps) => {
-  const editor = React.useMemo(() => withReact(PMEditor.withPMEditor(createEditor())), [props.moduleName]);
+  const editor = React.useMemo(() => {
+    const editor = withReact(PMEditor.withPMEditor(createEditor()));
+
+    // the default react-slate insertData splits inserted text into lines
+    // and wraps the enclosing element around each line.
+    // we don't always want that behavior, so override it
+    // and pass multiline text directly to insertText.
+    const { insertData } = editor;
+    editor.insertData = (data: DataTransfer) => {
+      if (data.getData('application/x-slate-fragment')) {
+        insertData(data);
+      } else {
+        const text = data.getData('text/plain');
+        if (text) {
+          editor.insertText(text);
+        }
+      }
+    };
+    return editor;
+  }, [props.moduleName]);
+
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   const parsedCode = Signal.useSignal(props.compiledFile.ast) as WeakMap<Node, unknown>;
   // TODO(jaked) can we use astAnnotations conditionally? breaks the rules of hooks but does it matter?
