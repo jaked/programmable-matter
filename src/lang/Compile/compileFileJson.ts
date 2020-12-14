@@ -132,16 +132,15 @@ export default function compileFileJson(
         mutable: Signal.ok(lens)
       };
 
-      const rendered = Signal.constant(Try.apply(() => {
-        const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
-          label: name,
-          accessor: (o: object) => o[name],
-          component: fieldComponent(name, type)
-        }));
-
-        // TODO(json) handle arrays of records (with Table)
-        return React.createElement(Record, { object: lens, fields: fields.toArray() })
+      // TODO(jaked) error handling here
+      const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
+        label: name,
+        accessor: (o: object) => o[name],
+        component: fieldComponent(name, type)
       }));
+
+      // TODO(json) handle arrays of records (with Table)
+      const rendered = React.createElement(Record, { object: lens, fields: fields.toArray() })
 
       return {
         exportType,
