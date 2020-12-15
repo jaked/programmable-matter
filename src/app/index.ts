@@ -155,7 +155,7 @@ export class App {
     this.mainPaneViewCell.setOk(view);
   }
 
-  public editorViewCell = Signal.cellOk<'pm' | 'mdx' | 'json' | 'table' | 'meta'>('mdx');
+  public editorViewCell = Signal.cellOk<'pm' | 'mdx' | 'json' | 'table' | 'meta'>('pm');
   public setEditorView = (view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => {
     this.editorViewCell.setOk(view);
   }

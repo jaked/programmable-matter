@@ -30,7 +30,7 @@ it('updates fs, calls callback', () => {
   })
 
   expect(newNote('foo')).toBe('/foo');
-  expect(fsUpdateCall && fsUpdateCall.fn).toBe('/foo.mdx');
+  expect(fsUpdateCall && fsUpdateCall.fn).toBe('/foo.pm');
   expect(callbackCall).toBe('/foo');
 });
 

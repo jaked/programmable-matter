@@ -25,7 +25,7 @@ export default (args: {
           }
         }
       }
-      args.fsUpdate(`${name}.mdx`, Buffer.from('', 'utf8'));
+      args.fsUpdate(`${name}.pm`, Buffer.from(`[{type:'p',children:[{text:''}]}]`, 'utf8'));
       args.callback(name);
       return name;
     }
