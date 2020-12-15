@@ -68,7 +68,13 @@ export class App {
 
     ipc.on('focus', () => this.filesystem.start());
     ipc.on('blur', () => this.filesystem.stop());
+
+    document.onmousemove = (e: MouseEvent) => {
+      this.mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });
+    }
   }
+
+  public mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
 
   public editNameCell = Signal.cellOk<string | undefined>(undefined);
   public setEditName = (editName: string | undefined) => this.editNameCell.setOk(editName)
@@ -137,11 +143,6 @@ export class App {
   public focusDirCell = Signal.cellOk<string | null>(null);
   public setFocusDir = (focus: string | null) => {
     this.focusDirCell.setOk(focus);
-  }
-
-  public statusCell = Signal.cellOk<string | undefined>(undefined);
-  public setStatus = (status: string | undefined) => {
-    this.statusCell.setOk(status);
   }
 
   public sideBarVisibleCell = Signal.cellOk<boolean>(true);

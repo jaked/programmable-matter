@@ -17,7 +17,6 @@ interface Props {
   session: Session;
 
   onChange: (content: string, session: Session) => void;
-  setStatus: (status: string | undefined) => void;
   setSelected: (name: string) => void;
 }
 
@@ -87,15 +86,6 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
     }
   }
 
-  const onMouseEvent = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
-    const span = findHighlightSpan(e);
-    if (span) {
-      props.setStatus(span.dataset.status);
-    } else {
-      props.setStatus(undefined);
-    }
-  }
-
   const onClick = (e: React.MouseEvent<HTMLTextAreaElement, MouseEvent>) => {
     const span = findHighlightSpan(e);
     if (span && span.dataset.link) {
@@ -129,8 +119,6 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
         session={props.session}
         onChange={props.onChange}
         highlight={<Signal.node signal={highlighted}/>}
-        onMouseOver={onMouseEvent}
-        onMouseMove={onMouseEvent}
         onClick={onClick}
       />
     </div>

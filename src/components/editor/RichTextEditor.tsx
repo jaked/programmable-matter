@@ -83,10 +83,8 @@ function makeRenderElement(
 }
 
 export const makeRenderLeaf = (
-  setStatus: (status: string | undefined) => void = () => { },
   setSelected: (name: string) => void = () => { },
 ) => {
-  const onMouseLeave = () => { setStatus(undefined) };
 
   return ({ leaf, attributes, children } : RenderLeafProps) => {
     const text = leaf as PMAST.Text;
@@ -98,10 +96,9 @@ export const makeRenderLeaf = (
       }
 
       if (text.status) {
-        const onMouseEnter = () => { setStatus(text.status) };
         return React.createElement(
           errComponents[text.highlight] as any,
-          { ...attributes, onClick, onMouseEnter, onMouseLeave },
+          { ...attributes, 'data-status': text.status, onClick },
           children
         );
       } else {
@@ -224,7 +221,6 @@ export type RichTextEditorProps = {
   moduleName: string;
   compiledFile: data.CompiledFile;
 
-  setStatus: (status: string | undefined) => void;
   setSelected: (name: string) => void;
 }
 
@@ -260,9 +256,8 @@ const RichTextEditor = (props: RichTextEditorProps) => {
   );
 
   const renderLeaf = React.useMemo(
-    () => makeRenderLeaf(props.setStatus, props.setSelected),
+    () => makeRenderLeaf(props.setSelected),
     [
-      props.setStatus,
       props.setSelected,
 
       // work around Slate bug where decorations are not considered in memoizing Text

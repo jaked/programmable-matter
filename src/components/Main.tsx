@@ -30,25 +30,12 @@ const Box = styled(BoxBase)({
 const Flex = styled(FlexBase)({
 }, borders);
 
-type EditorPaneProps = {
-  moduleName: Signal<string | null>;
-  selectedFile: Signal<data.WritableContent | null>;
-  compiledFile: Signal<data.CompiledFile | null>;
-  editorView: Signal<'meta' | 'pm' | 'mdx' | 'json' | 'table'>;
-  session: Signal<Session>;
-  status: Signal<string | undefined>;
-  setSession: Signal<(session: Session) => void>;
-  setStatus: (status: string | undefined) => void;
-  setSelected: (selected: string | null) => void;
-}
-
 type CodeEditorProps = {
   content: Signal.Writable<string>;
   compiledFile: data.CompiledFile;
   editorView: 'meta' | 'pm' | 'mdx' | 'json' | 'table';
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
-  setStatus: (status: string | undefined) => void;
   setSelected: (selected: string | null) => void;
 }
 
@@ -69,7 +56,6 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
       compiledFile={Signal.ok(props.compiledFile)}
       session={session}
       onChange={onChange}
-      setStatus={props.setStatus}
       setSelected={props.setSelected}
     />
   );
@@ -79,7 +65,6 @@ type RichEditorProps = {
   content: Signal.Writable<PMAST.Node[]>;
   moduleName: string;
   compiledFile: data.CompiledFile;
-  setStatus: (status: string | undefined) => void;
   setSelected: (selected: string | null) => void;
 }
 
@@ -95,11 +80,52 @@ const RichEditor = React.memo<RichEditorProps>(props => {
       setValue={setValue}
       moduleName={props.moduleName}
       compiledFile={props.compiledFile}
-      setStatus={props.setStatus}
       setSelected={props.setSelected}
     />
   );
 });
+
+type StatusProps = {
+  astAnnotations: Signal<data.AstAnnotations | undefined>;
+  mouse: Signal<{ clientX: number, clientY: number }>;
+}
+
+const Status = (props: StatusProps) => {
+  const _astAnnotations = Signal.useSignal(props.astAnnotations);
+  const mouse = Signal.useSignal(props.mouse);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (ref.current) {
+      // we need to run this in an effect after the doc is rendered
+      // since it relies on the rendered DOM
+      const elem = document.elementFromPoint(mouse.clientX, mouse.clientY);
+
+      let status: string | undefined = undefined;
+      if (elem) {
+        // Slate wraps an extra span around the text
+        // so the element with the status field is its parent
+        const parent = elem.parentElement;
+        if (parent) {
+          status = (parent as HTMLElement).dataset.status;
+        }
+      }
+
+      ref.current.textContent = status ?? null;
+    }
+  });
+  return <div ref={ref} style={{ backgroundColor: '#ffc0c0' }}></div>
+}
+
+type EditorPaneProps = {
+  moduleName: Signal<string | null>;
+  selectedFile: Signal<data.WritableContent | null>;
+  compiledFile: Signal<data.CompiledFile | null>;
+  editorView: Signal<'meta' | 'pm' | 'mdx' | 'json' | 'table'>;
+  session: Signal<Session>;
+  setSession: Signal<(session: Session) => void>;
+  mouse: Signal<{ clientX: number, clientY: number }>;
+  setSelected: (selected: string | null) => void;
+}
 
 const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) => {
   // TODO(jaked) use Signal.join here? not sure about lifetime
@@ -107,7 +133,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   const moduleName = Signal.useSignal(props.moduleName);
   const compiledFile = Signal.useSignal(props.compiledFile);
   const editorView = Signal.useSignal(props.editorView);
-  const status = Signal.useSignal(props.status);
 
   return (
     <Flex flex={1} minWidth={0} flexDirection='column' >
@@ -119,7 +144,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
             content={selectedFile.content as Signal.Writable<PMAST.Node[]>}
             moduleName={moduleName}
             compiledFile={compiledFile}
-            setStatus={props.setStatus}
             setSelected={props.setSelected}
           /> :
           <CodeEditor
@@ -129,11 +153,13 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
             compiledFile={compiledFile}
             session={props.session}
             setSession={props.setSession}
-            setStatus={props.setStatus}
             setSelected={props.setSelected}
           />
       }</Box>
-      <div style={{ backgroundColor: '#ffc0c0' }}>{status}</div>
+      { compiledFile ?
+        <Status astAnnotations={compiledFile.astAnnotations ?? Signal.ok(undefined)} mouse={props.mouse} /> :
+        null
+      }
     </Flex>
   );
 }));
@@ -233,9 +259,8 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
                 compiledFile={props.app.compiledFileSignal}
                 editorView={props.app.editorViewCell}
                 session={props.app.sessionSignal}
-                status={props.app.statusCell}
+                mouse={props.app.mouseSignal}
                 setSession={props.app.setSessionSignal}
-                setStatus={props.app.setStatus}
                 setSelected={props.app.setSelected}
               />
             </Catch>
