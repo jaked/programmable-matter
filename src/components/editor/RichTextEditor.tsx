@@ -274,8 +274,12 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [props.moduleName, props.setSelected]
   );
 
+  // key={props.moduleName} forces a remount when editor changes
+  // to work around a slate-react bug
+  // see https://github.com/ianstormtaylor/slate/issues/3886
   return (
     <Slate
+      key={props.moduleName}
       editor={editor}
       value={props.value}
       onChange={props.setValue as (nodes: Node[]) => void}
