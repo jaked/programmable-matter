@@ -151,6 +151,40 @@ describe('urls', () => {
     ])
   });
 
+  it(`doesn't insert link on trailing space if already linked`, () => {
+    const editor = <editor>
+      <p>
+        <a href='https://foo.bar'>https://foo.bar</a><cursor />
+      </p>
+    </editor> as unknown as Editor;
+    editor.isInline = isInline(editor);
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <p>
+        <stext></stext>
+        <a href='https://foo.bar'>https://foo.bar</a>
+        <stext> </stext>
+      </p>
+    ])
+  });
+
+  it(`doesn't insert link on trailing space inside link`, () => {
+    const editor = <editor>
+      <p>
+        <a href='https://foo.bar'>https://foo.bar<cursor /></a>
+      </p>
+    </editor> as unknown as Editor;
+    editor.isInline = isInline(editor);
+    insertText(editor)(' ');
+    expect(editor.children).toEqual([
+      <p>
+        <stext></stext>
+        <a href='https://foo.bar'>https://foo.bar </a>
+        <stext></stext>
+      </p>
+    ])
+  });
+
   it('inserts link on [[ / ]]', () => {
     const editor = <editor>
       <p>[[/foo]]<cursor /></p>

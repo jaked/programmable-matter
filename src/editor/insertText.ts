@@ -173,16 +173,19 @@ export const insertText = (editor: Editor) => {
         return insertText(text);
       }
 
-      const matchUrl = matchStringBefore(editor, range, isUrl);
-      if (matchUrl) {
-        const { match: url, at } = matchUrl;
-        Transforms.wrapNodes(
-          editor,
-          { type: 'a', href: url, children: [] },
-          { at, split: true }
-        );
-        return insertText(text);
+      if (node.type !== 'a') {
+        const matchUrl = matchStringBefore(editor, range, isUrl, true);
+        if (matchUrl) {
+          const { match: url, at } = matchUrl;
+          Transforms.wrapNodes(
+            editor,
+            { type: 'a', href: url, children: [] },
+            { at, split: true }
+          );
+        }
       }
+
+      return insertText(text);
     }
 
     insertText(text);
