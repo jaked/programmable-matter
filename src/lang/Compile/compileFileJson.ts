@@ -55,7 +55,7 @@ function fieldComponent(field: string, type: Type) {
     case 'Union':
       // TODO(jaked) support non-required select if `undefined` in union
       if (type.types.some(type => type.kind !== 'Singleton' || type.base.kind !== 'string'))
-        bug(`unhandled type ${type.kind} in fieldComponent`);
+        bug(`unhandled type ${Type.toString(type)} in fieldComponent`);
       return ({ lens }) =>
         React.createElement(
           'select',
@@ -66,13 +66,13 @@ function fieldComponent(field: string, type: Type) {
           },
           ...type.types.map(type => {
             if (type.kind !== 'Singleton' || type.base.kind !== 'string')
-              bug(`unhandled type ${type.kind} in fieldComponent`);
+              bug(`unhandled type ${Type.toString(type)} in fieldComponent`);
             return React.createElement('option', { value: type.value }, type.value);
           })
         );
 
     default:
-      bug(`unhandled type ${type.kind} in fieldComponent`);
+      bug(`unhandled type ${Type.toString(type)} in fieldComponent`);
   }
 }
 
@@ -105,7 +105,7 @@ export default function compileFileJson(
         default: Signal.ok(type.err),
         mutable: Signal.ok(type.err),
       };
-      const rendered = null;
+      const rendered = Signal.ok(null);
       return {
         exportType,
         exportValue,
@@ -132,15 +132,17 @@ export default function compileFileJson(
         mutable: Signal.ok(lens)
       };
 
-      // TODO(jaked) error handling here
-      const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
-        label: name,
-        accessor: (o: object) => o[name],
-        component: fieldComponent(name, type)
-      }));
+      const rendered = Signal.constant(Try.apply(() => {
+        // TODO(jaked) error handling here
+        const fields = typeObject.fields.map(({ _1: name, _2: type }) => ({
+          label: name,
+          accessor: (o: object) => o[name],
+          component: fieldComponent(name, type)
+        }));
 
-      // TODO(json) handle arrays of records (with Table)
-      const rendered = React.createElement(Record, { object: lens, fields: fields.toArray() })
+        // TODO(json) handle arrays of records (with Table)
+        return React.createElement(Record, { object: lens, fields: fields.toArray() });
+      }));
 
       return {
         exportType,
@@ -160,6 +162,6 @@ export default function compileFileJson(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
-    rendered: compiled.map(({ rendered }) => rendered),
+    rendered: compiled.flatMap(({ rendered }) => rendered),
   };
 }
