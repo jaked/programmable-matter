@@ -70,6 +70,7 @@ type RichEditorProps = {
 
 const RichEditor = React.memo<RichEditorProps>(props => {
   const nodes = Signal.useSignal(props.content);
+  PMAST.validateNodes(nodes);
   const setValue = (nodes: PMAST.Node[]) => {
     props.content.setOk(nodes);
   }

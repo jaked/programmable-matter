@@ -18,13 +18,13 @@ export type Text = {
   link?: string,
 }
 
-// TODO(jaked) figure out how to compute this from `Text` fields
 export type mark = 'bold' | 'italic' | 'underline' | 'code';
 
 export type type =
   'p' |
   'h1' | 'h2' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' |
   'ul' | 'ol' | 'li' |
+  'code' | 'inlineCode' |
   'a';
 
 export type Paragraph = {
@@ -38,7 +38,12 @@ export type Header = {
 }
 
 export type List = {
-  type: 'ul' | 'ol' | 'li',
+  type: 'ul' | 'ol',
+  children: Node[],
+}
+
+export type ListItem = {
+  type: 'li',
   children: Node[],
 }
 
@@ -61,10 +66,7 @@ export type InlineCode = {
 export type Block = Paragraph | Header | List | Code;
 export type Inline = Link | InlineCode;
 
-// TODO(jaked)
-// should this type encode more validation of tree?
-// e.g. prohibition on headers appearing in lists
-export type Element = Block | Inline;
+export type Element = Block | Inline | ListItem;
 export type Node = Text | Element;
 
 export function parse(pm: string): Node[] {
@@ -78,23 +80,19 @@ export function stringify(nodes: Node[]): string {
 }
 
 export function isText(node: Node): node is Text {
-  return node && 'text' in node;
+  return 'text' in node;
 }
 
 export function isElement(node: Node): node is Element {
-  return node && 'type' in node;
+  return 'type' in node;
 }
 
-export function isCode(node: Node): node is Code {
-  return isElement(node) && node.type === 'code';
+export function isParagraph(node: Node): node is Paragraph {
+  return isElement(node) && node.type === 'p';
 }
 
-export function isInlineCode(node: Node): node is InlineCode {
-  return isElement(node) && node.type === 'inlineCode';
-}
-
-export function isHeader(node: Node): boolean {
-  if (node && `type` in node) {
+export function isHeader(node: Node): node is Header {
+  if (isElement(node)) {
     switch (node.type) {
       case 'h1':
       case 'h2':
@@ -108,4 +106,108 @@ export function isHeader(node: Node): boolean {
     }
   }
   return false;
+}
+
+export function isList(node: Node): node is List {
+  return isElement(node) && (node.type === 'ol' || node.type === 'ul');
+}
+
+export function isListItem(node: Node): node is ListItem {
+  return isElement(node) && node.type === 'li';
+}
+
+export function isCode(node: Node): node is Code {
+  return isElement(node) && node.type === 'code';
+}
+
+export function isInlineCode(node: Node): node is InlineCode {
+  return isElement(node) && node.type === 'inlineCode';
+}
+
+export function isLink(node: Node): node is Link {
+  return isElement(node) && node.type === 'a';
+}
+
+function invalid(msg: string): never {
+  throw new Error(msg);
+}
+
+function validateLink(link: Link) {
+  if (link.children.length === 0)
+    invalid(`expected > 0 children`);
+  link.children.forEach(node => {
+    if (!isText(node))
+      invalid('expected a > text');
+  });
+}
+
+function validateInlineCode(code: InlineCode) {
+  if (code.children.length !== 1)
+    invalid(`expected 1 child`);
+  code.children.forEach(node => {
+    if (!isText(node))
+      invalid('expected code > text');
+  });
+}
+
+function validateParagraph(p: Paragraph) {
+  p.children.forEach(node => {
+    if (isText(node)) {} // ok
+    else if (isLink(node)) validateLink(node);
+    else if (isInlineCode(node)) validateInlineCode(node);
+    else
+      invalid('expected p > (text | a | inlineCode)+');
+  });
+}
+
+function validateHeader(h: Header) {
+  h.children.forEach(node => {
+    if (!isText(node))
+      invalid(`expected ${h.type} > text`);
+  });
+}
+
+function validateListItem(item: ListItem) {
+  if (item.children.length === 0)
+    invalid(`expected > 0 children`);
+  item.children.forEach(node => {
+    if (isParagraph(node)) validateParagraph(node);
+    else if (isList(node)) validateList(node);
+    else
+      invalid(`expected li > p (p | ul | ol)*`);
+  });
+  if (!isParagraph(item.children[0]))
+    invalid(`expected li > p (p | ul | ol)*`)
+}
+
+function validateList(list: List) {
+  list.children.forEach(node => {
+    if (!isListItem(node))
+      invalid(`expected ${list.type} > li`);
+    validateListItem(node);
+  });
+}
+
+function validateCode(code: Code) {
+  if (code.children.length !== 1)
+    invalid(`expected 1 child`);
+  code.children.forEach(node => {
+    if (!isText(node))
+      invalid('expected code > text');
+  });
+}
+
+function validateBlock(node: Node) {
+  if (isParagraph(node)) validateParagraph(node);
+  else if (isHeader(node)) validateHeader(node);
+  else if (isList(node)) validateList(node);
+  else if (isCode(node)) validateCode(node);
+  else if (isElement(node))
+    invalid(`expected block, got ${node.type}`);
+  else if (isText(node))
+    invalid('expected block, got text');
+}
+
+export function validateNodes(nodes: Node[]) {
+  nodes.forEach(validateBlock);
 }
