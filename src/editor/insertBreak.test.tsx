@@ -4,7 +4,47 @@ import { jsx } from '../util/slate-hyperscript-jsx';
 import { insertBreak } from './insertBreak';
 
 describe('in list item', () => {
-  it('splits item', () => {
+  it('inserts new item when cursor at start of item', () => {
+    const editor = <editor>
+      <ul>
+        <li><p><cursor/>foo</p></li>
+      </ul>
+    </editor> as unknown as Editor;
+    insertBreak(editor)();
+    expect(editor.children).toEqual([
+      <ul>
+        <li><p><stext /></p></li>
+        <li><p>foo</p></li>
+      </ul>
+    ]);
+  });
+
+  it('inserts new item when cursor at start of item, leaves nested list alone', () => {
+    const editor = <editor>
+      <ul>
+        <li>
+          <p><cursor/>foo</p>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor> as unknown as Editor;
+    insertBreak(editor)();
+    expect(editor.children).toEqual([
+      <ul>
+        <li><p><stext /></p></li>
+        <li>
+          <p>foo</p>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    ]);
+  });
+
+  it('splits item when cursor in middle of item', () => {
     const editor = <editor>
       <ul>
         <li><p>foo<cursor/>bar</p></li>

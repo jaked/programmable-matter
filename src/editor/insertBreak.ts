@@ -29,12 +29,24 @@ export const insertBreak = (editor: Editor) => {
       if (blockIsEmpty(editor)) {
         dedent(editor);
       } else {
-        insertBreak();
-        const block = blockAbove(editor);
-        if (block) {
-          const [, path] = block;
-          Transforms.wrapNodes(editor, { type: 'li', children: [] }, { at: path });
+        // TODO(jaked)
+        // do we ever get `insertBreak` with selection unset or not collapsed?
+        const { selection } = editor;
+        if (selection) {
+          // we wrap / lift the first node after breaking
+          // to avoid messing up a trailing nested list
+          const ref = Editor.pointRef(editor, selection.anchor, { affinity: 'backward' });
+          // <li><p>...<ref/>...</p>...</li>
+          insertBreak();
+          // <li><p>...<ref/></p><p>...</p>...</li>
+          const block = blockAbove(editor, { at: ref.current! });
+          if (block) {
+            const [, path] = block;
+            Transforms.wrapNodes(editor, { type: 'li', children: [] }, { at: path });
+          // <li><li><p>...<ref/></p></li><p>...</p>...</li>
           Transforms.liftNodes(editor, { at: path });
+          // <li><p>...<ref/></p></li><li><p>...</p>...</li>
+        }
         }
       }
       return;

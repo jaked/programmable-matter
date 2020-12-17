@@ -1,8 +1,12 @@
-import { Editor, NodeEntry } from 'slate';
+import { Editor, Location, NodeEntry } from 'slate';
 import * as PMAST from '../PMAST';
 
-export const blockAbove = (editor: Editor) => {
+export const blockAbove = (
+  editor: Editor,
+  opts: { at?: Location } = {}
+) => {
   const blockEntry = Editor.above(editor, {
+    at: opts.at,
     match: node => Editor.isBlock(editor, node)
   });
   if (blockEntry) {
