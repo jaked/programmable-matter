@@ -7,6 +7,7 @@ declare global {
       anchor: any;
       focus: any;
       cursor: any;
+      fragment: any;
 
       // TODO(jaked)
       // we can't override the React `text` declaration

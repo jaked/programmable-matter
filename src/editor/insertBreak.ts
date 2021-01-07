@@ -43,10 +43,10 @@ export const insertBreak = (editor: Editor) => {
           if (block) {
             const [, path] = block;
             Transforms.wrapNodes(editor, { type: 'li', children: [] }, { at: path });
-          // <li><li><p>...<ref/></p></li><p>...</p>...</li>
-          Transforms.liftNodes(editor, { at: path });
-          // <li><p>...<ref/></p></li><li><p>...</p>...</li>
-        }
+            // <li><li><p>...<ref/></p></li><p>...</p>...</li>
+            Transforms.liftNodes(editor, { at: path });
+            // <li><p>...<ref/></p></li><li><p>...</p>...</li>
+          }
         }
       }
       return;
