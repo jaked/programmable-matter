@@ -1,7 +1,25 @@
 /** @jsx jsx */
 import { Editor } from 'slate';
 import { jsx } from '../util/slate-hyperscript-jsx';
+import { expectEditor } from './expectEditor';
 import { insertBreak } from './insertBreak';
+
+describe('in link', () => {
+  it('breaks outside of link', () => {
+    expectEditor(
+      <editor>
+        <p><a href="https://foo.bar/">link<cursor/></a></p>
+      </editor>,
+
+      editor => insertBreak(editor)(),
+
+      <editor>
+        <p><a href="https://foo.bar/">link</a></p>
+        <p><cursor/></p>
+      </editor>
+    );
+  })
+});
 
 describe('in list item', () => {
   it('inserts new item when cursor at start of item', () => {

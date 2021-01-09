@@ -1,4 +1,5 @@
 import { Editor, Element, Path } from 'slate';
+import { blockAbove } from './blockAbove';
 
 export const inListItem = (editor: Editor, options: { at?: Path } = {}): undefined | {
   itemNode: Element,
@@ -9,7 +10,7 @@ export const inListItem = (editor: Editor, options: { at?: Path } = {}): undefin
   const at =
     options.at ?
       Editor.node(editor, options.at) :
-      Editor.above(editor);
+      blockAbove(editor);
   if (at) {
     const [node, path] = at;
     const item = Editor.parent(editor, path);

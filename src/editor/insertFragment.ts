@@ -1,10 +1,19 @@
-import { Editor, Element, Node, Text, Transforms } from 'slate';
+import { Editor, Element, Node, Range, Text, Transforms } from 'slate';
 
 import { bug } from '../util/bug';
-import * as PMAST from '../PMAST';
 
 import { blockAbove } from './blockAbove';
 import { inListItem } from './inListItem';
+
+function insertNodes(editor: Editor, nodes: Node[] | Node) {
+  const { selection } = editor;
+  if (!selection) return;
+
+  // Transforms.insertNodes leaves the cursor after the first inserted node
+  const endRef = Editor.pointRef(editor, Range.end(selection));
+  Transforms.insertNodes(editor, nodes);
+  Transforms.select(editor, endRef.current!);
+}
 
 export const insertFragment = (editor: Editor) => {
   const { insertFragment } = editor;
@@ -22,9 +31,9 @@ export const insertFragment = (editor: Editor) => {
 
     // TODO(jaked) strip marks when pasting into code
     if (Text.isText(lowest)) {
-      return Transforms.insertNodes(editor, lowest);
+      return insertNodes(editor, lowest);
     } else if (lowest.type === 'p') {
-      return Transforms.insertNodes(editor, lowest.children);
+      return insertNodes(editor, lowest.children);
     }
 
     const inListItemResult = inListItem(editor);
@@ -33,7 +42,7 @@ export const insertFragment = (editor: Editor) => {
     } else {
       const [aboveNode, abovePath] = blockAbove(editor) ?? bug('expected block above');
       if (aboveNode.type === 'p') {
-        Transforms.insertNodes(editor, lowest.children);
+        insertNodes(editor, lowest.children);
       } else {
         bug(`unimplemented`);
       }
