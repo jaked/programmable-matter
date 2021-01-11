@@ -68,7 +68,7 @@ type RichEditorProps = {
   setSelected: (selected: string | null) => void;
 }
 
-const RichEditor = React.memo<RichEditorProps>(props => {
+const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>((props, ref) => {
   const nodes = Signal.useSignal(props.content);
   PMAST.validateNodes(nodes);
   const setValue = (nodes: PMAST.Node[]) => {
@@ -77,6 +77,7 @@ const RichEditor = React.memo<RichEditorProps>(props => {
 
   return (
     <RichTextEditor
+      ref={ref}
       value={nodes}
       setValue={setValue}
       moduleName={props.moduleName}
@@ -84,7 +85,7 @@ const RichEditor = React.memo<RichEditorProps>(props => {
       setSelected={props.setSelected}
     />
   );
-});
+}));
 
 type StatusProps = {
   astAnnotations: Signal<data.AstAnnotations | undefined>;
@@ -128,12 +129,29 @@ type EditorPaneProps = {
   setSelected: (selected: string | null) => void;
 }
 
+type EditorPane = {
+  focus: () => void
+}
+
 const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, ref) => {
   // TODO(jaked) use Signal.join here? not sure about lifetime
   const selectedFile = Signal.useSignal(props.selectedFile);
   const moduleName = Signal.useSignal(props.moduleName);
   const compiledFile = Signal.useSignal(props.compiledFile);
   const editorView = Signal.useSignal(props.editorView);
+  const richEditorRef = React.useRef<RichTextEditor>(null);
+  const codeEditorRef = React.useRef<Editor>(null);
+
+  React.useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (richEditorRef.current) {
+        richEditorRef.current.focus();
+      }
+      if (codeEditorRef.current) {
+        codeEditorRef.current.focus();
+      }
+    }
+  }));
 
   return (
     <Flex flex={1} minWidth={0} flexDirection='column' >
@@ -142,13 +160,14 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <Box padding={1}>no note</Box> :
         editorView === 'pm' ?
           <RichEditor
+            ref={richEditorRef}
             content={selectedFile.content as Signal.Writable<PMAST.Node[]>}
             moduleName={moduleName}
             compiledFile={compiledFile}
             setSelected={props.setSelected}
           /> :
           <CodeEditor
-            ref={ref}
+            ref={codeEditorRef}
             editorView={editorView}
             content={selectedFile.content as Signal.Writable<string>}
             compiledFile={compiledFile}
@@ -194,7 +213,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
   const mainPaneView = Signal.useSignal(props.app.mainPaneViewCell);
 
   const sidebarRef = React.useRef<Sidebar>(null);
-  const editorRef = React.useRef<Editor>(null);
+  const editorRef = React.useRef<EditorPane>(null);
 
   // TODO(jaked) necessary to avoid spurious rerenders until Main is memoized
   const focusEditor = React.useCallback(() => {

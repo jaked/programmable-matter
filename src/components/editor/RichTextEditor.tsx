@@ -1,6 +1,6 @@
 import React from 'react';
 import { createEditor, Editor, Node, Path, Point } from 'slate';
-import { withReact, Editable, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
+import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
 
@@ -224,7 +224,11 @@ export type RichTextEditorProps = {
   setSelected: (name: string) => void;
 }
 
-const RichTextEditor = (props: RichTextEditorProps) => {
+type RichTextEditor = {
+  focus: () => void
+}
+
+const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((props, ref) => {
   const editor = React.useMemo(() => {
     const editor = withReact(PMEditor.withPMEditor(createEditor()));
 
@@ -245,6 +249,12 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     };
     return editor;
   }, [props.moduleName]);
+
+  React.useImperativeHandle(ref, () => ({
+    focus: () => {
+      ReactEditor.focus(editor);
+    }
+  }), [editor]);
 
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   const parsedCode = Signal.useSignal(props.compiledFile.ast) as WeakMap<Node, unknown>;
@@ -292,6 +302,6 @@ const RichTextEditor = (props: RichTextEditorProps) => {
       />
     </Slate>
   );
-}
+});
 
 export default RichTextEditor;
