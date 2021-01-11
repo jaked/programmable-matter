@@ -163,10 +163,11 @@ export const makeDecorate =
   }
 
 const MARK_HOTKEYS = {
-  'mod+b': 'bold',
-  'mod+i': 'italic',
-  'mod+u': 'underline',
-  'mod+`': 'code',
+  'mod+b':     'bold',
+  'mod+i':     'italic',
+  'mod+u':     'underline',
+  'mod+e':     'code',
+  'mod+opt+x': 'strikethrough',
 }
 
 const TYPE_HOTKEYS ={
