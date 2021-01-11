@@ -180,7 +180,7 @@ function initMenu() {
         {
           // TODO(jaked) show current state of side bar in menu
           label: 'Toggle Side Bar',
-          accelerator: 'CmdOrCtrl+B',
+          accelerator: 'CmdOrCtrl+Alt+B',
           click: sendFunc('toggle-sidebar-visible'),
         },
         {
