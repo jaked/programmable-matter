@@ -1,7 +1,8 @@
 /** @jsx jsx */
-import { Editor, Node } from 'slate';
+import { Node } from 'slate';
 import { jsx } from '../util/slate-hyperscript-jsx';
 import { expectEditor } from './expectEditor';
+import { isInline } from './isInline';
 import { insertFragment } from './insertFragment';
 
 describe('insert single text', () => {
@@ -78,5 +79,28 @@ describe('insert paragraphs', () => {
         <p><cursor/>baz</p>
       </editor>
     );
+  });
+});
+
+describe('insert links', () => {
+  it('pastes link as link', () => {
+    expectEditor(
+      <editor>
+        <p><cursor/></p>
+      </editor>,
+
+      editor => {
+        editor.isInline = isInline(editor);
+        insertFragment(editor)(
+          <fragment>
+            <p><a href="https://foo.bar">link</a></p>
+          </fragment> as unknown as Node[]
+        )
+      },
+
+      <editor>
+        <p><a href="https://foo.bar">link</a><cursor/></p>
+      </editor>
+    )
   });
 });

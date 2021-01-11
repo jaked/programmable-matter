@@ -9,10 +9,17 @@ function insertNodes(editor: Editor, nodes: Node[] | Node) {
   const { selection } = editor;
   if (!selection) return;
 
-  // Transforms.insertNodes leaves the cursor after the first inserted node
-  const endRef = Editor.pointRef(editor, Range.end(selection));
-  Transforms.insertNodes(editor, nodes);
-  Transforms.select(editor, endRef.current!);
+  // Transforms.insertNodes doesn't always leave the cursor after the inserted nodes
+  const after = Editor.after(editor, Range.end(selection));
+  if (after) {
+    const afterRef = Editor.pointRef(editor, after);
+    Transforms.insertNodes(editor, nodes);
+    const before = Editor.before(editor, afterRef.unref()!) ?? bug(`expected before`);
+    Transforms.select(editor, before);
+  } else {
+    Transforms.insertNodes(editor, nodes);
+    Transforms.select(editor, Editor.end(editor, []));
+  }
 }
 
 export const insertFragment = (editor: Editor) => {
@@ -25,16 +32,26 @@ export const insertFragment = (editor: Editor) => {
     // TODO(jaked) should work with PMAST.Nodes here
 
     // the pasted fragment includes the element tree up to the root
+    // drill down to the part we actually want to paste
     let lowest: Node = { children: fragment };
-    while (Element.isElement(lowest) && lowest.children.length === 1)
+    while (true) {
+      if (Text.isText(lowest)) break;
+      if (Editor.isInline(editor, lowest)) break;
+      // type predicate on Editor.isInline types `lowest` as `never` here
+      lowest = lowest as Element;
+      if (lowest.children.length > 1) break;
       lowest = lowest.children[0];
+    }
 
     // TODO(jaked) strip marks when pasting into code
-    if (Text.isText(lowest)) {
+    if (Text.isText(lowest))
       return insertNodes(editor, lowest);
-    } else if (lowest.type === 'p') {
+    if (Editor.isInline(editor, lowest))
+      return insertNodes(editor, lowest);
+    // type predicate on Editor.isInline types `lowest` as `never` here
+    lowest = lowest as Element;
+    if (lowest.type === 'p')
       return insertNodes(editor, lowest.children);
-    }
 
     const inListItemResult = inListItem(editor);
     if (inListItemResult) {
