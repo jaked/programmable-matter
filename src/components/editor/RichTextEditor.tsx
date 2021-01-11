@@ -1,6 +1,7 @@
 import React from 'react';
 import { createEditor, Editor, Node, Path, Point } from 'slate';
 import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
+import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
 
@@ -230,7 +231,7 @@ type RichTextEditor = {
 
 const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((props, ref) => {
   const editor = React.useMemo(() => {
-    const editor = withReact(PMEditor.withPMEditor(createEditor()));
+    const editor = withHistory(withReact(PMEditor.withPMEditor(createEditor())));
 
     // the default react-slate insertData splits inserted text into lines
     // and wraps the enclosing element around each line.

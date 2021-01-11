@@ -62,6 +62,7 @@
     "retext": "^7.0.0",
     "retext-smartypants": "^3.0.3",
     "slate": "^0.59.0",
+    "slate-history": "^0.59.0",
     "slate-react": "^0.59.0",
     "styled-components": "^5.1.0",
     "victory": "^32.3.7"
