@@ -7,7 +7,7 @@ export const normalizeNode = (editor: Editor) => {
   const { normalizeNode } = editor;
   return ([node, path]: [Node, Path]) => {
     const pmNode = node as PMAST.Node;
-    if (PMAST.isLink(pmNode) && Editor.isEmpty(editor, pmNode)) {
+    if ((PMAST.isLink(pmNode) || PMAST.isInlineCode(pmNode)) && Editor.isEmpty(editor, pmNode)) {
       if (editor.selection) {
         // if a selection endpoint is in the link,
         // unwrapping the link and normalizing can move the endpoint to the previous node

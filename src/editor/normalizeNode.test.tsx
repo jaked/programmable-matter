@@ -58,3 +58,21 @@ it('drops empty links', () => {
     </editor>
   )
 });
+
+it('drops empty inlineCode nodes', () => {
+  expectEditor(
+    <editor>
+      <p><stext/><inlineCode><cursor/></inlineCode><stext/></p>
+    </editor>,
+
+    editor => {
+      editor.isInline = isInline(editor);
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    <editor>
+      <p><stext><cursor/></stext></p>
+    </editor>
+  )
+});
