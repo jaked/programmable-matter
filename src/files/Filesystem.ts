@@ -103,6 +103,7 @@ type Nsfw = (
 }>
 
 type Filesystem = {
+  setPath: (path: string) => void,
   files: Signal<Immutable.Map<string, File>>,
   update: (path: string, buffer: Buffer) => void,
   remove: (path: string) => void,
@@ -113,14 +114,30 @@ type Filesystem = {
 }
 
 function make(
-  filesPath: string,
   Now: Now = Date,
   Timers: Timers = timers,
   Fs: Fs = fs.promises,
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
+  let running = false;
+  let filesPath: null | string = null;
   const filesCell = Signal.cellOk(Immutable.Map<string, FileImpl>());
   let timeout: null | NodeJS.Timeout = null;
+  let watcher: null | {
+    start: () => Promise<void>;
+    stop: () => Promise<void>;
+  } = null;
+
+  const setPath = async (path: string) => {
+    if (running) stop();
+    filesPath = path;
+    watcher = await Nsfw(
+      path,
+      handleNsfwEvents,
+      { debounceMS: 500 }
+    );
+    start();
+  }
 
   const makeFile = (
     path: string,
@@ -234,6 +251,7 @@ function make(
       const deleted = new Set<string>();
       files =
         events.reduce((files, { ev, buffer, mtimeMs }) => {
+          if (!filesPath) bug(`expected filesPath`);
           switch (ev.action) {
             case 0:   // created
             case 2: { // modified
@@ -259,13 +277,6 @@ function make(
       return files;
     });
   }
-
-  // TODO(jaked) type NSFW is not exported
-  const watcher: Promise<any> = Nsfw(
-    filesPath,
-    handleNsfwEvents,
-    { debounceMS: 500 }
-  );
 
   const update = (path: string, buffer: Buffer) => {
     updateFiles(files => {
@@ -332,6 +343,7 @@ function make(
   const deleteMissing = (events: NsfwEvent[]) => {
     const seen = new Set<string>();
     events.forEach(ev => {
+      if (!filesPath) bug(`expected filesPath`);
       switch (ev.action) {
         case 0:
           seen.add(canonizePath(filesPath, ev.directory, ev.file));
@@ -397,10 +409,12 @@ function make(
     return false;
   }
 
-  const timerCallback = (force = false) => {
+  const timerCallback = async (force = false) => {
     if (debug) console.log(`timerCallback`);
+    const waits: Promise<unknown>[] = []; // TODO(jaked) yuck
     updateFiles(files => {
       files.forEach((file, path) => {
+        if (!filesPath) bug(`expected filesPath`);
         if (shouldWrite(path, file, force)) {
           file.writing = true;
 
@@ -408,28 +422,34 @@ function make(
           const filePath = Path.join(filesPath, path);
           if (!file.deleted) {
             if (debug) console.log(`writeFile(${path})`);
-            Fs.mkdir(Path.dirname(filePath), { recursive: true })
+            waits.push(Fs.mkdir(Path.dirname(filePath), { recursive: true })
               .then(() => Fs.writeFile(filePath, file.buffer.get()))
               .finally(() => {
                 file.lastWriteMs = lastWriteMs;
                 file.writing = false;
-              });
+              }));
           } else {
             if (debug) console.log(`unlink(${path})`);
-            Fs.unlink(filePath)
+            waits.push(Fs.unlink(filePath)
               .finally(() => {
                 file.lastWriteMs = lastWriteMs;
                 file.writing = false;
-              });
+              }));
             files = files.delete(path);
           }
         }
       });
       return files;
     });
+    return Promise.all(waits);
   };
 
   const start = async () => {
+    if (running) return;
+    running = true;
+    if (!watcher) bug(`expected watcher`);
+    if (!filesPath) bug(`expected filesPath`);
+    if (timeout) bug(`expected !timeout`);
     if (debug) console.log(`Filesystem.start`);
     const events: Array<NsfwEvent> = [];
     // TODO(jaked) needs protecting against concurrent updates
@@ -437,20 +457,27 @@ function make(
     await handleNsfwEvents(events);
     deleteMissing(events);
     timeout = Timers.setInterval(timerCallback, 1000);
-    try { (await watcher).start() }
+    try { watcher.start() }
     catch (e) { console.log(e) }
   }
 
   const stop = async () => {
+    if (!running) return;
+    running = false;
+    if (!watcher) bug(`expected watcher`);
+    if (!filesPath) bug(`expected filesPath`);
+    if (!timeout) bug(`expected timeout`);
     if (debug) console.log(`Filesystem.stop`);
+    Timers.clearInterval(timeout);
+    timeout = null;
     // TODO(jaked) ensure no updates after final write
-    timerCallback(true);
-    if (timeout) Timers.clearInterval(timeout);
-    try { (await watcher).stop() }
+    await timerCallback(true);
+    try { watcher.stop() }
     catch (e) { console.log(e) }
   }
 
   return {
+    setPath,
     files: filesCell.map(files => files.filter(file => !file.deleted)),
     update,
     remove,

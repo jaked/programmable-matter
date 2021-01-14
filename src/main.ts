@@ -1,5 +1,54 @@
-// Modules to control application life and create native browser window
-import { app, BrowserWindow, globalShortcut, Menu, MenuItemConstructorOptions } from 'electron';
+import * as Path from 'path';
+import { app, dialog, BrowserWindow, globalShortcut, Menu, MenuItemConstructorOptions } from 'electron';
+import * as Atomically from 'atomically';
+
+type Config = {
+  dataDir: string;
+}
+
+function getConfigPath() {
+  const userDataPath = app.getPath('userData');
+  const configPath = Path.resolve(userDataPath, 'config.json');
+  return configPath;
+}
+
+async function readConfig(): Promise<Config> {
+  const configPath = getConfigPath();
+  const configData = await Atomically.readFile(configPath, { encoding: 'utf8' });
+  return JSON.parse(configData) as Config;
+}
+
+async function safeReadConfig(): Promise<Config> {
+  return readConfig().catch(e => {
+    const documentsPath = app.getPath('documents');
+    const dataDir = Path.resolve(documentsPath, 'Programmable Matter');
+    const config: Config = { dataDir };
+    writeConfig(config);
+    return config;
+  });
+}
+
+function writeConfig(config: Config): Promise<void> {
+  const configPath = getConfigPath();
+  const configData = JSON.stringify(config, undefined, 2);
+  return Atomically.writeFile(configPath, configData, { encoding: 'utf8' });
+}
+
+async function setDataDir(): Promise<void> {
+  const config = await safeReadConfig();
+  const chosen = await dialog.showOpenDialog({
+      defaultPath: config.dataDir,
+      properties: ['openDirectory', 'createDirectory'],
+      message: 'Choose data directory',
+    });
+  if (chosen.canceled) {
+    return;
+  } else {
+    const dataDir = chosen.filePaths[0];
+    await writeConfig({ dataDir });
+    send('set-data-dir', dataDir);
+  }
+}
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -17,9 +66,6 @@ function createWindow () {
     }
   })
 
-  // and load the index.html of the app.
-  mainWindow.loadFile('index.html')
-
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
 
@@ -34,6 +80,8 @@ function createWindow () {
     // when you should delete the corresponding element.
     mainWindow = null
   })
+
+  return mainWindow.loadFile('index.html');
 }
 
 function send(msg: string, ...args) {
@@ -69,6 +117,18 @@ function initMenu() {
         {
           label: `About ${productName}`,
           // click: () => new About ().init ()
+        },
+        {
+          type: 'separator',
+          visible: macos
+        },
+        {
+          label: 'Set data directory',
+          click: setDataDir
+        },
+        {
+          type: 'separator',
+          visible: macos
         },
         {
           role: 'services',
@@ -284,11 +344,14 @@ function initEventHandlers() {
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
-  app.on('ready', () => {
+  app.on('ready', async () => {
     // Electron crashes if we call this before the ready event
     initGlobalShortcut();
 
-    createWindow();
+    await createWindow();
+
+    const config = await safeReadConfig();
+    send('set-data-dir', config.dataDir);
   });
 
   // Quit when all windows are closed.

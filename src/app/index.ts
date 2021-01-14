@@ -41,11 +41,10 @@ export class App {
 
   // TODO(jaked) make this configurable
   private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  private filesystem = Filesystem(this.filesPath);
+  private filesystem = Filesystem();
 
   constructor() {
     this.render();
-    this.filesystem.start();
 
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
@@ -68,6 +67,8 @@ export class App {
 
     ipc.on('focus', () => this.filesystem.start());
     ipc.on('blur', () => this.filesystem.stop());
+
+    ipc.on('set-data-dir', (_, path: string) => this.filesystem.setPath(path));
 
     document.onmousemove = (e: MouseEvent) => {
       this.mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });
