@@ -39,8 +39,6 @@ export class App {
     this.reactRender();
   }
 
-  // TODO(jaked) make this configurable
-  private filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
   private filesystem = Filesystem();
 
   constructor() {

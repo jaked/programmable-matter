@@ -103,7 +103,7 @@ type Nsfw = (
 }>
 
 type Filesystem = {
-  setPath: (path: string) => void,
+  setPath: (path: string) => Promise<void>,
   files: Signal<Immutable.Map<string, File>>,
   update: (path: string, buffer: Buffer) => void,
   remove: (path: string) => void,
@@ -129,14 +129,14 @@ function make(
   } = null;
 
   const setPath = async (path: string) => {
-    if (running) stop();
+    if (running) await stop();
     filesPath = path;
     watcher = await Nsfw(
       path,
       handleNsfwEvents,
       { debounceMS: 500 }
     );
-    start();
+    return start();
   }
 
   const makeFile = (

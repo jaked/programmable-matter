@@ -47,14 +47,13 @@ test('makes dir on update if needed', async () => {
   });
 
   const filesystem = Filesystem(
-    '/',
     Now,
     Timers,
     Fs,
     Nsfw,
   );
 
-  await filesystem.start();
+  await filesystem.setPath('/');
   filesystem.update('/foo/bar.json', Buffer.from('foo bar'));
   theNow = 2000;
   runScheduled();
