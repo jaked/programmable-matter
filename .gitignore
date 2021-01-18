@@ -3,4 +3,5 @@ build
 docs
 docs.*
 .vscode
+.DS_Store
 out/
