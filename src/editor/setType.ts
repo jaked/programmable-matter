@@ -29,6 +29,8 @@ export const setType = (editor: Editor, type: PMAST.type) => {
       Transforms.wrapNodes(editor, { type, children: [] });
       // TODO(jaked) wrap individual paragraphs
       Transforms.wrapNodes(editor, { type: 'li', children: [] });
+    } else if (type === 'blockquote') {
+      Transforms.wrapNodes(editor, { type: 'blockquote', children: [] });
     } else {
       Transforms.setNodes(editor, { type });
     }

@@ -16,6 +16,8 @@ const SHORTCUTS = {
   '#####': 'h5',
   '######': 'h6',
 
+  '>': 'blockquote',
+
   // TODO(jaked) this would be more usable if it fired on enter not space
   '{{{': 'code',
 }

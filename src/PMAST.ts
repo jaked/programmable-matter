@@ -25,6 +25,7 @@ export type type =
   'h1' | 'h2' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' |
   'ul' | 'ol' | 'li' |
   'code' | 'inlineCode' |
+  'blockquote' |
   'a';
 
 export type Paragraph = {
@@ -63,7 +64,12 @@ export type InlineCode = {
   children: Node[],
 }
 
-export type Block = Paragraph | Header | List | Code;
+export type Blockquote = {
+  type: 'blockquote',
+  children: Node[],
+}
+
+export type Block = Paragraph | Header | List | Code | Blockquote;
 export type Inline = Link | InlineCode;
 
 export type Element = Block | Inline | ListItem;
@@ -126,6 +132,10 @@ export function isInlineCode(node: Node): node is InlineCode {
 
 export function isLink(node: Node): node is Link {
   return isElement(node) && node.type === 'a';
+}
+
+export function isBlockquote(node: Node): node is Blockquote {
+  return isElement(node) && node.type === 'blockquote';
 }
 
 function invalid(msg: string): never {
@@ -197,11 +207,22 @@ function validateCode(code: Code) {
   });
 }
 
+function validateBlockquote(blockquote: Blockquote) {
+  blockquote.children.forEach(node => {
+    // TODO(jaked) permit other content
+    // see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/blockquote
+    if (!isParagraph(node))
+      invalid('expected blockquote > p');
+    validateParagraph(node);
+  });
+}
+
 function validateBlock(node: Node) {
   if (isParagraph(node)) validateParagraph(node);
   else if (isHeader(node)) validateHeader(node);
   else if (isList(node)) validateList(node);
   else if (isCode(node)) validateCode(node);
+  else if (isBlockquote(node)) validateBlockquote(node);
   else if (isElement(node))
     invalid(`expected block, got ${node.type}`);
   else if (isText(node))
