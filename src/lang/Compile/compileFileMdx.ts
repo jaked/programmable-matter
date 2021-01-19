@@ -8,7 +8,6 @@ import * as Render from '../Render';
 import * as MDXHAST from '../mdxhast';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import sortMdx from './sortMdx';
 import { Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
 
 import makeLink from '../../components/makeLink';
@@ -57,7 +56,7 @@ export default function compileFileMdx(
 
   // TODO(jaked) handle parse errors
   const ast = file.content.map(content =>
-    sortMdx(Parse.parse(content as string))
+    Parse.parse(content as string)
   );
 
   const meta = metaForPath(file.path, compiledFiles);

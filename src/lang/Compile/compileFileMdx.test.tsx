@@ -1,5 +1,7 @@
 import * as Immutable from 'immutable';
 import React from 'react';
+import TestRenderer from 'react-test-renderer';
+
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import * as data from '../../data';
@@ -7,6 +9,17 @@ import * as data from '../../data';
 import compileFileMdx from './compileFileMdx';
 
 const setSelected = (s: string) => {}
+
+console.error = jest.fn(); // suppress React warning about key props
+
+function expectRenderEqual(
+  a: React.ReactNode, // TODO(jaked) fix in `rendered` API
+  b: React.ReactElement,
+) {
+  const aRendered = TestRenderer.create(a as React.ReactElement).toJSON();
+  const bRendered = TestRenderer.create(b).toJSON();
+  expect(aRendered).toEqual(bRendered);
+}
 
 it('compiles', () => {
   const compiled = compileFileMdx(
@@ -21,11 +34,9 @@ it('compiles', () => {
     setSelected
   );
   expect(compiled.problems.get()).toBeFalsy();
-  expect(compiled.rendered.get()).toEqual(
-    [
-      null, null, null, null, // TODO(jaked) not sure where these come from
-      React.createElement('p', {}, 'foo')
-    ]
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <p>foo</p>
   );
 });
 
@@ -42,11 +53,9 @@ it('compiles `a` tag', () => {
     setSelected
   );
   expect(compiled.problems.get()).toBeFalsy();
-  expect(compiled.rendered.get()).toEqual(
-    [
-      null, null, null, null, // TODO(jaked) not sure where these come from
-      React.createElement('a', { href: 'foo' }, 'bar')
-    ]
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <a href='foo'>bar</a>
   );
 });
 
@@ -78,17 +87,14 @@ it('compiles referencing data / table', () => {
     setSelected
   );
   expect(compiled.problems.get()).toBeFalsy();
-  expect(compiled.rendered.get()).toEqual(
-    [
-      null, null, null, null,
-      React.createElement('p', {}, 'foo ', [ 'bar' ], ' ', [ 7 ])
-    ]
+  // TODO(jaked) I don't understand why it's necessary to split up the rendering
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <p>foo {'bar'} {7}</p>
   );
 });
 
 it('compiles with layout', () => {
-  console.error = jest.fn(); // suppress React warning about key props
-
   const compiled = compileFileMdx(
     {
       type: 'mdx',
@@ -126,10 +132,8 @@ it('compiles with layout', () => {
     setSelected
   );
   expect(compiled.problems.get()).toBeFalsy();
-  expect(compiled.rendered.get()).toEqual(
-    React.createElement('div', {},
-      null, null, null, null,
-      React.createElement('p', {}, 'foo')
-    )
+  expectRenderEqual(
+    compiled.rendered.get(),
+    <div><p>foo</p></div>
   );
 });
