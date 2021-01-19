@@ -1,102 +1,142 @@
 /** @jsx jsx */
-import { Editor } from 'slate';
 import { jsx } from '../util/slate-hyperscript-jsx';
+import { expectEditor } from './expectEditor';
 import { dedent } from './dedent';
 
 describe('nested list item', () => {
   it('unnests single item', () => {
-    const editor = <editor>
-      <ul>
-        <li>
-          <p>foo</p>
-          <ul>
-            <li><p><cursor />bar</p></li>
-          </ul>
-        </li>
-        <li><p>baz</p></li>
-      </ul>
-    </editor> as unknown as Editor;
-    dedent(editor);
-    expect(editor.children).toEqual([
-      <ul>
-        <li><p>foo</p></li>
-        <li><p>bar</p></li>
-        <li><p>baz</p></li>
-      </ul>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p>foo</p>
+            <ul>
+              <li><p><cursor />bar</p></li>
+            </ul>
+          </li>
+          <li><p>baz</p></li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p><cursor />bar</p></li>
+          <li><p>baz</p></li>
+        </ul>
+      </editor>
+    );
   });
 
   it('unnests item with following siblings', () => {
-    const editor = <editor>
-      <ul>
-        <li>
-          <p>foo</p>
-          <ul>
-            <li><p><cursor />bar</p></li>
-            <li><p>baz</p></li>
-          </ul>
-        </li>
-      </ul>
-    </editor> as unknown as Editor;
-    dedent(editor);
-    expect(editor.children).toEqual([
-      <ul>
-        <li><p>foo</p></li>
-        <li>
-          <p>bar</p>
-          <ul>
-            <li><p>baz</p></li>
-          </ul>
-        </li>
-      </ul>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p>foo</p>
+            <ul>
+              <li><p><cursor />bar</p></li>
+              <li><p>baz</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li>
+            <p><cursor />bar</p>
+            <ul>
+              <li><p>baz</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>
+    );
   });
 
   it('unnests item without following siblings', () => {
-    const editor = <editor>
-      <ul>
-        <li>
-          <p>foo</p>
-          <ul>
-            <li><p>bar</p></li>
-            <li><p><cursor />baz</p></li>
-          </ul>
-        </li>
-      </ul>
-    </editor> as unknown as Editor;
-    dedent(editor);
-    expect(editor.children).toEqual([
-      <ul>
-        <li>
-          <p>foo</p>
-          <ul>
-            <li><p>bar</p></li>
-          </ul>
-        </li>
-        <li><p>baz</p></li>
-      </ul>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p>foo</p>
+            <ul>
+              <li><p>bar</p></li>
+              <li><p><cursor />baz</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <ul>
+          <li>
+            <p>foo</p>
+            <ul>
+              <li><p>bar</p></li>
+            </ul>
+          </li>
+          <li><p><cursor />baz</p></li>
+        </ul>
+      </editor>
+    );
   });
 });
 
 describe('top-level list item', () => {
   it('unwraps item', () => {
-    const editor = <editor>
-      <ul>
-        <li><p>foo</p></li>
-        <li><p><cursor />bar</p></li>
-        <li><p>baz</p></li>
-      </ul>
-    </editor> as unknown as Editor;
-    dedent(editor);
-    expect(editor.children).toEqual([
-      <ul>
-        <li><p>foo</p></li>
-      </ul>,
-      <p>bar</p>,
-      <ul>
-        <li><p>baz</p></li>
-      </ul>,
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p><cursor />bar</p></li>
+          <li><p>baz</p></li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+        </ul>
+        <p><cursor />bar</p>
+        <ul>
+          <li><p>baz</p></li>
+        </ul>
+      </editor>
+    );
+  });
+
+  it('unwraps outer top-level item with nested item', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p><cursor/>foo</p>
+            <ul>
+              <li><p>bar</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <p><cursor/>foo</p>
+        <ul>
+          <li><p>bar</p></li>
+        </ul>
+      </editor>
+    );
   });
 });
