@@ -29,6 +29,7 @@ export const jsx = createHyperscript({
     'a': { type: 'a' },
     'code': { type: 'code' },
     'inlineCode': { type: 'inlineCode' },
+    'blockquote': { type: 'blockquote' },
   },
   creators: {
     'stext': (tag, attrs, ...children) => jsx('text', attrs, ...children),

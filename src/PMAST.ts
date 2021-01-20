@@ -25,7 +25,7 @@ export type type =
   'h1' | 'h2' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' |
   'ul' | 'ol' | 'li' |
   'code' | 'inlineCode' |
-  'blockquote' |
+  'blockquote' | 'pre' |
   'a';
 
 export type Paragraph = {
@@ -69,7 +69,12 @@ export type Blockquote = {
   children: Node[],
 }
 
-export type Block = Paragraph | Header | List | Code | Blockquote;
+export type Pre = {
+  type: 'pre',
+  children: Node[],
+}
+
+export type Block = Paragraph | Header | List | Code | Blockquote | Pre;
 export type Inline = Link | InlineCode;
 
 export type Element = Block | Inline | ListItem;
@@ -138,6 +143,10 @@ export function isBlockquote(node: Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
+export function isPre(node: Node): node is Pre {
+  return isElement(node) && node.type === 'pre';
+}
+
 function invalid(msg: string): never {
   throw new Error(msg);
 }
@@ -161,6 +170,8 @@ function validateInlineCode(code: InlineCode) {
 }
 
 function validateParagraph(p: Paragraph) {
+  if (p.children.length === 0)
+    invalid(`expected > 0 children`);
   p.children.forEach(node => {
     if (isText(node)) {} // ok
     else if (isLink(node)) validateLink(node);
@@ -182,12 +193,15 @@ function validateListItem(item: ListItem) {
     invalid(`expected > 0 children`);
   item.children.forEach(node => {
     if (isParagraph(node)) validateParagraph(node);
+    else if (isBlockquote(node)) validateBlockquote(node);
     else if (isList(node)) validateList(node);
+    else if (isPre(node)) validatePre(node);
     else
-      invalid(`expected li > p (p | ul | ol)*`);
+      invalid(`expected li > p (p | ul | ol | blockquote | pre)*`);
   });
+  // TODO(jaked) relax this?
   if (!isParagraph(item.children[0]))
-    invalid(`expected li > p (p | ul | ol)*`)
+    invalid(`expected li > p (p | ul | ol | blockquote | pre)*`)
 }
 
 function validateList(list: List) {
@@ -208,12 +222,23 @@ function validateCode(code: Code) {
 }
 
 function validateBlockquote(blockquote: Blockquote) {
+  if (blockquote.children.length === 0)
+    invalid(`expected > 0 children`);
   blockquote.children.forEach(node => {
     // TODO(jaked) permit other content
     // see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/blockquote
-    if (!isParagraph(node))
-      invalid('expected blockquote > p');
-    validateParagraph(node);
+    if (isParagraph(node)) validateParagraph(node);
+    else if (isList(node)) validateList(node);
+    else invalid('expected blockquote > (p | ul | ol)*');
+  });
+}
+
+function validatePre(pre: Pre) {
+  if (pre.children.length !== 1)
+    invalid(`expected 1 child`);
+  pre.children.forEach(node => {
+    if (!isText(node))
+      invalid('expected pre > text');
   });
 }
 
@@ -223,6 +248,7 @@ function validateBlock(node: Node) {
   else if (isList(node)) validateList(node);
   else if (isCode(node)) validateCode(node);
   else if (isBlockquote(node)) validateBlockquote(node);
+  else if (isPre(node)) validatePre(node);
   else if (isElement(node))
     invalid(`expected block, got ${node.type}`);
   else if (isText(node))

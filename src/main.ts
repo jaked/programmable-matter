@@ -185,6 +185,10 @@ function initMenu() {
           label: 'Sync Google Tasks',
           click: sendFunc('sync-google-tasks'),
         },
+        {
+          label: 'Generate .pm files from .mdx files',
+          click: sendFunc('generate-pm-from-mdx'),
+        }
       ]
     },
     {
