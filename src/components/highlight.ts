@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
 import * as Highlight from '../lang/highlight';
 import * as data from '../data';
@@ -35,11 +34,6 @@ export default function computeHighlight(
     case 'pm':
       break;
 
-    case 'mdx': {
-      Highlight.computeMdxSpans(ast as MDXHAST.Node, annots, spans);
-    }
-    break;
-
     case 'json':
     case 'table':
     case 'meta': {
@@ -47,10 +41,6 @@ export default function computeHighlight(
     }
     break;
   }
-
-  // necessary because we dependency-sort AST bindings in compileFileMdx
-  // TODO(jaked) handle AST dependencies a better way
-  spans.sort((a, b) => a.start - b.start);
 
   // TODO(jaked) this could use some tests
   const lineStartOffsets: Array<number> = [0];

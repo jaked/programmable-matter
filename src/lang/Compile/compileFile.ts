@@ -5,7 +5,6 @@ import { Content, CompiledFile, CompiledNotes } from '../../data';
 
 import compileFileMeta from './compileFileMeta';
 import compileFilePm from './compileFilePm';
-import compileFileMdx from './compileFileMdx';
 import compileFileJson from './compileFileJson';
 import compileFileTable from './compileFileTable';
 import compileFileJpeg from './compileFileJpeg';
@@ -25,9 +24,6 @@ export default function compileFile(
 
     case 'pm':
       return compileFilePm(file, compiledFiles, compiledNotes, setSelected);
-
-    case 'mdx':
-      return compileFileMdx(file, compiledFiles, compiledNotes, setSelected);
 
     case 'json':
       return compileFileJson(file, compiledFiles, updateFile);

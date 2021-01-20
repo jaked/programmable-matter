@@ -67,12 +67,11 @@ export function compileFiles(
     const parts =
       Signal.join(
         compiledFileForType('pm'),
-        compiledFileForType('mdx'),
         compiledFileForType('table'),
         compiledFileForType('json'),
         compiledFileForType('jpeg'),
         compiledFileForType('meta'),
-      ).map(([pm, mdx, table, json, jpeg, meta]) => {
+      ).map(([pm, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
         let exportValue: Signal<{ [s: string]: Signal<any> }> = Signal.ok({});
@@ -99,11 +98,6 @@ export function compileFiles(
           exportType = mergeModuleType(exportType, jpeg.exportType);
           exportValue = mergeModuleValue(exportValue, jpeg.exportValue);
         }
-        if (mdx) {
-          rendered = mdx.rendered;
-          exportType = mergeModuleType(exportType, mdx.exportType);
-          exportValue = mergeModuleValue(exportValue, mdx.exportValue);
-        }
         if (pm) {
           rendered = pm.rendered;
           exportType = mergeModuleType(exportType, pm.exportType);
@@ -113,13 +107,12 @@ export function compileFiles(
         // TODO(jaked) ugh optional Signal-valued fields are a pain
         const problems = Signal.join(
           (pm ? pm.problems : Signal.ok(false)),
-          (mdx ? mdx.problems : Signal.ok(false)),
           (table ? table.problems : Signal.ok(false)),
           (json ? json.problems : Signal.ok(false)),
           (jpeg ? jpeg.problems : Signal.ok(false)),
           (meta ? meta.problems : Signal.ok(false))
-        ).map(([pm, mdx, table, json, jpeg, meta]) =>
-          pm || mdx || table || json || jpeg || meta
+        ).map(([pm, table, json, jpeg, meta]) =>
+          pm || table || json || jpeg || meta
         );
 
         return {
@@ -136,7 +129,6 @@ export function compileFiles(
         meta: metaForPath(Name.pathOfName(name, 'meta'), compiledFiles),
         files: {
           pm: fileForType('pm'),
-          mdx: fileForType('mdx'),
           table: fileForType('table'),
           json: fileForType('json'),
           jpeg: fileForType('jpeg'),

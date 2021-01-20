@@ -6,7 +6,6 @@ import { ipcRenderer as ipc } from 'electron';
 import * as Immutable from 'immutable';
 
 import * as data from '../data';
-import * as MDXHAST from '../lang/mdxhast';
 import * as PMAST from '../PMAST';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
@@ -51,7 +50,7 @@ export class App {
     ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
       this.setMainPaneView(view)
     });
-    ipc.on('set-editor-view', (_, view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => {
+    ipc.on('set-editor-view', (_, view: 'pm' | 'json' | 'table' | 'meta') => {
       this.setEditorView(view)
     });
     ipc.on('history-back', this.historyBack);
@@ -63,7 +62,6 @@ export class App {
 
     ipc.on('publish-site', this.publishSite);
     ipc.on('sync-google-tasks', this.syncGoogleTasks);
-    ipc.on('generate-pm-from-mdx', this.generatePmFromMdx);
 
     ipc.on('focus', () => this.filesystem.start());
     ipc.on('blur', () => this.filesystem.stop());
@@ -156,8 +154,8 @@ export class App {
     this.mainPaneViewCell.setOk(view);
   }
 
-  public editorViewCell = Signal.cellOk<'pm' | 'mdx' | 'json' | 'table' | 'meta'>('pm');
-  public setEditorView = (view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => {
+  public editorViewCell = Signal.cellOk<'pm'| 'json' | 'table' | 'meta'>('pm');
+  public setEditorView = (view: 'pm' | 'json' | 'table' | 'meta') => {
     this.editorViewCell.setOk(view);
   }
 
@@ -252,7 +250,7 @@ export class App {
       // selectedNoteProblemsSignal is reconciled even when compiledNote is null
       // why?
       if (compiledNote === null) return Signal.ok({
-        pm: false, meta: false, mdx: false, table: false, json: false,
+        pm: false, meta: false, table: false, json: false,
       });
 
       const name = compiledNote.name;
@@ -263,11 +261,10 @@ export class App {
       return Signal.join(
         problems('pm'),
         problems('meta'),
-        problems('mdx'),
         problems('table'),
         problems('json'),
-      ).map(([pm, meta, mdx, table, json]) => ({
-        pm, meta, mdx, table, json
+      ).map(([pm, meta, table, json]) => ({
+        pm, meta, table, json
       }));
     });
 
@@ -377,191 +374,6 @@ export class App {
     // not via direct filesystem accesss
     const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
     GTasks.authAndSyncTaskLists(filesPath);
-  }
-
-  generatePmFromMdx = () => {
-    this.compiledFilesSignal.get().forEach((compiled, path) => {
-      if (Path.extname(path) === '.mdx') {
-        console.log(`generating .pm from ${path}`);
-        const mdxAst = compiled.ast.get() as MDXHAST.Node;
-        if (mdxAst.type !== 'root') bug(`expected root`);
-        const pmAst = mdxAst.children.map(child => mdxToPmAst(child, false));
-        PMAST.validateNodes(pmAst);
-        const pmPath = Path.format({ ...Path.parse(path), base: undefined, ext: '.pm' });
-        const buffer = Buffer.from(PMAST.stringify(pmAst), 'utf8');
-        this.filesystem.update(pmPath, buffer);
-      }
-    });
-  }
-}
-
-function mdxToPmAst(node: MDXHAST.Node, inline: boolean = true): PMAST.Node {
-  switch (node.type) {
-    case 'root': bug(`expected !root`);
-
-    case 'element': {
-      switch (node.tagName) {
-        case 'inlineCode': {
-          const text = node.children.map(child => {
-            if (child.type !== 'text') bug(`expected text`);
-            return child.value;
-          }).join();
-          return { text, code: true };
-        }
-
-        case 'blockquote': {
-          const children = node.children.map<PMAST.Node>(child => {
-            const node = mdxToPmAst(child);
-            if (PMAST.isText(node)) {
-              return { type: 'p', children:[node] }
-            } else if (PMAST.isParagraph(node)) {
-              return node;
-            } else if (PMAST.isList(node)) {
-              return node;
-            } else bug(`expected text, p, or ul; got ${node.type}`);
-          });
-          return { type: 'blockquote', children };
-        }
-
-        case 'em': {
-          const text = node.children.map(child => {
-            if (child.type !== 'text') bug(`expected text`);
-            return child.value;
-          }).join();
-          return { text, italic: true };
-        }
-
-        case 'strong': {
-          const text = node.children.map(child => {
-            if (child.type !== 'text') bug(`expected text`);
-            return child.value;
-          }).join();
-          return { text, bold: true };
-        }
-
-        case 'del': {
-          const text = node.children.map(child => {
-            if (child.type !== 'text') bug(`expected text`);
-            return child.value;
-          }).join();
-          return { text, strikethrough: true };
-        }
-
-        case 'a': {
-          const children = node.children.map(child => mdxToPmAst(child));
-          return { type: 'a', href: node.properties['href'], children }
-        }
-
-        case 'p':
-        case 'h1':
-        case 'h2':
-        case 'h3':
-        case 'h4':
-        case 'h5':
-        case 'h6': {
-          const children = node.children.map(child => mdxToPmAst(child));
-          return { type: node.tagName, children };
-        }
-
-        case 'ul':
-        case 'ol': {
-          const children = node.children
-            .map(child => mdxToPmAst(child))
-            .filter(child => !('text' in child) || child.text.trim() !== '');
-          return { type: node.tagName, children };
-        }
-
-        case 'li': {
-          const children: PMAST.Node[] = [];
-          // MDX puts nested blocks inside a p so we need to pull them out
-          let block: undefined | PMAST.Node = undefined;
-          node.children.forEach(child => {
-            const node = mdxToPmAst(child);
-            if ('text' in node && node.text.trim() === '') return;
-            if (block) bug(`node trailing a block ${PMAST.stringify([node])}`)
-            if ('text' in node) {
-              children.push(node);
-            } else if ('type' in node) {
-              switch (node.type) {
-                case 'ul':
-                case 'blockquote':
-                case 'pre': {
-                  block = node;
-                  break;
-                }
-                case 'a': {
-                  children.push(node);
-                  break;
-                }
-                case 'p': {
-                  node.children.forEach(node => {
-                    if ('text' in node && node.text.trim() === '') return;
-                    if (block) bug(`node trailing a block ${PMAST.stringify([node])}`);
-                    if ('text' in node) {
-                      children.push(node);
-                    } else if ('type' in node) {
-                      switch (node.type) {
-                        case 'ul':
-                        case 'blockquote':
-                        case 'pre': {
-                          block = node;
-                          break;
-                        }
-                        case 'a': {
-                          children.push(node);
-                          break;
-                        }
-                        default: bug(`expected inline, got ${node.type}`);
-                      }
-                    }
-                  });
-                  break;
-                }
-                default: bug(`expected inline, got ${node.type}`);
-              }
-            }
-          });
-          if (children.length === 0) children.push({ text: '' });
-          return { type: 'li', children: [{ type: 'p', children }, ...(block ? [block] : [])] };
-        }
-
-        // TODO(jaked) add a checkbox type in .pm editor
-        case 'input': {
-          if (node.properties['type'] !== 'checkbox') bug(`expected checkbox`);
-          if (node.properties['checked'] === true) return { text: '[x] '};
-          else return { text: '[ ] ' };
-        }
-
-        case 'pre': {
-          if (node.children.length !== 1) bug(`expected 1 child`);
-          const code = node.children[0];
-          if (code.type !== 'element') bug(`expected element`);
-          if (code.tagName !== 'code') bug(`expected code`);
-          const text = code.children.map(child => {
-            if (child.type !== 'text') bug(`expected text`);
-            return child.value;
-          }).join();
-          return { type: 'pre', children: [{ text }] };
-        }
-
-        default: bug(`unexpected tagName ${node.tagName}`);
-      }
-    }
-
-    case 'text': {
-      const text = node.value.replace(/\n$/, '');
-      if (inline)
-        return { text };
-      else
-        return { type: 'p', children: [{ text }]};
-    }
-
-    case 'jsx':
-    case 'import':
-    case 'export': {
-      // TODO(jaked) MDX doesn't distinguish inline JSX
-      return { type: 'code', children: [{ text: node.value }] };
-    }
   }
 }
 

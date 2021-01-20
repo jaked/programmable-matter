@@ -14,7 +14,6 @@ function typeOfPath(path: string): Types {
   switch (ext) {
     case '.meta': return 'meta';
     case '.pm': return 'pm';
-    case '.mdx': return 'mdx';
     case '.json': return 'json';
     case '.table': return 'table';
     case '.jpeg': return 'jpeg';
@@ -208,8 +207,13 @@ function make(
       return files;
     } else {
       if (debug) console.log(`adding ${path}`);
-      const file = makeFile(path, buffer, mtimeMs, mtimeMs, mtimeMs);
-      return files.set(path, file);
+      try {
+        const file = makeFile(path, buffer, mtimeMs, mtimeMs, mtimeMs);
+        return files.set(path, file);
+      } catch (e) {
+        console.log(e);
+        return files;
+      }
     }
   }
 

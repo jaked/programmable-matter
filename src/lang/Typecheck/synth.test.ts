@@ -1,6 +1,5 @@
 import * as Immutable from 'immutable';
 import * as ESTree from '../ESTree';
-import * as MDXHAST from '../mdxhast';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from './index';
@@ -846,63 +845,6 @@ describe('synth', () => {
           env: { s: 'number | string | boolean' },
           type: 'string',
         });
-      });
-    });
-  });
-});
-
-describe('synthMdx', () => {
-  function expectSynthMdx({ mdx, env, error } : {
-    mdx: MDXHAST.Node | string,
-    env?: Typecheck.Env | { [s: string]: string | Type },
-    error?: boolean
-  }) {
-    mdx = (typeof mdx === 'string') ? Parse.parse(mdx) : mdx;
-    env = env ?
-      (isEnv(env) ?
-        env :
-        Typecheck.env(env as any)) :
-      Typecheck.env();
-    const annots = new Map<unknown, Type>();
-    Typecheck.synthMdx('mdx', mdx, Immutable.Map(), env, {}, annots);
-    const errorValue = [...annots.values()].some(t => t.kind === 'Error');
-    if (error !== undefined) expect(errorValue).toBe(error);
-  }
-
-  describe('type annotation on binding', () => {
-    it('ok', () => {
-      expectSynthMdx({
-        mdx: `export const foo: string = 'bar'`
-      });
-    });
-
-    it('fails', () => {
-      expectSynthMdx({
-        mdx: `export const foo: string = 7`,
-        error: true,
-      });
-    });
-
-    it('fails with bad annotation', () => {
-      expectSynthMdx({
-        mdx: `export const foo: bar = 7`,
-        error: true,
-      });
-    });
-  });
-
-  describe('binding without initializer', () => {
-    it('fails with type annotation', () => {
-      expectSynthMdx({
-        mdx: `export const foo: number`,
-        error: true,
-      });
-    });
-
-    it('fails without type annotation', () => {
-      expectSynthMdx({
-        mdx: `export const foo`,
-        error: true,
       });
     });
   });

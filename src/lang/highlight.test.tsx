@@ -3,7 +3,7 @@ import * as React from 'react';
 import * as Parse from '../lang/Parse';
 import Type from '../lang/Type';
 import Typecheck from '../lang/Typecheck';
-import { computeJsSpans, computeMdxSpans, Span } from './highlight';
+import { computeJsSpans, Span } from './highlight';
 import { bug } from '../util/bug';
 
 // dummy components; we compare React trees but don't render them
@@ -53,24 +53,6 @@ function renderSpans(text: string, spans: Span[]) {
 }
 
 describe('highlight', () => {
-  function expectHighlightMdx(
-    mdx: string,
-    moduleTypeEnv: Immutable.Map<string, Type.ModuleType> = Immutable.Map(),
-    expected: React.ReactNode,
-  ) {
-    // TODO(jaked) this is a lot of setup
-    const ast = Parse.parse(mdx);
-    const typeEnv = Immutable.Map<string, Type>();
-    const exportTypes: { [s: string]: Type } = {};
-    const annots = new Map<unknown, Type>();
-    Typecheck.synthMdx('mdx', ast, moduleTypeEnv, typeEnv, exportTypes, annots);
-
-    const spans: Span[] = [];
-    computeMdxSpans(ast, annots, spans);
-    const rendered = renderSpans(mdx, spans);
-    expect(rendered).toEqual(expected);
-  }
-
   function expectHighlightExpr(
     expr: string,
     expected: React.ReactNode,
@@ -116,114 +98,6 @@ describe('highlight', () => {
           <H.definition status="unbound identifier 'foo'">foo</H.definition>,
           ' ',
           <H.default>{'}'}</H.default>,
-        ]
-      );
-    });
-  });
-
-  describe('imports', () => {
-    it('highlights module for missing module', () => {
-      expectHighlightMdx(
-        `import Foo from '/foo'`,
-        Immutable.Map({ }),
-        [
-          <H.keyword>import</H.keyword>,
-          ' ',
-          <H.definition>Foo</H.definition>,
-          ' from ',
-          <H.link link='/foo' status="no module '/foo'">'/foo'</H.link>,
-        ],
-      );
-    });
-
-    it('highlights local name for missing default import', () => {
-      expectHighlightMdx(
-        `import Foo from '/foo'`,
-        Immutable.Map({
-          '/foo': Type.module({ })
-        }),
-        [
-          <H.keyword>import</H.keyword>,
-          ' ',
-          <H.definition status="no default export on '/foo'">Foo</H.definition>,
-          ' from ',
-          <H.link link='/foo'>'/foo'</H.link>,
-        ]
-      );
-    });
-
-    it('highlights local name for missing named import without `as`', () => {
-      expectHighlightMdx(
-        `import { Foo } from '/foo'`,
-        Immutable.Map({
-          '/foo': Type.module({ })
-        }),
-        [
-          <H.keyword>import</H.keyword>,
-          ' { ',
-          <H.definition status="no exported member 'Foo' on '/foo'">Foo</H.definition>,
-          ' } from ',
-          <H.link link='/foo'>'/foo'</H.link>,
-        ],
-      );
-    });
-  });
-
-  describe('imports', () => {
-    it('highlights identifier with erroneous initializer', () => {
-      expectHighlightMdx(
-        `export const f = g`,
-        undefined,
-        [
-          <H.keyword>export</H.keyword>,
-          ' ',
-          <H.keyword>const</H.keyword>,
-          ' ',
-          <H.definition status="unbound identifier 'g'">f</H.definition>,
-          ' = ',
-          <H.variable status="unbound identifier 'g'">g</H.variable>,
-        ],
-      )
-    });
-  })
-
-  describe('functions', () => {
-    it(`highlights types in function definitions`, () => {
-      expectHighlightMdx(
-        `export const f = (x: boolean) => x`,
-        undefined,
-        [
-          <H.keyword>export</H.keyword>,
-          ' ',
-          <H.keyword>const</H.keyword>,
-          ' ',
-          <H.definition>f</H.definition>,
-          ' = (',
-          <H.definition>x</H.definition>,
-          ': ',
-          <H.variable>boolean</H.variable>,
-          ') => ',
-          <H.variable>x</H.variable>,
-        ],
-      );
-    });
-
-    it(`highlights unknown types in function definitions`, () => {
-      expectHighlightMdx(
-        `export const f = (x: xyzzy) => x`,
-        undefined,
-        [
-          <H.keyword>export</H.keyword>,
-          ' ',
-          <H.keyword>const</H.keyword>,
-          ' ',
-          <H.definition>f</H.definition>,
-          ' = (',
-          <H.definition>x</H.definition>,
-          ': ',
-          <H.variable status="unknown type">xyzzy</H.variable>,
-          ') => ',
-          <H.variable>x</H.variable>,
         ]
       );
     });

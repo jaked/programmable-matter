@@ -22,9 +22,9 @@ type Props = {
   editName: string | undefined;
   setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
-  editorView: 'pm' | 'mdx' | 'json' | 'table' | 'meta',
-  setEditorView: (view: 'pm' | 'mdx' | 'json' | 'table' | 'meta') => void,
-  selectedNoteProblems: { meta?: boolean, pm?: boolean, mdx?: boolean, table?: boolean, json?: boolean } | undefined,
+  editorView: 'pm' | 'json' | 'table' | 'meta',
+  setEditorView: (view: 'pm' | 'json' | 'table' | 'meta') => void,
+  selectedNoteProblems: { meta?: boolean, pm?: boolean, table?: boolean, json?: boolean } | undefined,
 }
 
 export default Signal.liftComponent<Props>(props => {

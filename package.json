@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@babel/parser": "^7.6.4",
-    "@mdx-js/mdx": "^1.4.5",
     "atomically": "^1.7.0",
     "browser-sync": "^2.26.7",
     "electron-squirrel-startup": "^1.0.0",
@@ -70,10 +69,6 @@
     "react-window": "^1.8.5",
     "react-youtube": "^7.9.0",
     "rebass": "^3.2.2",
-    "remark-emoji": "^2.0.2",
-    "remark-wiki-link": "0.0.4",
-    "retext": "^7.0.0",
-    "retext-smartypants": "^3.0.3",
     "slate": "^0.59.0",
     "slate-history": "^0.59.0",
     "slate-react": "^0.59.0",

@@ -9,21 +9,6 @@ const updateFile = (s: string, b: Buffer) => {}
 const deleteFile = (s: string) => {}
 const setSelected = (s: string) => {}
 
-it('compiles mdx', () => {
-  const files = Signal.ok<Contents>(Immutable.Map({
-    'foo.mdx': {
-      type: 'mdx',
-      path: 'foo.mdx',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok("foo"),
-    }
-  }));
-  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
-  const foo = compiledNotes.get().get('foo');
-  if (!foo) bug('expected foo');
-  expect(foo.problems.get()).toBeFalsy();
-});
-
 it('compiles json', () => {
   const files = Signal.ok<Contents>(Immutable.Map({
     'foo.json': {
@@ -118,37 +103,6 @@ it('compiles table', () => {
   const cats = compiledNotes.get().get('cats/index');
   if (!cats) bug('expected cats');
   expect(cats.problems.get()).toBeFalsy();
-});
-
-it('compiles mdx + json + meta', () => {
-  const files = Signal.ok<Contents>(Immutable.Map({
-    'foo.mdx': {
-      type: 'mdx',
-      path: 'foo.mdx',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok("foo <>data.bar</>"),
-    },
-    'foo.meta': {
-      type: 'meta',
-      path: 'foo.meta',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok(`{ dataType: '{ bar: number }' }`),
-    },
-    'foo.json': {
-      type: 'json',
-      path: 'foo.json',
-      mtimeMs: Signal.ok(0),
-      content: Signal.ok(`{ bar: 7 }`),
-    }
-  }));
-  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
-  const foo = compiledNotes.get().get('foo');
-  if (!foo) bug('expected foo');
-  expect(foo.problems.get()).toBeFalsy();
-  expect(foo.meta.get().dataType).toBeTruthy();
-  expect(foo.meta.get().title).toBe('foo');
-  expect(foo.exportType.get().getFieldType('default'))
-    .toEqual(Type.object({ bar: Type.number }));
 });
 
 // TODO(jaked)

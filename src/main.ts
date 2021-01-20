@@ -185,10 +185,6 @@ function initMenu() {
           label: 'Sync Google Tasks',
           click: sendFunc('sync-google-tasks'),
         },
-        {
-          label: 'Generate .pm files from .mdx files',
-          click: sendFunc('generate-pm-from-mdx'),
-        }
       ]
     },
     {
@@ -267,12 +263,6 @@ function initMenu() {
         },
         { type: 'separator'},
         // TODO(jaked) temporary, figure out better UI
-        {
-          // TODO(jaked) show current state of main pane in menu
-          label: 'MDX View',
-          accelerator: 'CmdOrCtrl+Alt+X',
-          click: sendFunc('set-editor-view', 'mdx'),
-        },
         {
           // TODO(jaked) show current state of main pane in menu
           label: 'JSON View',

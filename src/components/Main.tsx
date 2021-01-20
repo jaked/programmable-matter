@@ -33,7 +33,7 @@ const Flex = styled(FlexBase)({
 type CodeEditorProps = {
   content: Signal.Writable<string>;
   compiledFile: data.CompiledFile;
-  editorView: 'meta' | 'pm' | 'mdx' | 'json' | 'table';
+  editorView: 'meta' | 'pm' | 'json' | 'table';
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
   setSelected: (selected: string | null) => void;
@@ -122,7 +122,7 @@ type EditorPaneProps = {
   moduleName: Signal<string | null>;
   selectedFile: Signal<data.WritableContent | null>;
   compiledFile: Signal<data.CompiledFile | null>;
-  editorView: Signal<'meta' | 'pm' | 'mdx' | 'json' | 'table'>;
+  editorView: Signal<'meta' | 'pm' | 'json' | 'table'>;
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
   mouse: Signal<{ clientX: number, clientY: number }>;

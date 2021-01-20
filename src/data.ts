@@ -3,7 +3,7 @@ import React from 'react';
 import Signal from './util/Signal';
 import Type from './lang/Type';
 
-export type Types = 'meta' | 'pm' | 'mdx' | 'json' | 'jpeg' | 'table';
+export type Types = 'meta' | 'pm' | 'json' | 'jpeg' | 'table';
 
 export type MetaProps = {
   title?: string,
@@ -28,7 +28,6 @@ export type AstAnnotations = Map<unknown, Type>;
 export type NoteFiles = {
   'meta'?: Content;
   'pm'?: Content;
-  'mdx'?: Content;
   'json'?: Content;
   'jpeg'?: Content;
   'table'?: Content;

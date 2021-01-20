@@ -2,7 +2,6 @@ import * as Immutable from 'immutable';
 import * as Name from '../../util/Name';
 import { bug } from '../../util/bug';
 import Type from '../Type';
-import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../data';
 import { Env } from './env';
@@ -921,54 +920,4 @@ export function extendEnvWithDefaultExport(
 ): Env {
   exportTypes['default'] = synth(decl.declaration, env, annots);
   return env;
-}
-
-// TODO(jaked) this interface is a little weird
-export function synthMdx(
-  moduleName: string,
-  ast: MDXHAST.Node,
-  moduleEnv: Immutable.Map<string, Type.ModuleType>,
-  env: Env,
-  exportTypes: { [s: string]: Type },
-  annots?: AstAnnotations,
-): Env {
-  switch (ast.type) {
-    case 'root':
-    case 'element':
-      ast.children.forEach(child =>
-        env = synthMdx(moduleName, child, moduleEnv, env, exportTypes, annots)
-      );
-      return env;
-
-    case 'text':
-      return env;
-
-    case 'jsx':
-      if (!ast.jsxElement) bug('expected JSX node to be parsed');
-      ast.jsxElement.forEach(elem => check(elem, env, Type.reactNodeType, annots));
-      return env;
-
-    case 'import':
-    case 'export': {
-      if (!ast.declarations) bug('expected import/export node to be parsed');
-      ast.declarations.forEach(decls => decls.forEach(decl => {
-        switch (decl.type) {
-          case 'ImportDeclaration':
-            env = extendEnvWithImport(moduleName, decl, moduleEnv, env, annots);
-            break;
-
-          case 'ExportNamedDeclaration':
-            env = extendEnvWithNamedExport(decl, exportTypes, env, annots);
-            break;
-
-          case 'ExportDefaultDeclaration':
-            env = extendEnvWithDefaultExport(decl, exportTypes, env, annots);
-            break;
-        }
-      }));
-      return env;
-    }
-
-    default: bug('unexpected AST ' + (ast as MDXHAST.Node).type);
-  }
 }

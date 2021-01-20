@@ -1,22 +1,16 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
-import Retext from 'retext';
-import RetextSmartypants from 'retext-smartypants';
 
 import * as Name from '../../util/Name';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 
-import * as MDXHAST from '../mdxhast';
 import * as ESTree from '../ESTree';
 import * as Evaluate from '../Evaluate';
 import { AstAnnotations } from '../../data';
 
 export { initTypeEnv } from './initTypeEnv';
 export { initValueEnv } from './initValueEnv';
-
-const smartypants =
-  Retext().use(RetextSmartypants, { dashes: 'oldschool' })
 
 export type Env = Immutable.Map<string, Signal<any>>;
 
@@ -128,133 +122,4 @@ export function extendEnvWithDefaultExport(
   const value = evaluateExpressionSignal(decl.declaration, annots, env);
   exportValue['default'] = value;
   return env;
-}
-
-export function renderMdx(
-  ast: MDXHAST.Node,
-  annots: AstAnnotations,
-  mdxName: string,
-  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
-  env: Env,
-  exportValue: { [s: string]: Signal<any> },
-  Link: React.FunctionComponent<{ href: string }> = () => null,
-): [Env, Signal<React.ReactNode>] {
-  // TODO(jaked)
-  // definitions can only appear at the top level (I think?)
-  // so we shouldn't need to pass `env` through all of this
-  switch (ast.type) {
-    case 'root': {
-      const childNodes: Array<Signal<React.ReactNode>> = [];
-      ast.children.forEach(child => {
-        const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue, Link);
-        env = env2;
-        childNodes.push(childNode);
-      });
-      return [env, Signal.join(...childNodes)];
-    }
-
-    case 'element': {
-      switch (ast.tagName) {
-        case 'code': {
-          const childNodes =
-            ast.children.map(child => {
-              if (child.type === 'text')
-                return child.value;
-              else
-                bug('expected text node');
-            });
-          const code = env.get('code') || bug(`expected 'code'`);
-          const node = code.map(code =>
-            React.createElement(code, ast.properties, ...childNodes)
-          );
-          return [env, node];
-        }
-
-        case 'inlineCode': {
-          const childNodes =
-            ast.children.map(child => {
-              if (child.type === 'text')
-                return child.value;
-              else
-                bug('expected text node');
-            });
-          const inlineCode = env.get('inlineCode') || bug(`expected 'inlineCode'`);
-          const node = inlineCode.map(inlineCode =>
-            React.createElement(inlineCode, ast.properties, ...childNodes)
-          );
-          return [env, node];
-        }
-
-        case 'a': {
-          const childNodes: Array<Signal<React.ReactNode>> = [];
-          ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue, Link);
-            env = env2;
-            childNodes.push(childNode);
-          });
-
-          const node = Signal.join(...childNodes).map(childNodes =>
-            React.createElement(Link, { href: ast.properties['href'] }, ...childNodes)
-          );
-          return [env, node];
-        }
-
-        default: {
-          const childNodes: Array<Signal<React.ReactNode>> = [];
-          ast.children.forEach(child => {
-            const [env2, childNode] = renderMdx(child, annots, mdxName, moduleEnv, env, exportValue, Link);
-            env = env2;
-            childNodes.push(childNode);
-          });
-          const node = Signal.join(...childNodes).map(childNodes =>
-            React.createElement(ast.tagName, ast.properties, ...childNodes)
-          );
-          return [env, node];
-        }
-      }
-    }
-
-    case 'text': {
-      // TODO(jaked) this is pretty slow :(
-      // TODO(jaked) and doesn't work when quotes are split across text nodes
-      const value = smartypants.processSync(ast.value).toString();
-      return [env, Signal.ok(value)];
-    }
-
-    case 'jsx':
-      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
-      switch (ast.jsxElement.type) {
-        case 'ok': {
-          const jsx = ast.jsxElement.ok;
-          const type = annots.get(ast.jsxElement.ok) ?? bug(`expected type`);
-          if (type.kind === 'Error') return [env, Signal.ok(null)];
-          else return [env, evaluateExpressionSignal(jsx, annots, env)];
-        }
-        case 'err':
-          return [env, Signal.ok(null)];
-      }
-
-    case 'import':
-    case 'export':
-      if (!ast.declarations) throw new Error('expected import/export node to be parsed');
-      ast.declarations.forEach(decls => decls.forEach(decl => {
-        switch (decl.type) {
-          case 'ImportDeclaration':
-            env = extendEnvWithImport(mdxName, decl, annots, moduleEnv, env);
-            break;
-
-          case 'ExportNamedDeclaration':
-            env = extendEnvWithNamedExport(decl, annots, env, exportValue);
-            break;
-
-          case 'ExportDefaultDeclaration':
-            env = extendEnvWithDefaultExport(decl, annots, env, exportValue);
-            break;
-        }
-      }));
-      return [env, Signal.ok(null)];
-
-    default:
-      throw new Error('unexpected AST ' + (ast as MDXHAST.Node).type);
-  }
 }

@@ -75,7 +75,6 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
               return regexp.test(string);
              }) : Signal.ok(false),
 
-            note.files.mdx ? note.files.mdx.content.map(mdx => regexp.test(mdx as string)) : Signal.ok(false),
             note.files.json ? note.files.json.content.map(json => regexp.test(json as string)) : Signal.ok(false),
             note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
             Signal.ok(regexp.test(note.name)),
@@ -83,7 +82,6 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           Signal.ok(true);
         const mtimeMs = Signal.join(
           note.files.pm ? note.files.pm.mtimeMs : Signal.ok(0),
-          note.files.mdx ? note.files.mdx.mtimeMs : Signal.ok(0),
           note.files.json ? note.files.json.mtimeMs : Signal.ok(0),
           note.files.meta ? note.files.meta.mtimeMs : Signal.ok(0),
         ).map(mtimeMss => Math.max(...mtimeMss));

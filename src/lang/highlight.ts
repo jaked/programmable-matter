@@ -1,4 +1,3 @@
-import * as MDXHAST from '../lang/mdxhast';
 import * as ESTree from '../lang/ESTree';
 import * as data from '../data';
 
@@ -197,40 +196,4 @@ export function computeJsSpans(
     }
   }
   ESTree.visit(ast, fn);
-}
-
-export function computeMdxSpans(
-  ast: MDXHAST.Node,
-  annots: data.AstAnnotations | undefined,
-  spans: Array<Span>
-) {
-  switch (ast.type) {
-    case 'root':
-    case 'element':
-      return ast.children.forEach(child =>
-        computeMdxSpans(child, annots, spans)
-      );
-
-    case 'text':
-      return;
-
-    case 'jsx':
-      if (!ast.jsxElement) throw new Error('expected JSX node to be parsed');
-      // TODO(jaked)
-      // parsing should always succeed with some AST
-      return ast.jsxElement.forEach(expr => {
-        computeJsSpans(expr, annots, spans);
-      });
-
-    case 'import':
-    case 'export':
-      if (!ast.declarations) throw new Error('expected import/export node to be parsed');
-      // TODO(jaked)
-      // parsing should always succeed with some AST
-      return ast.declarations.forEach(decls => {
-        decls.forEach(decl => {
-          computeJsSpans(decl, annots, spans);
-        });
-      });
-    }
 }
