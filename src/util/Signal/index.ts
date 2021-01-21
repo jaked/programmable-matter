@@ -1,8 +1,10 @@
 import * as Immutable from 'immutable';
+import * as Immer from 'immer';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import Try from '../Try';
-import { diffMap } from '../immutable/Map';
+import { diffMap as diffImmutableMap } from '../immutable/Map';
+import { diffMap } from '../diffMap';
 import { bug } from '../bug';
 
 const unreconciled = Try.err(new Error('unreconciled'));
@@ -117,7 +119,7 @@ abstract class SignalImpl<T> implements Signal<T> {
       if (this.deps[i] === s) this.deps[i] === undefined;
   }
 
-  map<U>(f: (t: T) => U): Signal<U> { return new Map(this, f); }
+  map<U>(f: (t: T) => U): Signal<U> { return new MapImpl(this, f); }
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U> { return new FlatMap(this, f); }
   liftToTry(): Signal<Try<T>> { return new LiftToTry(this); }
 }
@@ -132,7 +134,7 @@ class Const<T> extends SignalImpl<T> {
   }
 
   get() { return this.value.get(); }
-  map<U>(f: (t: T) => U) { return new Map(this, f); }
+  map<U>(f: (t: T) => U) { return new MapImpl(this, f); }
   flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   value: Try<T>;
@@ -210,7 +212,7 @@ class RefImpl<T> extends SignalImpl<T> implements RefIntf<T> {
   }
 }
 
-class Map<T, U> extends SignalImpl<U> {
+class MapImpl<T, U> extends SignalImpl<U> {
   s: Signal<T>;
   sVersion: number;
   f: (t: T) => U;
@@ -680,13 +682,33 @@ module Signal {
       input,
       (input, prevInput, prevOutput) =>
         prevOutput.withMutations(output => {
-          const { added, changed, deleted } = diffMap(prevInput, input);
+          const { added, changed, deleted } = diffImmutableMap(prevInput, input);
           deleted.forEach(key => { output = output.delete(key) });
           changed.forEach(([prev, curr], key) => { output = output.set(key, f(curr, key, input)) });
           added.forEach((v, key) => { output = output.set(key, f(v, key, input)) });
         }),
       Immutable.Map(),
       Immutable.Map(),
+    )
+  }
+
+  export function mapMap<K, V, U>(
+    input: Signal<Map<K, V>>,
+    f: (v: V, k: K, coll: Map<K, V>) => U
+  ): Signal<Map<K, U>> {
+    return mapWithPrev<Map<K, V>, Map<K, U>>(
+      input,
+      (input, prevInput, prevOutput) =>
+        Immer.produce(prevOutput, outputDraft => {
+          const output = outputDraft as Map<K, U>; // TODO(jakedd) ???
+
+          const { added, changed, deleted } = diffMap(prevInput, input);
+          deleted.forEach(key => { output.delete(key) });
+          changed.forEach(([prev, curr], key) => { output.set(key, f(curr, key, input)) });
+          added.forEach((v, key) => { output.set(key, f(v, key, input)) });
+        }),
+      new Map(),
+      new Map(),
     )
   }
 

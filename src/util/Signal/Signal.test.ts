@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import * as Immer from 'immer';
 import Signal from './index';
 import Try from '../Try';
 
@@ -365,6 +366,30 @@ describe('mapImmutableMap', () => {
 
     map.setOk(map.get().delete('a'));
     expect(fmap.get()).toEqual(Immutable.Map({ b: 11, c: 14 }));
+    expect(calls).toBe(4);
+  });
+});
+
+describe('mapMap', () => {
+  it('maps', () => {
+    let calls = 0;
+    function f(x: number) { calls++; return x + 1; }
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const fmap = Signal.mapMap(map, f);
+
+    expect(fmap.get()).toEqual(new Map([['a', 8], ['b', 10]]));
+    expect(calls).toBe(2);
+
+    map.setOk(Immer.produce(map.get(), map => { map.set('b', 10) }));
+    expect(fmap.get()).toEqual(new Map([['a', 8], ['b', 11]]));
+    expect(calls).toBe(3);
+
+    map.setOk(Immer.produce(map.get(), map => { map.set('c', 13) }));
+    expect(fmap.get()).toEqual(new Map([['a', 8], ['b', 11], ['c', 14]]));
+    expect(calls).toBe(4);
+
+    map.setOk(Immer.produce(map.get(), map => { map.delete('a') }));
+    expect(fmap.get()).toEqual(new Map([['b', 11], ['c', 14]]));
     expect(calls).toBe(4);
   });
 });
