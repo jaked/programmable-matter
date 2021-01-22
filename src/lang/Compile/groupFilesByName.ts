@@ -1,56 +1,49 @@
-import * as Immutable from 'immutable';
+import * as Immer from 'immer';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
-import { diffMap } from '../../util/immutable/Map';
+import { diffMap } from '../../util/diffMap';
 import { Content, Contents } from '../../data';
 
 function groupFilesByName(
   files: Contents,
   oldFiles: Contents,
-  oldGroupedFiles: Immutable.Map<string, Immutable.Map<string, Content>>,
-): Immutable.Map<string, Immutable.Map<string, Content>> {
+  oldGroupedFiles: Map<string, Map<string, Content>>,
+): Map<string, Map<string, Content>> {
+  return Immer.produce(oldGroupedFiles, groupedFiles => {
+    let { added, changed, deleted } = diffMap(oldFiles, files);
 
-  let groupedFiles = oldGroupedFiles;
-  let { added, changed, deleted } = diffMap(oldFiles, files);
+    deleted.forEach(path => {
+      const name = Name.nameOfPath(path);
+      const group = groupedFiles.get(name) ?? bug(`expected group for ${name}`);
+      group.delete(path);
+      if (group.size === 0)
+        groupedFiles.delete(name);
+    });
 
-  deleted.forEach(path => {
-    const name = Name.nameOfPath(path);
-    const group = groupedFiles.get(name) || bug(`expected group for ${name}`);
-    const updatedGroup = group.delete(path);
-    if (updatedGroup.size === 0)
-      groupedFiles = groupedFiles.delete(name);
-    else
-      groupedFiles = groupedFiles.set(name, updatedGroup);
+    changed.forEach(([prev, curr], path) => {
+      // TODO(jaked) can this ever happen for Filesystem?
+      const name = Name.nameOfPath(path);
+      const group = groupedFiles.get(name) ?? bug(`expected group for ${name}`);
+      group.set(path, curr);
+    });
+
+    added.forEach((file, path) => {
+      const name = Name.nameOfPath(path);
+      const group = groupedFiles.get(name) ?? new Map<string, Content>();
+      group.set(path, file);
+      groupedFiles.set(name, group);
+    });
   });
-
-  changed.forEach(([prev, curr], path) => {
-    // TODO(jaked) can this ever happen for Filesystem?
-    const name = Name.nameOfPath(path);
-    const group = groupedFiles.get(name) || bug(`expected group for ${name}`);
-    groupedFiles = groupedFiles.set(name, group.set(path, curr));
-  });
-
-  added.forEach((file, path) => {
-    const name = Name.nameOfPath(path);
-    const group = groupedFiles.get(name) || Immutable.Map<string, Content>();
-    groupedFiles = groupedFiles.set(name, group.set(path, file));
-  })
-
-  return groupedFiles;
 }
 
 export default function groupFilesByNameSignal(
   files: Signal<Contents>
-): Signal<Immutable.Map<string, Immutable.Map<string, Content>>> {
-  const name = Signal.mapWithPrev(
+): Signal<Map<string, Map<string, Content>>> {
+  return Signal.mapWithPrev(
     files,
     groupFilesByName,
-    Immutable.Map(),
-    Immutable.Map()
-  )
-
-  // TODO(jaked) add directory indexes
-
-  return name;
+    new Map(),
+    new Map()
+  );
 }

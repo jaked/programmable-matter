@@ -110,6 +110,23 @@ module Try {
     if (err) return err;
     else return Try.ok(map.asImmutable());
   }
+
+  export function joinMap<K, V>(
+    tryMap: Map<K, Try<V>>
+  ): Try<Map<K, V>> {
+    const map = new Map<K, V>();
+    let err: Try<Map<K, V>> | undefined = undefined;
+    tryMap.forEach((t, k) => {
+      if (t.type === 'ok') {
+        map.set(k, t.ok);
+      } else {
+        err = t as unknown as Try<Map<K, V>>;
+        return false;
+      }
+    });
+    if (err) return err;
+    else return Try.ok(map);
+  }
 }
 
 export default Try;

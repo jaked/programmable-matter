@@ -1,11 +1,13 @@
 import * as Immutable from 'immutable';
+import * as Immer from 'immer';
 import JSON5 from 'json5';
 import * as React from 'react';
 import Try from '../../util/Try';
 import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
-import { diffMap } from '../../util/immutable/Map';
+import { diffMap as diffImmutableMap } from '../../util/immutable/Map';
+import { diffMap } from '../../util/diffMap';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -87,7 +89,7 @@ function computeTable(
   tableConfig: data.Table,
   tableDataType: Type.ObjectType,
   tableName: string,
-  noteEnv: Immutable.Map<string, CompiledNote>,
+  noteEnv: Map<string, CompiledNote>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
 ) {
@@ -148,7 +150,7 @@ function computeTable(
 
         case 1: {
           const table2 = v[0];
-          const { added, changed, deleted } = diffMap(table, table2);
+          const { added, changed, deleted } = diffImmutableMap(table, table2);
           added.forEach((value, key) => {
             const path = Name.pathOfName(Name.join(Name.dirname(tableName), key), 'json');
             updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
@@ -201,11 +203,11 @@ function computeFields(
 
 export default function compileFileTable(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
-  compiledNotes: Signal<CompiledNotes>,
-  setSelected: (name: string) => void,
-  updateFile: (path: string, buffer: Buffer) => void,
-  deleteFile: (path: string) => void,
+  compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
+  compiledNotes: Signal<CompiledNotes> = Signal.ok(new Map()),
+  setSelected: (name: string) => void = (name: string) => { },
+  updateFile: (path: string, buffer: Buffer) => void = (path: string, buffer: Buffer) => { },
+  deleteFile: (path: string) => void = (path: string) => { },
 ): CompiledFile {
 
   const tableName = Name.nameOfPath(file.path);
@@ -217,7 +219,7 @@ export default function compileFileTable(
   const noteEnv = Signal.mapWithPrev<CompiledNotes, CompiledNotes>(
     compiledNotes,
     (compiledNotes, prevCompiledNotes, prevNoteEnv) => {
-      return prevNoteEnv.withMutations(noteEnv => {
+      return Immer.produce(prevNoteEnv, (noteEnv: CompiledNotes) => {
         const dir = Name.dirname(tableName);
         const { added, changed, deleted } = diffMap(prevCompiledNotes, compiledNotes);
         added.forEach((compiledNote, name) => {
@@ -228,8 +230,8 @@ export default function compileFileTable(
         deleted.forEach(name => noteEnv.delete(name));
       });
     },
-    Immutable.Map(),
-    Immutable.Map()
+    new Map(),
+    new Map()
   );
 
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {

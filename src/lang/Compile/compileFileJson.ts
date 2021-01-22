@@ -78,8 +78,8 @@ function fieldComponent(field: string, type: Type) {
 
 export default function compileFileJson(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
-  updateFile: (path: string, buffer: Buffer) => void,
+  compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
+  updateFile: (path: string, buffer: Buffer) => void = (path: string, buffer: Buffer) => { },
 ): CompiledFile {
   const ast = file.content.map(content => Parse.parseExpression(content as string));
 

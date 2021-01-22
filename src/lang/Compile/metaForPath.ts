@@ -1,5 +1,4 @@
 import * as Path from 'path';
-import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
@@ -22,7 +21,7 @@ const emptyMeta: data.CompiledFile = {
 
 export default function metaForPath(
   path: string,
-  compiledFiles: Signal<Immutable.Map<string, data.CompiledFile>>,
+  compiledFiles: Signal<Map<string, data.CompiledFile>>,
 ): Signal<data.Meta> {
   const pathParsed = Path.parse(path);
   const indexMetaPath = Path.format({ ...pathParsed, base: undefined, name: 'index', ext: '.meta' });

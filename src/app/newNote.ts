@@ -1,10 +1,9 @@
-import * as Immutable from 'immutable';
 import * as Name from '../util/Name';
 import Signal from '../util/Signal';
 
 export default (args: {
   fsUpdate: (fn: string, buffer: Buffer) => void,
-  notes: Signal<Immutable.Map<string, unknown>>,
+  notes: Signal<Map<string, unknown>>,
   focusDir: Signal<string | null>,
   callback: (name: string) => void,
 }): Signal<(name: string) => string> =>

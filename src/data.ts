@@ -1,4 +1,5 @@
 import Immutable from 'immutable';
+import * as Immer from 'immer';
 import React from 'react';
 import Signal from './util/Signal';
 import Type from './lang/Type';
@@ -88,7 +89,7 @@ export type WritableContent = {
 }
 
 // indexed by path
-export type Contents = Immutable.Map<string, Content>;
+export type Contents = Map<string, Content>;
 
 // indexed by name
-export type CompiledNotes = Immutable.Map<string, CompiledNote>;
+export type CompiledNotes = Map<string, CompiledNote>;

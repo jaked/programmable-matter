@@ -1,47 +1,41 @@
-import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
-import Type from '../Type';
 import { bug } from '../../util/bug';
 import { compileFiles } from './index';
 import { Contents } from '../../data';
 
-const updateFile = (s: string, b: Buffer) => {}
-const deleteFile = (s: string) => {}
-const setSelected = (s: string) => {}
-
 it('compiles json', () => {
-  const files = Signal.ok<Contents>(Immutable.Map({
-    'foo.json': {
+  const files = Signal.ok<Contents>(new Map([[
+    'foo.json', {
       type: 'json',
       path: 'foo.json',
       mtimeMs: Signal.ok(0),
       content: Signal.ok('{ }'),
     }
-  }));
-  const { compiledNotes } = compileFiles(files,  updateFile, deleteFile, setSelected);
+  ]]));
+  const { compiledNotes } = compileFiles(files);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
   expect(foo.problems.get()).toBeFalsy();
 });
 
 it('compiles meta', () => {
-  const files = Signal.ok<Contents>(Immutable.Map({
-    'foo.meta': {
+  const files = Signal.ok<Contents>(new Map([[
+    'foo.meta', {
       type: 'meta',
       path: 'foo.meta',
       mtimeMs: Signal.ok(0),
       content: Signal.ok('{ }'),
     }
-  }));
-  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
+  ]]));
+  const { compiledNotes } = compileFiles(files);
   const foo = compiledNotes.get().get('foo');
   if (!foo) bug('expected foo');
   expect(foo.problems.get()).toBeFalsy();
 });
 
 it('compiles table', () => {
-  const files = Signal.ok<Contents>(Immutable.Map({
-    'cats/index.meta': {
+  const files = Signal.ok<Contents>(new Map([
+    ['cats/index.meta', {
       type: 'meta',
       path: 'cats/index.meta',
       mtimeMs: Signal.ok(0),
@@ -52,8 +46,8 @@ it('compiles table', () => {
           }
         }
       `),
-    },
-    'cats/index.table': {
+    }],
+    ['cats/index.table', {
       type: 'table',
       path: 'cats/index.table',
       mtimeMs: Signal.ok(0),
@@ -75,8 +69,8 @@ it('compiles table', () => {
           ]
         }
       `)
-    },
-    'cats/smokey.json': {
+    }],
+    ['cats/smokey.json', {
       type: 'json',
       path: 'cats/smokey.json',
       mtimeMs: Signal.ok(0),
@@ -86,8 +80,8 @@ it('compiles table', () => {
           breed: 'Ocicat',
         }
       `),
-    },
-    'cats/danny.json': {
+    }],
+    ['cats/danny.json', {
       type: 'json',
       path: 'cats/danny.json',
       mtimeMs: Signal.ok(0),
@@ -97,9 +91,9 @@ it('compiles table', () => {
           breed: 'American shorthair',
         }
       `),
-    },
-  }));
-  const { compiledNotes } = compileFiles(files, updateFile, deleteFile, setSelected);
+    }],
+  ]));
+  const { compiledNotes } = compileFiles(files);
   const cats = compiledNotes.get().get('cats/index');
   if (!cats) bug('expected cats');
   expect(cats.problems.get()).toBeFalsy();

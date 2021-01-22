@@ -13,6 +13,7 @@ import ReactDOMServer from 'react-dom/server';
 
 import * as Render from '../lang/Render';
 import * as data from '../data';
+import * as MapFuncs from '../util/MapFuncs';
 
 export default async function ghPages(
   compiledNotes: data.CompiledNotes,
@@ -25,7 +26,7 @@ export default async function ghPages(
   await mkdir(tempdir);
   await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
   await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
-  await Promise.all(compiledNotes.map(async note => {
+  await Promise.all([...MapFuncs.map(compiledNotes, async note => {
     // TODO(jaked) don't blow up on failed notes
 
     if (!note.meta.get().publish) return
@@ -51,7 +52,7 @@ export default async function ghPages(
       await mkdir(Path.dirname(path), { recursive: true });
       await writeFile(path, html);
     }
-  }).values());
+  }).values()]);
   await ghPagesPublish(tempdir, {
     src: '**',
     dotfiles: true,

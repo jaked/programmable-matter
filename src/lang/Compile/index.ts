@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import React from 'react';
 
 import Signal from '../../util/Signal';
@@ -31,31 +30,29 @@ function mergeModuleValue(
 
 export function compileFiles(
   files: Signal<Contents>,
-  updateFile: (path: string, buffer: Buffer) => void,
-  deleteFile: (path: string) => void,
-  setSelected: (name: string) => void,
-): { compiledFiles: Signal<Immutable.Map<string, CompiledFile>>, compiledNotes: Signal<CompiledNotes> } {
+  updateFile: (path: string, buffer: Buffer) => void = (path: string, buffer: Buffer) => { },
+  deleteFile: (path: string) => void = (path: string) => { },
+  setSelected: (name: string) => void = (name: string) => { },
+): { compiledFiles: Signal<Map<string, CompiledFile>>, compiledNotes: Signal<CompiledNotes> } {
 
   const filesByName = groupFilesByName(files);
 
-  const compiledFilesRef = Signal.ref<Immutable.Map<string, CompiledFile>>();
+  const compiledFilesRef = Signal.ref<Map<string, CompiledFile>>();
 
   const compiledNotesRef = Signal.ref<CompiledNotes>();
 
-  const compiledFiles = Signal.mapImmutableMap(files, file =>
+  const compiledFiles = Signal.mapMap(files, file =>
     compileFile(file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
   );
   compiledFilesRef.set(compiledFiles);
 
-  const compiledNotes: Signal<CompiledNotes> = Signal.mapImmutableMap(filesByName, (files, name) => {
+  const compiledNotes: Signal<CompiledNotes> = Signal.mapMap(filesByName, (files, name) => {
     function fileForType(type: Types): Content | undefined {
-      // TODO(jaked) fix names for index files, then just use name here instead of files
-      return files.find(file => file.type === type);
+      return files.get(Name.pathOfName(name, type));
     }
 
     function compiledFileForType(type: Types): Signal<CompiledFile | undefined> {
-      // TODO(jaked) fix names for index files, then just use name here instead of files
-      const file = files.find(file => file.type === type);
+      const file = fileForType(type);
       if (file) {
         return compiledFiles.map(compiledFiles => compiledFiles.get(file.path));
       } else {

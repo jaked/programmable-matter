@@ -37,7 +37,7 @@ export function extendEnvWithImport(
   mdxName: string,
   decl: ESTree.ImportDeclaration,
   annots: AstAnnotations,
-  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  moduleEnv: Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Env,
 ): Env {
   // TODO(jaked) finding errors in the AST is delicate.

@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import { Content, CompiledFile, CompiledNotes } from '../../data';
@@ -11,7 +10,7 @@ import compileFileJpeg from './compileFileJpeg';
 
 export default function compileFile(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, CompiledFile>>,
+  compiledFiles: Signal<Map<string, CompiledFile>>,
   compiledNotes: Signal<CompiledNotes>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,

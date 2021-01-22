@@ -1,13 +1,8 @@
-import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import * as data from '../../data';
 
 import compileFileTable from './compileFileTable';
-
-const setSelected = (s: string) => {}
-const updateFile = (s: string, b: Buffer) => {}
-const deleteFile = (s: string) => {}
 
 it('succeeds with syntax error', () => {
   console.log = jest.fn();
@@ -18,11 +13,6 @@ it('succeeds with syntax error', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`#Q(*&#$)`),
     },
-    Signal.ok(Immutable.Map()),
-    Signal.ok(Immutable.Map()),
-    setSelected,
-    updateFile,
-    deleteFile,
   );
   expect(compiled.problems.get()).toBeTruthy();
 });
@@ -36,11 +26,6 @@ it('succeeds with type error', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`{ }`),
     },
-    Signal.ok(Immutable.Map()),
-    Signal.ok(Immutable.Map()),
-    setSelected,
-    updateFile,
-    deleteFile,
   );
   expect(compiled.problems.get()).toBeTruthy();
   const annots = compiled.astAnnotations;
@@ -66,11 +51,6 @@ it('empty table', () => {
         ]
       }`),
     },
-    Signal.ok(Immutable.Map()),
-    Signal.ok(Immutable.Map()),
-    setSelected,
-    updateFile,
-    deleteFile,
   );
   expect(() => compiled.rendered.get()).not.toThrow();
 });
@@ -92,9 +72,9 @@ it('non-data note in table dir', () => {
         ]
       }`),
     },
-    Signal.ok(Immutable.Map()),
-    Signal.ok(Immutable.Map({
-      '/foo/bar': {
+    Signal.ok(new Map()),
+    Signal.ok(new Map([[
+      '/foo/bar', {
         name: '/foo/bar',
         meta: Signal.ok(data.Meta()),
         files: {},
@@ -104,10 +84,7 @@ it('non-data note in table dir', () => {
         exportType: Signal.ok(Type.module({})),
         exportValue: Signal.ok({}),
       }
-    })),
-    setSelected,
-    updateFile,
-    deleteFile,
+    ]])),
   );
   expect(() => compiled.rendered.get()).not.toThrow();
 });

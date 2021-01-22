@@ -1,16 +1,15 @@
-import * as Immutable from 'immutable';
 import Signal from '../util/Signal';
 import mkNewNote from './newNote';
 
 const mk = (args: {
   fsUpdate?: (fn: string, buffer: Buffer) => void,
-  notes?: Immutable.Map<string, unknown>,
+  notes?: Map<string, unknown>,
   focusDir?: string | null,
   callback?: (name: string) => void,
 } = {}) => {
   const newNote = mkNewNote({
     fsUpdate: args.fsUpdate ?? (() => {}),
-    notes: Signal.ok(args.notes ?? Immutable.Map()),
+    notes: Signal.ok(args.notes ?? new Map()),
     focusDir: Signal.ok(args.focusDir ?? null),
     callback: args.callback ?? (() => {}),
   })
@@ -55,11 +54,11 @@ it('prefixes focus dir', () => {
 });
 
 it('renames collisions', () => {
-  const newNote = mk({ notes: Immutable.Map({ '/foo': {} }) });
+  const newNote = mk({ notes: new Map([['/foo', {}]]) });
   expect(newNote('foo')).toBe('/foo (1)');
 });
 
 it('renames collisions of renames', () => {
-  const newNote = mk({ notes: Immutable.Map({ '/foo': {}, '/foo (1)': {} }) });
+  const newNote = mk({ notes: new Map([['/foo', {}], ['/foo (1)', {}]]) });
   expect(newNote('foo')).toBe('/foo (2)');
 });

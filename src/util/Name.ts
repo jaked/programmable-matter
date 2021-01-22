@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import * as Path from 'path';
 import { Types } from '../data';
 
@@ -39,7 +38,7 @@ export function resolve(dir: string, name: string) {
   return Path.resolve(dir, name);
 }
 
-export function rewrite(names: Immutable.Map<string, unknown>, name: string) {
+export function rewrite(names: Map<string, unknown>, name: string) {
   name = normalize(name);
   if (names.has(name)) return name;
   const nameSlashIndex = name + '/index';
@@ -47,6 +46,6 @@ export function rewrite(names: Immutable.Map<string, unknown>, name: string) {
   return null;
 }
 
-export function rewriteResolve(names: Immutable.Map<string, unknown>, current: string, name: string) {
+export function rewriteResolve(names: Map<string, unknown>, current: string, name: string) {
   return rewrite(names, resolve(dirname(current), name));
 }

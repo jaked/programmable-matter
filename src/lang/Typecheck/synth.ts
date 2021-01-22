@@ -832,7 +832,7 @@ export function synth(
 export function extendEnvWithImport(
   moduleName: string,
   decl: ESTree.ImportDeclaration,
-  moduleEnv: Immutable.Map<string, Type.ModuleType>,
+  moduleEnv: Map<string, Type.ModuleType>,
   env: Env,
   annots?: AstAnnotations,
 ): Env {

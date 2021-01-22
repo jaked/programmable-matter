@@ -3,7 +3,7 @@ import * as Path from 'path';
 import * as process from 'process';
 import { ipcRenderer as ipc } from 'electron';
 
-import * as Immutable from 'immutable';
+import * as Immer from 'immer';
 
 import * as data from '../data';
 import * as PMAST from '../PMAST';
@@ -174,7 +174,7 @@ export class App {
     });
   }
 
-  private contents = Signal.mapImmutableMap(this.filesystem.files, file => {
+  private contents = Signal.mapMap(this.filesystem.files, file => {
     const { type, path, mtimeMs } = file;
     let content: Signal.Writable<unknown>;
     switch (type) {
@@ -292,7 +292,7 @@ export class App {
     })
   );
 
-  private sessionsCell = Signal.cellOk<Immutable.Map<string, Session>>(Immutable.Map());
+  private sessionsCell = Signal.cellOk<Map<string, Session>>(new Map());
   public sessionSignal = Signal.label('session',
     Signal.join(this.selectedFileSignal, this.sessionsCell).map(([file, sessions]) => {
       if (file) {
@@ -306,14 +306,11 @@ export class App {
   );
 
   public setSessionSignal = Signal.label('setSession',
-    Signal.join(
-      this.selectedFileSignal,
-      this.sessionsCell,
-    ).map(([file, sessions]) => {
+    this.selectedFileSignal.map(file => {
       const noop = (session: Session) => {};
       if (!file) return noop;
       return (session: Session) => {
-        this.sessionsCell.setOk(sessions.set(file.path, session));
+        this.sessionsCell.produce(sessions => { sessions.set(file.path, session) });
       };
     })
   );

@@ -5,6 +5,7 @@ import * as ReactDOM from 'react-dom';
 import Try from '../Try';
 import { diffMap as diffImmutableMap } from '../immutable/Map';
 import { diffMap } from '../diffMap';
+import * as MapFuncs from '../MapFuncs';
 import { bug } from '../bug';
 
 const unreconciled = Try.err(new Error('unreconciled'));
@@ -147,6 +148,7 @@ interface WritableIntf<T> extends Signal<T> {
   setOk(t: T, force?: boolean): void;
   setErr(err: Error, force?: boolean): void;
   update(fn: (t: T) => T): void;
+  produce(fn: (t: T) => void): void;
 
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
 }
@@ -178,6 +180,7 @@ class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
   setOk(t: T, force?: boolean) { this.set(Try.ok(t), force); }
   setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
+  produce(fn: (t: T) => void) { this.update(t => Immer.produce(t, fn)); }
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
 }
 
@@ -296,6 +299,7 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
   setOk(u: U, force?: boolean) { this.set(Try.ok(u), force); }
   setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
   update(fn: (t: U) => U) { this.setOk(fn(this.value.get())); }
+  produce(fn: (t: U) => void) { this.update(t => Immer.produce(t, fn)); }
   mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableIntf<V> { return new MapWritable(this, f, fInv); }
 }
 
@@ -479,6 +483,74 @@ class JoinImmutableMap<K, V> extends SignalImpl<Immutable.Map<K, V>> {
         this.vsSignals = Immutable.Map();
         this.vsVersions = Immutable.Map();
         this.value = <Try<Immutable.Map<K, V>>><unknown>this.s.value;
+      }
+      this.version++;
+    }
+  }
+}
+
+class JoinMap<K, V> extends SignalImpl<Map<K, V>> {
+  s: Signal<Map<K, Signal<V>>>;
+  sVersion: number;
+  vsSignals: Map<K, Signal<V>>;
+  vsVersions: Map<K, number>;
+
+  constructor(
+    s: Signal<Map<K, Signal<V>>>
+  ) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.vsSignals = new Map();
+    this.vsVersions = new Map();
+  }
+
+  get() { this.reconcile(); return this.value.get(); }
+
+  value: Try<Map<K, V>>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) {
+      this.vsSignals.forEach((v, k) => {
+        impl(v).depend(this);
+        v.reconcile();
+      });
+      if (MapFuncs.every(this.vsSignals, (v, k) => {
+        const vVersion = this.vsVersions.get(k);
+        if (vVersion === undefined) bug(`expected vsVersion for ${k}`);
+        return v.version === vVersion;
+      })) return;
+
+      // TODO(jaked)
+      // incrementally update value / versions instead of rebuilding from scratch
+      // since it is likely that only some values are updated
+      this.vsVersions = MapFuncs.map(this.vsSignals, v => v.version);
+      this.value = Try.joinMap(MapFuncs.map(this.vsSignals, s => s.value));
+      this.version++;
+    } else {
+      this.sVersion = this.s.version
+      if (this.s.value.type === 'ok') {
+        this.vsSignals = this.s.value.ok;
+        this.vsSignals.forEach(v => {
+          impl(v).depend(this);
+          v.reconcile()
+        });
+
+        // TODO(jaked)
+        // incrementally update value / versions instead of rebuilding from scratch
+        // since it is likely that only some values are updated
+        this.vsVersions = MapFuncs.map(this.vsSignals, v => v.version);
+        this.value = Try.joinMap(MapFuncs.map(this.vsSignals, s => s.value));
+      } else {
+        this.vsSignals = new Map();
+        this.vsVersions = new Map();
+        this.value = <Try<Map<K, V>>><unknown>this.s.value;
       }
       this.version++;
     }
@@ -674,6 +746,12 @@ module Signal {
     return new JoinImmutableMap(map);
   }
 
+  export function joinMap<K, V>(
+    map: Signal<Map<K, Signal<V>>>
+  ): Signal<Map<K, V>> {
+    return new JoinMap(map);
+  }
+
   export function mapImmutableMap<K, V, U>(
     input: Signal<Immutable.Map<K, V>>,
     f: (v: V, k: K, coll: Immutable.Map<K, V>) => U
@@ -700,7 +778,7 @@ module Signal {
       input,
       (input, prevInput, prevOutput) =>
         Immer.produce(prevOutput, outputDraft => {
-          const output = outputDraft as Map<K, U>; // TODO(jakedd) ???
+          const output = outputDraft as Map<K, U>; // TODO(jaked) ???
 
           const { added, changed, deleted } = diffMap(prevInput, input);
           deleted.forEach(key => { output.delete(key) });

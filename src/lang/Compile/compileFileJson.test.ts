@@ -14,8 +14,6 @@ it('compiles', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`{ foo: 7 }`),
     },
-    Signal.ok(Immutable.Map()),
-    updateFile
   );
   expect(compiled.problems.get()).toBeFalsy();
 });
@@ -28,8 +26,6 @@ it('succeeds with syntax error', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`#Q(*&#$)`),
     },
-    Signal.ok(Immutable.Map()),
-    updateFile
   );
   expect(compiled.problems.get()).toBeTruthy();
 });
@@ -42,8 +38,8 @@ it('compiles with meta', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`{ foo: 7 }`),
     },
-    Signal.ok(Immutable.Map({
-      'foo.meta': {
+    Signal.ok(new Map([[
+      'foo.meta', {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({
           default: Signal.ok({
@@ -54,8 +50,7 @@ it('compiles with meta', () => {
         problems: Signal.ok(false),
         ast: Signal.ok(null),
       }
-    })),
-    updateFile
+    ]])),
   );
   expect(compiled.problems.get()).toBeFalsy();
 });
@@ -68,16 +63,15 @@ it('succeeds with meta error', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`{ foo: 7 }`),
     },
-    Signal.ok(Immutable.Map({
-      'foo.meta': {
+    Signal.ok(new Map([[
+      'foo.meta', {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({ default: Signal.err(new Error('bad meta')) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),
       }
-    })),
-    updateFile
+    ]])),
   );
   expect(compiled.problems.get()).toBeFalsy();
 });
@@ -91,8 +85,8 @@ it('succeeds with type error', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.ok(`{ foo: 7 }`),
     },
-    Signal.ok(Immutable.Map({
-      'foo.meta': {
+    Signal.ok(new Map([[
+      'foo.meta', {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({
           default: Signal.ok({
@@ -103,8 +97,7 @@ it('succeeds with type error', () => {
         problems: Signal.ok(false),
         ast: Signal.ok(null),
       }
-    })),
-    updateFile
+    ]])),
   );
   expect(compiled.problems.get()).toBeTruthy();
 });

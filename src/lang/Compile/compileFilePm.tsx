@@ -4,6 +4,7 @@ import React from 'react';
 
 import { bug } from '../../util/bug';
 import * as Name from '../../util/Name';
+import * as MapFuncs from '../../util/MapFuncs';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
@@ -35,7 +36,7 @@ const parsedCode = new WeakMap<PMAST.Node, Try<ESTree.Node>>();
 export function synthCode(
   moduleName: string,
   node: PMAST.Code,
-  moduleEnv: Immutable.Map<string, Type.ModuleType>,
+  moduleEnv: Map<string, Type.ModuleType>,
   env: Typecheck.Env,
   exportTypes: { [s: string]: Type },
   annots?: AstAnnotations,
@@ -80,7 +81,7 @@ export function compileCode(
   node: PMAST.Code,
   annots: AstAnnotations,
   moduleName: string,
-  moduleEnv: Immutable.Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  moduleEnv: Map<string, Signal<{ [s: string]: Signal<any> }>>,
   env: Render.Env,
   exportValue: { [s: string]: Signal<any> }
 ): Render.Env {
@@ -174,8 +175,8 @@ export function renderNode(
 
 export default function compileFilePm(
   file: Content,
-  compiledFiles: Signal<Immutable.Map<string, CompiledFile>> = Signal.ok(Immutable.Map()),
-  compiledNotes: Signal<CompiledNotes> = Signal.ok(Immutable.Map()),
+  compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
+  compiledNotes: Signal<CompiledNotes> = Signal.ok(new Map()),
   setSelected: (note: string) => void = (note: string) => { },
 ): CompiledFile {
   const moduleName = Name.nameOfPath(file.path);
@@ -245,26 +246,24 @@ export default function compileFilePm(
 
   // TODO(jaked) push note errors into envs so they're surfaced in editor?
   const noteEnv =
-    Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) =>
-      Immutable.Map<string, CompiledNote>().withMutations(noteEnv => {
-        imports.forEach(name => {
-          // TODO(jaked)
-          // we do this resolution here, in Synth, and in Render
-          // could rewrite or annotate the AST to do it just once
-          const resolvedName = Name.rewriteResolve(compiledNotes, moduleName, name);
-          if (resolvedName) {
-            const note = compiledNotes.get(resolvedName) ?? bug(`expected module '${resolvedName}'`);
-            noteEnv.set(resolvedName, note);
-          }
-        });
-        return noteEnv
-      })
-    );
-  const moduleTypeEnv = Signal.joinImmutableMap(
-    noteEnv.map(noteEnv => noteEnv.map(note => note.exportType))
-  );
+    Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) => {
+      const noteEnv = new Map<string, CompiledNote>();
+      imports.forEach(name => {
+        // TODO(jaked)
+        // we do this resolution here, in Synth, and in Render
+        // could rewrite or annotate the AST to do it just once
+        const resolvedName = Name.rewriteResolve(compiledNotes, moduleName, name);
+        if (resolvedName) {
+          const note = compiledNotes.get(resolvedName) ?? bug(`expected module '${resolvedName}'`);
+          noteEnv.set(resolvedName, note);
+        }
+      });
+      return noteEnv;
+    });
+  const moduleTypeEnv =
+    Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportType));
   const moduleValueEnv =
-    noteEnv.map(noteEnv => noteEnv.map(note => note.exportValue));
+    noteEnv.map(noteEnv => MapFuncs.map(noteEnv, note => note.exportValue));
 
   const pathParsed = Path.parse(file.path);
   const jsonPath = Path.format({ ...pathParsed, base: undefined, ext: '.json' });

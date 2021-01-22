@@ -2,6 +2,7 @@ import React from 'react';
 import { createEditor, Node, Editor } from 'slate';
 
 import Signal from '../../util/Signal';
+import * as MapFuncs from '../../util/MapFuncs';
 
 import Notes from './Notes';
 import SearchBox from './SearchBox';
@@ -43,13 +44,9 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
 
   const matchingNotesSignal = Signal.label('matchingNotes',
     Signal.join(
-      // TODO(jaked)
-      // map matching function over individual note signals
-      // so we only need to re-match notes that have changed
-      props.compiledNotes,
       props.focusDir,
       searchCell,
-    ).flatMap(([notes, focusDir, search]) => {
+    ).flatMap(([focusDir, search]) => {
       // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
       const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
       const regexp = RegExp(escaped, 'i');
@@ -92,13 +89,13 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
 
       // TODO(jaked) wrap this up in a function on Signal
       const matchingNotes = Signal.label('matches',
-        Signal.joinImmutableMap(Signal.ok(notes.map(matchesSearch)))
-          .map(map => map.filter(({ matches }) => matches))
+        Signal.joinMap(Signal.mapMap(props.compiledNotes, matchesSearch))
+          .map(map => MapFuncs.filter(map, ({ matches }) => matches))
       );
 
       return Signal.label('sort',
         matchingNotes.map(matchingNotes =>
-          matchingNotes.valueSeq().toArray()
+          [...matchingNotes.values()]
             .sort((a, b) => a.mtimeMs > b.mtimeMs ? -1 : 1 )
             .map(({ note }) => note)
         )

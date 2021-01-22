@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
@@ -241,9 +240,9 @@ it('compiles with import', () => {
         ]}
       ])
     },
-    Signal.ok(Immutable.Map()),
-    Signal.ok(Immutable.Map({
-      '/baz': {
+    Signal.ok(new Map()),
+    Signal.ok(new Map([[
+      '/baz', {
         name: '/baz',
         meta: Signal.err(new Error('meta')),
         files: {},
@@ -253,7 +252,7 @@ it('compiles with import', () => {
         exportType: Signal.ok(Type.module({ bar: Type.number })),
         exportValue: Signal.ok({ bar: Signal.ok(9) }),
       },
-    })),
+    ]])),
   );
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -279,22 +278,22 @@ it('compiles referencing data / table', () => {
         ]},
       ])
     },
-    Signal.ok(Immutable.Map({
-      '/foo.json': {
+    Signal.ok(new Map([
+      ['/foo.json', {
         exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
         exportValue: Signal.ok({ mutable: Signal.ok({ bar: 'bar' }) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
-      },
-      '/foo.table': {
+      }],
+      ['/foo.table', {
         exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
         exportValue: Signal.ok({ default: Signal.ok({ baz: 7 }) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
-      }
-    })),
+      }]
+    ])),
   );
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -315,17 +314,17 @@ it('compiles with layout', () => {
         { type: 'p', children: [ { text: 'foo' } ]}
       ])
     },
-    Signal.ok(Immutable.Map({
-      '/foo.meta': {
+    Signal.ok(new Map([[
+      '/foo.meta', {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok({ default: Signal.ok({ layout: '/layout' }) }),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
       },
-    })),
-    Signal.ok(Immutable.Map({
-      '/layout': {
+    ]])),
+    Signal.ok(new Map([[
+      '/layout', {
         name: '/layout',
         meta: Signal.ok(data.Meta({})),
         files: {},
@@ -341,7 +340,7 @@ it('compiles with layout', () => {
           )
         })
       }
-    })),
+    ]])),
   );
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
