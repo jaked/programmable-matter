@@ -1,10 +1,7 @@
-import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 
 import compileFileJson from './compileFileJson';
-
-const updateFile = (s: string, b: Buffer) => {}
 
 it('compiles', () => {
   const compiled = compileFileJson(

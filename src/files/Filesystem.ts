@@ -188,14 +188,17 @@ function make(
       // TODO(jaked) should check this before reading file.
       if (fileMeta.writing) {
         if (debug) console.log(`${path} is being written`);
+        return;
       }
       // we just wrote the file, this is most likely a notification
       // of that write, so skip it.
       if (Now.now() < fileMeta.lastWriteMs + 5000) {
         if (debug) console.log(`${path} was just written`);
+        return;
       }
       if (buffer.equals(file.buffer.get())) {
         if (debug) console.log(`${path} has not changed`);
+        return;
       }
 
       if (debug) console.log(`updating ${path}`);

@@ -3,8 +3,6 @@ import * as Path from 'path';
 import * as process from 'process';
 import { ipcRenderer as ipc } from 'electron';
 
-import * as Immer from 'immer';
-
 import * as data from '../data';
 import * as PMAST from '../PMAST';
 import { bug } from '../util/bug';
