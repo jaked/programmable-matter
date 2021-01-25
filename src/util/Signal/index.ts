@@ -65,12 +65,12 @@ interface Signal<T> {
    * when the signal is dirtied, `dirty` is called on dependencies and dependencies are removed.
    * dependencies should call `depend` again if they still depend on signal.
    */
-  depend: (d: { dirty: () => void }) => void
+  depend: (d: { dirty: (value?: Try<T>) => void }) => void
 
   /**
    * remove a dependency on this signal.
    */
-  undepend: (d: { dirty: () => void }) => void
+  undepend: (d: { dirty: (value?: Try<T>) => void }) => void
 
    /**
    * if a reconciliation changes `value`, `version` is incremented.
@@ -100,8 +100,8 @@ abstract class SignalImpl<T> implements Signal<T> {
   abstract reconcile(): void;
 
   public isDirty: boolean = true;
-  private deps: (undefined | { dirty: () => void })[] = [];
-  public dirty() {
+  protected deps: (undefined | { dirty: (value?: Try<T>) => void })[] = [];
+  public dirty(value?: Try<unknown>) {
     this.isDirty = true;
     const deps = [...this.deps];
     this.deps = [];
@@ -110,12 +110,12 @@ abstract class SignalImpl<T> implements Signal<T> {
       if (s) s.dirty();
     }
   }
-  public depend(s: { dirty: () => void }) {
+  public depend(s: { dirty: (value?: Try<T>) => void }) {
     for (let i=0; i < this.deps.length; i++)
       if (this.deps[i] === s) return;
     this.deps.push(s);
   }
-  public undepend(s: { dirty: () => void }) {
+  public undepend(s: { dirty: (value?: Try<T>) => void }) {
     for (let i=0; i < this.deps.length; i++)
       if (this.deps[i] === s) this.deps[i] === undefined;
   }
@@ -135,8 +135,6 @@ class Const<T> extends SignalImpl<T> {
   }
 
   get() { return this.value.get(); }
-  map<U>(f: (t: T) => U) { return new MapImpl(this, f); }
-  flatMap<U>(f: (t: T) => Signal<U>) { return new FlatMap(this, f); }
 
   value: Try<T>;
   get version(): 1 { return 1; }
@@ -173,15 +171,24 @@ class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
     this.value = t;
     this.version++;
     ReactDOM.unstable_batchedUpdates(() => {
-      this.dirty();
+      this.dirty(t);
     });
     if (this.onChange) this.onChange();
   }
   setOk(t: T, force?: boolean) { this.set(Try.ok(t), force); }
   setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
-  produce(fn: (t: T) => void) { this.update(t => Immer.produce(t, fn)); }
+  produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
+
+  public dirty(value?: Try<T>) {
+    const deps = [...this.deps];
+    this.deps = [];
+    for (let i=0; i < deps.length; i++) {
+      const s = deps[i];
+      if (s) s.dirty(value);
+    }
+  }
 }
 
 interface RefIntf<T> extends Signal<T> {
@@ -206,11 +213,11 @@ class RefImpl<T> extends SignalImpl<T> implements RefIntf<T> {
   get value() { return this.checkedS().value; }
   get version() { return this.checkedS().version; }
   reconcile() { this.checkedS().reconcile(); }
-  dirty() { impl(this.checkedS()).dirty(); }
-  depend(s: { dirty: () => void }) {
+  dirty(value?: Try<T>) { impl(this.checkedS()).dirty(value); }
+  depend(s: { dirty: (value?: Try<T>) => void }) {
     impl(this.checkedS()).depend(s);
   }
-  undepend(s: { dirty: () => void }) {
+  undepend(s: { dirty: (value?: Try<T>) => void }) {
     impl(this.checkedS()).undepend(s);
   }
 }
@@ -557,6 +564,119 @@ class JoinMap<K, V> extends SignalImpl<Map<K, V>> {
   }
 }
 
+// specialized MapImpl that projects a key from a map
+// and also does not depend on the map signal
+// since this is handled specially in UnjoinMap
+class UnjoinMapEntry<K,V> extends SignalImpl<V> {
+  s: Signal<Map<K, V>>;
+  sVersion: number;
+  key: K;
+
+  constructor(s: Signal<Map<K, V>>, key: K) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.key = key;
+  }
+
+  get() { this.reconcile(); return this.value.get(); }
+
+  value: Try<V>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) return;
+    this.sVersion = this.s.version;
+    const value = this.s.value.map(m => {
+      if (m.has(this.key)) {
+        return m.get(this.key) ?? bug(`expected get`);
+      } else {
+        // deleting an entry causes the outer signal to fire
+        // user code should drop any derivatives of deleted entries
+        // but if it doesn't it can see this error
+        throw new Error(`no entry for '${this.key}'`);
+      }
+    });
+    if (equal(value, this.value)) return;
+    this.value = value;
+    this.version++;
+  }
+}
+
+class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
+  s: Signal<Map<K, V>>;
+  sVersion: number;
+  prevInput: Map<K, V>;
+  prevOutput: Map<K, SignalImpl<V>>;
+
+  constructor(
+    s: Signal<Map<K, V>>
+  ) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.prevInput = new Map();
+    this.prevOutput = new Map();
+  }
+
+  get() { this.reconcile(); return this.value.get(); }
+
+  value: Try<Map<K, Signal<V>>>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) return;
+    this.sVersion = this.s.version;
+    let value;
+    if (this.s.value.type === 'err') {
+      value = this.s.value as unknown as Try<Map<K, Signal<V>>>;
+      // TODO(jaked) I think it's OK to hang onto prevInput / prevOutput here?
+    } else {
+      const input = this.s.value.ok;
+      const output = Immer.produce(this.prevOutput, outputDraft => {
+        const output = outputDraft as unknown as Map<K, SignalImpl<V>>; // TODO(jaked) ???
+
+        const { added, changed, deleted } = diffMap(this.prevInput, input);
+        deleted.forEach(key => { output.delete(key) });
+        added.forEach((v, key) => {
+          output.set(key, new UnjoinMapEntry(this.s, key));
+        });
+      });
+      this.prevInput = input;
+      this.prevOutput = output;
+      value = Try.ok(output);
+    }
+    if (value === this.value) return;
+    this.value = value;
+    this.version++;
+  }
+
+  public dirty(value?: Try<Map<K, V>>) {
+    if (value && value.type === 'ok') {
+      const { added, changed, deleted } = diffMap(this.prevInput, value.ok);
+      if (added.size > 0 || deleted.size > 0)
+        super.dirty();
+      if (changed.size > 0) {
+        changed.forEach((_, key) => {
+          const cell = this.prevOutput.get(key) ?? bug(`expected cell`);
+          cell.dirty();
+        });
+      }
+    } else {
+      super.dirty();
+    }
+  }
+}
+
 class Label<T> extends SignalImpl<T> {
   constructor(label: string, s: Signal<T>) {
     super();
@@ -597,11 +717,11 @@ class Label<T> extends SignalImpl<T> {
       performance.clearMeasures(measureLabel);
     }
   }
-  dirty() { impl(this.s).dirty(); }
-  depend(s: { dirty: () => void }) {
+  dirty(value?: Try<T>) { impl(this.s).dirty(value); }
+  depend(s: { dirty: (value?: Try<T>) => void }) {
     impl(this.s).depend(s);
   }
-  undepend(s: { dirty: () => void }) {
+  undepend(s: { dirty: (value?: Try<T>) => void }) {
     impl(this.s).undepend(s);
   }
 }
@@ -750,6 +870,12 @@ module Signal {
     map: Signal<Map<K, Signal<V>>>
   ): Signal<Map<K, V>> {
     return new JoinMap(map);
+  }
+
+  export function unjoinMap<K, V>(
+    map: Signal<Map<K, V>>
+  ): Signal<Map<K, Signal<V>>> {
+    return new UnjoinMap(map);
   }
 
   export function mapImmutableMap<K, V, U>(

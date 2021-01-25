@@ -2,6 +2,7 @@ import * as Immutable from 'immutable';
 import * as Immer from 'immer';
 import Signal from './index';
 import Try from '../Try';
+import { bug } from '../bug';
 
 const err = new Error('fail');
 
@@ -392,6 +393,53 @@ describe('mapMap', () => {
     expect(fmap.get()).toEqual(new Map([['b', 11], ['c', 14]]));
     expect(calls).toBe(4);
   });
+});
+
+describe('unjoinMap', () => {
+  it('unjoins', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMap(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+  });
+
+  it('dirties only inner Signal on value change', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMap(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+    expect(a.isDirty).toBe(false);
+    expect(b.isDirty).toBe(false);
+
+    map.produce(map => map.set('a', 8));
+    expect(unjoined.isDirty).toBe(false);
+    expect(a.isDirty).toBe(true);
+    expect(b.isDirty).toBe(false);
+    expect(a.get()).toEqual(8);
+  });
+
+  it('dirties only outer Signal on key change', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMap(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+    expect(a.isDirty).toBe(false);
+    expect(b.isDirty).toBe(false);
+
+    map.produce(map => map.set('c', 11));
+    expect(unjoined.isDirty).toBe(true);
+    expect(a.isDirty).toBe(false);
+    expect(b.isDirty).toBe(false);
+  })
 });
 
 describe('ref', () => {
