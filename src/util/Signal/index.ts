@@ -142,9 +142,9 @@ class Const<T> extends SignalImpl<T> {
 }
 
 interface WritableIntf<T> extends Signal<T> {
-  set(t: Try<T>, force?: boolean): void;
-  setOk(t: T, force?: boolean): void;
-  setErr(err: Error, force?: boolean): void;
+  set(t: Try<T>): void;
+  setOk(t: T): void;
+  setErr(err: Error): void;
   update(fn: (t: T) => T): void;
   produce(fn: (t: T) => void): void;
 
@@ -152,10 +152,9 @@ interface WritableIntf<T> extends Signal<T> {
 }
 
 class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
-  constructor(value: Try<T>, onChange?: () => void) {
+  constructor(value: Try<T>) {
     super();
     this.value = value;
-    this.onChange = onChange;
     this.version = 1;
   }
 
@@ -163,20 +162,18 @@ class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
 
   value: Try<T>;
   version: number;
-  onChange?: () => void;
   reconcile() { }
 
-  set(t: Try<T>, force?: boolean) {
-    if (!force && equal(t, this.value)) return;
+  set(t: Try<T>) {
+    if (equal(t, this.value)) return;
     this.value = t;
     this.version++;
     ReactDOM.unstable_batchedUpdates(() => {
       this.dirty(t);
     });
-    if (this.onChange) this.onChange();
   }
-  setOk(t: T, force?: boolean) { this.set(Try.ok(t), force); }
-  setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
+  setOk(t: T) { this.set(Try.ok(t)); }
+  setErr(err: Error) { this.set(Try.err(err)); }
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
   produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
@@ -287,13 +284,13 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
     this.version++;
   }
 
-  set(u: Try<U>, force?: boolean) {
-    if (!force && equal(u, this.value)) return;
+  set(u: Try<U>) {
+    if (equal(u, this.value)) return;
     if (u.type === 'ok') {
       const t = Try.apply(() => this.fInv(u.ok));
-      this.s.set(t, force);
+      this.s.set(t);
     } else {
-      this.s.set(u as unknown as Try<T>, force);
+      this.s.set(u as unknown as Try<T>);
     }
     // call to s.set dirties this and clears the dependency
     this.isDirty = false;
@@ -303,8 +300,8 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
     this.version++;
   }
 
-  setOk(u: U, force?: boolean) { this.set(Try.ok(u), force); }
-  setErr(err: Error, force?: boolean) { this.set(Try.err(err), force); }
+  setOk(u: U) { this.set(Try.ok(u)); }
+  setErr(err: Error) { this.set(Try.err(err)); }
   update(fn: (t: U) => U) { this.setOk(fn(this.value.get())); }
   produce(fn: (t: U) => void) { this.update(t => Immer.produce(t, fn)); }
   mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableIntf<V> { return new MapWritable(this, f, fInv); }
@@ -741,16 +738,16 @@ module Signal {
 
   export type Writable<T> = WritableIntf<T>;
 
-  export function cell<T>(t: Try<T>, onChange?: () => void): Writable<T> {
-    return new CellImpl(t, onChange);
+  export function cell<T>(t: Try<T>): Writable<T> {
+    return new CellImpl(t);
   }
 
-  export function cellOk<T>(t: T, onChange?: () => void): Writable<T> {
-    return cell(Try.ok(t), onChange);
+  export function cellOk<T>(t: T): Writable<T> {
+    return cell(Try.ok(t));
   }
 
-  export function cellErr<T>(err: Error, onChange: () => void): Writable<T> {
-    return cell<T>(Try.err(err), onChange);
+  export function cellErr<T>(err: Error): Writable<T> {
+    return cell<T>(Try.err(err));
   }
 
   export type Ref<T> = RefIntf<T>;

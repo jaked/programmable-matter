@@ -150,10 +150,11 @@ function make(
       deleted: false,
       mtimeMsCell: Signal.cellOk(mtimeMs),
     }
-    const bufferCell = Signal.cellOk(buffer, () => {
+    const bufferCell = Signal.cellOk(buffer).mapWritable(b => b, b => {
       const lastUpdateMs = Now.now();
       fileMeta.lastUpdateMs = lastUpdateMs;
       fileMeta.mtimeMsCell.setOk(lastUpdateMs);
+      return b;
     });
     const type = typeOfPath(path);
     const file = {
@@ -167,11 +168,10 @@ function make(
   }
 
   const updateFiles = (
-    updater: (files: Map<string, File>) => void,
-    force?: boolean
+    updater: (files: Map<string, File>) => void
   ) => {
     const files = Immer.produce(filesCell.get(), updater);
-    filesCell.setOk(files, force);
+    filesCell.setOk(files);
   }
 
   // updates coming from Nsfw
