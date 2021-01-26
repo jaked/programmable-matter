@@ -125,6 +125,25 @@ abstract class SignalImpl<T> implements Signal<T> {
   liftToTry(): Signal<Try<T>> { return new LiftToTry(this); }
 }
 
+interface WritableIntf<T> extends Signal<T> {
+  set(t: Try<T>): void;
+  setOk(t: T): void;
+  setErr(err: Error): void;
+  update(fn: (t: T) => T): void;
+  produce(fn: (t: T) => void): void;
+
+  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
+}
+
+abstract class WritableImpl<T> extends SignalImpl<T> {
+  abstract set(t: Try<T>): void;
+  setOk(t: T) { this.set(Try.ok(t)); }
+  setErr(err: Error) { this.set(Try.err(err)); }
+  update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
+  produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
+  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
+}
+
 class Const<T> extends SignalImpl<T> {
   // TODO(jaked)
   // no-op deps to avoid needlessly holding refs
@@ -141,17 +160,7 @@ class Const<T> extends SignalImpl<T> {
   reconcile() { }
 }
 
-interface WritableIntf<T> extends Signal<T> {
-  set(t: Try<T>): void;
-  setOk(t: T): void;
-  setErr(err: Error): void;
-  update(fn: (t: T) => T): void;
-  produce(fn: (t: T) => void): void;
-
-  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
-}
-
-class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
+class CellImpl<T> extends WritableImpl<T> {
   constructor(value: Try<T>) {
     super();
     this.value = value;
@@ -172,11 +181,6 @@ class CellImpl<T> extends SignalImpl<T> implements WritableIntf<T> {
       this.dirty(t);
     });
   }
-  setOk(t: T) { this.set(Try.ok(t)); }
-  setErr(err: Error) { this.set(Try.err(err)); }
-  update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
-  produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
-  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
 
   public dirty(value?: Try<T>) {
     const deps = [...this.deps];
@@ -251,7 +255,7 @@ class MapImpl<T, U> extends SignalImpl<U> {
   }
 }
 
-class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
+class MapWritable<T, U> extends WritableImpl<U> {
   s: WritableIntf<T>;
   sVersion: number;
   f: (t: T) => U;
@@ -292,19 +296,14 @@ class MapWritable<T, U> extends SignalImpl<U> implements WritableIntf<U> {
     } else {
       this.s.set(u as unknown as Try<T>);
     }
-    // call to s.set dirties this and clears the dependency
+    // avoid recomputing `f` just to get the value we already have
+    // the call to s.set dirties `this` and clears the dependency
     this.isDirty = false;
     impl(this.s).depend(this);
     this.sVersion = this.s.version;
     this.value = u;
     this.version++;
   }
-
-  setOk(u: U) { this.set(Try.ok(u)); }
-  setErr(err: Error) { this.set(Try.err(err)); }
-  update(fn: (t: U) => U) { this.setOk(fn(this.value.get())); }
-  produce(fn: (t: U) => void) { this.update(t => Immer.produce(t, fn)); }
-  mapWritable<V>(f: (u: U) => V, fInv: (v: V) => U): WritableIntf<V> { return new MapWritable(this, f, fInv); }
 }
 
 class FlatMap<T, U> extends SignalImpl<U> {
@@ -642,7 +641,7 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
       const output = Immer.produce(this.prevOutput, outputDraft => {
         const output = outputDraft as unknown as Map<K, SignalImpl<V>>; // TODO(jaked) ???
 
-        const { added, changed, deleted } = diffMap(this.prevInput, input);
+        const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
           output.set(key, new UnjoinMapEntry(this.s, key));
@@ -662,12 +661,132 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
       const { added, changed, deleted } = diffMap(this.prevInput, value.ok);
       if (added.size > 0 || deleted.size > 0)
         super.dirty();
-      if (changed.size > 0) {
-        changed.forEach((_, key) => {
-          const cell = this.prevOutput.get(key) ?? bug(`expected cell`);
-          cell.dirty();
-        });
+      changed.forEach((_, key) => {
+        const cell = this.prevOutput.get(key) ?? bug(`expected cell`);
+        cell.dirty();
+      });
+    } else {
+      super.dirty();
+    }
+  }
+}
+
+// specialized MapWritable that projects a key from a map
+// and also does not depend on the map signal
+// since this is handled specially in UnjoinMapWritable
+class UnjoinMapWritableEntry<K,V> extends WritableImpl<V> {
+  s: Signal.Writable<Map<K, V>>;
+  sVersion: number;
+  key: K;
+
+  constructor(s: Signal.Writable<Map<K, V>>, key: K) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.key = key;
+  }
+
+  get() { this.reconcile(); return this.value.get(); }
+
+  value: Try<V>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) return;
+    this.sVersion = this.s.version;
+    const value = this.s.value.map(m => {
+      if (m.has(this.key)) {
+        return m.get(this.key) ?? bug(`expected get`);
+      } else {
+        // deleting an entry causes the outer signal to fire
+        // user code should drop any derivatives of deleted entries
+        // but if it doesn't it can see this error
+        throw new Error(`no entry for '${this.key}'`);
       }
+    });
+    if (equal(value, this.value)) return;
+    this.value = value;
+    this.version++;
+  }
+
+  set(v: Try<V>) {
+    if (equal(v, this.value)) return;
+    if (v.type === 'ok') {
+      this.s.produce(map => { map.set(this.key, v.ok) });
+    } else {
+      // this is weird but makes sense as the inverse of joinMap I guess?
+      this.s.setErr(v.err);
+    }
+    // don't bother optimizing like MapWritable, it's cheap to project the key
+  }
+}
+
+class UnjoinMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
+  s: Signal.Writable<Map<K, V>>;
+  sVersion: number;
+  prevInput: Map<K, V>;
+  prevOutput: Map<K, WritableImpl<V>>;
+
+  constructor(
+    s: Signal.Writable<Map<K, V>>
+  ) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.prevInput = new Map();
+    this.prevOutput = new Map();
+  }
+
+  get() { this.reconcile(); return this.value.get(); }
+
+  value: Try<Map<K, Signal.Writable<V>>>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) return;
+    this.sVersion = this.s.version;
+    let value;
+    if (this.s.value.type === 'err') {
+      value = this.s.value as unknown as Try<Map<K, Signal<V>>>;
+      // TODO(jaked) I think it's OK to hang onto prevInput / prevOutput here?
+    } else {
+      const input = this.s.value.ok;
+      const output = Immer.produce(this.prevOutput, outputDraft => {
+        const output = outputDraft as unknown as Map<K, WritableImpl<V>>; // TODO(jaked) ???
+
+        const { added, deleted } = diffMap(this.prevInput, input);
+        deleted.forEach(key => { output.delete(key) });
+        added.forEach((v, key) => {
+          output.set(key, new UnjoinMapWritableEntry(this.s, key));
+        });
+      });
+      this.prevInput = input;
+      this.prevOutput = output;
+      value = Try.ok(output);
+    }
+    if (value === this.value) return;
+    this.value = value;
+    this.version++;
+  }
+
+  public dirty(value?: Try<Map<K, V>>) {
+    if (value && value.type === 'ok') {
+      const { added, changed, deleted } = diffMap(this.prevInput, value.ok);
+      if (added.size > 0 || deleted.size > 0)
+        super.dirty();
+      changed.forEach((_, key) => {
+        const cell = this.prevOutput.get(key) ?? bug(`expected cell`);
+        cell.dirty();
+      });
     } else {
       super.dirty();
     }
@@ -873,6 +992,12 @@ module Signal {
     map: Signal<Map<K, V>>
   ): Signal<Map<K, Signal<V>>> {
     return new UnjoinMap(map);
+  }
+
+  export function unjoinMapWritable<K, V>(
+    map: Signal.Writable<Map<K, V>>
+  ): Signal<Map<K, Signal.Writable<V>>> {
+    return new UnjoinMapWritable(map);
   }
 
   export function mapImmutableMap<K, V, U>(

@@ -396,6 +396,8 @@ describe('unjoinMap', () => {
 
     expect(a.get()).toEqual(7);
     expect(b.get()).toEqual(9);
+    expect(a.isDirty).toBe(false);
+    expect(b.isDirty).toBe(false);
   });
 
   it('dirties only inner Signal on value change', () => {
@@ -403,11 +405,8 @@ describe('unjoinMap', () => {
     const unjoined = Signal.unjoinMap(map);
     const a = unjoined.get().get('a') ?? bug('expected a');
     const b = unjoined.get().get('b') ?? bug('expected b');
-
     expect(a.get()).toEqual(7);
     expect(b.get()).toEqual(9);
-    expect(a.isDirty).toBe(false);
-    expect(b.isDirty).toBe(false);
 
     map.produce(map => map.set('a', 8));
     expect(unjoined.isDirty).toBe(false);
@@ -421,17 +420,72 @@ describe('unjoinMap', () => {
     const unjoined = Signal.unjoinMap(map);
     const a = unjoined.get().get('a') ?? bug('expected a');
     const b = unjoined.get().get('b') ?? bug('expected b');
-
     expect(a.get()).toEqual(7);
     expect(b.get()).toEqual(9);
-    expect(a.isDirty).toBe(false);
-    expect(b.isDirty).toBe(false);
 
     map.produce(map => map.set('c', 11));
     expect(unjoined.isDirty).toBe(true);
     expect(a.isDirty).toBe(false);
     expect(b.isDirty).toBe(false);
   })
+});
+
+describe('unjoinMapWritable', () => {
+  it('unjoins', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMapWritable(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+    expect(a.isDirty).toBe(false);
+    expect(b.isDirty).toBe(false);
+  });
+
+  it('dirties only inner Signal on value change', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMapWritable(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+
+    map.produce(map => map.set('a', 8));
+    expect(unjoined.isDirty).toBe(false);
+    expect(a.isDirty).toBe(true);
+    expect(b.isDirty).toBe(false);
+    expect(a.get()).toEqual(8);
+  });
+
+  it('dirties only outer Signal on key change', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMapWritable(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+
+    map.produce(map => map.set('c', 11));
+    expect(unjoined.isDirty).toBe(true);
+    expect(a.isDirty).toBe(false);
+    expect(b.isDirty).toBe(false);
+  })
+
+  it('value change updates underlying map', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const unjoined = Signal.unjoinMapWritable(map);
+    const a = unjoined.get().get('a') ?? bug('expected a');
+    const b = unjoined.get().get('b') ?? bug('expected b');
+    expect(a.get()).toEqual(7);
+    expect(b.get()).toEqual(9);
+
+    a.setOk(8);
+    expect(unjoined.isDirty).toBe(false);
+    expect(a.isDirty).toBe(true);
+    expect(b.isDirty).toBe(false);
+    expect(map.get().get('a')).toBe(8);
+  });
 });
 
 describe('ref', () => {
