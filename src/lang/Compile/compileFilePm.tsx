@@ -11,6 +11,7 @@ import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } fr
 import * as PMAST from '../../PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
+import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
@@ -77,6 +78,114 @@ export function synthInlineCode(
   );
 }
 
+function evaluateExpressionSignal(
+  ast: ESTree.Expression,
+  annots: AstAnnotations,
+  env: Render.Env
+): Signal<any> {
+  const idents = ESTree.freeIdentifiers(ast);
+  const signals = idents.map(id => {
+    const signal = env.get(id);
+    if (signal) return signal;
+    else return Signal.ok(Error(`unbound identifier ${id}`));
+  });
+  return Signal.join(...signals).map(values => {
+    const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
+    return Evaluate.evaluateExpression(ast, annots, env);
+  });
+}
+
+function extendEnvWithImport(
+  mdxName: string,
+  decl: ESTree.ImportDeclaration,
+  annots: AstAnnotations,
+  moduleEnv: Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  env: Render.Env,
+): Render.Env {
+  // TODO(jaked) finding errors in the AST is delicate.
+  // need to separate error semantics from error highlighting.
+  const type = annots.get(decl.source);
+  if (type && type.kind === 'Error') {
+    decl.specifiers.forEach(spec => {
+      env = env.set(spec.local.name, Signal.ok(type.err));
+    });
+  } else {
+    const moduleName = Name.rewriteResolve(moduleEnv, mdxName, decl.source.value) || bug(`expected module '${decl.source.value}'`);
+    const module = moduleEnv.get(moduleName) ?? bug(`expected module '${moduleName}'`);
+    decl.specifiers.forEach(spec => {
+      switch (spec.type) {
+        case 'ImportNamespaceSpecifier': {
+          env = env.set(spec.local.name, module.flatMap(module => Signal.joinObject(module)));
+          break;
+        }
+
+        case 'ImportDefaultSpecifier': {
+          const type = annots.get(spec.local);
+          if (type && type.kind === 'Error') {
+            env = env.set(spec.local.name, Signal.ok(type.err))
+          } else {
+            const defaultField = module.flatMap(module => {
+              if ('default' in module) return module.default;
+              else bug(`expected default export on '${decl.source.value}'`)
+            });
+            env = env.set(spec.local.name, defaultField);
+          }
+        }
+        break;
+
+        case 'ImportSpecifier': {
+          const type = annots.get(spec.imported);
+          if (type && type.kind === 'Error') {
+            env = env.set(spec.local.name, Signal.ok(type.err))
+          } else {
+            const importedField = module.flatMap(module => {
+              if (spec.imported.name in module) return module[spec.imported.name];
+              else bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`);
+            });
+            env = env.set(spec.local.name, importedField);
+          }
+        }
+        break;
+      }
+    });
+  }
+  return env;
+}
+
+function extendEnvWithNamedExport(
+  decl: ESTree.ExportNamedDeclaration,
+  annots: AstAnnotations,
+  env: Render.Env,
+  exportValue: { [s: string]: Signal<any> }
+): Render.Env {
+  const declaration = decl.declaration;
+  switch (declaration.kind) {
+    case 'const': {
+      declaration.declarations.forEach(declarator => {
+        let name = declarator.id.name;
+        let value = evaluateExpressionSignal(declarator.init, annots, env);
+        exportValue[name] = value;
+        env = env.set(name, value);
+      });
+    }
+    break;
+
+    default: throw new Error('unexpected AST ' + declaration.kind);
+  }
+  return env;
+}
+
+function extendEnvWithDefaultExport(
+  decl: ESTree.ExportDefaultDeclaration,
+  annots: AstAnnotations,
+  env: Render.Env,
+  exportValue: { [s: string]: Signal<any> }
+): Render.Env {
+  const value = evaluateExpressionSignal(decl.declaration, annots, env);
+  exportValue['default'] = value;
+  return env;
+}
+
 export function compileCode(
   node: PMAST.Code,
   annots: AstAnnotations,
@@ -90,15 +199,15 @@ export function compileCode(
     for (const node of (code as ESTree.Program).body) {
       switch (node.type) {
         case 'ImportDeclaration':
-          env = Render.extendEnvWithImport(moduleName, node, annots, moduleEnv, env);
+          env = extendEnvWithImport(moduleName, node, annots, moduleEnv, env);
           break;
 
         case 'ExportNamedDeclaration':
-          env = Render.extendEnvWithNamedExport(node, annots, env, exportValue);
+          env = extendEnvWithNamedExport(node, annots, env, exportValue);
           break;
 
         case 'ExportDefaultDeclaration':
-          env = Render.extendEnvWithDefaultExport(node, annots, env, exportValue);
+          env = extendEnvWithDefaultExport(node, annots, env, exportValue);
           break;
 
         case 'VariableDeclaration':
@@ -141,7 +250,7 @@ export function renderNode(
       for (const node of (code.ok as ESTree.Program).body) {
         switch (node.type) {
           case 'ExpressionStatement':
-            rendered.push(Render.evaluateExpressionSignal(node.expression, annots, env));
+            rendered.push(evaluateExpressionSignal(node.expression, annots, env));
             break;
         }
       }
@@ -152,7 +261,7 @@ export function renderNode(
       if (code.type !== 'ok') return Signal.ok(null);
       const type = annots.get(code.ok) ?? bug(`expected type`);
       if (type.kind === 'Error') return Signal.ok(null);
-      return Render.evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env);
+      return evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env);
 
     } else {
       const children = node.children.map(child => renderNode(child, annots, env, Link));
