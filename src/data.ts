@@ -1,8 +1,14 @@
 import Immutable from 'immutable';
-import * as Immer from 'immer';
 import React from 'react';
 import Signal from './util/Signal';
 import Type from './lang/Type';
+
+export type File = {
+  mtimeMs: number;
+  buffer: Buffer;
+}
+
+export type Files = Map<string, File>;
 
 export type Types = 'meta' | 'pm' | 'json' | 'jpeg' | 'table';
 

@@ -1,40 +1,15 @@
 import fs from 'fs';
 import timers from 'timers';
 import * as Path from 'path';
-import * as Immer from 'immer';
 import nsfw from 'nsfw';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
-
-// TODO(jaked) should handle type elsewhere maybe
-import { Types } from '../data';
-
-function typeOfPath(path: string): Types {
-  const ext = Path.parse(path).ext;
-  switch (ext) {
-    case '.meta': return 'meta';
-    case '.pm': return 'pm';
-    case '.json': return 'json';
-    case '.table': return 'table';
-    case '.jpeg': return 'jpeg';
-    default:
-      throw new Error(`unhandled extension '${ext}' for '${path}'`);
-  }
-}
-
-export type File = {
-  path: string;
-  buffer: Signal.Writable<Buffer>;
-  mtimeMs: Signal<number>;
-  type: Types;
-}
+import * as data from '../data';
 
 type FileMeta = {
   writing: boolean; // true if we are in the middle of writing the file
-  lastUpdateMs: number; // timestamp of last in-memory update
   lastWriteMs: number; // timestamp of last write to underlying filesystem
   deleted: boolean; // true if file has been deleted in memory
-  mtimeMsCell: Signal.Writable<number>;
 }
 
 const debug = false;
@@ -100,7 +75,6 @@ type Nsfw = (
 
 type Filesystem = {
   setPath: (path: string) => Promise<void>,
-  files: Signal<Map<string, File>>,
   update: (path: string, buffer: Buffer) => void,
   remove: (path: string) => void,
   rename: (oldPath: string, newPath: string) => void,
@@ -110,6 +84,7 @@ type Filesystem = {
 }
 
 function make(
+  files: Signal.Writable<data.Files>,
   Now: Now = Date,
   Timers: Timers = timers,
   Fs: Fs = fs.promises,
@@ -117,7 +92,6 @@ function make(
 ): Filesystem {
   let running = false;
   let filesPath: null | string = null;
-  const filesCell = Signal.cellOk(new Map<string, File>());
   const fileMetas = new Map<string, FileMeta>();
   let timeout: null | NodeJS.Timeout = null;
   let watcher: null | {
@@ -136,47 +110,9 @@ function make(
     return start();
   }
 
-  const makeFile = (
-    path: string,
-    buffer: Buffer,
-    mtimeMs: number,
-    lastUpdateMs: number,
-    lastWriteMs: number
-  ) => {
-    const fileMeta = {
-      lastUpdateMs,
-      lastWriteMs,
-      writing: false,
-      deleted: false,
-      mtimeMsCell: Signal.cellOk(mtimeMs),
-    }
-    const bufferCell = Signal.cellOk(buffer).mapWritable(b => b, b => {
-      const lastUpdateMs = Now.now();
-      fileMeta.lastUpdateMs = lastUpdateMs;
-      fileMeta.mtimeMsCell.setOk(lastUpdateMs);
-      return b;
-    });
-    const type = typeOfPath(path);
-    const file = {
-      path,
-      buffer: bufferCell,
-      mtimeMs: fileMeta.mtimeMsCell,
-      type,
-    };
-    fileMetas.set(path, fileMeta);
-    return file;
-  }
-
-  const updateFiles = (
-    updater: (files: Map<string, File>) => void
-  ) => {
-    const files = Immer.produce(filesCell.get(), updater);
-    filesCell.setOk(files);
-  }
-
   // updates coming from Nsfw
   const updateFile = (
-    files: Map<string, File>,
+    files: Map<string, data.File>,
     path: string,
     buffer: Buffer,
     mtimeMs: number,
@@ -196,24 +132,26 @@ function make(
         if (debug) console.log(`${path} was just written`);
         return;
       }
-      if (buffer.equals(file.buffer.get())) {
+      if (buffer.equals(file.buffer)) {
         if (debug) console.log(`${path} has not changed`);
         return;
       }
 
       if (debug) console.log(`updating ${path}`);
-      file.buffer.setOk(buffer);
-      fileMeta.mtimeMsCell.setOk(mtimeMs);
-      fileMeta.lastUpdateMs = mtimeMs;
+      file.buffer = buffer;
+      file.mtimeMs = mtimeMs;
       fileMeta.lastWriteMs = mtimeMs;
     } else {
       if (debug) console.log(`adding ${path}`);
-      try {
-        const file = makeFile(path, buffer, mtimeMs, mtimeMs, mtimeMs);
-        files.set(path, file);
-      } catch (e) {
-        console.log(e);
-      }
+      fileMetas.set(path, {
+        lastWriteMs: mtimeMs,
+        writing: false,
+        deleted: false,
+      });
+      files.set(path, {
+        buffer,
+        mtimeMs,
+      });
     }
   }
 
@@ -249,7 +187,7 @@ function make(
       })
     )
 
-    updateFiles(files => {
+    files.produce(files => {
       // defer deletions to account for delete/add
       // TODO(jaked) rethink this
       const deleted = new Set<string>();
@@ -283,60 +221,71 @@ function make(
   }
 
   const update = (path: string, buffer: Buffer) => {
-    updateFiles(files => {
+    files.produce(files => {
       const oldFile = files.get(path);
-      const lastUpdateMs = Now.now();
+      const now = Now.now();
       if (oldFile) {
-        if (buffer.equals(oldFile.buffer.get())) {
+        if (buffer.equals(oldFile.buffer)) {
           if (debug) console.log(`${path} has not changed`);
         } else {
           if (debug) console.log(`updating file path=${path}`);
-          oldFile.buffer.setOk(buffer);
+          oldFile.buffer = buffer;
+          oldFile.mtimeMs = now;
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
-        const file = makeFile(path, buffer, lastUpdateMs, lastUpdateMs, 0);
-        files.set(path, file);
+        fileMetas.set(path, {
+          lastWriteMs: 0,
+          writing: false,
+          deleted: false,
+        });
+        files.set(path, {
+          buffer,
+          mtimeMs: now,
+        });
       }
     });
   }
 
   const remove = (path: string) => {
-    updateFiles(files => {
-      const lastUpdateMs = Now.now();
+    files.produce(files => {
       const fileMeta = fileMetas.get(path) ?? bug(`expected fileMeta`);
-      fileMeta.lastUpdateMs = lastUpdateMs;
       fileMeta.deleted = true;
       files.delete(path);
     });
   }
 
   const rename = (oldPath: string, newPath: string) => {
-    updateFiles(files => {
+    files.produce(files => {
       if (oldPath === newPath) return;
-      const lastUpdateMs = Now.now();
+      const now = Now.now();
 
       const oldFile = files.get(oldPath) ?? bug(`expected oldFile`);
       const oldFileMeta = fileMetas.get(oldPath) ?? bug(`rename: expected file for ${oldPath}`);
-      oldFileMeta.lastUpdateMs = lastUpdateMs;
       oldFileMeta.deleted = true;
       files.delete(oldPath);
 
       const newFile = files.get(newPath);
       if (newFile) {
         const newFileMeta = fileMetas.get(newPath) ?? bug(`expected newFileMeta`);
-        newFile.buffer.setOk(oldFile.buffer.get());
-        newFileMeta.lastUpdateMs = lastUpdateMs;
-        newFileMeta.mtimeMsCell.setOk(oldFile.mtimeMs.get());
+        newFile.buffer = oldFile.buffer;
+        newFile.mtimeMs = now;
       } else {
-        const newFile = makeFile(newPath, oldFile.buffer.get(), oldFile.mtimeMs.get(), lastUpdateMs, 0)
-        files.set(newPath, newFile);
+        fileMetas.set(newPath, {
+          lastWriteMs: now,
+          writing: false,
+          deleted: false,
+        });
+        files.set(newPath, {
+          buffer: oldFile.buffer,
+          mtimeMs: now,
+        });
       }
     });
   }
 
   const exists = (path: string) => {
-    return !!filesCell.get().get(path);
+    return files.get().has(path);
   }
 
   const deleteMissing = (events: NsfwEvent[]) => {
@@ -351,7 +300,7 @@ function make(
         default: bug(`expected add`);
       }
     });
-    updateFiles(files => {
+    files.produce(files => {
       files.forEach((_, path) => {
         if (!seen.has(path)) {
           fileMetas.delete(path);
@@ -377,7 +326,7 @@ function make(
     }));
   }
 
-  const shouldWrite = (path: string, fileMeta: FileMeta, force: boolean) => {
+  const shouldWrite = (path: string, fileMeta: FileMeta, mtimeMs: number, force: boolean) => {
     // we're in the middle of a write
     if (fileMeta.writing) {
       if (debugShouldWrite) console.log(`shouldWrite(${path}): false because file.writing`);
@@ -385,7 +334,7 @@ function make(
     }
 
     // the current in-memory file is already written
-    if (fileMeta.lastWriteMs >= fileMeta.lastUpdateMs) {
+    if (fileMeta.lastWriteMs >= mtimeMs) {
       if (debugShouldWrite) console.log(`shouldWrite(${path}): false because already written`);
       return false;
     }
@@ -398,7 +347,7 @@ function make(
     const now = Now.now();
 
     // there's been no update in 500 ms
-    if (now > fileMeta.lastUpdateMs + 500) {
+    if (now > mtimeMs + 500) {
       if (debugShouldWrite) console.log(`shouldWrite(${path}): true because no update in 500 ms`);
       return true;
     }
@@ -418,25 +367,27 @@ function make(
     const waits: Promise<unknown>[] = []; // TODO(jaked) yuck
     fileMetas.forEach((fileMeta, path) => {
       if (!filesPath) bug(`expected filesPath`);
-      if (shouldWrite(path, fileMeta, force)) {
-        fileMeta.writing = true;
-
-        const lastWriteMs = Now.now();
-        const filePath = Path.join(filesPath, path);
-        if (!fileMeta.deleted) {
-          if (debug) console.log(`writeFile(${path})`);
-          const file = filesCell.get().get(path) ?? bug(`expected file`);
-          waits.push(Fs.mkdir(Path.dirname(filePath), { recursive: true })
-            .then(() => Fs.writeFile(filePath, file.buffer.get()))
-            .finally(() => {
-              fileMeta.lastWriteMs = lastWriteMs;
-              fileMeta.writing = false;
-            }));
-        } else {
+      const now = Now.now();
+      const filePath = Path.join(filesPath, path);
+      if (fileMeta.deleted) {
+        if (!fileMeta.writing) {
+          fileMeta.writing = true;
           if (debug) console.log(`unlink(${path})`);
           waits.push(Fs.unlink(filePath)
             .finally(() => {
               fileMetas.delete(path);
+            }));
+        }
+      } else {
+        const file = files.get().get(path) ?? bug(`expected file`);
+        if (shouldWrite(path, fileMeta, file.mtimeMs, force)) {
+          fileMeta.writing = true;
+          if (debug) console.log(`writeFile(${path})`);
+          waits.push(Fs.mkdir(Path.dirname(filePath), { recursive: true })
+            .then(() => Fs.writeFile(filePath, file.buffer))
+            .finally(() => {
+              fileMeta.lastWriteMs = now;
+              fileMeta.writing = false;
             }));
         }
       }
@@ -478,7 +429,6 @@ function make(
 
   return {
     setPath,
-    files: filesCell,
     update,
     remove,
     rename,

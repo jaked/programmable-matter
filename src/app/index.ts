@@ -28,6 +28,19 @@ import mkNewNote from './newNote';
 
 const debug = false;
 
+function typeOfPath(path: string): data.Types {
+  const ext = Path.parse(path).ext;
+  switch (ext) {
+    case '.meta': return 'meta';
+    case '.pm': return 'pm';
+    case '.json': return 'json';
+    case '.table': return 'table';
+    case '.jpeg': return 'jpeg';
+    default:
+      throw new Error(`unhandled extension '${ext}' for '${path}'`);
+  }
+}
+
 export class App {
   private render = () => {
     // TODO(jaked)
@@ -37,7 +50,8 @@ export class App {
     this.reactRender();
   }
 
-  private filesystem = Filesystem();
+  private files = Signal.cellOk<data.Files>(new Map());
+  private filesystem = Filesystem(this.files);
 
   constructor() {
     this.render();
@@ -172,12 +186,19 @@ export class App {
     });
   }
 
-  private contents = Signal.mapMap(this.filesystem.files, file => {
-    const { type, path, mtimeMs } = file;
+  private contents = Signal.mapMap(Signal.unjoinMapWritable(this.files), (file, path) => {
+    const type = typeOfPath(path);
+
+    const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
+    const buffer = file.mapWritable(
+      ({ buffer }) => buffer,
+      buffer => ({ buffer, mtimeMs: Date.now() })
+    );
+
     let content: Signal.Writable<unknown>;
     switch (type) {
       case 'pm':
-        content = file.buffer.mapWritable(
+        content = buffer.mapWritable(
           // TODO(jaked) handle parse errors
           buffer => PMAST.parse(buffer.toString('utf8')),
           nodes => Buffer.from(PMAST.stringify(nodes), 'utf8')
@@ -185,11 +206,11 @@ export class App {
         break;
 
       case 'jpeg':
-        content = file.buffer;
+        content = buffer;
         break;
 
       default:
-        content = file.buffer.mapWritable(
+        content = buffer.mapWritable(
           buffer => buffer.toString('utf8'),
           string => Buffer.from(string, 'utf8')
         );

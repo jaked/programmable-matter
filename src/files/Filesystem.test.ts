@@ -1,4 +1,5 @@
 import Filesystem from './Filesystem';
+import Signal from '../util/Signal';
 
 test('makes dir on update if needed', async () => {
   let ok = false;
@@ -47,6 +48,7 @@ test('makes dir on update if needed', async () => {
   });
 
   const filesystem = Filesystem(
+    Signal.cellOk(new Map()),
     Now,
     Timers,
     Fs,
