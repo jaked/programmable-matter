@@ -44,25 +44,14 @@ export function synthCode(
 ): Typecheck.Env {
   const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code => {
-    (code as ESTree.Program).body.forEach(node => {
-      switch (node.type) {
-        case 'ExportDefaultDeclaration':
-          env = Typecheck.extendEnvWithDefaultExport(node, exportTypes, env, annots);
-          break;
-        case 'ExportNamedDeclaration':
-          env = Typecheck.extendEnvWithNamedExport(node, exportTypes, env, annots);
-          break;
-        case 'ImportDeclaration':
-          env = Typecheck.extendEnvWithImport(moduleName, node, moduleEnv, env, annots);
-          break;
-        case 'VariableDeclaration':
-          // TODO(jaked) ???
-          break;
-        case 'ExpressionStatement':
-          Typecheck.check(node.expression, env, Type.reactNodeType, annots);
-          break;
-      }
-    });
+    env = Typecheck.synthProgram(
+      moduleName,
+      moduleEnv,
+      code as ESTree.Program,
+      env,
+      exportTypes,
+      annots
+    );
   });
   return env;
 }

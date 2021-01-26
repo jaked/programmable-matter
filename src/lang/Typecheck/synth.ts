@@ -829,7 +829,7 @@ export function synth(
   return type;
 }
 
-export function extendEnvWithImport(
+function extendEnvWithImport(
   moduleName: string,
   decl: ESTree.ImportDeclaration,
   moduleEnv: Map<string, Type.ModuleType>,
@@ -878,7 +878,7 @@ export function extendEnvWithImport(
   return env;
 }
 
-export function extendEnvWithNamedExport(
+function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
@@ -912,12 +912,42 @@ export function extendEnvWithNamedExport(
   return env;
 }
 
-export function extendEnvWithDefaultExport(
+function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
   annots?: AstAnnotations,
 ): Env {
   exportTypes['default'] = synth(decl.declaration, env, annots);
+  return env;
+}
+
+export function synthProgram(
+  moduleName: string,
+  moduleEnv: Map<string, Type.ModuleType>,
+  program: ESTree.Program,
+  env: Env,
+  exportTypes: { [s: string]: Type },
+  annots?: AstAnnotations,
+): Env {
+  program.body.forEach(node => {
+    switch (node.type) {
+      case 'ExportDefaultDeclaration':
+        env = extendEnvWithDefaultExport(node, exportTypes, env, annots);
+        break;
+      case 'ExportNamedDeclaration':
+        env = extendEnvWithNamedExport(node, exportTypes, env, annots);
+        break;
+      case 'ImportDeclaration':
+        env = extendEnvWithImport(moduleName, node, moduleEnv, env, annots);
+        break;
+      case 'VariableDeclaration':
+        // TODO(jaked) ???
+        break;
+      case 'ExpressionStatement':
+        check(node.expression, env, Type.reactNodeType, annots);
+        break;
+    }
+  });
   return env;
 }
