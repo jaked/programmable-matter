@@ -413,6 +413,13 @@ describe('unjoinMap', () => {
     expect(a.isDirty).toBe(true);
     expect(b.isDirty).toBe(false);
     expect(a.get()).toEqual(8);
+
+    // works the second time
+    map.produce(map => map.set('a', 9));
+    expect(unjoined.isDirty).toBe(false);
+    expect(a.isDirty).toBe(true);
+    expect(b.isDirty).toBe(false);
+    expect(a.get()).toEqual(9);
   });
 
   it('dirties only outer Signal on key change', () => {
@@ -456,6 +463,12 @@ describe('unjoinMapWritable', () => {
     expect(a.isDirty).toBe(true);
     expect(b.isDirty).toBe(false);
     expect(a.get()).toEqual(8);
+
+    map.produce(map => map.set('a', 9));
+    expect(unjoined.isDirty).toBe(false);
+    expect(a.isDirty).toBe(true);
+    expect(b.isDirty).toBe(false);
+    expect(a.get()).toEqual(9);
   });
 
   it('dirties only outer Signal on key change', () => {
@@ -520,8 +533,6 @@ describe('mapWritable', () => {
     plus.reconcile();
     plus.setOk(9);
     expect(cell.get()).toBe(8);
-    expect(plus.isDirty).toBe(false);
-    // plusplus was dirtied even though plus is clean
     expect(plusplus.get()).toBe(10);
   });
 

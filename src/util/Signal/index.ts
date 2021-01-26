@@ -297,9 +297,6 @@ class MapWritable<T, U> extends WritableImpl<U> {
       this.s.set(u as unknown as Try<T>);
     }
     // avoid recomputing `f` just to get the value we already have
-    // the call to s.set dirties `this` and clears the dependency
-    this.isDirty = false;
-    impl(this.s).depend(this);
     this.sVersion = this.s.version;
     this.value = u;
     this.version++;
@@ -564,17 +561,19 @@ class JoinMap<K, V> extends SignalImpl<Map<K, V>> {
 // and also does not depend on the map signal
 // since this is handled specially in UnjoinMap
 class UnjoinMapEntry<K,V> extends SignalImpl<V> {
+  unjoin: UnjoinMap<K, V>;
   s: Signal<Map<K, V>>;
   sVersion: number;
   key: K;
 
-  constructor(s: Signal<Map<K, V>>, key: K) {
+  constructor(unjoin: UnjoinMap<K, V>, s: Signal<Map<K, V>>, key: K) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.key = key;
+    this.unjoin = unjoin;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -584,6 +583,9 @@ class UnjoinMapEntry<K,V> extends SignalImpl<V> {
   reconcile() {
     if (!this.isDirty) return;
     this.isDirty = false;
+    // nobody reconciles the outer signal when values change but keys don't
+    // so we need to re-add the dep when values change
+    impl(this.s).depend(this.unjoin);
     this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
@@ -644,7 +646,7 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
         const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
-          output.set(key, new UnjoinMapEntry(this.s, key));
+          output.set(key, new UnjoinMapEntry(this, this.s, key));
         });
       });
       this.prevInput = input;
@@ -662,8 +664,8 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
       if (added.size > 0 || deleted.size > 0)
         super.dirty();
       changed.forEach((_, key) => {
-        const cell = this.prevOutput.get(key) ?? bug(`expected cell`);
-        cell.dirty();
+        const entry = this.prevOutput.get(key) ?? bug(`expected entry`);
+        entry.dirty();
       });
     } else {
       super.dirty();
@@ -675,17 +677,19 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
 // and also does not depend on the map signal
 // since this is handled specially in UnjoinMapWritable
 class UnjoinMapWritableEntry<K,V> extends WritableImpl<V> {
+  unjoin: UnjoinMapWritable<K, V>;
   s: Signal.Writable<Map<K, V>>;
   sVersion: number;
   key: K;
 
-  constructor(s: Signal.Writable<Map<K, V>>, key: K) {
+  constructor(unjoin: UnjoinMapWritable<K, V>, s: Signal.Writable<Map<K, V>>, key: K) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.key = key;
+    this.unjoin = unjoin;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -695,6 +699,9 @@ class UnjoinMapWritableEntry<K,V> extends WritableImpl<V> {
   reconcile() {
     if (!this.isDirty) return;
     this.isDirty = false;
+    // nobody reconciles the outer signal when values change but keys don't
+    // so we need to re-add the dep when values change
+    impl(this.s).depend(this.unjoin);
     this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
@@ -766,7 +773,7 @@ class UnjoinMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
         const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
-          output.set(key, new UnjoinMapWritableEntry(this.s, key));
+          output.set(key, new UnjoinMapWritableEntry(this, this.s, key));
         });
       });
       this.prevInput = input;
@@ -784,8 +791,8 @@ class UnjoinMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
       if (added.size > 0 || deleted.size > 0)
         super.dirty();
       changed.forEach((_, key) => {
-        const cell = this.prevOutput.get(key) ?? bug(`expected cell`);
-        cell.dirty();
+        const entry = this.prevOutput.get(key) ?? bug(`expected entry`);
+        entry.dirty();
       });
     } else {
       super.dirty();
