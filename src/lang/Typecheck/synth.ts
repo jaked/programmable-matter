@@ -885,7 +885,7 @@ function synthVariableDecl(
   exportTypes?: { [s: string]: Type },
 ): Env {
   decl.declarations.forEach(declarator => {
-    let type;
+    let type: Type;
     const typeAnnotation = declarator.id.typeAnnotation ?
       Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, annots) :
       undefined;
@@ -898,16 +898,13 @@ function synthVariableDecl(
     } else {
       type = Error.withLocation(declarator.id, `expected initializer`, annots);
     }
-    if (annots) {
-      if (type.kind === 'Error')
-        annots.set(declarator.id, type);
-      else if (typeAnnotation)
-        annots.set(declarator.id, typeAnnotation);
-      else
-        annots.set(declarator.id, type);
-    }
-    if (exportTypes) exportTypes[declarator.id.name] = type;
-    env = env.set(declarator.id.name, type);
+    const declType =
+      type.kind === 'Error' ? type :
+      typeAnnotation ? typeAnnotation :
+      type;
+    if (annots) annots.set(declarator.id, declType);
+    if (exportTypes) exportTypes[declarator.id.name] = declType;
+    env = env.set(declarator.id.name, declType);
   });
   return env;
 }
