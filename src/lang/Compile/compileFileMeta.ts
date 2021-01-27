@@ -40,7 +40,7 @@ export default function compileFileMeta(
     const value = error.kind === 'Error' ?
       Signal.err(error.err) :
       Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
-    const exportValue = { default: value };
+    const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,
       annots,

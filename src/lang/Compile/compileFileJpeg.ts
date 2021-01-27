@@ -1,6 +1,5 @@
 import * as React from 'react';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
 import Type from '../Type';
 import * as Render from '../Render';
 import { Content, CompiledFile } from '../../data';
@@ -65,12 +64,12 @@ export default function compileFileJpeg(
       img: imgType,
       default: imgType,
     });
-    const exportValue = {
-      buffer: Signal.ok(buffer),
-      objectUrl: Signal.ok(objectUrl),
-      img: Signal.ok(component),
-      default: Signal.ok(component),
-    };
+    const exportValue = new Map<string, Signal<unknown>>([
+      [ 'buffer', Signal.ok(buffer) ],
+      [ 'objectUrl', Signal.ok(objectUrl) ],
+      [ 'img', Signal.ok(component) ],
+      [ 'default', Signal.ok(component) ],
+    ])
 
     const rendered =
       component({

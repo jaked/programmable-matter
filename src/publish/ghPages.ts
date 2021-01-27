@@ -11,6 +11,7 @@ const ghPagesPublish = util.promisify(GHPages.publish);
 import * as React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
+import { bug } from '../util/bug';
 import * as Render from '../lang/Render';
 import * as data from '../data';
 import * as MapFuncs from '../util/MapFuncs';
@@ -37,8 +38,8 @@ export default async function ghPages(
 
       await mkdir(Path.dirname(path), { recursive: true });
       const exportValue = note.exportValue.get();
-      const buffer = exportValue.buffer.get();
-      await writeFile(path, buffer);
+      const buffer = exportValue.get('buffer') ?? bug(`expected buffer`)
+      await writeFile(path, buffer.get());
 
     } else if (publishedType === 'html') {
       const path = Path.resolve(tempdir, note.name) + '.html';

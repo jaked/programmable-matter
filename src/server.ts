@@ -6,6 +6,7 @@ import BrowserSync from 'browser-sync';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
+import { bug } from './util/bug';
 import * as data from './data';
 import * as Name from './util/Name';
 import Signal from './util/Signal';
@@ -56,7 +57,7 @@ export default class Server {
       // TODO(jaked)
       // don't rely on URL here, notes should track their own content type
       if (ext === '.jpeg') {
-        const buffer = note.exportValue.get().buffer;
+        const buffer = note.exportValue.get().get('buffer') ?? bug(`expected buffer`);
         res.setHeader("Content-Type", "image/jpeg");
         res.end(buffer.get());
       } else {

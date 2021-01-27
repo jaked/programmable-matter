@@ -62,7 +62,7 @@ export interface CompiledFile {
   exportType: Signal<Type.ModuleType>;
   astAnnotations?: Signal<AstAnnotations>;
   problems: Signal<boolean>;
-  exportValue: Signal<{ [s: string]: Signal<any> }>;
+  exportValue: Signal<Map<string, Signal<unknown>>>;
   rendered: Signal<React.ReactNode>;
 }
 
@@ -77,7 +77,7 @@ export type CompiledNote = {
   publishedType: Signal<'html' | 'jpeg'>;
 
   exportType: Signal<Type.ModuleType>;
-  exportValue: Signal<{ [s: string]: Signal<any> }>;
+  exportValue: Signal<Map<string, Signal<unknown>>>;
 }
 
 // file decoded / parsed into an editable / compilable representation

@@ -22,10 +22,10 @@ function mergeModuleType(
 }
 
 function mergeModuleValue(
-  v1: Signal<{ [s: string]: Signal<any> }>,
-  v2: Signal<{ [s: string]: Signal<any> }>,
-): Signal<{ [s: string]: Signal<any> }> {
-  return Signal.join(v1, v2).map(([v1, v2]) => ({ ...v1, ...v2 }));
+  v1: Signal<Map<string, Signal<unknown>>>,
+  v2: Signal<Map<string, Signal<unknown>>>,
+): Signal<Map<string, Signal<unknown>>> {
+  return Signal.join(v1, v2).map(([v1, v2]) => new Map([...v1.entries(), ...v2.entries()]));
 }
 
 export function compileFiles(
@@ -71,7 +71,7 @@ export function compileFiles(
       ).map(([pm, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
-        let exportValue: Signal<{ [s: string]: Signal<any> }> = Signal.ok({});
+        let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
         let publishedType: 'html' | 'jpeg' = 'html';
 
         if (meta) {

@@ -96,8 +96,9 @@ function computeTable(
   const tryLensTable = Signal.joinImmutableMap(Signal.ok(
     Immutable.Map<string, Signal<Try<any>>>().withMutations(map =>
       noteEnv.forEach((note, name) => {
-        const mutableValue =
-          note.exportValue.flatMap(exportValue => exportValue['mutable'] ?? bug(`expected mutable value`));
+        const mutableValue = note.exportValue.flatMap(exportValue =>
+          exportValue.get('mutable') ?? bug(`expected mutable value`)
+        );
 
         const metaValue = note.meta.map(meta =>
           tableConfig.fields.reduce<object>(
@@ -243,7 +244,7 @@ export default function compileFileTable(
       return {
         // TODO(jaked) these should be Signal.err
         exportType: Type.module({ default: error }),
-        exportValue: { default: Signal.ok(error.err) },
+        exportValue: new Map([[ 'default', Signal.ok(error.err) ]]),
         rendered: Signal.ok(null),
         annots,
         problems,
@@ -260,9 +261,7 @@ export default function compileFileTable(
       // TODO(jaked) should include non-data table fields
       default: lensType(Type.map(Type.string, tableDataType))
     });
-    const exportValue = {
-      default: table
-    }
+    const exportValue = new Map([[ 'default', table ]]);
 
     const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
 

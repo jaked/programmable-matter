@@ -101,10 +101,10 @@ export default function compileFileJson(
         default: type,
         mutable: type,
       });
-      const exportValue = {
-        default: Signal.ok(type.err),
-        mutable: Signal.ok(type.err),
-      };
+      const exportValue = new Map([
+        [ 'default', Signal.ok(type.err) ],
+        [ 'mutable', Signal.ok(type.err) ]
+      ]);
       const rendered = Signal.ok(null);
       return {
         exportType,
@@ -127,10 +127,10 @@ export default function compileFileJson(
       const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
-      const exportValue = {
-        default: Signal.ok(value),
-        mutable: Signal.ok(lens)
-      };
+      const exportValue = new Map([
+        [ 'default', Signal.ok(value) ],
+        [ 'mutable', Signal.ok(lens) ]
+      ]);
 
       const rendered = Signal.constant(Try.apply(() => {
         // TODO(jaked) error handling here

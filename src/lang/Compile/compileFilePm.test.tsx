@@ -74,7 +74,7 @@ it('compiles exports', () => {
   });
   expect(compiled.problems.get()).toBeFalsy();
   expect(compiled.exportType.get().getFieldType('foo')).toEqual(Type.singleton(7));
-  expect(compiled.exportValue.get()['foo'].get()).toEqual(7);
+  expect(compiled.exportValue.get().get('foo')?.get()).toEqual(7);
 });
 
 it('reports errors', () => {
@@ -250,7 +250,7 @@ it('compiles with import', () => {
         rendered: Signal.err(new Error('rendered')),
         publishedType: Signal.err(new Error('publishedType')),
         exportType: Signal.ok(Type.module({ bar: Type.number })),
-        exportValue: Signal.ok({ bar: Signal.ok(9) }),
+        exportValue: Signal.ok(new Map([[ 'bar', Signal.ok(9) ]])),
       },
     ]])),
   );
@@ -281,14 +281,14 @@ it('compiles referencing data / table', () => {
     Signal.ok(new Map([
       ['/foo.json', {
         exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
-        exportValue: Signal.ok({ mutable: Signal.ok({ bar: 'bar' }) }),
+        exportValue: Signal.ok(new Map([[ 'mutable', Signal.ok({ bar: 'bar' }) ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
       }],
       ['/foo.table', {
         exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
-        exportValue: Signal.ok({ default: Signal.ok({ baz: 7 }) }),
+        exportValue: Signal.ok(new Map([[ 'default', Signal.ok({ baz: 7 }) ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
@@ -317,7 +317,7 @@ it('compiles with layout', () => {
     Signal.ok(new Map([[
       '/foo.meta', {
         exportType: Signal.ok(Type.module({ })),
-        exportValue: Signal.ok({ default: Signal.ok({ layout: '/layout' }) }),
+        exportValue: Signal.ok(new Map([[ 'default', Signal.ok({ layout: '/layout' }) ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
@@ -334,11 +334,11 @@ it('compiles with layout', () => {
         exportType: Signal.ok(Type.module({
           default: Type.layoutFunctionType,
         })),
-        exportValue: Signal.ok({
-          default: Signal.ok((props: { children: React.ReactNode, meta: data.Meta }) =>
+        exportValue: Signal.ok(new Map([[
+          'default', Signal.ok((props: { children: React.ReactNode, meta: data.Meta }) =>
             React.createElement('div', {}, props.children)
           )
-        })
+        ]])),
       }
     ]])),
   );

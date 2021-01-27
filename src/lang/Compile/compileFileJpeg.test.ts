@@ -19,6 +19,6 @@ it('compiles', () => {
   });
   expect(compiled.problems.get()).toBeFalsy();
 
-  const buffer = compiled.exportValue.get().buffer;
-  expect(buffer.get()).toBe(jpeg);
+  const buffer = compiled.exportValue.get().get('buffer');
+  expect(buffer?.get()).toBe(jpeg);
 });

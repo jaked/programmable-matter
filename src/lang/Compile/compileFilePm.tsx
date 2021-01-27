@@ -88,7 +88,7 @@ function extendEnvWithImport(
   mdxName: string,
   decl: ESTree.ImportDeclaration,
   annots: AstAnnotations,
-  moduleEnv: Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  moduleEnv: Map<string, Signal<Map<string, Signal<unknown>>>>,
   env: Render.Env,
 ): Render.Env {
   // TODO(jaked) finding errors in the AST is delicate.
@@ -104,7 +104,10 @@ function extendEnvWithImport(
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
-          env = env.set(spec.local.name, module.flatMap(module => Signal.joinObject(module)));
+          env = env.set(
+            spec.local.name,
+            Signal.joinMap(module).map(moduleMap => Object.fromEntries(moduleMap.entries()))
+          );
           break;
         }
 
@@ -113,10 +116,9 @@ function extendEnvWithImport(
           if (type && type.kind === 'Error') {
             env = env.set(spec.local.name, Signal.ok(type.err))
           } else {
-            const defaultField = module.flatMap(module => {
-              if ('default' in module) return module.default;
-              else bug(`expected default export on '${decl.source.value}'`)
-            });
+            const defaultField = module.flatMap(module =>
+              module.get('default') ?? bug(`expected default export on '${decl.source.value}'`)
+            );
             env = env.set(spec.local.name, defaultField);
           }
         }
@@ -127,10 +129,9 @@ function extendEnvWithImport(
           if (type && type.kind === 'Error') {
             env = env.set(spec.local.name, Signal.ok(type.err))
           } else {
-            const importedField = module.flatMap(module => {
-              if (spec.imported.name in module) return module[spec.imported.name];
-              else bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`);
-            });
+            const importedField = module.flatMap(module =>
+              module.get(spec.imported.name) ?? bug(`expected exported member '${spec.imported.name}' on '${decl.source.value}'`)
+            );
             env = env.set(spec.local.name, importedField);
           }
         }
@@ -145,7 +146,7 @@ function extendEnvWithNamedExport(
   decl: ESTree.ExportNamedDeclaration,
   annots: AstAnnotations,
   env: Render.Env,
-  exportValue: { [s: string]: Signal<any> }
+  exportValue: Map<string, Signal<unknown>>
 ): Render.Env {
   const declaration = decl.declaration;
   switch (declaration.kind) {
@@ -153,7 +154,7 @@ function extendEnvWithNamedExport(
       declaration.declarations.forEach(declarator => {
         let name = declarator.id.name;
         let value = evaluateExpressionSignal(declarator.init, annots, env);
-        exportValue[name] = value;
+        exportValue.set(name, value);
         env = env.set(name, value);
       });
     }
@@ -168,10 +169,10 @@ function extendEnvWithDefaultExport(
   decl: ESTree.ExportDefaultDeclaration,
   annots: AstAnnotations,
   env: Render.Env,
-  exportValue: { [s: string]: Signal<any> }
+  exportValue: Map<string, Signal<unknown>>
 ): Render.Env {
   const value = evaluateExpressionSignal(decl.declaration, annots, env);
-  exportValue['default'] = value;
+  exportValue.set('default', value);
   return env;
 }
 
@@ -179,9 +180,9 @@ export function compileCode(
   node: PMAST.Code,
   annots: AstAnnotations,
   moduleName: string,
-  moduleEnv: Map<string, Signal<{ [s: string]: Signal<any> }>>,
+  moduleEnv: Map<string, Signal<Map<string, Signal<unknown>>>>,
   env: Render.Env,
-  exportValue: { [s: string]: Signal<any> }
+  exportValue: Map<string, Signal<unknown>>
 ): Render.Env {
   const code = parsedCode.get(node) ?? bug(`expected parsed code`);
   code.forEach(code => {
@@ -380,7 +381,7 @@ export default function compileFilePm(
     const json = compiledFiles.get(jsonPath);
     if (json)
       return json.exportValue.flatMap(exportValue =>
-        exportValue['mutable'] ?? Signal.ok(undefined)
+        exportValue.get('mutable') ?? Signal.ok(undefined)
       );
     else
       return Signal.ok(undefined);
@@ -398,7 +399,7 @@ export default function compileFilePm(
     const table = compiledFiles.get(tablePath);
     if (table)
       return table.exportValue.flatMap(exportValue =>
-        exportValue['default'] ?? Signal.ok(undefined)
+        exportValue.get('default') ?? Signal.ok(undefined)
       );
     else
       return Signal.ok(undefined);
@@ -462,7 +463,7 @@ export default function compileFilePm(
     if (jsonValue) env = env.set('data', Signal.ok(jsonValue));
     if (tableValue) env = env.set('table', Signal.ok(tableValue));
 
-    const exportValue: { [s: string]: Signal<any> } = {};
+    const exportValue: Map<string, Signal<unknown>> = new Map();
     codeNodes.forEach(node =>
       env = compileCode(node, astAnnotations, moduleName, moduleValueEnv, env, exportValue)
     );
@@ -500,7 +501,7 @@ export default function compileFilePm(
            if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
              if (debug) console.log(`isSubtype`);
              return layoutModule.exportValue.flatMap(exportValue =>
-               exportValue['default']
+               exportValue.get('default') ?? bug(`expected default`)
              );
            }
          }
@@ -517,7 +518,7 @@ export default function compileFilePm(
     layoutFunction,
   ).map(([rendered, meta, layoutFunction]) => {
     if (layoutFunction)
-      return layoutFunction({ children: rendered, meta });
+      return (layoutFunction as any)({ children: rendered, meta }); // TODO(jaked)
     else
       return rendered
   });

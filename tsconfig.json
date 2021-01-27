@@ -16,12 +16,11 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "jsx": "react",             // use typescript to transpile jsx to js
-    "target": "es2015",
+    "target": "es2019",
     "lib": [
       "DOM",
-      "ES2015",
+      "ES2019",
       "ScriptHost",
-      "ES2015.Collection"
     ],
 
     // see https://github.com/DefinitelyTyped/DefinitelyTyped/issues/33015
