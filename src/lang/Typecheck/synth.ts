@@ -829,7 +829,7 @@ export function synth(
   return type;
 }
 
-function extendEnvWithImport(
+function importDecl(
   moduleName: string,
   decl: ESTree.ImportDeclaration,
   moduleEnv: Map<string, Type.ModuleType>,
@@ -878,13 +878,13 @@ function extendEnvWithImport(
   return env;
 }
 
-function extendEnvWithNamedExport(
-  decl: ESTree.ExportNamedDeclaration,
-  exportTypes: { [s: string]: Type },
+function synthVariableDecl(
+  decl: ESTree.VariableDeclaration,
   env: Env,
   annots?: AstAnnotations,
+  exportTypes?: { [s: string]: Type },
 ): Env {
-  decl.declaration.declarations.forEach(declarator => {
+  decl.declarations.forEach(declarator => {
     let type;
     const typeAnnotation = declarator.id.typeAnnotation ?
       Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, annots) :
@@ -906,20 +906,33 @@ function extendEnvWithNamedExport(
       else
         annots.set(declarator.id, type);
     }
-    exportTypes[declarator.id.name] = type;
+    if (exportTypes) exportTypes[declarator.id.name] = type;
     env = env.set(declarator.id.name, type);
   });
   return env;
 }
 
-function extendEnvWithDefaultExport(
-  decl: ESTree.ExportDefaultDeclaration,
+function synthAndExportNamedDecl(
+  decl: ESTree.ExportNamedDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
   annots?: AstAnnotations,
 ): Env {
+  return synthVariableDecl(
+    decl.declaration,
+    env,
+    annots,
+    exportTypes,
+  );
+}
+
+function exportDefaultDecl(
+  decl: ESTree.ExportDefaultDeclaration,
+  exportTypes: { [s: string]: Type },
+  env: Env,
+  annots?: AstAnnotations,
+) {
   exportTypes['default'] = synth(decl.declaration, env, annots);
-  return env;
 }
 
 export function synthProgram(
@@ -933,17 +946,21 @@ export function synthProgram(
   program.body.forEach(node => {
     switch (node.type) {
       case 'ExportDefaultDeclaration':
-        env = extendEnvWithDefaultExport(node, exportTypes, env, annots);
+        exportDefaultDecl(node, exportTypes, env, annots);
         break;
+
       case 'ExportNamedDeclaration':
-        env = extendEnvWithNamedExport(node, exportTypes, env, annots);
+        env = synthAndExportNamedDecl(node, exportTypes, env, annots);
         break;
+
       case 'ImportDeclaration':
-        env = extendEnvWithImport(moduleName, node, moduleEnv, env, annots);
+        env = importDecl(moduleName, node, moduleEnv, env, annots);
         break;
+
       case 'VariableDeclaration':
-        // TODO(jaked) ???
+        env = synthVariableDecl(node, env, annots);
         break;
+
       case 'ExpressionStatement':
         check(node.expression, env, Type.reactNodeType, annots);
         break;

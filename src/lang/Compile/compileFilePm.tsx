@@ -84,7 +84,7 @@ function evaluateExpressionSignal(
   });
 }
 
-function extendEnvWithImport(
+function importDecl(
   mdxName: string,
   decl: ESTree.ImportDeclaration,
   annots: AstAnnotations,
@@ -142,30 +142,38 @@ function extendEnvWithImport(
   return env;
 }
 
-function extendEnvWithNamedExport(
-  decl: ESTree.ExportNamedDeclaration,
+function evalVariableDecl(
+  decl: ESTree.VariableDeclaration,
   annots: AstAnnotations,
   env: Render.Env,
-  exportValue: Map<string, Signal<unknown>>
+  exportValue?: Map<string, Signal<unknown>>
 ): Render.Env {
-  const declaration = decl.declaration;
-  switch (declaration.kind) {
+  switch (decl.kind) {
     case 'const': {
-      declaration.declarations.forEach(declarator => {
+      decl.declarations.forEach(declarator => {
         let name = declarator.id.name;
         let value = evaluateExpressionSignal(declarator.init, annots, env);
-        exportValue.set(name, value);
+        if (exportValue) exportValue.set(name, value);
         env = env.set(name, value);
       });
     }
     break;
 
-    default: throw new Error('unexpected AST ' + declaration.kind);
+    default: throw new Error('unexpected AST ' + decl.kind);
   }
   return env;
 }
 
-function extendEnvWithDefaultExport(
+function evalAndExportNamedDecl(
+  decl: ESTree.ExportNamedDeclaration,
+  annots: AstAnnotations,
+  env: Render.Env,
+  exportValue: Map<string, Signal<unknown>>
+): Render.Env {
+  return evalVariableDecl(decl.declaration, annots, env, exportValue);
+}
+
+function exportDefaultDecl(
   decl: ESTree.ExportDefaultDeclaration,
   annots: AstAnnotations,
   env: Render.Env,
@@ -189,19 +197,20 @@ export function compileCode(
     for (const node of (code as ESTree.Program).body) {
       switch (node.type) {
         case 'ImportDeclaration':
-          env = extendEnvWithImport(moduleName, node, annots, moduleEnv, env);
+          env = importDecl(moduleName, node, annots, moduleEnv, env);
           break;
 
         case 'ExportNamedDeclaration':
-          env = extendEnvWithNamedExport(node, annots, env, exportValue);
+          env = evalAndExportNamedDecl(node, annots, env, exportValue);
           break;
 
         case 'ExportDefaultDeclaration':
-          env = extendEnvWithDefaultExport(node, annots, env, exportValue);
+          env = exportDefaultDecl(node, annots, env, exportValue);
           break;
 
         case 'VariableDeclaration':
-          break; // TODO(jaked) ???
+          env = evalVariableDecl(node, annots, env);
+          break;
       }
     }
   });

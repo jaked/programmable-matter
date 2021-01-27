@@ -203,7 +203,7 @@ it('compiles code', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.ok([
       { type: 'code', children: [
-        { text: 'export const foo = 7' }
+        { text: 'const foo = 7' }
       ]},
       { type: 'p', children: [
         { text: 'foo is '},

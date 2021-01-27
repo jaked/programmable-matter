@@ -849,3 +849,27 @@ describe('synth', () => {
     });
   });
 });
+
+describe('synthProgram', () => {
+  it('binds unexported variables', () => {
+    const moduleName = 'foo';
+    const moduleEnv = new Map();
+    const program = Parse.parseProgram(`
+      const x = 7
+    `);
+    const env = Typecheck.env();
+    const exportTypes: { [s: string]: Type } = {};
+    const annots = new Map<unknown, Type>();
+    const env2 = Typecheck.synthProgram(
+      moduleName,
+      moduleEnv,
+      program,
+      env,
+      exportTypes,
+      annots
+    );
+    const x = env2.get('x');
+
+    expect(x).toEqual(Type.singleton(7));
+  });
+});
