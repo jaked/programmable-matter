@@ -168,9 +168,11 @@ function evalVariableDecl(
       decl.declarations.forEach(declarator => {
         let name = declarator.id.name;
         const lensType = annots.get(declarator.id) ?? bug(`expected type`);
-        const type = (lensType.kind === 'Abstract' && lensType.params.get(0)) || bug(`expected lensType`);
+        if (lensType.kind === 'Error') return env;
+        else if (lensType.kind !== 'Abstract' || lensType.params.size !== 1) bug(`expected lensType`);
+        const type = lensType.params.get(0) ?? bug(`expected param`);
         const init = declarator.init;
-        const value = Evaluate.evaluateExpression(init, annots, Immutable.Map());
+        const value = Evaluate.evaluateExpression(init, annots, Immutable.Map({ undefined: undefined }));
         const setValue = (v) => {
           nodes.produce(nodes => {
             function walk(nodes: PMAST.Node[]): boolean {
@@ -505,6 +507,14 @@ export default function compileFilePm(
       synthInlineCode(node, env, astAnnotations)
     );
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
+    if (problems) {
+      const errorAnnotations = new Map<unknown, Type>();
+      astAnnotations.forEach((v, k) => {
+        if (v.kind === 'Error')
+          errorAnnotations.set(k, v);
+      });
+      console.log(errorAnnotations);
+    }
     return { astAnnotations, problems }
   });
 

@@ -481,7 +481,7 @@ function synthCallExpression(
   annots?: AstAnnotations,
   calleeType?: Type | undefined
 ): Type {
-  calleeType = calleeType || synth(ast.callee, env, annots);
+  calleeType = calleeType || Type.expand(synth(ast.callee, env, annots));
 
   if (calleeType.kind === 'Intersection') {
     const callTypes =
@@ -890,10 +890,11 @@ function synthVariableDecl(
       Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, annots) :
       undefined;
     if (declarator.init) {
+      const initEnv = decl.kind === 'let' ? Immutable.Map({ undefined: Type.undefined }) : env;
       if (typeAnnotation) {
-        type = check(declarator.init, env, typeAnnotation, annots);
+        type = check(declarator.init, initEnv, typeAnnotation, annots);
       } else {
-        type = synth(declarator.init, env, annots);
+        type = synth(declarator.init, initEnv, annots);
       }
     } else {
       type = Error.withLocation(declarator.id, `expected initializer`, annots);
@@ -903,8 +904,7 @@ function synthVariableDecl(
       typeAnnotation ? typeAnnotation :
       type;
 
-    // TODO(jaked) check that init is a value
-    if (decl.kind === 'let')
+    if (decl.kind === 'let' && type.kind !== 'Error')
       declType = Type.abstract('lensType', declType);
 
     if (annots) annots.set(declarator.id, declType);
