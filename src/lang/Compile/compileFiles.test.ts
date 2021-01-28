@@ -1,15 +1,15 @@
 import Signal from '../../util/Signal';
 import { bug } from '../../util/bug';
 import { compileFiles } from './index';
-import { Contents } from '../../data';
+import { WritableContents } from '../../data';
 
 it('compiles json', () => {
-  const files = Signal.ok<Contents>(new Map([[
+  const files = Signal.ok<WritableContents>(new Map([[
     'foo.json', {
       type: 'json',
       path: 'foo.json',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok('{ }'),
+      content: Signal.cellOk('{ }'),
     }
   ]]));
   const { compiledNotes } = compileFiles(files);
@@ -19,12 +19,12 @@ it('compiles json', () => {
 });
 
 it('compiles meta', () => {
-  const files = Signal.ok<Contents>(new Map([[
+  const files = Signal.ok<WritableContents>(new Map([[
     'foo.meta', {
       type: 'meta',
       path: 'foo.meta',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok('{ }'),
+      content: Signal.cellOk('{ }'),
     }
   ]]));
   const { compiledNotes } = compileFiles(files);
@@ -34,12 +34,12 @@ it('compiles meta', () => {
 });
 
 it('compiles table', () => {
-  const files = Signal.ok<Contents>(new Map([
+  const files = Signal.ok<WritableContents>(new Map([
     ['cats/index.meta', {
       type: 'meta',
       path: 'cats/index.meta',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok(`
+      content: Signal.cellOk(`
         {
           dirMeta: {
             dataType: '{ name: string, breed: string }'
@@ -51,7 +51,7 @@ it('compiles table', () => {
       type: 'table',
       path: 'cats/index.table',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok(`
+      content: Signal.cellOk(`
         {
           fields: [
             {
@@ -74,7 +74,7 @@ it('compiles table', () => {
       type: 'json',
       path: 'cats/smokey.json',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok(`
+      content: Signal.cellOk(`
         {
           name: 'Smokey',
           breed: 'Ocicat',
@@ -85,7 +85,7 @@ it('compiles table', () => {
       type: 'json',
       path: 'cats/danny.json',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok(`
+      content: Signal.cellOk(`
         {
           name: 'Danny',
           breed: 'American shorthair',

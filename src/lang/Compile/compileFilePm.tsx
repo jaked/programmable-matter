@@ -1,13 +1,15 @@
 import Path from 'path';
 import * as Immutable from 'immutable';
+import * as Immer from 'immer';
 import React from 'react';
+import JSON5 from 'json5';
 
 import { bug } from '../../util/bug';
 import * as Name from '../../util/Name';
 import * as MapFuncs from '../../util/MapFuncs';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
+import { AstAnnotations, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../data';
 import * as PMAST from '../../PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -15,6 +17,7 @@ import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
+import lensValue from './lensValue';
 
 import makeLink from '../../components/makeLink';
 import metaForPath from './metaForPath';
@@ -143,6 +146,8 @@ function importDecl(
 }
 
 function evalVariableDecl(
+  nodes: Signal.Writable<PMAST.Node[]>,
+  node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   annots: AstAnnotations,
   env: Render.Env,
@@ -151,10 +156,55 @@ function evalVariableDecl(
   switch (decl.kind) {
     case 'const': {
       decl.declarations.forEach(declarator => {
-        let name = declarator.id.name;
-        let value = evaluateExpressionSignal(declarator.init, annots, env);
+        const name = declarator.id.name;
+        const value = evaluateExpressionSignal(declarator.init, annots, env);
         if (exportValue) exportValue.set(name, value);
         env = env.set(name, value);
+      });
+    }
+    break;
+
+    case 'let': {
+      decl.declarations.forEach(declarator => {
+        let name = declarator.id.name;
+        const lensType = annots.get(declarator.id) ?? bug(`expected type`);
+        const type = (lensType.kind === 'Abstract' && lensType.params.get(0)) || bug(`expected lensType`);
+        const init = declarator.init;
+        const value = Evaluate.evaluateExpression(init, annots, Immutable.Map());
+        const setValue = (v) => {
+          nodes.produce(nodes => {
+            function walk(nodes: PMAST.Node[]): boolean {
+              for (let i = 0; i < nodes.length; i++) {
+                const oldNode = nodes[i];
+                if (Immer.original(oldNode) === node) {
+                  const code =
+                    (node.children[0] && PMAST.isText(node.children[0]) && node.children[0].text) ||
+                    bug(`expected text child`);
+                  const newNode: PMAST.Node = { type: 'code', children: [{ text:
+                    code.substr(0, init.start) + JSON5.stringify(v) + code.substr(init.end)
+                  }]};
+                  nodes[i] = newNode;
+                  return true;
+                } else if (PMAST.isElement(oldNode)) {
+                  if (walk(oldNode.children)) {
+                    return true;
+                  }
+                }
+              }
+              return false;
+            }
+
+            if (!walk(nodes)) bug(`expected node`);
+          });
+          // TODO(jaked)
+          // what if changing node invalidates selection?
+          // how can we avoid recompiling the note / dependents?
+          //   put a cell in the environment so we can update it
+          //   Signal.Writable that writes back to node?
+        }
+        const lens = Signal.ok(lensValue(value, setValue, type));
+        if (exportValue) exportValue.set(name, lens);
+        env = env.set(name, lens);
       });
     }
     break;
@@ -165,12 +215,14 @@ function evalVariableDecl(
 }
 
 function evalAndExportNamedDecl(
+  nodes: Signal.Writable<PMAST.Node[]>,
+  node: PMAST.Code,
   decl: ESTree.ExportNamedDeclaration,
   annots: AstAnnotations,
   env: Render.Env,
   exportValue: Map<string, Signal<unknown>>
 ): Render.Env {
-  return evalVariableDecl(decl.declaration, annots, env, exportValue);
+  return evalVariableDecl(nodes, node, decl.declaration, annots, env, exportValue);
 }
 
 function exportDefaultDecl(
@@ -185,6 +237,7 @@ function exportDefaultDecl(
 }
 
 export function compileCode(
+  nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   annots: AstAnnotations,
   moduleName: string,
@@ -194,22 +247,22 @@ export function compileCode(
 ): Render.Env {
   const code = parsedCode.get(node) ?? bug(`expected parsed code`);
   code.forEach(code => {
-    for (const node of (code as ESTree.Program).body) {
-      switch (node.type) {
+    for (const decl of (code as ESTree.Program).body) {
+      switch (decl.type) {
         case 'ImportDeclaration':
-          env = importDecl(moduleName, node, annots, moduleEnv, env);
+          env = importDecl(moduleName, decl, annots, moduleEnv, env);
           break;
 
         case 'ExportNamedDeclaration':
-          env = evalAndExportNamedDecl(node, annots, env, exportValue);
+          env = evalAndExportNamedDecl(nodes, node, decl, annots, env, exportValue);
           break;
 
         case 'ExportDefaultDeclaration':
-          env = exportDefaultDecl(node, annots, env, exportValue);
+          env = exportDefaultDecl(decl, annots, env, exportValue);
           break;
 
         case 'VariableDeclaration':
-          env = evalVariableDecl(node, annots, env);
+          env = evalVariableDecl(nodes, node, decl, annots, env);
           break;
       }
     }
@@ -282,14 +335,14 @@ export function renderNode(
 }
 
 export default function compileFilePm(
-  file: Content,
+  file: WritableContent,
   compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
   compiledNotes: Signal<CompiledNotes> = Signal.ok(new Map()),
   setSelected: (note: string) => void = (note: string) => { },
 ): CompiledFile {
   const moduleName = Name.nameOfPath(file.path);
 
-  const nodes = file.content as Signal<PMAST.Node[]>;
+  const nodes = file.content as Signal.Writable<PMAST.Node[]>;
 
   // TODO(jaked)
   // we want just the bindings and imports here, but this also includes ExpressionStatements
@@ -474,7 +527,7 @@ export default function compileFilePm(
 
     const exportValue: Map<string, Signal<unknown>> = new Map();
     codeNodes.forEach(node =>
-      env = compileCode(node, astAnnotations, moduleName, moduleValueEnv, env, exportValue)
+      env = compileCode(nodes, node, astAnnotations, moduleName, moduleValueEnv, env, exportValue)
     );
     return { env, exportValue };
    });

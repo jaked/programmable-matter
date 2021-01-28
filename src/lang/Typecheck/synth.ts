@@ -898,10 +898,15 @@ function synthVariableDecl(
     } else {
       type = Error.withLocation(declarator.id, `expected initializer`, annots);
     }
-    const declType =
+    let declType =
       type.kind === 'Error' ? type :
       typeAnnotation ? typeAnnotation :
       type;
+
+    // TODO(jaked) check that init is a value
+    if (decl.kind === 'let')
+      declType = Type.abstract('lensType', declType);
+
     if (annots) annots.set(declarator.id, declType);
     if (exportTypes) exportTypes[declarator.id.name] = declType;
     env = env.set(declarator.id.name, declType);

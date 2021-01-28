@@ -42,7 +42,7 @@ it('compiles', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       {
         type: 'p',
         children: [
@@ -63,7 +63,7 @@ it('compiles exports', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       {
         type: 'code',
         children: [
@@ -82,7 +82,7 @@ it('reports errors', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       {
         type: 'code',
         children: [
@@ -126,7 +126,7 @@ it('renders marks', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       {
         type: 'p',
         children: [
@@ -155,7 +155,7 @@ it('renders elements', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       { type: 'p', children: [{ text: 'foo' }] },
       { type: 'h1', children: [{ text: 'bar' }] },
       { type: 'ul', children: [
@@ -179,7 +179,7 @@ it('renders links', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       { type: 'p', children: [
         { type: 'a', href: 'https://foo.bar', children: [
           { text: 'foo' }
@@ -201,7 +201,7 @@ it('compiles code', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.ok([
+    content: Signal.cellOk([
       { type: 'code', children: [
         { text: 'const foo = 7' }
       ]},
@@ -228,7 +228,7 @@ it('compiles with import', () => {
       type: 'pm',
       path: '/foo.pm',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok([
+      content: Signal.cellOk([
         { type: 'code', children: [
           { text: `import { bar } from '/baz'` }
         ]},
@@ -269,7 +269,7 @@ it('compiles referencing data / table', () => {
       type: 'pm',
       path: '/foo.pm',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok([
+      content: Signal.cellOk([
         { type: 'p', children: [
           { text: 'foo ' },
           { type: 'inlineCode', children: [{ text: 'data.bar' }]},
@@ -310,7 +310,7 @@ it('compiles with layout', () => {
       type: 'pm',
       path: '/foo.pm',
       mtimeMs: Signal.ok(0),
-      content: Signal.ok([
+      content: Signal.cellOk([
         { type: 'p', children: [ { text: 'foo' } ]}
       ])
     },

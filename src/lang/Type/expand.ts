@@ -3,6 +3,7 @@ import { bug } from '../../util/bug';
 import * as Types from './types';
 import * as Type from './constructors';
 import * as Predef from './predef';
+import lensType from '../Compile/lensType';
 
 export default function (type: Types.Type) {
   switch (type.kind) {
@@ -33,6 +34,9 @@ export default function (type: Types.Type) {
           const paramWithChildren = Type.object(param.fields.push(Tuple2('children', Type.array(Predef.reactNodeType))));
           return Type.functionType([ paramWithChildren ], Predef.reactNodeType);
         }
+
+        case 'lensType':
+          return lensType(type.params.get(0) ?? bug(`expected param`));
 
         default:
           return type;

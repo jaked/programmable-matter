@@ -1,6 +1,6 @@
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
-import { Content, CompiledFile, CompiledNotes } from '../../data';
+import { CompiledFile, CompiledNotes, WritableContent } from '../../data';
 
 import compileFileMeta from './compileFileMeta';
 import compileFilePm from './compileFilePm';
@@ -9,7 +9,7 @@ import compileFileTable from './compileFileTable';
 import compileFileJpeg from './compileFileJpeg';
 
 export default function compileFile(
-  file: Content,
+  file: WritableContent,
   compiledFiles: Signal<Map<string, CompiledFile>>,
   compiledNotes: Signal<CompiledNotes>,
   updateFile: (path: string, buffer: Buffer) => void,

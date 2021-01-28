@@ -3,7 +3,7 @@ import React from 'react';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
-import { Content, Contents, CompiledFile, CompiledNotes, Types } from '../../data';
+import { Content, CompiledFile, CompiledNotes, Types, WritableContents } from '../../data';
 
 import compileFile from './compileFile';
 import groupFilesByName from './groupFilesByName';
@@ -29,7 +29,7 @@ function mergeModuleValue(
 }
 
 export function compileFiles(
-  files: Signal<Contents>,
+  files: Signal<WritableContents>,
   updateFile: (path: string, buffer: Buffer) => void = (path: string, buffer: Buffer) => { },
   deleteFile: (path: string) => void = (path: string) => { },
   setSelected: (name: string) => void = (name: string) => { },

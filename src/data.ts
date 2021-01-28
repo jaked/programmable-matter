@@ -96,6 +96,7 @@ export type WritableContent = {
 
 // indexed by path
 export type Contents = Map<string, Content>;
+export type WritableContents = Map<string, WritableContent>;
 
 // indexed by name
 export type CompiledNotes = Map<string, CompiledNote>;
