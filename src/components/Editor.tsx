@@ -11,7 +11,7 @@ import * as data from '../data';
 import highlight from './highlight'
 
 interface Props {
-  view: data.Types;
+  type: data.Types;
   content: string;
   compiledFile: Signal<data.CompiledFile>;
   session: Session;
@@ -97,7 +97,7 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
   const highlighted = props.compiledFile.flatMap(compiledFile =>
     Signal.join(compiledFile.ast, compiledFile.astAnnotations ?? Signal.ok(undefined)).map(([ast, annots]) =>
       highlight(
-        props.view,
+        props.type,
         props.content,
         ast,
         annots,

@@ -3,7 +3,6 @@ import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
 import Signal from '../util/Signal';
 import TitleBar from './TitleBar';
-import TabBar from './TabBar';
 
 const HeaderBox = styled(Flex)({
   padding: '4px',
@@ -22,8 +21,6 @@ type Props = {
   editName: string | undefined;
   setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
-  editorView: 'pm' | 'json' | 'table' | 'meta',
-  setEditorView: (view: 'pm' | 'json' | 'table' | 'meta') => void,
   selectedNoteProblems: { meta?: boolean, pm?: boolean, table?: boolean, json?: boolean } | undefined,
 }
 
@@ -42,13 +39,6 @@ export default Signal.liftComponent<Props>(props => {
             focusEditor={props.focusEditor}
           />
         </TitleBox>
-        <Box>
-          <TabBar
-            editorView={props.editorView}
-            setEditorView={props.setEditorView}
-            selectedNoteProblems={props.selectedNoteProblems}
-          />
-        </Box>
       </HeaderBox>
     );
 });

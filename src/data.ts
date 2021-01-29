@@ -68,6 +68,7 @@ export interface CompiledFile {
 
 export type CompiledNote = {
   name: string;
+  type: Types;
   meta: Signal<Meta>;
   files: NoteFiles;
   problems: Signal<boolean>;

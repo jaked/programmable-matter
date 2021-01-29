@@ -244,6 +244,7 @@ it('compiles with import', () => {
     Signal.ok(new Map([[
       '/baz', {
         name: '/baz',
+        type: 'pm',
         meta: Signal.err(new Error('meta')),
         files: {},
         problems: Signal.err(new Error('problems')),
@@ -326,6 +327,7 @@ it('compiles with layout', () => {
     Signal.ok(new Map([[
       '/layout', {
         name: '/layout',
+        type: 'pm',
         meta: Signal.ok(data.Meta({})),
         files: {},
         problems: Signal.ok(false),

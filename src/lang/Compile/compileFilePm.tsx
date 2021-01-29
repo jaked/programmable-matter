@@ -507,7 +507,7 @@ export default function compileFilePm(
       synthInlineCode(node, env, astAnnotations)
     );
     const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
-    if (problems) {
+    if (problems && debug) {
       const errorAnnotations = new Map<unknown, Type>();
       astAnnotations.forEach((v, k) => {
         if (v.kind === 'Error')

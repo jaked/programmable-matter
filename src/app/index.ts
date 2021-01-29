@@ -62,9 +62,6 @@ export class App {
     ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
       this.setMainPaneView(view)
     });
-    ipc.on('set-editor-view', (_, view: 'pm' | 'json' | 'table' | 'meta') => {
-      this.setEditorView(view)
-    });
     ipc.on('history-back', this.historyBack);
     ipc.on('history-forward', this.historyForward);
     ipc.on('previous-problem', this.previousProblem);
@@ -166,16 +163,10 @@ export class App {
     this.mainPaneViewCell.setOk(view);
   }
 
-  public editorViewCell = Signal.cellOk<'pm'| 'json' | 'table' | 'meta'>('pm');
-  public setEditorView = (view: 'pm' | 'json' | 'table' | 'meta') => {
-    this.editorViewCell.setOk(view);
-  }
-
   deleteNote = () => {
     const selected = this.selectedCell.get();
     this.setSelected(null);
-    const view = this.editorViewCell.get();
-    if (selected === null || !view) return;
+    if (selected === null) return;
 
     const note = this.compiledNotesSignal.get().get(selected);
     if (!note) return;
@@ -290,11 +281,10 @@ export class App {
   public selectedFileSignal =
     Signal.join(
       this.compiledNoteSignal,
-      this.editorViewCell,
       this.contents,
-    ).map(([compiledNote, view, files]) => {
+    ).map(([compiledNote, files]) => {
       if (compiledNote) {
-        const path = Name.pathOfName(compiledNote.name, view);
+        const path = Name.pathOfName(compiledNote.name, compiledNote.type);
         const file = files.get(path);
         if (file) return file;
       }

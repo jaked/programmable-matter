@@ -31,9 +31,9 @@ const Flex = styled(FlexBase)({
 }, borders);
 
 type CodeEditorProps = {
+  type: data.Types,
   content: Signal.Writable<string>;
   compiledFile: data.CompiledFile;
-  editorView: 'meta' | 'pm' | 'json' | 'table';
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
   setSelected: (selected: string | null) => void;
@@ -51,7 +51,7 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
   return (
     <Editor
       ref={ref}
-      view={props.editorView}
+      type={props.type}
       content={content}
       compiledFile={Signal.ok(props.compiledFile)}
       session={session}
@@ -122,7 +122,6 @@ type EditorPaneProps = {
   moduleName: Signal<string | null>;
   selectedFile: Signal<data.WritableContent | null>;
   compiledFile: Signal<data.CompiledFile | null>;
-  editorView: Signal<'meta' | 'pm' | 'json' | 'table'>;
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
   mouse: Signal<{ clientX: number, clientY: number }>;
@@ -138,7 +137,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   const selectedFile = Signal.useSignal(props.selectedFile);
   const moduleName = Signal.useSignal(props.moduleName);
   const compiledFile = Signal.useSignal(props.compiledFile);
-  const editorView = Signal.useSignal(props.editorView);
   const richEditorRef = React.useRef<RichTextEditor>(null);
   const codeEditorRef = React.useRef<Editor>(null);
 
@@ -158,7 +156,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
       <Box padding={1} flex={1} minHeight={0} >{
         selectedFile === null || moduleName === null || compiledFile == null ?
           <Box padding={1}>no note</Box> :
-        editorView === 'pm' ?
+        selectedFile.type === 'pm' ?
           <RichEditor
             ref={richEditorRef}
             content={selectedFile.content as Signal.Writable<PMAST.Node[]>}
@@ -168,7 +166,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           /> :
           <CodeEditor
             ref={codeEditorRef}
-            editorView={editorView}
+            type={selectedFile.type}
             content={selectedFile.content as Signal.Writable<string>}
             compiledFile={compiledFile}
             session={props.session}
@@ -265,8 +263,6 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           editName={props.app.editNameCell}
           setEditName={props.app.setEditName}
           focusEditor={focusEditor}
-          editorView={props.app.editorViewCell}
-          setEditorView={props.app.setEditorView}
           selectedNoteProblems={props.app.selectedNoteProblemsSignal}
           />
         <Flex flex={1} minHeight={0}>
@@ -277,7 +273,6 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
                 selectedFile={props.app.selectedFileSignal}
                 moduleName={props.app.selectedCell}
                 compiledFile={props.app.compiledFileSignal}
-                editorView={props.app.editorViewCell}
                 session={props.app.sessionSignal}
                 mouse={props.app.mouseSignal}
                 setSession={props.app.setSessionSignal}

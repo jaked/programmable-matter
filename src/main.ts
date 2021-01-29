@@ -262,26 +262,6 @@ function initMenu() {
           click: sendFunc('set-main-pane-view', 'split'),
         },
         { type: 'separator'},
-        // TODO(jaked) temporary, figure out better UI
-        {
-          // TODO(jaked) show current state of main pane in menu
-          label: 'JSON View',
-          accelerator: 'CmdOrCtrl+Alt+J',
-          click: sendFunc('set-editor-view', 'json'),
-        },
-        {
-          // TODO(jaked) show current state of main pane in menu
-          label: 'Table View',
-          accelerator: 'CmdOrCtrl+Alt+T',
-          click: sendFunc('set-editor-view', 'table'),
-        },
-        {
-          // TODO(jaked) show current state of main pane in menu
-          label: 'Meta View',
-          accelerator: 'CmdOrCtrl+Alt+M',
-          click: sendFunc('set-editor-view', 'meta'),
-        },
-        { type: 'separator'},
         {
           role: 'reload',
           visible: isDevelopment

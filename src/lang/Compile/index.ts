@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
@@ -51,23 +52,36 @@ export function compileFiles(
       return files.get(Name.pathOfName(name, type));
     }
 
-    function compiledFileForType(type: Types): Signal<CompiledFile | undefined> {
+    function compiledFileForType(type: Types): Signal<CompiledFile> | undefined {
       const file = fileForType(type);
       if (file) {
-        return compiledFiles.map(compiledFiles => compiledFiles.get(file.path));
-      } else {
-        return Signal.ok(undefined);
+        return compiledFiles.map(compiledFiles =>
+          compiledFiles.get(file.path) ?? bug(`expected compiled file`)
+        );
       }
     }
+
+    const pm = compiledFileForType('pm');
+    const table = compiledFileForType('table');
+    const json = compiledFileForType('json');
+    const jpeg = compiledFileForType('jpeg');
+    const meta = compiledFileForType('meta');
+    let type: Types | undefined = undefined;
+    if (meta) type = 'meta';
+    if (table) type = 'table';
+    if (json) type = 'json';
+    if (jpeg) type = 'jpeg';
+    if (pm) type = 'pm';
+    if (!type) bug(`expected type`);
 
     // TODO(jaked) Signal.untuple
     const parts =
       Signal.join(
-        compiledFileForType('pm'),
-        compiledFileForType('table'),
-        compiledFileForType('json'),
-        compiledFileForType('jpeg'),
-        compiledFileForType('meta'),
+        pm ?? Signal.ok(undefined),
+        table ?? Signal.ok(undefined),
+        json ?? Signal.ok(undefined),
+        jpeg ?? Signal.ok(undefined),
+        meta ?? Signal.ok(undefined),
       ).map(([pm, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
@@ -122,6 +136,7 @@ export function compileFiles(
       });
       return {
         name,
+        type,
         publishedType: parts.map(parts => parts.publishedType),
         meta: metaForPath(Name.pathOfName(name, 'meta'), compiledFiles),
         files: {
