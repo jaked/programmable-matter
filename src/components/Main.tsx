@@ -159,7 +159,11 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
         selectedFile.type === 'pm' ?
           <RichEditor
             ref={richEditorRef}
-            content={selectedFile.content as Signal.Writable<PMAST.Node[]>}
+            // TODO(jaked) Signal function to project from a Writable
+            content={(selectedFile.content as Signal.Writable<data.PMContent>).mapWritable(
+              content => content.nodes,
+              nodes => ({ nodes, meta: (selectedFile.content.get() as data.PMContent).meta })
+            )}
             moduleName={moduleName}
             compiledFile={compiledFile}
             setSelected={props.setSelected}

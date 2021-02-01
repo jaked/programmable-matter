@@ -4,27 +4,8 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { Content, CompiledFile, Meta } from '../../data';
-
-// TODO(jaked)
-// make Type part of the type system and convert?
-function convertMeta(obj: any): Meta {
-  let dataType = {}
-  if (typeof obj.dataType === 'string') {
-    try {
-      dataType = { dataType: Parse.parseType(obj.dataType) }
-    } catch (e) {
-      // TODO(jaked) how to surface these?
-      console.log(e)
-    }
-  }
-
-  const dirMeta =
-    typeof obj.dirMeta === 'object' ?
-    { dirMeta: convertMeta(obj.dirMeta) } : {};
-
-  return { ...obj, ...dataType, ...dirMeta };
-}
+import { Content, CompiledFile } from '../../data';
+import * as Meta from '../../Meta';
 
 const exportType = Signal.ok(Type.module({ default: Type.metaType }));
 const rendered = Signal.ok(null);
@@ -39,7 +20,7 @@ export default function compileFileMeta(
     const problems = [...annots.values()].some(t => t.kind === 'Error');
     const value = error.kind === 'Error' ?
       Signal.err(error.err) :
-      Signal.ok(convertMeta(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
+      Signal.ok(Meta.validate(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
     const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,

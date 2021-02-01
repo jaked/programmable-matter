@@ -1,7 +1,8 @@
-import Immutable from 'immutable';
 import React from 'react';
+
 import Signal from './util/Signal';
 import Type from './lang/Type';
+import * as PMAST from './PMAST';
 
 export type File = {
   mtimeMs: number;
@@ -84,6 +85,11 @@ export type WritableContent = {
   path: string,
   content: Signal.Writable<unknown>
   mtimeMs: Signal<number>, // TODO(jaked) drop
+}
+
+export type PMContent = {
+  nodes: PMAST.Node[];
+  meta: Meta;
 }
 
 // indexed by path

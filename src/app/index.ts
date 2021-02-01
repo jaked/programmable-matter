@@ -2,9 +2,11 @@ import * as fs from "fs";
 import * as Path from 'path';
 import * as process from 'process';
 import { ipcRenderer as ipc } from 'electron';
+import JSON5 from 'json5';
 
 import * as data from '../data';
 import * as PMAST from '../PMAST';
+import * as Meta from '../Meta';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 import * as Name from '../util/Name';
@@ -190,9 +192,24 @@ export class App {
     switch (type) {
       case 'pm':
         content = buffer.mapWritable(
-          // TODO(jaked) handle parse errors
-          buffer => PMAST.parse(buffer.toString('utf8')),
-          nodes => Buffer.from(PMAST.stringify(nodes), 'utf8')
+          // TODO(jaked) handle parse / validate errors
+          buffer => {
+            const obj = JSON5.parse(buffer.toString('utf8'));
+            if (Array.isArray(obj)) {
+              PMAST.validateNodes(obj);
+              return {
+                nodes: obj,
+                meta: {},
+              };
+            } else {
+              PMAST.validateNodes(obj.nodes);
+              return {
+                nodes: obj.nodes,
+                meta: Meta.validate(obj.meta)
+              }
+            }
+          },
+          obj => Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf8')
         );
         break;
 

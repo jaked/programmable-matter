@@ -1,7 +1,6 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
-import * as data from '../../data';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import compileFilePm from './compileFilePm';
@@ -42,14 +41,17 @@ it('compiles', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      {
-        type: 'p',
-        children: [
-          { text: 'foo' }
-        ]
-      }
-    ]),
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        {
+          type: 'p',
+          children: [
+            { text: 'foo' }
+          ]
+        }
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -63,14 +65,17 @@ it('compiles exports', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      {
-        type: 'code',
-        children: [
-          { text: 'export const foo = 7' }
-        ]
-      }
-    ]),
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        {
+          type: 'code',
+          children: [
+            { text: 'export const foo = 7' }
+          ]
+        }
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeFalsy();
   expect(compiled.exportType.get().getFieldType('foo')).toEqual(Type.singleton(7));
@@ -82,27 +87,33 @@ it('reports errors', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      {
-        type: 'code',
-        children: [
-          { text: 'x' }
-        ]
-      }
-    ]),
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        {
+          type: 'code',
+          children: [
+            { text: 'x' }
+          ]
+        }
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeTruthy();
 });
 
 it('recovers from fixed errors in inline code', () => {
-  const content = Signal.cellOk([
-    {
-      type: 'inlineCode',
-      children: [
-        { text: 'x' }
-      ]
-    }
-  ]);
+  const content = Signal.cellOk({
+    meta: {},
+    nodes: [
+      {
+        type: 'inlineCode',
+        children: [
+          { text: 'x' }
+        ]
+      }
+    ]
+  });
   const compiled = compileFilePm({
     type: 'pm',
     path: '/foo.pm',
@@ -110,14 +121,17 @@ it('recovers from fixed errors in inline code', () => {
     content
   });
   expect(compiled.problems.get()).toBeTruthy();
-  content.setOk([
-    {
-      type: 'inlineCode',
-      children: [
-        { text: '7' }
-      ]
-    }
-  ])
+  content.setOk({
+    meta: {},
+    nodes: [
+      {
+        type: 'inlineCode',
+        children: [
+          { text: '7' }
+        ]
+      }
+    ]
+  })
   expect(compiled.problems.get()).toBeFalsy();
 });
 
@@ -126,17 +140,20 @@ it('renders marks', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      {
-        type: 'p',
-        children: [
-          { text: 'foo' },
-          { text: 'bar', bold: true },
-          { text: 'baz', underline: true },
-          { text: 'quux', bold: true, italic: true },
-        ]
-      }
-    ]),
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        {
+          type: 'p',
+          children: [
+            { text: 'foo' },
+            { text: 'bar', bold: true },
+            { text: 'baz', underline: true },
+            { text: 'quux', bold: true, italic: true },
+          ]
+        }
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -155,13 +172,16 @@ it('renders elements', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      { type: 'p', children: [{ text: 'foo' }] },
-      { type: 'h1', children: [{ text: 'bar' }] },
-      { type: 'ul', children: [
-        { type: 'li', children: [{ text: 'baz', bold: true }] }
-      ] },
-    ]),
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        { type: 'p', children: [{ text: 'foo' }] },
+        { type: 'h1', children: [{ text: 'bar' }] },
+        { type: 'ul', children: [
+          { type: 'li', children: [{ text: 'baz', bold: true }] }
+        ] },
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -179,13 +199,16 @@ it('renders links', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      { type: 'p', children: [
-        { type: 'a', href: 'https://foo.bar', children: [
-          { text: 'foo' }
-        ] },
-      ]},
-    ]),
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        { type: 'p', children: [
+          { type: 'a', href: 'https://foo.bar', children: [
+            { text: 'foo' }
+          ] },
+        ]},
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -201,17 +224,20 @@ it('compiles code', () => {
     type: 'pm',
     path: '/foo.pm',
     mtimeMs: Signal.ok(0),
-    content: Signal.cellOk([
-      { type: 'code', children: [
-        { text: 'const foo = 7' }
-      ]},
-      { type: 'p', children: [
-        { text: 'foo is '},
-        { type: 'inlineCode', children: [
-          { text: 'foo' }
+    content: Signal.cellOk({
+      meta: {},
+      nodes: [
+        { type: 'code', children: [
+          { text: 'const foo = 7' }
         ]},
-      ]}
-    ]),
+        { type: 'p', children: [
+          { text: 'foo is '},
+          { type: 'inlineCode', children: [
+            { text: 'foo' }
+          ]},
+        ]}
+      ]
+    }),
   });
   expect(compiled.problems.get()).toBeFalsy();
   expectRenderEqual(
@@ -228,17 +254,20 @@ it('compiles with import', () => {
       type: 'pm',
       path: '/foo.pm',
       mtimeMs: Signal.ok(0),
-      content: Signal.cellOk([
-        { type: 'code', children: [
-          { text: `import { bar } from '/baz'` }
-        ]},
-        { type: 'p', children: [
-          { text: 'bar is '},
-          { type: 'inlineCode', children: [
-            { text: 'bar' }
+      content: Signal.cellOk({
+        meta: {},
+        nodes: [
+          { type: 'code', children: [
+            { text: `import { bar } from '/baz'` }
           ]},
-        ]}
-      ])
+          { type: 'p', children: [
+            { text: 'bar is '},
+            { type: 'inlineCode', children: [
+              { text: 'bar' }
+            ]},
+          ]}
+        ]
+      })
     },
     Signal.ok(new Map()),
     Signal.ok(new Map([[
@@ -270,14 +299,17 @@ it('compiles referencing data / table', () => {
       type: 'pm',
       path: '/foo.pm',
       mtimeMs: Signal.ok(0),
-      content: Signal.cellOk([
-        { type: 'p', children: [
-          { text: 'foo ' },
-          { type: 'inlineCode', children: [{ text: 'data.bar' }]},
-          { text: ' ' },
-          { type: 'inlineCode', children: [{ text: 'table.baz' }]},
-        ]},
-      ])
+      content: Signal.cellOk({
+        meta: {},
+        nodes: [
+          { type: 'p', children: [
+            { text: 'foo ' },
+            { type: 'inlineCode', children: [{ text: 'data.bar' }]},
+            { text: ' ' },
+            { type: 'inlineCode', children: [{ text: 'table.baz' }]},
+          ]},
+        ]
+      })
     },
     Signal.ok(new Map([
       ['/foo.json', {
@@ -311,19 +343,14 @@ it('compiles with layout', () => {
       type: 'pm',
       path: '/foo.pm',
       mtimeMs: Signal.ok(0),
-      content: Signal.cellOk([
-        { type: 'p', children: [ { text: 'foo' } ]}
-      ])
+      content: Signal.cellOk({
+        meta: { layout: '/layout' },
+        nodes: [
+          { type: 'p', children: [ { text: 'foo' } ]}
+        ]
+      })
     },
-    Signal.ok(new Map([[
-      '/foo.meta', {
-        exportType: Signal.ok(Type.module({ })),
-        exportValue: Signal.ok(new Map([[ 'default', Signal.ok({ layout: '/layout' }) ]])),
-        rendered: Signal.ok(null),
-        problems: Signal.ok(false),
-        ast: Signal.err(new Error(`unimplemented`))
-      },
-    ]])),
+    Signal.ok(new Map()),
     Signal.ok(new Map([[
       '/layout', {
         name: '/layout',

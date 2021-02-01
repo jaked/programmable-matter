@@ -5,6 +5,7 @@ import React from 'react';
 import JSON5 from 'json5';
 
 import { bug } from '../../util/bug';
+import * as data from '../../data';
 import * as Name from '../../util/Name';
 import * as MapFuncs from '../../util/MapFuncs';
 import Signal from '../../util/Signal';
@@ -20,7 +21,6 @@ import Typecheck from '../Typecheck';
 import lensValue from './lensValue';
 
 import makeLink from '../../components/makeLink';
-import metaForPath from './metaForPath';
 
 let nextKey = 0;
 const KEYS = new WeakMap<PMAST.Node, string>();
@@ -344,7 +344,11 @@ export default function compileFilePm(
 ): CompiledFile {
   const moduleName = Name.nameOfPath(file.path);
 
-  const nodes = file.content as Signal.Writable<PMAST.Node[]>;
+  // TODO(jaked) Signal function to project from a Writable
+  const nodes = (file.content as Signal.Writable<data.PMContent>).mapWritable(
+      content => content.nodes,
+      nodes => ({ nodes, meta: (file.content.get() as data.PMContent).meta })
+  );
 
   // TODO(jaked)
   // we want just the bindings and imports here, but this also includes ExpressionStatements
@@ -556,7 +560,7 @@ export default function compileFilePm(
   });
 
   const debug = false;
-  const meta = metaForPath(file.path, compiledFiles);
+  const meta = (file.content as Signal.Writable<data.PMContent>).map(content => content.meta);
   const layoutFunction = Signal.join(
    meta,
    compiledNotes,
