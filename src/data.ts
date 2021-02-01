@@ -12,7 +12,7 @@ export type Files = Map<string, File>;
 
 export type Types = 'meta' | 'pm' | 'json' | 'jpeg' | 'table';
 
-export type MetaProps = {
+export type Meta = {
   title?: string,
   tags?: Array<string>,
   layout?: string,
@@ -20,15 +20,6 @@ export type MetaProps = {
   dataType?: Type,
   dirMeta?: Meta,
 }
-export const Meta = Immutable.Record<MetaProps>({
-  title: undefined,
-  tags: undefined,
-  layout: undefined,
-  publish: undefined,
-  dataType: undefined,
-  dirMeta: undefined,
-}, 'Meta')
-export type Meta = Immutable.RecordOf<MetaProps>;
 
 export type AstAnnotations = Map<unknown, Type>;
 

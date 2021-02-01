@@ -328,7 +328,7 @@ it('compiles with layout', () => {
       '/layout', {
         name: '/layout',
         type: 'pm',
-        meta: Signal.ok(data.Meta({})),
+        meta: Signal.ok({}),
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
@@ -337,7 +337,7 @@ it('compiles with layout', () => {
           default: Type.layoutFunctionType,
         })),
         exportValue: Signal.ok(new Map([[
-          'default', Signal.ok((props: { children: React.ReactNode, meta: data.Meta }) =>
+          'default', Signal.ok((props: { children: React.ReactNode, meta: {} }) =>
             React.createElement('div', {}, props.children)
           )
         ]])),

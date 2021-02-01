@@ -23,7 +23,7 @@ function convertMeta(obj: any): Meta {
     typeof obj.dirMeta === 'object' ?
     { dirMeta: convertMeta(obj.dirMeta) } : {};
 
-  return Meta({ ...obj, ...dataType, ...dirMeta });
+  return { ...obj, ...dataType, ...dirMeta };
 }
 
 const exportType = Signal.ok(Type.module({ default: Type.metaType }));

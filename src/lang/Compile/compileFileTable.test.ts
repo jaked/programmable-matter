@@ -77,7 +77,7 @@ it('non-data note in table dir', () => {
       '/foo/bar', {
         name: '/foo/bar',
         type: 'meta',
-        meta: Signal.ok(data.Meta()),
+        meta: Signal.ok({}),
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
