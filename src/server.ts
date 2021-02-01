@@ -7,17 +7,17 @@ import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
 import { bug } from './util/bug';
-import * as data from './data';
+import * as model from './model';
 import * as Name from './util/Name';
 import Signal from './util/Signal';
 import * as Render from './lang/Render';
 
 export default class Server {
-  compiledNotes: Signal<data.CompiledNotes>;
+  compiledNotes: Signal<model.CompiledNotes>;
   browserSync: BrowserSync.BrowserSyncInstance;
 
   constructor(
-    compiledNotes: Signal<data.CompiledNotes>
+    compiledNotes: Signal<model.CompiledNotes>
   ) {
     this.handle = this.handle.bind(this);
 

@@ -6,7 +6,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
-import * as data from '../../data';
+import * as model from '../../model';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
@@ -71,7 +71,7 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
 });
 
 interface Props {
-  notes: data.CompiledNote[];
+  notes: model.CompiledNote[];
   selected: string | null;
   onSelect: (name: string) => void;
   focusDir: string | null;

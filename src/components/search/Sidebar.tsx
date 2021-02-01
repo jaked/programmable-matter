@@ -6,10 +6,10 @@ import * as MapFuncs from '../../util/MapFuncs';
 
 import Notes from './Notes';
 import SearchBox from './SearchBox';
-import * as data from '../../data';
+import * as model from '../../model';
 
 type Props = {
-  compiledNotes: Signal<data.CompiledNotes>;
+  compiledNotes: Signal<model.CompiledNotes>;
   selected: Signal<string | null>;
   setSelected: (s: string | null) => void;
   maybeSetSelected: (s: string) => boolean;
@@ -52,10 +52,10 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       const regexp = RegExp(escaped, 'i');
 
       // TODO(jaked) match on source files not compiled note
-      function matchesSearch(note: data.CompiledNote): Signal<{
+      function matchesSearch(note: model.CompiledNote): Signal<{
         matches: boolean,
         mtimeMs: number,
-        note: data.CompiledNote
+        note: model.CompiledNote
       }> {
         const matches =
           focusDir && !note.name.startsWith(focusDir + '/') ? Signal.ok(false) :

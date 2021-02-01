@@ -3,17 +3,17 @@ import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
-import * as data from '../../data';
+import * as model from '../../model';
 
-function extractMeta(metaFile: data.CompiledFile): Signal<data.Meta> {
+function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
   return metaFile.exportValue.flatMap(exportValue =>
     exportValue.get('default') ?? bug(`expected default`)
   ).liftToTry().map(metaTry =>
-    metaTry.type === 'ok' ? metaTry.ok as data.Meta : {}
+    metaTry.type === 'ok' ? metaTry.ok as model.Meta : {}
   );
 }
 
-const emptyMeta: data.CompiledFile = {
+const emptyMeta: model.CompiledFile = {
   exportType: Signal.ok(Type.module({ })),
   exportValue: Signal.ok(new Map([[ 'default', Signal.ok({}) ]])),
   rendered: Signal.ok(null),
@@ -23,8 +23,8 @@ const emptyMeta: data.CompiledFile = {
 
 export default function metaForPath(
   path: string,
-  compiledFiles: Signal<Map<string, data.CompiledFile>>,
-): Signal<data.Meta> {
+  compiledFiles: Signal<Map<string, model.CompiledFile>>,
+): Signal<model.Meta> {
   const pathParsed = Path.parse(path);
   const indexMetaPath = Path.format({ ...pathParsed, base: undefined, name: 'index', ext: '.meta' });
   const metaPath = Path.format({ ...pathParsed, base: undefined, ext: '.meta' });

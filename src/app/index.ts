@@ -4,9 +4,9 @@ import * as process from 'process';
 import { ipcRenderer as ipc } from 'electron';
 import JSON5 from 'json5';
 
-import * as data from '../data';
-import * as PMAST from '../PMAST';
-import * as Meta from '../Meta';
+import * as model from '../model';
+import * as PMAST from '../model/PMAST';
+import * as Meta from '../model/Meta';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 import * as Name from '../util/Name';
@@ -30,7 +30,7 @@ import mkNewNote from './newNote';
 
 const debug = false;
 
-function typeOfPath(path: string): data.Types {
+function typeOfPath(path: string): model.Types {
   const ext = Path.parse(path).ext;
   switch (ext) {
     case '.meta': return 'meta';
@@ -52,7 +52,7 @@ export class App {
     this.reactRender();
   }
 
-  private files = Signal.cellOk<data.Files>(new Map());
+  private files = Signal.cellOk<model.Files>(new Map());
   private filesystem = Filesystem(this.files);
 
   constructor() {
@@ -281,7 +281,7 @@ export class App {
       });
 
       const name = compiledNote.name;
-      function problems(type: data.Types) {
+      function problems(type: model.Types) {
         return compiledFiles.get(Name.pathOfName(name, type))?.problems ?? Signal.ok(false);
       }
       // TODO(jaked) pass these on note instead of reconstructing

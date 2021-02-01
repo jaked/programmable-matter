@@ -13,11 +13,11 @@ import ReactDOMServer from 'react-dom/server';
 
 import { bug } from '../util/bug';
 import * as Render from '../lang/Render';
-import * as data from '../data';
+import * as model from '../model';
 import * as MapFuncs from '../util/MapFuncs';
 
 export default async function ghPages(
-  compiledNotes: data.CompiledNotes,
+  compiledNotes: model.CompiledNotes,
 ) {
   // TODO(jaked) use context provider to avoid manual reconciliation
 

@@ -1,7 +1,7 @@
 import Try from '../../util/Try';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { AstAnnotations } from '../../data';
+import { AstAnnotations } from '../../model';
 
 export function withLocation(ast: ESTree.Node, msg, annots?: AstAnnotations): never {
   const err = new Error(msg);

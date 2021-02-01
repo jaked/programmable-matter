@@ -4,7 +4,7 @@ import * as Types from './types';
 import * as Type from './constructors';
 import { union } from './union';
 import { intersection } from './intersection';
-import * as data from '../../data';
+import * as model from '../../model';
 import * as Error from '../Typecheck/error';
 
 function stringOfQualifiedIdentifier(
@@ -24,7 +24,7 @@ function stringOfQualifiedIdentifier(
 
 export default function ofTSType(
   tsType: ESTree.TypeAnnotation,
-  annots?: data.AstAnnotations,
+  annots?: model.AstAnnotations,
 ): Types.Type {
   switch (tsType.type) {
     case 'TSParenthesizedType':

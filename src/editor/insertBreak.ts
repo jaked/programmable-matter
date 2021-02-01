@@ -1,6 +1,6 @@
 import { Editor, Transforms } from 'slate';
 
-import * as PMAST from '../PMAST';
+import * as PMAST from '../model/PMAST';
 import { blockAbove } from './blockAbove';
 import { blockIsEmpty } from './blockIsEmpty';
 import { cursorAtBlockEnd } from './cursorAtBlockEnd';

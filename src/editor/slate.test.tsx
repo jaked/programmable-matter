@@ -1,7 +1,7 @@
 /** @jsx jsx */
 import { Editor, Element, Node, Transforms } from 'slate';
 import { jsx } from '../util/slate-hyperscript-jsx';
-import * as PMAST from '../PMAST';
+import * as PMAST from '../model/PMAST';
 
 // tests to understand how Slate works
 

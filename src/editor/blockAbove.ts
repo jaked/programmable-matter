@@ -1,5 +1,5 @@
 import { Editor, Location, NodeEntry } from 'slate';
-import * as PMAST from '../PMAST';
+import * as PMAST from '../model/PMAST';
 
 export const blockAbove = (
   editor: Editor,

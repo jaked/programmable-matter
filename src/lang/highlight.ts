@@ -1,5 +1,5 @@
 import * as ESTree from '../lang/ESTree';
-import * as data from '../data';
+import * as model from '../model';
 
 export type tag =
   'default' | 'atom' | 'number' | 'string' | 'keyword' |
@@ -15,7 +15,7 @@ export type Span = {
 
 export function computeJsSpans(
   ast: ESTree.Node,
-  annots: data.AstAnnotations | undefined,
+  annots: model.AstAnnotations | undefined,
   spans: Array<Span>
 ) {
   function span(

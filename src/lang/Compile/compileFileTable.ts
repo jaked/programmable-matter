@@ -14,8 +14,8 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../data';
-import * as data from '../../data';
+import { AstAnnotations, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
+import * as model from '../../model';
 import { Table } from '../../components/Table';
 import lensType from './lensType';
 
@@ -54,7 +54,7 @@ const tableType =
 function computeTableConfig(
   ast: ESTree.Expression,
   annots: AstAnnotations,
-): data.Table {
+): model.Table {
   // TODO(jaked)
   // blows up if a type string cannot be parsed
   // but we don't annotate the expression to indicate the problem
@@ -74,7 +74,7 @@ function computeTableConfig(
 }
 
 function computeTableDataType(
-  tableConfig: data.Table
+  tableConfig: model.Table
 ): Type.ObjectType {
   const tableDataFields: Tuple2<string, Type>[] = [];
   tableConfig.fields.forEach(field => {
@@ -86,7 +86,7 @@ function computeTableDataType(
 }
 
 function computeTable(
-  tableConfig: data.Table,
+  tableConfig: model.Table,
   tableDataType: Type.ObjectType,
   tableName: string,
   noteEnv: Map<string, CompiledNote>,
@@ -190,7 +190,7 @@ function computeTable(
 }
 
 function computeFields(
-  tableConfig: data.Table,
+  tableConfig: model.Table,
 ) {
   return tableConfig.fields.map(field => {
     return {

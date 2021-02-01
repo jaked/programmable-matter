@@ -1,7 +1,7 @@
 import Signal from '../../util/Signal';
 import { bug } from '../../util/bug';
 import { compileFiles } from './index';
-import { WritableContents } from '../../data';
+import { WritableContents } from '../../model';
 
 it('compiles json', () => {
   const files = Signal.ok<WritableContents>(new Map([[

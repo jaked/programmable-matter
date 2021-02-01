@@ -1,8 +1,8 @@
 import React from 'react';
 
-import Signal from './util/Signal';
-import Type from './lang/Type';
-import * as PMAST from './PMAST';
+import Signal from '../util/Signal';
+import Type from '../lang/Type';
+import * as PMAST from '../model/PMAST';
 
 export type File = {
   mtimeMs: number;

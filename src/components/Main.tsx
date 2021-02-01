@@ -5,8 +5,8 @@ import { borders } from 'styled-system';
 
 import Signal from '../util/Signal';
 
-import * as data from '../data';
-import * as PMAST from '../PMAST';
+import * as model from '../model';
+import * as PMAST from '../model/PMAST';
 
 import { App } from '../app';
 
@@ -31,9 +31,9 @@ const Flex = styled(FlexBase)({
 }, borders);
 
 type CodeEditorProps = {
-  type: data.Types,
+  type: model.Types,
   content: Signal.Writable<string>;
-  compiledFile: data.CompiledFile;
+  compiledFile: model.CompiledFile;
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
   setSelected: (selected: string | null) => void;
@@ -64,7 +64,7 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
 type RichEditorProps = {
   content: Signal.Writable<PMAST.Node[]>;
   moduleName: string;
-  compiledFile: data.CompiledFile;
+  compiledFile: model.CompiledFile;
   setSelected: (selected: string | null) => void;
 }
 
@@ -88,7 +88,7 @@ const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>(
 }));
 
 type StatusProps = {
-  astAnnotations: Signal<data.AstAnnotations | undefined>;
+  astAnnotations: Signal<model.AstAnnotations | undefined>;
   mouse: Signal<{ clientX: number, clientY: number }>;
 }
 
@@ -120,8 +120,8 @@ const Status = (props: StatusProps) => {
 
 type EditorPaneProps = {
   moduleName: Signal<string | null>;
-  selectedFile: Signal<data.WritableContent | null>;
-  compiledFile: Signal<data.CompiledFile | null>;
+  selectedFile: Signal<model.WritableContent | null>;
+  compiledFile: Signal<model.CompiledFile | null>;
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
   mouse: Signal<{ clientX: number, clientY: number }>;
@@ -160,9 +160,9 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <RichEditor
             ref={richEditorRef}
             // TODO(jaked) Signal function to project from a Writable
-            content={(selectedFile.content as Signal.Writable<data.PMContent>).mapWritable(
+            content={(selectedFile.content as Signal.Writable<model.PMContent>).mapWritable(
               content => content.nodes,
-              nodes => ({ nodes, meta: (selectedFile.content.get() as data.PMContent).meta })
+              nodes => ({ nodes, meta: (selectedFile.content.get() as model.PMContent).meta })
             )}
             moduleName={moduleName}
             compiledFile={compiledFile}
@@ -187,7 +187,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
 }));
 
 type DisplayPaneProps = {
-  compiledNoteSignal: Signal<data.CompiledNote | null>;
+  compiledNoteSignal: Signal<model.CompiledNote | null>;
 }
 
 const DisplayPane = React.memo((props: DisplayPaneProps) =>

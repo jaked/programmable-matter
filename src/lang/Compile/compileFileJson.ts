@@ -9,7 +9,7 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { Content, CompiledFile } from '../../data';
+import { Content, CompiledFile } from '../../model';
 import { Record } from '../../components/Record';
 import lensType from './lensType';
 import lensValue from './lensValue';

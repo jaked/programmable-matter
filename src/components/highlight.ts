@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import * as ESTree from '../lang/ESTree';
 import * as Highlight from '../lang/highlight';
-import * as data from '../data';
+import * as model from '../model';
 
 export type component = React.FunctionComponent<{}>;
 
@@ -19,10 +19,10 @@ export type components = {
 }
 
 export default function computeHighlight(
-  view: data.Types,
+  view: model.Types,
   content: string,
   ast: unknown,
-  annots: data.AstAnnotations | undefined,
+  annots: model.AstAnnotations | undefined,
   okComps: components,
   errComps: components,
 ) {

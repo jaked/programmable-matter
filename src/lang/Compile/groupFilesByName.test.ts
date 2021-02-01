@@ -1,5 +1,5 @@
 import Signal from '../../util/Signal';
-import { Contents } from '../../data';
+import { Contents } from '../../model';
 import groupFilesByName from './groupFilesByName';
 
 it('deletes group when last file is deleted', () => {

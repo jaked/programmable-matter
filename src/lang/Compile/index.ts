@@ -4,7 +4,7 @@ import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
-import { Content, CompiledFile, CompiledNotes, Types, WritableContents } from '../../data';
+import { Content, CompiledFile, CompiledNotes, Types, WritableContents } from '../../model';
 
 import compileFile from './compileFile';
 import groupFilesByName from './groupFilesByName';

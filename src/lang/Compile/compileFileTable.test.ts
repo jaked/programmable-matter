@@ -1,6 +1,5 @@
 import Signal from '../../util/Signal';
 import Type from '../Type';
-import * as data from '../../data';
 
 import compileFileTable from './compileFileTable';
 

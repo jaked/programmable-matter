@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { AstAnnotations } from '../../data';
+import { AstAnnotations } from '../../model';
 import { Env } from './env';
 import * as Error from './error';
 import { synth } from './synth';

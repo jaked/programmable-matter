@@ -4,7 +4,7 @@ import * as Path from 'path';
 import nsfw from 'nsfw';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
-import * as data from '../data';
+import * as model from '../model';
 
 type FileMeta = {
   writing: boolean; // true if we are in the middle of writing the file
@@ -84,7 +84,7 @@ type Filesystem = {
 }
 
 function make(
-  files: Signal.Writable<data.Files>,
+  files: Signal.Writable<model.Files>,
   Now: Now = Date,
   Timers: Timers = timers,
   Fs: Fs = fs.promises,
@@ -112,7 +112,7 @@ function make(
 
   // updates coming from Nsfw
   const updateFile = (
-    files: Map<string, data.File>,
+    files: Map<string, model.File>,
     path: string,
     buffer: Buffer,
     mtimeMs: number,

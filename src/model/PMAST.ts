@@ -1,5 +1,5 @@
 import JSON5 from 'json5';
-import * as Highlight from './lang/highlight';
+import * as Highlight from '../lang/highlight';
 
 // TODO(jaked) split into Text / Code leaf types?
 export type Text = {

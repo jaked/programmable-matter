@@ -7,8 +7,8 @@ import styled from 'styled-components';
 
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
-import * as data from '../../data';
-import * as PMAST from '../../PMAST';
+import * as model from '../../model';
+import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../../lang/ESTree';
 import * as PMEditor from '../../editor/PMEditor';
 import * as Highlight from '../../lang/highlight';
@@ -138,7 +138,7 @@ type Range = {
 export const makeDecorate =
   (
     parsedCode: WeakMap<Node, unknown>,
-    astAnnotations?: data.AstAnnotations,
+    astAnnotations?: model.AstAnnotations,
   ) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
@@ -221,7 +221,7 @@ export type RichTextEditorProps = {
   value: PMAST.Node[];
   setValue: (nodes: PMAST.Node[]) => void;
   moduleName: string;
-  compiledFile: data.CompiledFile;
+  compiledFile: model.CompiledFile;
 
   setSelected: (name: string) => void;
 }

@@ -1,5 +1,5 @@
 import * as Path from 'path';
-import { Types } from '../data';
+import { Types } from '../model';
 
 export function nameOfPath(path: string) {
   const pathParts = Path.parse(path);

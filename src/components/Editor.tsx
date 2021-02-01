@@ -6,14 +6,14 @@ import RSCEditor, { Session } from './react-simple-code-editor';
 
 import styled from 'styled-components';
 
-import * as data from '../data';
+import * as model from '../model';
 
 import highlight from './highlight'
 
 interface Props {
-  type: data.Types;
+  type: model.Types;
   content: string;
-  compiledFile: Signal<data.CompiledFile>;
+  compiledFile: Signal<model.CompiledFile>;
   session: Session;
 
   onChange: (content: string, session: Session) => void;

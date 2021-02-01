@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as ESTree from '../ESTree';
 import { bug } from '../../util/bug';
-import { AstAnnotations } from '../../data';
+import { AstAnnotations } from '../../model';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 

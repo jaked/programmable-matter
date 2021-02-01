@@ -1,6 +1,6 @@
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { AstAnnotations } from '../../data';
+import { AstAnnotations } from '../../model';
 
 export function withLocation(ast: ESTree.Node, err: string | Error, annots?: AstAnnotations) {
   if (typeof err === 'string') err = new Error(err);

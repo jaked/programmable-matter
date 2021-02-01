@@ -3,7 +3,7 @@ import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import { diffMap } from '../../util/diffMap';
-import { Content, Contents } from '../../data';
+import { Content, Contents } from '../../model';
 
 function groupFilesByName(
   files: Contents,

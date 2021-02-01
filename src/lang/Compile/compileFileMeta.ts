@@ -4,8 +4,8 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { Content, CompiledFile } from '../../data';
-import * as Meta from '../../Meta';
+import { Content, CompiledFile } from '../../model';
+import * as Meta from '../../model/Meta';
 
 const exportType = Signal.ok(Type.module({ default: Type.metaType }));
 const rendered = Signal.ok(null);

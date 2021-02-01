@@ -5,13 +5,13 @@ import React from 'react';
 import JSON5 from 'json5';
 
 import { bug } from '../../util/bug';
-import * as data from '../../data';
+import * as model from '../../model';
 import * as Name from '../../util/Name';
 import * as MapFuncs from '../../util/MapFuncs';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import { AstAnnotations, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../data';
-import * as PMAST from '../../PMAST';
+import { AstAnnotations, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
+import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import * as Evaluate from '../Evaluate';
@@ -345,9 +345,9 @@ export default function compileFilePm(
   const moduleName = Name.nameOfPath(file.path);
 
   // TODO(jaked) Signal function to project from a Writable
-  const nodes = (file.content as Signal.Writable<data.PMContent>).mapWritable(
+  const nodes = (file.content as Signal.Writable<model.PMContent>).mapWritable(
       content => content.nodes,
-      nodes => ({ nodes, meta: (file.content.get() as data.PMContent).meta })
+      nodes => ({ nodes, meta: (file.content.get() as model.PMContent).meta })
   );
 
   // TODO(jaked)
@@ -560,7 +560,7 @@ export default function compileFilePm(
   });
 
   const debug = false;
-  const meta = (file.content as Signal.Writable<data.PMContent>).map(content => content.meta);
+  const meta = (file.content as Signal.Writable<model.PMContent>).map(content => content.meta);
   const layoutFunction = Signal.join(
    meta,
    compiledNotes,
