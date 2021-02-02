@@ -44,14 +44,6 @@ function typeOfPath(path: string): model.Types {
 }
 
 export class App {
-  private render = () => {
-    // TODO(jaked)
-    // need to trigger BrowserSync reload on changes
-    // this.server.reconcile();
-
-    this.reactRender();
-  }
-
   private files = Signal.cellOk<model.Files>(new Map());
   private filesystem = Filesystem(this.files);
 
@@ -346,7 +338,7 @@ export class App {
 
   private mainRef = React.createRef<Main>();
 
-  private reactRender = () => {
+  private render = () => {
     ReactDOM.render(
       React.createElement(Main, { ref: this.mainRef, app: this }),
       document.getElementById('main')

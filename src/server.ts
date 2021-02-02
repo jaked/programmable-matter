@@ -23,12 +23,15 @@ export default class Server {
 
     this.compiledNotes = compiledNotes;
     this.browserSync = BrowserSync.create();
+    // TODO(jaked) takes a readiness callback, should use it?
     this.browserSync.init({
       logLevel: 'silent',
       middleware: this.handle,
+      online: false,
       open: false,
-      port: 3000,
       notify: false,
+      port: 3000,
+      ui: false,
     });
   }
 
@@ -40,17 +43,18 @@ export default class Server {
     this.browserSync.reload();
   }
 
+  reload = { dirty: () => this.browserSync.reload () }
+
   handle(req: Http.IncomingMessage, res: Http.ServerResponse) {
     let url = Url.parse(req.url || '');
     let path = url.path || '';
-    const decodedPath = decodeURIComponent(path.slice(1, path.length));
+    const decodedPath = decodeURIComponent(path);
     const ext = Path.parse(decodedPath).ext;
-    let name = Name.nameOfPath(decodedPath);
-    // TODO(jaked) temporary hack for the root index note
-    if (name === '.') name = '';
+    const name = Name.nameOfPath(decodedPath);
 
     const note = this.compiledNotes.get().get(name);
-    if (!note || !note.meta.get().publish) {
+    // TODO(jaked) need to check meta.publish here but it's not exposed properly
+    if (!note) { // || !note.meta.get().publish) {
       res.statusCode = 404;
       res.end(`no note ${name}`);
     } else {
@@ -61,6 +65,7 @@ export default class Server {
         res.setHeader("Content-Type", "image/jpeg");
         res.end(buffer.get());
       } else {
+        note.rendered.depend(this.reload);
         // TODO(jaked) don't blow up on failed notes
         const node = note.rendered.get();
 
