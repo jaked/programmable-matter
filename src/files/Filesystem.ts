@@ -83,6 +83,16 @@ type Filesystem = {
   stop: () => Promise<void>,
 }
 
+type Watcher = {
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
+}
+
+type State =
+  { state: 'no path' } |
+  { state: 'stopped', path: string, watcher: Watcher } |
+  { state: 'running', path: string, watcher: Watcher, timeout: NodeJS.Timeout }
+
 function make(
   files: Signal.Writable<model.Files>,
   Now: Now = Date,
@@ -90,23 +100,18 @@ function make(
   Fs: Fs = fs.promises,
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
-  let running = false;
-  let filesPath: null | string = null;
+  let state: State = { state: 'no path' };
   const fileMetas = new Map<string, FileMeta>();
-  let timeout: null | NodeJS.Timeout = null;
-  let watcher: null | {
-    start: () => Promise<void>;
-    stop: () => Promise<void>;
-  } = null;
 
   const setPath = async (path: string) => {
-    if (running) await stop();
-    filesPath = path;
-    watcher = await Nsfw(
+    if (state.state !== 'no path')
+      await stop();
+    const watcher = await Nsfw(
       path,
       handleNsfwEvents,
       { debounceMS: 500 }
     );
+    state = { state: 'stopped', path, watcher }
     return start();
   }
 
@@ -192,25 +197,25 @@ function make(
       // TODO(jaked) rethink this
       const deleted = new Set<string>();
       events.forEach(({ ev, buffer, mtimeMs }) => {
-        if (!filesPath) bug(`expected filesPath`);
+        if (state.state === 'no path') bug(`expected path`);
         switch (ev.action) {
           case 0:   // created
           case 2: { // modified
-            const path = canonizePath(filesPath, ev.directory, ev.file);
+            const path = canonizePath(state.path, ev.directory, ev.file);
             deleted.delete(path);
             updateFile(files, path, buffer, mtimeMs);
             break;
           }
 
           case 3: { // renamed
-            const oldPath = canonizePath(filesPath, (ev as any).directory, ev.oldFile);
+            const oldPath = canonizePath(state.path, (ev as any).directory, ev.oldFile);
             deleted.add(oldPath);
-            const path = canonizePath(filesPath, ev.newDirectory, ev.newFile);
+            const path = canonizePath(state.path, ev.newDirectory, ev.newFile);
             updateFile(files, path, buffer, mtimeMs);
             break;
           }
           case 1: // deleted
-            const oldPath = canonizePath(filesPath, ev.directory, ev.file);
+            const oldPath = canonizePath(state.path, ev.directory, ev.file);
             deleted.add(oldPath);
             break;
         }
@@ -291,10 +296,10 @@ function make(
   const deleteMissing = (events: NsfwEvent[]) => {
     const seen = new Set<string>();
     events.forEach(ev => {
-      if (!filesPath) bug(`expected filesPath`);
+      if (state.state === 'no path') bug(`expected path`);
       switch (ev.action) {
         case 0:
-          seen.add(canonizePath(filesPath, ev.directory, ev.file));
+          seen.add(canonizePath(state.path, ev.directory, ev.file));
           break;
 
         default: bug(`expected add`);
@@ -366,9 +371,9 @@ function make(
     if (debug) console.log(`timerCallback`);
     const waits: Promise<unknown>[] = []; // TODO(jaked) yuck
     fileMetas.forEach((fileMeta, path) => {
-      if (!filesPath) bug(`expected filesPath`);
+      if (state.state === 'no path') bug(`expected path`);
       const now = Now.now();
-      const filePath = Path.join(filesPath, path);
+      const filePath = Path.join(state.path, path);
       if (fileMeta.deleted) {
         if (!fileMeta.writing) {
           fileMeta.writing = true;
@@ -396,35 +401,27 @@ function make(
   };
 
   const start = async () => {
-    if (running) return;
-    running = true;
-    if (!watcher) bug(`expected watcher`);
-    if (!filesPath) bug(`expected filesPath`);
-    if (timeout) bug(`expected !timeout`);
+    if (state.state === 'running') return;
+    if (state.state !== 'stopped') bug(`expected stopped`);
     if (debug) console.log(`Filesystem.start`);
     const events: Array<NsfwEvent> = [];
     // TODO(jaked) needs protecting against concurrent updates
-    await walkDir(filesPath, events);
+    await walkDir(state.path, events);
     await handleNsfwEvents(events);
     deleteMissing(events);
-    timeout = Timers.setInterval(timerCallback, 1000);
-    try { watcher.start() }
-    catch (e) { console.log(e) }
+    await state.watcher.start();
+    const timeout = Timers.setInterval(timerCallback, 1000);
+    state = { state: 'running', path: state.path, watcher: state.watcher, timeout };
   }
 
   const stop = async () => {
-    if (!running) return;
-    running = false;
-    if (!watcher) bug(`expected watcher`);
-    if (!filesPath) bug(`expected filesPath`);
-    if (!timeout) bug(`expected timeout`);
+    if (state.state !== 'running') return;
     if (debug) console.log(`Filesystem.stop`);
-    Timers.clearInterval(timeout);
-    timeout = null;
+    Timers.clearInterval(state.timeout);
     // TODO(jaked) ensure no updates after final write
     await timerCallback(true);
-    try { watcher.stop() }
-    catch (e) { console.log(e) }
+    await state.watcher.stop();
+    state = { state: 'stopped', path: state.path, watcher: state.watcher };
   }
 
   return {
