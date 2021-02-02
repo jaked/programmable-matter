@@ -1,6 +1,8 @@
 import JSON5 from 'json5';
 import * as Highlight from '../lang/highlight';
 
+export type mark = 'bold' | 'italic' | 'underline' | 'strikethrough' | 'code';
+
 // TODO(jaked) split into Text / Code leaf types?
 export type Text = {
   text: string,
@@ -18,89 +20,26 @@ export type Text = {
   link?: string,
 }
 
-export type mark = 'bold' | 'italic' | 'underline' | 'code';
-
-export type type =
-  'p' |
-  'h1' | 'h2' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' |
-  'ul' | 'ol' | 'li' |
-  'code' | 'inlineCode' |
-  'blockquote' | 'pre' |
-  'a';
-
-export type Paragraph = {
-  type: 'p',
-  children: Node[],
-}
-
-export type Header = {
-  type: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6',
-  children: Node[],
-}
-
-export type List = {
-  type: 'ul' | 'ol',
-  children: Node[],
-}
-
-export type ListItem = {
-  type: 'li',
-  children: Node[],
-}
-
-export type Link = {
-  type: 'a',
-  href: string,
-  children: Node[],
-}
-
-export type Code = {
-  type: 'code',
-  children: Node[],
-}
-
-export type InlineCode = {
-  type: 'inlineCode',
-  children: Node[],
-}
-
-export type Blockquote = {
-  type: 'blockquote',
-  children: Node[],
-}
-
-export type Pre = {
-  type: 'pre',
-  children: Node[],
-}
-
-export type Block = Paragraph | Header | List | Code | Blockquote | Pre;
-export type Inline = Link | InlineCode;
-
-export type Element = Block | Inline | ListItem;
-export type Node = Text | Element;
-
-export function parse(pm: string): Node[] {
-  const nodes = JSON5.parse(pm);
-  // TODO(jaked) validate
-  return nodes;
-}
-
-export function stringify(nodes: Node[]): string {
-  return JSON5.stringify(nodes, undefined, 2);
-}
-
 export function isText(node: Node): node is Text {
   return 'text' in node;
+}
+
+type ElementType<T> = {
+  type: T;
+  children: Node[];
 }
 
 export function isElement(node: Node): node is Element {
   return 'type' in node;
 }
 
+export type Paragraph = ElementType<'p'>;
+
 export function isParagraph(node: Node): node is Paragraph {
   return isElement(node) && node.type === 'p';
 }
+
+export type Header = ElementType<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'>;
 
 export function isHeader(node: Node): node is Header {
   if (isElement(node)) {
@@ -119,32 +58,68 @@ export function isHeader(node: Node): node is Header {
   return false;
 }
 
+export type List = ElementType<'ul' | 'ol'>;
+
 export function isList(node: Node): node is List {
   return isElement(node) && (node.type === 'ol' || node.type === 'ul');
 }
+
+export type ListItem = ElementType<'li'>;
 
 export function isListItem(node: Node): node is ListItem {
   return isElement(node) && node.type === 'li';
 }
 
-export function isCode(node: Node): node is Code {
-  return isElement(node) && node.type === 'code';
-}
-
-export function isInlineCode(node: Node): node is InlineCode {
-  return isElement(node) && node.type === 'inlineCode';
+export type Link = {
+  type: 'a';
+  href: string;
+  children: Node[];
 }
 
 export function isLink(node: Node): node is Link {
   return isElement(node) && node.type === 'a';
 }
 
+export type Code = ElementType<'code'>;
+
+export function isCode(node: Node): node is Code {
+  return isElement(node) && node.type === 'code';
+}
+
+export type InlineCode = ElementType<'inlineCode'>;
+
+export function isInlineCode(node: Node): node is InlineCode {
+  return isElement(node) && node.type === 'inlineCode';
+}
+
+export type Blockquote = ElementType<'blockquote'>;
+
 export function isBlockquote(node: Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
+export type Pre = ElementType<'pre'>;
+
 export function isPre(node: Node): node is Pre {
   return isElement(node) && node.type === 'pre';
+}
+
+export type Block = Paragraph | Header | List | Code | Blockquote | Pre;
+export type Inline = Link | InlineCode;
+
+export type Element = Block | Inline | ListItem;
+export type Node = Text | Element;
+
+export type type = Element['type'];
+
+export function parse(pm: string): Node[] {
+  const nodes = JSON5.parse(pm);
+  // TODO(jaked) validate
+  return nodes;
+}
+
+export function stringify(nodes: Node[]): string {
+  return JSON5.stringify(nodes, undefined, 2);
 }
 
 function invalid(msg: string): never {
