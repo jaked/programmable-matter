@@ -84,6 +84,10 @@ export const initTypeEnv = Typecheck.env({
     ry: Type.numberOrString,
   }),
 
+  'footer': componentType({
+    className: Type.undefinedOrString,
+  }),
+
   'h1': componentType({
     style: styleType,
   }),
@@ -95,11 +99,9 @@ export const initTypeEnv = Typecheck.env({
     style: styleType
   }),
 
-  'html': componentType({}),
+  'hr': componentType({}),
 
-  'footer': componentType({
-    className: Type.undefinedOrString,
-  }),
+  'html': componentType({}),
 
   'img': componentType({
     src: Type.string,

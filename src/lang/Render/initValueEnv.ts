@@ -30,6 +30,7 @@ export function initValueEnv(
     h1: 'h1',
     head: 'head',
     header: 'header',
+    hr: 'hr',
     html: 'html',
     img: 'img',
     inlineCode: 'code',
