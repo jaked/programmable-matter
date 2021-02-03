@@ -4,7 +4,7 @@ import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
-import { Content, CompiledFile, CompiledNotes, Types, WritableContents } from '../../model';
+import * as model from '../../model';
 
 import compileFile from './compileFile';
 import groupFilesByName from './groupFilesByName';
@@ -30,29 +30,29 @@ function mergeModuleValue(
 }
 
 export function compileFiles(
-  files: Signal<WritableContents>,
+  files: Signal<model.WritableContents>,
   updateFile: (path: string, buffer: Buffer) => void = (path: string, buffer: Buffer) => { },
   deleteFile: (path: string) => void = (path: string) => { },
   setSelected: (name: string) => void = (name: string) => { },
-): { compiledFiles: Signal<Map<string, CompiledFile>>, compiledNotes: Signal<CompiledNotes> } {
+): { compiledFiles: Signal<Map<string, model.CompiledFile>>, compiledNotes: Signal<model.CompiledNotes> } {
 
   const filesByName = groupFilesByName(files);
 
-  const compiledFilesRef = Signal.ref<Map<string, CompiledFile>>();
+  const compiledFilesRef = Signal.ref<Map<string, model.CompiledFile>>();
 
-  const compiledNotesRef = Signal.ref<CompiledNotes>();
+  const compiledNotesRef = Signal.ref<model.CompiledNotes>();
 
   const compiledFiles = Signal.mapMap(files, file =>
     compileFile(file, compiledFilesRef, compiledNotesRef, updateFile, deleteFile, setSelected)
   );
   compiledFilesRef.set(compiledFiles);
 
-  const compiledNotes: Signal<CompiledNotes> = Signal.mapMap(filesByName, (files, name) => {
-    function fileForType(type: Types): Content | undefined {
+  const compiledNotes: Signal<model.CompiledNotes> = Signal.mapMap(filesByName, (files, name) => {
+    function fileForType(type: model.Types): model.Content | undefined {
       return files.get(Name.pathOfName(name, type));
     }
 
-    function compiledFileForType(type: Types): Signal<CompiledFile> | undefined {
+    function compiledFileForType(type: model.Types): Signal<model.CompiledFile> | undefined {
       const file = fileForType(type);
       if (file) {
         return compiledFiles.map(compiledFiles =>
@@ -61,27 +61,27 @@ export function compileFiles(
       }
     }
 
-    const pm = compiledFileForType('pm');
-    const table = compiledFileForType('table');
-    const json = compiledFileForType('json');
-    const jpeg = compiledFileForType('jpeg');
-    const meta = compiledFileForType('meta');
-    let type: Types | undefined = undefined;
-    if (meta) type = 'meta';
-    if (table) type = 'table';
-    if (json) type = 'json';
-    if (jpeg) type = 'jpeg';
-    if (pm) type = 'pm';
+    const pmCompiled = compiledFileForType('pm');
+    const tableCompiled = compiledFileForType('table');
+    const jsonCompiled = compiledFileForType('json');
+    const jpegCompiled = compiledFileForType('jpeg');
+    const metaCompiled = compiledFileForType('meta');
+    let type: model.Types | undefined = undefined;
+    if (metaCompiled) type = 'meta';
+    if (tableCompiled) type = 'table';
+    if (jsonCompiled) type = 'json';
+    if (jpegCompiled) type = 'jpeg';
+    if (pmCompiled) type = 'pm';
     if (!type) bug(`expected type`);
 
     // TODO(jaked) Signal.untuple
     const parts =
       Signal.join(
-        pm ?? Signal.ok(undefined),
-        table ?? Signal.ok(undefined),
-        json ?? Signal.ok(undefined),
-        jpeg ?? Signal.ok(undefined),
-        meta ?? Signal.ok(undefined),
+        pmCompiled ?? Signal.ok(undefined),
+        tableCompiled ?? Signal.ok(undefined),
+        jsonCompiled ?? Signal.ok(undefined),
+        jpegCompiled ?? Signal.ok(undefined),
+        metaCompiled ?? Signal.ok(undefined),
       ).map(([pm, table, json, jpeg, meta]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
@@ -134,11 +134,21 @@ export function compileFiles(
           exportValue,
         };
       });
+      let meta: Signal<model.Meta>;
+      if (type === 'pm') {
+        const pmContent = fileForType('pm') ?? bug(`expected pm`);
+        meta = pmContent.content.map(content => {
+          const pmContent = content as model.PMContent;
+          return pmContent.meta;
+        })
+      } else {
+        meta = metaForPath(Name.pathOfName(name, 'meta'), compiledFiles);
+      }
       return {
         name,
         type,
         publishedType: parts.map(parts => parts.publishedType),
-        meta: metaForPath(Name.pathOfName(name, 'meta'), compiledFiles),
+        meta,
         files: {
           pm: fileForType('pm'),
           table: fileForType('table'),

@@ -35,14 +35,6 @@ export default class Server {
     });
   }
 
-  reconcile() {
-    // TODO(jaked)
-    // we reload all pages on every change; should only reload
-    // when something a browser is viewing has changed.
-    // how can we track what a browser is viewing?
-    this.browserSync.reload();
-  }
-
   reload = { dirty: () => this.browserSync.reload () }
 
   handle(req: Http.IncomingMessage, res: Http.ServerResponse) {
@@ -53,8 +45,7 @@ export default class Server {
     const name = Name.nameOfPath(decodedPath);
 
     const note = this.compiledNotes.get().get(name);
-    // TODO(jaked) need to check meta.publish here but it's not exposed properly
-    if (!note) { // || !note.meta.get().publish) {
+    if (!note || !note.meta.get().publish) {
       res.statusCode = 404;
       res.end(`no note ${name}`);
     } else {
