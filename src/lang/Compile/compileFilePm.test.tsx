@@ -278,7 +278,6 @@ it('compiles with import', () => {
         files: {},
         problems: Signal.err(new Error('problems')),
         rendered: Signal.err(new Error('rendered')),
-        publishedType: Signal.err(new Error('publishedType')),
         exportType: Signal.ok(Type.module({ bar: Type.number })),
         exportValue: Signal.ok(new Map([[ 'bar', Signal.ok(9) ]])),
       },
@@ -359,7 +358,6 @@ it('compiles with layout', () => {
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
-        publishedType: Signal.ok('html' as const),
         exportType: Signal.ok(Type.module({
           default: Type.layoutFunctionType,
         })),

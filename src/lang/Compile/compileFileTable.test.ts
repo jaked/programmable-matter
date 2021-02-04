@@ -80,7 +80,6 @@ it('non-data note in table dir', () => {
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
-        publishedType: Signal.ok('html' as const),
         exportType: Signal.ok(Type.module({})),
         exportValue: Signal.ok(new Map()),
       }

@@ -86,7 +86,6 @@ export function compileFiles(
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
         let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
-        let publishedType: 'html' | 'jpeg' = 'html';
 
         if (meta) {
           rendered = meta.rendered;
@@ -104,7 +103,6 @@ export function compileFiles(
           exportValue = mergeModuleValue(exportValue, json.exportValue);
         }
         if (jpeg) {
-          publishedType = 'jpeg';
           rendered = jpeg.rendered;
           exportType = mergeModuleType(exportType, jpeg.exportType);
           exportValue = mergeModuleValue(exportValue, jpeg.exportValue);
@@ -129,7 +127,6 @@ export function compileFiles(
         return {
           problems,
           rendered,
-          publishedType,
           exportType,
           exportValue,
         };
@@ -147,7 +144,6 @@ export function compileFiles(
       return {
         name,
         type,
-        publishedType: parts.map(parts => parts.publishedType),
         meta,
         files: {
           pm: fileForType('pm'),

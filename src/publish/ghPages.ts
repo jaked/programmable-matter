@@ -23,7 +23,7 @@ export default async function ghPages(
 
   // TODO(jaked) generate random dir name?
   const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-  rmdir(tempdir, { recursive: true } as any);
+  await rmdir(tempdir, { recursive: true } as any);
   await mkdir(tempdir);
   await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
   await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
@@ -31,18 +31,17 @@ export default async function ghPages(
     // TODO(jaked) don't blow up on failed notes
 
     if (!note.meta.get().publish) return
-    const publishedType = note.publishedType.get();
 
-    if (publishedType === 'jpeg') {
-      const path = Path.resolve(tempdir, note.name) + '.jpeg';
+    if (note.type === 'jpeg') {
+      const path = Path.join(tempdir, note.name) + '.jpeg';
 
       await mkdir(Path.dirname(path), { recursive: true });
       const exportValue = note.exportValue.get();
       const buffer = exportValue.get('buffer') ?? bug(`expected buffer`)
       await writeFile(path, buffer.get());
 
-    } else if (publishedType === 'html') {
-      const path = Path.resolve(tempdir, note.name) + '.html';
+    } else if (note.type === 'pm') {
+      const path = Path.join(tempdir, note.name) + '.html';
 
       const rendered = note.rendered.get();
       if (!rendered) return;
@@ -54,13 +53,16 @@ export default async function ghPages(
       await writeFile(path, html);
     }
   }).values()]);
-  await ghPagesPublish(tempdir, {
-    src: '**',
-    dotfiles: true,
-    branch: 'master',
-    repo: 'https://github.com/jaked/jaked.github.io.git',
-    message: 'published from Programmable Matter',
-    name: 'Jake Donham',
-    email: 'jake.donham@gmail.com',
-  });
+  const publish = true;
+  if (publish) {
+    await ghPagesPublish(tempdir, {
+      src: '**',
+      dotfiles: true,
+      branch: 'master',
+      repo: 'https://github.com/jaked/jaked.github.io.git',
+      message: 'published from Programmable Matter',
+      name: 'Jake Donham',
+      email: 'jake.donham@gmail.com',
+    });
+  }
 }
