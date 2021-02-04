@@ -61,13 +61,13 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
           focusDir && !note.name.startsWith(focusDir + '/') ? Signal.ok(false) :
           search ? Signal.join(
             // TODO(jaked) should search text only
-            note.files.pm ? note.files.pm.content.map(pm => {
+            note.files.pm ? note.files.pm.content.map(pmContent => {
               // TODO(jaked)
               // avoid reconstructing string on every search
               // could search nodes individually?
               // could incrementally search nodes as they change?
               const editor = createEditor();
-              editor.children = pm as Node[];
+              editor.children = (pmContent as model.PMContent).nodes;
               const string = Editor.string(editor, []);
               return regexp.test(string);
              }) : Signal.ok(false),
