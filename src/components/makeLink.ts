@@ -4,6 +4,9 @@ import * as React from 'react';
 import styled from 'styled-components';
 import * as Name from '../util/Name';
 
+// TODO(jaked) move context out of Render
+import * as Render from '../lang/Render';
+
 const A = styled.a`
 :hover {
   cursor: pointer;
@@ -23,20 +26,29 @@ export default function makeLink(
         remote.shell.openExternal(props.href);
       }
       return React.createElement(A, { ...props, href: props.href, onClick }, props.children);
+
     } else {
       // TODO(jaked) use Name.rewriteResolve here
       const name = Name.resolve(Name.dirname(moduleName), props.href);
 
-      const onClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        setSelected(name);
-      }
-      // this href is used when note is rendered statically
-      // TODO(jaked)
-      // handle path components properly
-      // handle mounting note tree somewhere other than / ?
-      const href = `/${encodeURIComponent(name)}`;
-      return React.createElement(A, { ...props, href, onClick }, props.children);
+      return React.createElement(Render.context.Consumer, {
+        children: context => {
+          switch (context) {
+            case 'screen': {
+              const onClick = (e: React.MouseEvent) => {
+                e.preventDefault();
+                setSelected(name);
+              }
+              return React.createElement(A, { href: '#', onClick }, props.children);
+            }
+
+            case 'server':
+              const href = name.split('/').map(encodeURIComponent).join('/');
+              return React.createElement('a', { href }, props.children);
+            }
+          }
+        }
+      );
     }
   }
 }
