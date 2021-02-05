@@ -42,6 +42,8 @@ export function initValueEnv(
     span: 'span',
     strong: 'strong',
     style: 'style',
+    sub: 'sub',
+    sup: 'sup',
     svg: 'svg',
     title: 'title',
     ul: 'ul',

@@ -184,6 +184,9 @@ export const initTypeEnv = Typecheck.env({
     dangerouslySetInnerHTML: Type.undefinedOr(Type.object({ __html: Type.string })),
   }),
 
+  'sub': componentType({}),
+  'sup': componentType({}),
+
   'svg': componentType({
     width: Type.numberOrString,
     height: Type.numberOrString,

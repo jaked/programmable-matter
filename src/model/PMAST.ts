@@ -1,15 +1,20 @@
 import JSON5 from 'json5';
 import * as Highlight from '../lang/highlight';
 
-export type mark = 'bold' | 'italic' | 'underline' | 'strikethrough' | 'code';
+export type mark =
+  'bold' | 'italic' | 'underline' | 'strikethrough' | 'subscript' | 'superscript' | 'code';
 
 // TODO(jaked) split into Text / Code leaf types?
 export type Text = {
   text: string,
+
+  // TODO(jaked) convert to a list/set of marks
   bold?: true,
   italic?: true,
   underline?: true,
   strikethrough?: true,
+  subscript?: true,
+  superscript?: true,
 
   // TODO(jaked) code should suppress other styling
   code?: true,

@@ -119,6 +119,10 @@ export const makeRenderLeaf = (
         children = <u>{children}</u>;
       if (text.strikethrough)
         children = <del>{children}</del>;
+      if (text.subscript)
+        children = <sub>{children}</sub>;
+      if (text.superscript)
+        children = <sup>{children}</sup>;
       if (text.code)
         children = <code>{children}</code>;
 
@@ -162,12 +166,16 @@ export const makeDecorate =
     return ranges;
   }
 
-const MARK_HOTKEYS = {
+const MARK_HOTKEYS: { [k: string]: PMAST.mark } = {
   'mod+b':     'bold',
   'mod+i':     'italic',
   'mod+u':     'underline',
   'mod+e':     'code',
   'mod+opt+x': 'strikethrough',
+
+  // TODO(jaked) these don't work
+  'mod+opt+shift+_': 'subscript',
+  'mod+opt+shift+^': 'superscript',
 }
 
 const TYPE_HOTKEYS ={

@@ -124,10 +124,10 @@ export const insertText = (editor: Editor) => {
       // but it creates an ambiguity between e.g. * and **
       for (const [delim, mark] of [
         ['**', 'bold'],
-        ['__', 'bold'],
         ['*', 'italic'],
-        ['_', 'italic'],
         ['~~', 'strikethrough'],
+        ['^', 'superscript'],
+        ['_', 'subscript'],
         ['`', 'code'],
       ]) {
         if (handleDelimitedShortcut(editor, range, delim, delim, range => {
