@@ -9,8 +9,8 @@
     "start": "electron-forge start",
     "compile": "tsc",
     "compile-watch": "tsc --watch",
-    "test": "jest --notify",
-    "test-watch": "jest --notify --watch",
+    "test": "jest",
+    "test-watch": "jest --watch",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
