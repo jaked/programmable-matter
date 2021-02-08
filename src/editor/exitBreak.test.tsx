@@ -38,3 +38,24 @@ it('breaks out of blockquote', () => {
     </editor>,
   );
 })
+
+it('breaks out of list', () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li><p>foo<cursor/></p></li>
+        <li><p>bar</p></li>
+      </ul>
+    </editor>,
+
+    editor => exitBreak(editor),
+
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li><p>bar</p></li>
+      </ul>,
+      <p><cursor/></p>
+    </editor>,
+  );
+})
