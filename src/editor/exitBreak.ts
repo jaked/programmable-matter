@@ -1,18 +1,33 @@
-import { Editor, Transforms } from 'slate';
+import { Editor, Path, Transforms } from 'slate';
 
 import { blockAbove } from './blockAbove';
+import { inBlockquote } from './inBlockquote';
 
 export const exitBreak = (editor: Editor) => {
+  const blockquoteEntry = inBlockquote(editor);
+  if (blockquoteEntry) {
+    const [blockquote, path] = blockquoteEntry;
+    const at = Path.next(path);
+    Transforms.insertNodes(
+      editor,
+      { type: 'p', children: [] },
+      { at }
+    );
+    Transforms.select(editor, at);
+    return;
+  }
+
   const blockEntry = blockAbove(editor);
   if (blockEntry) {
     const [block, path] = blockEntry;
     if (block.type === 'code') {
-      const at = Editor.end(editor, path);
-      Transforms.select(editor, at);
+      const at = Path.next(path);
       Transforms.insertNodes(
         editor,
-        { type: 'p', children: [ { text: ''} ] }
+        { type: 'p', children: [] },
+        { at }
       );
+      Transforms.select(editor, at);
       return;
     }
   }
