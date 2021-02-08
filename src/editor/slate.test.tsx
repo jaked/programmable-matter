@@ -116,6 +116,32 @@ describe('Transforms.insertNodes', () => {
     );
   });
 
+  it('insert block inside block with match splits matching block', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo<cursor/>bar</p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        Transforms.insertNodes(
+          editor,
+          <li><p>baz</p></li> as unknown as Node,
+          { match: node => 'type' in node && node.type == 'li' }
+        )
+      },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p>baz<cursor/></p></li>
+          <li><p>bar</p></li>
+        </ul>
+      </editor>
+    );
+  });
+
   it(`insert block at edge of block inserts following`, () => {
     expectEditor(
       <editor>

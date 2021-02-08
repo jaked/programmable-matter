@@ -82,6 +82,125 @@ describe('insert paragraphs', () => {
   });
 });
 
+describe('insert list items', () => {
+  it('inserts list items at top level', () => {
+    expectEditor(
+      <editor>
+        <p>foo<cursor/>quux</p>
+      </editor>,
+
+      editor => {
+        insertFragment(editor)(
+          <fragment>
+            <ul>
+              <li><p>bar</p></li>
+              <li><p>baz</p></li>
+            </ul>
+          </fragment> as unknown as Node[]
+        );
+      },
+
+      <editor>
+        <p>foo</p>
+        <ul>
+          <li><p>bar</p></li>
+          <li><p>baz</p></li>
+        </ul>
+        <p><cursor/>quux</p>
+      </editor>
+    )
+  });
+
+  it('inserts list items at start of list item', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p><cursor/>foo</p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertFragment(editor)(
+          <fragment>
+            <ul>
+              <li><p>bar</p></li>
+              <li><p>baz</p></li>
+            </ul>
+          </fragment> as unknown as Node[]
+        );
+      },
+
+      <editor>
+        <ul>
+          <li><p>bar</p></li>
+          <li><p>baz</p></li>
+          <li><p><cursor/>foo</p></li>
+        </ul>
+      </editor>
+    )
+  });
+
+  it('inserts list items into middle of list item', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo<cursor/>quux</p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertFragment(editor)(
+          <fragment>
+            <ul>
+              <li><p>bar</p></li>
+              <li><p>baz</p></li>
+            </ul>
+          </fragment> as unknown as Node[]
+        );
+      },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p>bar</p></li>
+          <li><p>baz</p></li>
+          <li><p><cursor/>quux</p></li>
+        </ul>
+      </editor>
+    )
+  });
+
+  it('inserts list items at end of list item', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo<cursor/></p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertFragment(editor)(
+          <fragment>
+            <ul>
+              <li><p>bar</p></li>
+              <li><p>baz</p></li>
+            </ul>
+          </fragment> as unknown as Node[]
+        );
+      },
+
+      // TODO(jaked) cursor should go after baz
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p>bar</p></li>
+          <li><p>baz<cursor/></p></li>
+        </ul>
+      </editor>
+    )
+  });
+});
+
 describe('insert links', () => {
   it('pastes link as link', () => {
     expectEditor(

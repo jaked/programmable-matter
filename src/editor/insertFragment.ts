@@ -5,7 +5,13 @@ import { bug } from '../util/bug';
 import { blockAbove } from './blockAbove';
 import { inListItem } from './inListItem';
 
-function insertNodes(editor: Editor, nodes: Node[] | Node) {
+function insertNodes(
+  editor: Editor,
+  nodes: Node[] | Node,
+  options: {
+    match?: (node: Node) => boolean
+  } = {}
+) {
   const { selection } = editor;
   if (!selection) return;
 
@@ -13,11 +19,11 @@ function insertNodes(editor: Editor, nodes: Node[] | Node) {
   const after = Editor.after(editor, Range.end(selection));
   if (after) {
     const afterRef = Editor.pointRef(editor, after);
-    Transforms.insertNodes(editor, nodes);
+    Transforms.insertNodes(editor, nodes, options);
     const before = Editor.before(editor, afterRef.unref()!) ?? bug(`expected before`);
     Transforms.select(editor, before);
   } else {
-    Transforms.insertNodes(editor, nodes);
+    Transforms.insertNodes(editor, nodes, options);
     Transforms.select(editor, Editor.end(editor, []));
   }
 }
@@ -25,7 +31,7 @@ function insertNodes(editor: Editor, nodes: Node[] | Node) {
 export const insertFragment = (editor: Editor) => {
   const { insertFragment } = editor;
   return (fragment: Node[]) => {
-    // console.log(`insertFragment(${JSON.stringify(fragment)})`);
+    // console.log(`insertFragment(${JSON.stringify(fragment, undefined, 2)})`);
 
     // TODO(jaked) delete selection if expanded
 
@@ -33,7 +39,7 @@ export const insertFragment = (editor: Editor) => {
 
     // the pasted fragment includes the element tree up to the root
     // drill down to the part we actually want to paste
-    let lowest: Node = { children: fragment };
+    let lowest: Node = { type: 'fragment', children: fragment };
     while (true) {
       if (Text.isText(lowest)) break;
       if (Editor.isInline(editor, lowest)) break;
@@ -53,16 +59,27 @@ export const insertFragment = (editor: Editor) => {
     if (lowest.type === 'p')
       return insertNodes(editor, lowest.children);
 
-    const inListItemResult = inListItem(editor);
-    if (inListItemResult) {
-      bug(`unimplemented`);
-    } else {
-      const [aboveNode, abovePath] = blockAbove(editor) ?? bug('expected block above');
-      if (aboveNode.type === 'p') {
-        insertNodes(editor, lowest.children);
+    if (lowest.type === 'fragment') {
+      return insertNodes(editor, lowest.children);
+    }
+
+    if (lowest.type === 'ul') {
+      const inListItemResult = inListItem(editor);
+      if (inListItemResult) {
+        insertNodes(
+          editor,
+          lowest.children,
+          { match: node => node === inListItemResult.itemNode }
+        );
+        return;
       } else {
-        bug(`unimplemented`);
+        const [aboveNode, abovePath] = blockAbove(editor) ?? bug('expected block above');
+        if (aboveNode.type === 'p') {
+          return insertNodes(editor, lowest);
+        }
       }
     }
+
+    bug(`unimplemented ${lowest.type}`);
   }
 }
