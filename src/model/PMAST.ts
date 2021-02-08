@@ -162,9 +162,14 @@ function validateParagraph(p: Paragraph) {
 }
 
 function validateHeader(h: Header) {
+  if (h.children.length === 0)
+    invalid(`expected > 0 children`);
   h.children.forEach(node => {
-    if (!isText(node))
-      invalid(`expected ${h.type} > text`);
+    if (isText(node)) {} // ok
+    else if (isLink(node)) validateLink(node);
+    else if (isInlineCode(node)) validateInlineCode(node);
+    else
+      invalid('expected h > (text | a | inlineCode)+');
   });
 }
 
