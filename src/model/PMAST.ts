@@ -210,11 +210,8 @@ function validateBlockquote(blockquote: Blockquote) {
   if (blockquote.children.length === 0)
     invalid(`expected > 0 children`);
   blockquote.children.forEach(node => {
-    // TODO(jaked) permit other content
-    // see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/blockquote
-    if (isParagraph(node)) validateParagraph(node);
-    else if (isList(node)) validateList(node);
-    else invalid('expected blockquote > (p | ul | ol)*');
+    // TODO(jaked) not sure if we should allow arbitrarily nested blockquotes
+    validateBlock(node);
   });
 }
 

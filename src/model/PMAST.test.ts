@@ -11,4 +11,13 @@ describe('validateNodes', () => {
     ];
     expect(() => PMAST.validateNodes(nodes)).not.toThrow();
   })
+
+  it('allows headers inside blockquotes', () => {
+    const nodes: PMAST.Node[] = [
+      { type: 'blockquote', children: [
+        { type: 'h1', children:[{text:'header'}]}
+      ]}
+    ];
+    expect(() => PMAST.validateNodes(nodes)).not.toThrow();
+  });
 });
