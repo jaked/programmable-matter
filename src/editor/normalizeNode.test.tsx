@@ -39,6 +39,31 @@ it('merges adjacent lists', () => {
   );
 });
 
+it('merges adjacent blockquotes', () => {
+  expectEditor(
+    <editor>
+      <blockquote>
+        <p>foo</p>
+      </blockquote>
+      <blockquote>
+        <p>bar</p>
+      </blockquote>
+    </editor>,
+
+    editor => {
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    <editor>
+      <blockquote>
+        <p>foo</p>
+        <p>bar</p>
+      </blockquote>
+    </editor>
+  );
+});
+
 it('drops empty links', () => {
   expectEditor(
     <editor>

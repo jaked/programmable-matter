@@ -12,8 +12,9 @@ it('breaks out of code block', () => {
     editor => exitBreak(editor),
 
     <editor>
-      <code>foobar</code>,
+      <code>foo</code>
       <p><cursor/></p>
+      <code>bar</code>
     </editor>,
   );
 });
@@ -32,9 +33,11 @@ it('breaks out of blockquote', () => {
     <editor>
       <blockquote>
         <p>foo</p>
-        <p>bar</p>
-      </blockquote>,
+      </blockquote>
       <p><cursor/></p>
+      <blockquote>
+        <p>bar</p>
+      </blockquote>
     </editor>,
   );
 })
@@ -53,9 +56,11 @@ it('breaks out of list', () => {
     <editor>
       <ul>
         <li><p>foo</p></li>
-        <li><p>bar</p></li>
-      </ul>,
+      </ul>
       <p><cursor/></p>
+      <ul>
+        <li><p>bar</p></li>
+      </ul>
     </editor>,
   );
 })

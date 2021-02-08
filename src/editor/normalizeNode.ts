@@ -30,7 +30,7 @@ export const normalizeNode = (editor: Editor) => {
     if (!Text.isText(node)) {
       let prevType: PMAST.type | undefined = undefined;
       for (const [child, childPath] of Node.children(editor, path)) {
-        if (child.type === prevType && (prevType === 'ol' || prevType === 'ul')) {
+        if (child.type === prevType && (prevType === 'ol' || prevType === 'ul' || prevType === 'blockquote')) {
           Transforms.mergeNodes(editor, {
             at: childPath,
           });

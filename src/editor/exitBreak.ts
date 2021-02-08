@@ -1,48 +1,31 @@
 import { Editor, Path, Transforms } from 'slate';
-
-import { blockAbove } from './blockAbove';
-import { inBlockquote } from './inBlockquote';
-import { inListItem } from './inListItem';
+import * as PMAST from '../model/PMAST';
 
 export const exitBreak = (editor: Editor) => {
-  const blockquoteEntry = inBlockquote(editor);
-  if (blockquoteEntry) {
-    const [blockquote, path] = blockquoteEntry;
+  const exitableBlock = Editor.above(editor, {
+    match: node => {
+      const pmNode = node as PMAST.Node;
+      return PMAST.isCode(pmNode) || PMAST.isBlockquote(pmNode) || PMAST.isList(pmNode);
+    }
+  });
+
+  if (exitableBlock) {
+    const [block, path] = exitableBlock;
     const at = Path.next(path);
-    Transforms.insertNodes(
-      editor,
-      { type: 'p', children: [] },
-      { at }
-    );
-    Transforms.select(editor, at);
-    return;
-  }
-
-  const inListItemResult = inListItem(editor);
-  if (inListItemResult) {
-    const at = Path.next(inListItemResult.listPath);
-    Transforms.insertNodes(
-      editor,
-      { type: 'p', children: [] },
-      { at }
-    );
-    Transforms.select(editor, at);
-    return;
-  }
-
-  const blockEntry = blockAbove(editor);
-  if (blockEntry) {
-    const [block, path] = blockEntry;
-    if (block.type === 'code') {
-      const at = Path.next(path);
+    Editor.withoutNormalizing(editor, () => { // otherwise list is unsplit after split
+      Transforms.splitNodes(
+        editor,
+        { match: node => node === block },
+      );
       Transforms.insertNodes(
         editor,
         { type: 'p', children: [] },
         { at }
       );
-      Transforms.select(editor, at);
-      return;
-    }
+    });
+    Transforms.select(editor, at);
+    return;
   }
+
   editor.insertBreak();
 }
