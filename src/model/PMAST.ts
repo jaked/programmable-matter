@@ -1,5 +1,6 @@
 import JSON5 from 'json5';
 import * as Highlight from '../lang/highlight';
+import * as Slate from 'slate';
 
 export type mark =
   'bold' | 'italic' | 'underline' | 'strikethrough' | 'subscript' | 'superscript' | 'code';
@@ -25,7 +26,7 @@ export type Text = {
   link?: string,
 }
 
-export function isText(node: Node): node is Text {
+export function isText(node: Slate.Node): node is Text {
   return 'text' in node;
 }
 
@@ -34,19 +35,19 @@ type ElementType<T> = {
   children: Node[];
 }
 
-export function isElement(node: Node): node is Element {
+export function isElement(node: Slate.Node): node is Element {
   return 'type' in node;
 }
 
 export type Paragraph = ElementType<'p'>;
 
-export function isParagraph(node: Node): node is Paragraph {
+export function isParagraph(node: Slate.Node): node is Paragraph {
   return isElement(node) && node.type === 'p';
 }
 
 export type Header = ElementType<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'>;
 
-export function isHeader(node: Node): node is Header {
+export function isHeader(node: Slate.Node): node is Header {
   if (isElement(node)) {
     switch (node.type) {
       case 'h1':
@@ -65,13 +66,13 @@ export function isHeader(node: Node): node is Header {
 
 export type List = ElementType<'ul' | 'ol'>;
 
-export function isList(node: Node): node is List {
+export function isList(node: Slate.Node): node is List {
   return isElement(node) && (node.type === 'ol' || node.type === 'ul');
 }
 
 export type ListItem = ElementType<'li'>;
 
-export function isListItem(node: Node): node is ListItem {
+export function isListItem(node: Slate.Node): node is ListItem {
   return isElement(node) && node.type === 'li';
 }
 
@@ -81,31 +82,31 @@ export type Link = {
   children: Node[];
 }
 
-export function isLink(node: Node): node is Link {
+export function isLink(node: Slate.Node): node is Link {
   return isElement(node) && node.type === 'a';
 }
 
 export type Code = ElementType<'code'>;
 
-export function isCode(node: Node): node is Code {
+export function isCode(node: Slate.Node): node is Code {
   return isElement(node) && node.type === 'code';
 }
 
 export type InlineCode = ElementType<'inlineCode'>;
 
-export function isInlineCode(node: Node): node is InlineCode {
+export function isInlineCode(node: Slate.Node): node is InlineCode {
   return isElement(node) && node.type === 'inlineCode';
 }
 
 export type Blockquote = ElementType<'blockquote'>;
 
-export function isBlockquote(node: Node): node is Blockquote {
+export function isBlockquote(node: Slate.Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
 export type Pre = ElementType<'pre'>;
 
-export function isPre(node: Node): node is Pre {
+export function isPre(node: Slate.Node): node is Pre {
   return isElement(node) && node.type === 'pre';
 }
 

@@ -18,101 +18,135 @@ describe('in link', () => {
         <p><cursor/></p>
       </editor>
     );
-  })
+  });
 });
 
 describe('in list item', () => {
   it('inserts new item when cursor at start of item', () => {
-    const editor = <editor>
-      <ul>
-        <li><p><cursor/>foo</p></li>
-      </ul>
-    </editor> as unknown as Editor;
-    insertBreak(editor)();
-    expect(editor.children).toEqual([
-      <ul>
-        <li><p><stext /></p></li>
-        <li><p>foo</p></li>
-      </ul>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p><cursor/>foo</p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertBreak(editor)();
+      },
+
+      <editor>
+        <ul>
+          <li><p></p></li>
+          <li><p><cursor/>foo</p></li>
+        </ul>
+      </editor>
+    );
   });
 
   it('inserts new item when cursor at start of item, leaves nested list alone', () => {
-    const editor = <editor>
-      <ul>
-        <li>
-          <p><cursor/>foo</p>
-          <ul>
-            <li><p>bar</p></li>
-          </ul>
-        </li>
-      </ul>
-    </editor> as unknown as Editor;
-    insertBreak(editor)();
-    expect(editor.children).toEqual([
-      <ul>
-        <li><p><stext /></p></li>
-        <li>
-          <p>foo</p>
-          <ul>
-            <li><p>bar</p></li>
-          </ul>
-        </li>
-      </ul>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p><cursor/>foo</p>
+            <ul>
+              <li><p>bar</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertBreak(editor)();
+      },
+
+      <editor>
+        <ul>
+          <li><p></p></li>
+          <li>
+            <p><cursor/>foo</p>
+            <ul>
+              <li><p>bar</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>
+    );
   });
 
   it('splits item when cursor in middle of item', () => {
-    const editor = <editor>
-      <ul>
-        <li><p>foo<cursor/>bar</p></li>
-      </ul>
-    </editor> as unknown as Editor;
-    insertBreak(editor)();
-    expect(editor.children).toEqual([
-      <ul>
-        <li><p>foo</p></li>
-        <li><p>bar</p></li>
-      </ul>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo<cursor/>bar</p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertBreak(editor)();
+      },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p><cursor/>bar</p></li>
+        </ul>
+      </editor>
+    );
   });
 
   it('dedents when item is empty', () => {
-    const editor = <editor>
-      <ul>
-        <li><p><cursor /></p></li>
-      </ul>
-    </editor> as unknown as Editor;
-    insertBreak(editor)();
-    expect(editor.children).toEqual([
-      // explicit stext is necessary because slate-hyperscript
-      // doesn't apply normalization
-      <p><stext></stext></p>
-    ]);
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p><cursor /></p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertBreak(editor)();
+      },
+
+      <editor>
+        <p><cursor/></p>
+      </editor>
+    );
   });
 });
 
 describe('in header', () => {
   it('breaks to paragraph block', () => {
-    const editor = <editor>
-      <h1>foo<cursor /></h1>
-    </editor> as unknown as Editor;
-    insertBreak(editor)();
-    expect(editor.children).toEqual([
-      <h1>foo</h1>,
-      <p><stext/></p>
-    ])
+    expectEditor(
+      <editor>
+        <h1>foo<cursor /></h1>
+      </editor>,
+
+      editor => {
+        insertBreak(editor)();
+      },
+
+      <editor>
+        <h1>foo</h1>
+        <p><cursor/></p>
+      </editor>
+    );
   });
 });
 
 describe('in code', () => {
   it('inserts soft break', () => {
-    const editor = <editor>
-      <code>foo<cursor />bar</code>
-    </editor> as unknown as Editor;
-    insertBreak(editor)();
-    expect(editor.children).toEqual([
-      <code>foo{'\n'}bar</code>,
-    ])
+    expectEditor(
+      <editor>
+        <code>foo<cursor />bar</code>
+      </editor>,
+
+      editor => {
+        insertBreak(editor)();
+      },
+
+      <editor>
+        <code>foo{'\n'}<cursor/>bar</code>
+      </editor>
+    );
   });
 });

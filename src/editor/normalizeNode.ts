@@ -6,8 +6,7 @@ import { bug } from '../util/bug';
 export const normalizeNode = (editor: Editor) => {
   const { normalizeNode } = editor;
   return ([node, path]: [Node, Path]) => {
-    const pmNode = node as PMAST.Node;
-    if ((PMAST.isLink(pmNode) || PMAST.isInlineCode(pmNode)) && Editor.isEmpty(editor, pmNode)) {
+    if ((PMAST.isLink(node) || PMAST.isInlineCode(node)) && Editor.isEmpty(editor, node)) {
       if (editor.selection) {
         // if a selection endpoint is in the link,
         // unwrapping the link and normalizing can move the endpoint to the previous node
@@ -30,11 +29,25 @@ export const normalizeNode = (editor: Editor) => {
     if (!Text.isText(node)) {
       let prevType: PMAST.type | undefined = undefined;
       for (const [child, childPath] of Node.children(editor, path)) {
-        if (child.type === prevType && (prevType === 'ol' || prevType === 'ul' || prevType === 'blockquote')) {
-          Transforms.mergeNodes(editor, {
+        if (child.type === prevType && (PMAST.isList(child) || PMAST.isBlockquote(child))) {
+          return Transforms.mergeNodes(editor, {
             at: childPath,
           });
-          return;
+        }
+        if (PMAST.isListItem(child)) {
+          if (child.children.length === 0 || !PMAST.isParagraph(child.children[0])) {
+            if (prevType === undefined) {
+              return Transforms.insertNodes(
+                editor,
+                { type: 'p', children: [] },
+                { at: childPath.concat(0) }
+              );
+            } else {
+              return Transforms.mergeNodes(editor, {
+                at: childPath,
+              });
+            }
+          }
         }
         prevType = child.type as PMAST.type;
       }

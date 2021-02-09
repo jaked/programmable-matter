@@ -101,3 +101,66 @@ it('drops empty inlineCode nodes', () => {
     </editor>
   )
 });
+
+it('merges list item with missing initial paragraph', () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>,
+
+    editor => {
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    <editor>
+      <ul>
+        <li>
+          <p>foo</p>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  );
+});
+
+it('fixes initial list item with missing initial paragraph', () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>,
+
+    editor => {
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    // TODO(jaked) not sure why <stext/> is necessary
+    // the call to Editor.normalize in expectEditor should insert it
+    <editor>
+      <ul>
+        <li>
+          <p><stext/></p>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  );
+});
