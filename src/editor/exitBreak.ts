@@ -11,19 +11,11 @@ export const exitBreak = (editor: Editor) => {
 
   if (exitableBlock) {
     const [block, path] = exitableBlock;
-    const at = Path.next(path);
-    Editor.withoutNormalizing(editor, () => { // otherwise list is unsplit after split
-      Transforms.splitNodes(
-        editor,
-        { match: node => node === block },
-      );
-      Transforms.insertNodes(
-        editor,
-        { type: 'p', children: [] },
-        { at }
-      );
-    });
-    Transforms.select(editor, at);
+    Transforms.insertNodes(
+      editor,
+      { type: 'p', children: [{text:''}] },
+      { match: node => node === block },
+    );
     return;
   }
 
