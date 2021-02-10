@@ -11,17 +11,19 @@ export const indent = (editor: Editor) => {
     if (inListItemResult) {
       const { itemNode, itemPath, listNode, listPath } = inListItemResult;
       if (itemPath[itemPath.length - 1] > 0) {
-        Transforms.wrapNodes(
-          editor,
-          { type: listNode.type, children: [] },
-          { at: itemPath }
-        );
-        Transforms.wrapNodes(
-          editor,
-          { type: itemNode.type, children: [] },
-          { at: itemPath }
-        );
-        Transforms.mergeNodes(editor, { at: itemPath });
+        Editor.withoutNormalizing(editor, () => {
+          Transforms.wrapNodes(
+            editor,
+            { type: listNode.type, children: [] },
+            { at: itemPath }
+          );
+          Transforms.wrapNodes(
+            editor,
+            { type: itemNode.type, children: [] },
+            { at: itemPath }
+          );
+          Transforms.mergeNodes(editor, { at: itemPath });
+        });
       }
     }
   }
