@@ -279,3 +279,25 @@ describe('deleteBackward', () => {
     );
   });
 });
+
+describe('Editor.nodes', () => {
+  it('finds matching nodes in depth-first order', () => {
+    const editor = <editor>
+      <ul>
+        <li>
+          <ul>
+            <li>
+              <ul>
+                <li><p>foo</p></li>
+                <li><p>bar</p></li>
+              </ul>
+              <p>baz</p>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </editor> as unknown as Editor;
+    const [ [_, path] ] = Editor.nodes(editor, { at: [0, 0], match: node => node.type === 'p' });
+    expect(path).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+});

@@ -85,7 +85,7 @@ it(`delete initial p of list item merges sub-list to prev`, () => {
   )
 });
 
-it(`delete initial p of first list item is noop`, () => {
+it(`delete initial p of first list item dedents next item`, () => {
   expectEditor(
     <editor>
       <p>foo</p>
@@ -106,18 +106,13 @@ it(`delete initial p of first list item is noop`, () => {
     <editor>
       <p>foo<cursor/></p>
       <ul>
-        <li>
-          <p></p>
-          <ul>
-            <li><p>baz</p></li>
-          </ul>
-        </li>
+        <li><p>baz</p></li>
       </ul>
     </editor>
   )
 });
 
-it(`delete initial p of first sub-list item is a noop`, () => {
+it(`delete initial p of first sub-list item dedents next item`, () => {
   expectEditor(
     <editor>
       <ul>
@@ -144,12 +139,7 @@ it(`delete initial p of first sub-list item is a noop`, () => {
         <li>
           <p>foo<cursor/></p>
           <ul>
-            <li>
-              <p></p>
-              <ul>
-                <li><p>baz</p></li>
-              </ul>
-            </li>
+            <li><p>baz</p></li>
           </ul>
         </li>
       </ul>

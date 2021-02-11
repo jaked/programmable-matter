@@ -3,7 +3,7 @@ import { jsx } from '../util/slate-hyperscript-jsx';
 import { expectEditor } from './expectEditor';
 import { indent } from './indent';
 
-it(`indents initial item`, () => {
+it(`does not indent initial item`, () => {
   expectEditor(
     <editor>
       <ul>
@@ -19,12 +19,7 @@ it(`indents initial item`, () => {
 
     <editor>
       <ul>
-        <li>
-          <p></p>
-          <ul>
-            <li><p><cursor/>foo</p></li>
-          </ul>
-        </li>
+        <li><p><cursor/>foo</p></li>
         <li><p>bar</p></li>
         <li><p>baz</p></li>
       </ul>

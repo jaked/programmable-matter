@@ -39,6 +39,43 @@ it('merges adjacent lists', () => {
   );
 });
 
+it('merges adjacent lists after indent', () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li>
+          <p>baz</p>
+          <ul>
+            <li><p>foo</p></li>
+          </ul>
+        </li>
+        <li>
+          <ul>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>,
+
+    editor => {
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    <editor>
+      <ul>
+        <li>
+          <p>baz</p>
+          <ul>
+            <li><p>foo</p></li>
+            <li><p>bar</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  );
+});
+
 it('merges adjacent blockquotes', () => {
   expectEditor(
     <editor>
@@ -79,7 +116,7 @@ it('drops empty links', () => {
 
     <editor>
       <p><stext/><a href="https://foo.bar/">link</a><stext/></p>
-      <p><stext><cursor/></stext></p>
+      <p><cursor/></p>
     </editor>
   )
 });
@@ -97,7 +134,7 @@ it('drops empty inlineCode nodes', () => {
     },
 
     <editor>
-      <p><stext><cursor/></stext></p>
+      <p><cursor/></p>
     </editor>
   )
 });
@@ -133,12 +170,13 @@ it('merges list item with missing initial paragraph', () => {
   );
 });
 
-it('fixes initial list item with missing initial paragraph', () => {
+it('dedents initial list item with missing initial paragraph', () => {
   expectEditor(
     <editor>
       <ul>
         <li>
           <ul>
+            <li><p>foo</p></li>
             <li><p>bar</p></li>
           </ul>
         </li>
@@ -150,12 +188,10 @@ it('fixes initial list item with missing initial paragraph', () => {
       Editor.normalize(editor, { force: true });
     },
 
-    // TODO(jaked) not sure why <stext/> is necessary
-    // the call to Editor.normalize in expectEditor should insert it
     <editor>
       <ul>
         <li>
-          <p><stext/></p>
+          <p>foo</p>
           <ul>
             <li><p>bar</p></li>
           </ul>
