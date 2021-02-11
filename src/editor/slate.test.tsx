@@ -97,6 +97,35 @@ describe('Transforms.splitNodes', () => {
   });
 });
 
+describe('Transforms.liftNodes', () => {
+  it('lifts nodes', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <ul>
+              <li><p>foo</p></li>
+              <li><p>bar</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => {
+        Transforms.liftNodes(editor, { at: [0, 0, 0] });
+        Transforms.liftNodes(editor, { at: [0, 0] });
+      },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p>bar</p></li>
+        </ul>
+      </editor>
+    )
+  });
+});
+
 describe('Transforms.insertNodes', () => {
   it('insert block inside block splits block', () => {
     expectEditor(
@@ -219,6 +248,33 @@ describe('Transforms.unwrapNodes', () => {
       <editor>
         <p><stext/><a href="https://foo.bar/">link</a><cursor/></p>
         <p><stext/></p>
+      </editor>
+    );
+  });
+});
+
+describe('deleteBackward', () => {
+  it('deletes trailing nodes in subtree :(', () => {
+    // TODO(jaked) figure out why this happens and report a bug
+    expectEditor(
+      <editor>
+        <p>foo</p>
+        <ul>
+          <li>
+            <p><cursor/></p>
+            <ul>
+              <li><p>baz</p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => {
+        editor.deleteBackward('character');
+      },
+
+      <editor>
+        <p>foo<cursor/></p>
       </editor>
     );
   });

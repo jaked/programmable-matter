@@ -53,7 +53,7 @@ it(`deletes backward when block is maximally dedented`, () => {
   );
 });
 
-it(`deletes list item with nested list`, () => {
+it(`delete initial p of list item merges sub-list to prev`, () => {
   // normalizeNode makes this work
   expectEditor(
     <editor>
@@ -78,6 +78,78 @@ it(`deletes list item with nested list`, () => {
           <p>foo<cursor/></p>
           <ul>
             <li><p>baz</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  )
+});
+
+it(`delete initial p of first list item is noop`, () => {
+  expectEditor(
+    <editor>
+      <p>foo</p>
+      <ul>
+        <li>
+          <p><cursor/></p>
+          <ul>
+            <li><p>baz</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>,
+
+    editor => {
+      deleteBackward(editor)('character');
+    },
+
+    <editor>
+      <p>foo<cursor/></p>
+      <ul>
+        <li>
+          <p></p>
+          <ul>
+            <li><p>baz</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  )
+});
+
+it(`delete initial p of first sub-list item is a noop`, () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li>
+          <p>foo</p>
+          <ul>
+            <li>
+              <p><cursor/></p>
+              <ul>
+                <li><p>baz</p></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </editor>,
+
+    editor => {
+      deleteBackward(editor)('character');
+    },
+
+    <editor>
+      <ul>
+        <li>
+          <p>foo<cursor/></p>
+          <ul>
+            <li>
+              <p></p>
+              <ul>
+                <li><p>baz</p></li>
+              </ul>
+            </li>
           </ul>
         </li>
       </ul>

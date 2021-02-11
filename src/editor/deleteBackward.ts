@@ -1,4 +1,6 @@
-import { Editor } from 'slate';
+import { Editor, Transforms } from 'slate';
+
+import { bug } from '../util/bug';
 
 import { atStartOfBlock } from './atStartOfBlock';
 import { blockAbove } from './blockAbove';
@@ -9,17 +11,32 @@ import { inListItem } from './inListItem'
 export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
   return (unit: 'character' | 'word' | 'line' | 'block') => {
-    if (!blockIsEmpty(editor) && atStartOfBlock(editor)) {
-      const blockEntry = blockAbove(editor);
-      if (blockEntry) {
-        const [block] = blockEntry;
-        if (block.type !== 'p' || inListItem(editor)) {
-          dedent(editor);
-          return;
+    Editor.withoutNormalizing(editor, () => {
+      if (atStartOfBlock(editor)) {
+        const inListItemResult = inListItem(editor);
+        if (inListItemResult) {
+          if (!blockIsEmpty(editor)) {
+            return dedent(editor);
+          } else {
+            // TODO(jaked)
+            // for some reason I don't understand
+            // the stock deleteBackward deletes the whole list item
+            // so we special case it
+            const [_, path] = blockAbove(editor) ?? bug(`expected blockEntry`);
+            return Transforms.delete(editor, { at: path });
+          }
+
+        } else {
+          if (!blockIsEmpty(editor)) {
+            const [block, _] = blockAbove(editor) ?? bug(`expected block`);
+            if (block.type !== 'p') {
+              return dedent(editor);
+            }
+          }
         }
       }
-    }
 
-    deleteBackward(unit);
+      deleteBackward(unit);
+    });
   }
 }
