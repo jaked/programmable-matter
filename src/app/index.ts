@@ -38,6 +38,7 @@ function typeOfPath(path: string): model.Types {
     case '.json': return 'json';
     case '.table': return 'table';
     case '.jpeg': return 'jpeg';
+    case '.xml': return 'xml';
     default:
       throw new Error(`unhandled extension '${ext}' for '${path}'`);
   }

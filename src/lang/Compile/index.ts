@@ -66,12 +66,14 @@ export function compileFiles(
     const jsonCompiled = compiledFileForType('json');
     const jpegCompiled = compiledFileForType('jpeg');
     const metaCompiled = compiledFileForType('meta');
+    const xmlCompiled = compiledFileForType('xml');
     let type: model.Types | undefined = undefined;
     if (metaCompiled) type = 'meta';
     if (tableCompiled) type = 'table';
     if (jsonCompiled) type = 'json';
     if (jpegCompiled) type = 'jpeg';
     if (pmCompiled) type = 'pm';
+    if (xmlCompiled) type = 'xml';
     if (!type) bug(`expected type`);
 
     // TODO(jaked) Signal.untuple
@@ -82,7 +84,8 @@ export function compileFiles(
         jsonCompiled ?? Signal.ok(undefined),
         jpegCompiled ?? Signal.ok(undefined),
         metaCompiled ?? Signal.ok(undefined),
-      ).map(([pm, table, json, jpeg, meta]) => {
+        xmlCompiled ?? Signal.ok(undefined),
+      ).map(([pm, table, json, jpeg, meta, xml]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
         let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
@@ -112,6 +115,11 @@ export function compileFiles(
           exportType = mergeModuleType(exportType, pm.exportType);
           exportValue = mergeModuleValue(exportValue, pm.exportValue);
         }
+        if (xml) {
+          rendered = xml.rendered;
+          exportType = mergeModuleType(exportType, xml.exportType);
+          exportValue = mergeModuleValue(exportValue, xml.exportValue);
+        }
 
         // TODO(jaked) ugh optional Signal-valued fields are a pain
         const problems = Signal.join(
@@ -119,9 +127,10 @@ export function compileFiles(
           (table ? table.problems : Signal.ok(false)),
           (json ? json.problems : Signal.ok(false)),
           (jpeg ? jpeg.problems : Signal.ok(false)),
-          (meta ? meta.problems : Signal.ok(false))
-        ).map(([pm, table, json, jpeg, meta]) =>
-          pm || table || json || jpeg || meta
+          (meta ? meta.problems : Signal.ok(false)),
+          (xml ? xml.problems : Signal.ok(false)),
+        ).map(([pm, table, json, jpeg, meta, xml]) =>
+          pm || table || json || jpeg || meta || xml
         );
 
         return {
@@ -138,6 +147,11 @@ export function compileFiles(
           const pmContent = content as model.PMContent;
           return pmContent.meta;
         })
+
+      // TODO(jaked) temporary hack
+      } else if (type === 'xml') {
+        meta = Signal.ok({ publish: true });
+
       } else {
         meta = metaForPath(Name.pathOfName(name, 'meta'), compiledFiles);
       }
@@ -151,6 +165,7 @@ export function compileFiles(
           json: fileForType('json'),
           jpeg: fileForType('jpeg'),
           meta: fileForType('meta'),
+          xml: fileForType('xml'),
         },
         problems: parts.flatMap(parts => parts.problems),
         rendered: parts.flatMap(parts => parts.rendered),

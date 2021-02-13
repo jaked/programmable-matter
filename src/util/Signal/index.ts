@@ -1045,6 +1045,31 @@ module Signal {
     )
   }
 
+  export function filterMap<K, V>(
+    input: Signal<Map<K, V>>,
+    p: (v: V, k: K, coll: Map<K, V>) => boolean
+  ): Signal<Map<K, V>> {
+    return mapWithPrev<Map<K, V>, Map<K, V>>(
+      input,
+      (input, prevInput, prevOutput) =>
+        Immer.produce(prevOutput, outputDraft => {
+          const output = outputDraft as Map<K, V>;
+
+          const { added, changed, deleted } = diffMap(prevInput, input);
+          deleted.forEach(key => { output.delete(key) });
+          changed.forEach(([prev, curr], key) => {
+            output.delete(key);
+            if (p(curr, key, input)) output.set(key, curr);
+          });
+          added.forEach((v, key) => {
+            if (p(v, key, input)) output.set(key, v)
+          });
+      }),
+      new Map(),
+      new Map(),
+    )
+  }
+
   export function label<T>(label: string, s: Signal<T>): Signal<T> {
     return new Label(label, s);
   }

@@ -7,6 +7,7 @@ import compileFilePm from './compileFilePm';
 import compileFileJson from './compileFileJson';
 import compileFileTable from './compileFileTable';
 import compileFileJpeg from './compileFileJpeg';
+import compileFileXml from './compileFileXml';
 
 export default function compileFile(
   file: WritableContent,
@@ -32,6 +33,9 @@ export default function compileFile(
 
     case 'jpeg':
       return compileFileJpeg(file);
+
+    case 'xml':
+      return compileFileXml(file, compiledFiles, compiledNotes);
 
     default: bug(`unimplemented file type ${file.type}`);
   }

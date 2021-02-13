@@ -51,10 +51,20 @@ export default class Server {
     } else {
       // TODO(jaked)
       // don't rely on URL here, notes should track their own content type
+
       if (ext === '.jpeg') {
         const buffer = note.exportValue.get().get('buffer') ?? bug(`expected buffer`);
         res.setHeader("Content-Type", "image/jpeg");
         res.end(buffer.get());
+
+      } else if (ext === '.xml') {
+        note.rendered.depend(this.reload);
+        // TODO(jaked) don't blow up on failed notes
+        const xml = note.rendered.get();
+
+        res.setHeader("Content-Type", "application/rss+xml");
+        res.end(xml)
+
       } else {
         note.rendered.depend(this.reload);
         // TODO(jaked) don't blow up on failed notes

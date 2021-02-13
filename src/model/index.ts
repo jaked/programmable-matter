@@ -11,7 +11,7 @@ export type File = {
 
 export type Files = Map<string, File>;
 
-export type Types = 'meta' | 'pm' | 'json' | 'jpeg' | 'table';
+export type Types = 'meta' | 'pm' | 'json' | 'jpeg' | 'table' | 'xml';
 
 export type Meta = {
   title?: string,
@@ -30,6 +30,7 @@ export type NoteFiles = {
   'json'?: Content;
   'jpeg'?: Content;
   'table'?: Content;
+  'xml'?: Content;
 }
 
 export type TableFieldBase = {

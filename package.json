@@ -51,6 +51,7 @@
     "atomically": "^1.7.0",
     "browser-sync": "^2.26.7",
     "electron-squirrel-startup": "^1.0.0",
+    "feed": "^4.2.2",
     "gh-pages": "^2.1.1",
     "googleapis": "^46.0.0",
     "immutable": "^4.0.0-rc.12",
