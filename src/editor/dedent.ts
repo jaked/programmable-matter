@@ -3,6 +3,7 @@ import { Editor, Range, Transforms } from 'slate';
 import { bug } from '../util/bug';
 
 import { blockAbove } from './blockAbove';
+import { inBlockquote } from './inBlockquote';
 import { inListItem } from './inListItem';
 
 export const dedent = (editor: Editor) => {
@@ -26,6 +27,11 @@ export const dedent = (editor: Editor) => {
           ); // ul > li > p (a fresh li with nothing else in it)
         }
         pathRef.unref();
+
+      } else if (inBlockquote(editor)) {
+        const [_, path] = blockAbove(editor) ?? bug(`expected block`);
+        return Transforms.liftNodes(editor, { at: path});
+
       } else {
         Transforms.setNodes(editor, { type: 'p' });
       }

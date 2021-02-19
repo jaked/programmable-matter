@@ -6,6 +6,7 @@ import { atStartOfBlock } from './atStartOfBlock';
 import { blockAbove } from './blockAbove';
 import { blockIsEmpty } from './blockIsEmpty';
 import { dedent } from './dedent';
+import { inBlockquote } from './inBlockquote'
 import { inListItem } from './inListItem'
 
 export const deleteBackward = (editor: Editor) => {
@@ -13,8 +14,7 @@ export const deleteBackward = (editor: Editor) => {
   return (unit: 'character' | 'word' | 'line' | 'block') => {
     Editor.withoutNormalizing(editor, () => {
       if (atStartOfBlock(editor)) {
-        const inListItemResult = inListItem(editor);
-        if (inListItemResult) {
+        if (inListItem(editor)) {
           if (!blockIsEmpty(editor)) {
             return dedent(editor);
           } else {
@@ -25,13 +25,16 @@ export const deleteBackward = (editor: Editor) => {
             const [_, path] = blockAbove(editor) ?? bug(`expected blockEntry`);
             return Transforms.delete(editor, { at: path });
           }
+        }
 
-        } else {
-          if (!blockIsEmpty(editor)) {
-            const [block, _] = blockAbove(editor) ?? bug(`expected block`);
-            if (block.type !== 'p') {
-              return dedent(editor);
-            }
+        if (inBlockquote(editor)) {
+          return dedent(editor);
+        }
+
+        if (!blockIsEmpty(editor)) {
+          const [block, _] = blockAbove(editor) ?? bug(`expected block`);
+          if (block.type !== 'p') {
+            return dedent(editor);
           }
         }
       }

@@ -146,3 +146,21 @@ it(`delete initial p of first sub-list item dedents next item`, () => {
     </editor>
   )
 });
+
+it(`dedents when cursor is at start of blockquote and block is not empty`, () => {
+  expectEditor(
+    <editor>
+      <blockquote>
+        <p><cursor/>foo</p>
+      </blockquote>
+    </editor>,
+
+    editor => {
+      deleteBackward(editor)('character')
+    },
+
+    <editor>
+      <p><cursor/>foo</p>
+    </editor>
+  );
+});

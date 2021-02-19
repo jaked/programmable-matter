@@ -3,6 +3,32 @@ import { jsx } from '../util/slate-hyperscript-jsx';
 import { expectEditor } from './expectEditor';
 import { dedent } from './dedent';
 
+describe('blockquote', () => {
+  it('lifts block out of quote', () => {
+    expectEditor(
+      <editor>
+        <blockquote>
+          <p>foo</p>
+          <p><cursor/>bar</p>
+          <p>baz</p>
+        </blockquote>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <blockquote>
+          <p>foo</p>
+        </blockquote>
+        <p><cursor/>bar</p>
+        <blockquote>
+          <p>baz</p>
+        </blockquote>
+      </editor>
+    );
+  });
+});
+
 describe('nested list item', () => {
   it('unnests single item', () => {
     expectEditor(
