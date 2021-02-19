@@ -10,6 +10,7 @@ function componentType(props: { [f: string]: Type }): Type {
 const styleType = Type.undefinedOr(Type.object({
   background: Type.undefinedOrString,
   backgroundColor: Type.undefinedOrString,
+  borderRadius: Type.undefinedOrString,
   borderTop: Type.undefinedOrString,
   boxShadow: Type.undefinedOrString,
   color: Type.undefinedOrString,
@@ -67,6 +68,7 @@ export const initTypeEnv = Typecheck.env({
   }),
 
   'code': componentType({
+    style: styleType,
     // TODO(jaked) handle className prop
   }),
 
@@ -175,6 +177,7 @@ export const initTypeEnv = Typecheck.env({
 
   'span': componentType({
     className: Type.undefinedOrString,
+    style: styleType
   }),
 
   'strong': componentType({
