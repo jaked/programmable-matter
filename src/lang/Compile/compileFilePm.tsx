@@ -295,7 +295,7 @@ export function renderNode(
     if (node.subscript)     text = <sub>{text}</sub>;
     if (node.superscript)   text = <sup>{text}</sup>
     if (node.code)          text = <code>{text}</code>;
-    const rendered = Signal.ok(<span style={{whiteSpace: 'pre-line'}} key={key}>{text}</span>);
+    const rendered = Signal.ok(<span key={key}>{text}</span>);
     renderedNode.set(node, rendered);
     return rendered;
   } else {
