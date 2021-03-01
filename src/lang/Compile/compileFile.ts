@@ -7,6 +7,7 @@ import compileFilePm from './compileFilePm';
 import compileFileJson from './compileFileJson';
 import compileFileTable from './compileFileTable';
 import compileFileJpeg from './compileFileJpeg';
+import compileFilePng from './compileFilePng';
 import compileFileXml from './compileFileXml';
 
 export default function compileFile(
@@ -33,6 +34,9 @@ export default function compileFile(
 
     case 'jpeg':
       return compileFileJpeg(file);
+
+    case 'png':
+      return compileFilePng(file);
 
     case 'xml':
       return compileFileXml(file, compiledFiles, compiledNotes);

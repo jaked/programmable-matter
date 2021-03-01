@@ -40,6 +40,14 @@ export default async function ghPages(
       const buffer = exportValue.get('buffer') ?? bug(`expected buffer`)
       await writeFile(path, buffer.get());
 
+    } else if (note.type === 'png') {
+      const path = Path.join(tempdir, note.name) + '.png';
+
+      await mkdir(Path.dirname(path), { recursive: true });
+      const exportValue = note.exportValue.get();
+      const buffer = exportValue.get('buffer') ?? bug(`expected buffer`)
+      await writeFile(path, buffer.get());
+
     } else if (note.type === 'xml') {
       const path = Path.join(tempdir, note.name) + '.xml';
 

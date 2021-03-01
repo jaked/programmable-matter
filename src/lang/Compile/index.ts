@@ -65,6 +65,7 @@ export function compileFiles(
     const tableCompiled = compiledFileForType('table');
     const jsonCompiled = compiledFileForType('json');
     const jpegCompiled = compiledFileForType('jpeg');
+    const pngCompiled = compiledFileForType('png');
     const metaCompiled = compiledFileForType('meta');
     const xmlCompiled = compiledFileForType('xml');
     let type: model.Types | undefined = undefined;
@@ -72,6 +73,8 @@ export function compileFiles(
     if (tableCompiled) type = 'table';
     if (jsonCompiled) type = 'json';
     if (jpegCompiled) type = 'jpeg';
+    if (pngCompiled) type = 'png';
+
     if (pmCompiled) type = 'pm';
     if (xmlCompiled) type = 'xml';
     if (!type) bug(`expected type`);
@@ -83,9 +86,10 @@ export function compileFiles(
         tableCompiled ?? Signal.ok(undefined),
         jsonCompiled ?? Signal.ok(undefined),
         jpegCompiled ?? Signal.ok(undefined),
+        pngCompiled ?? Signal.ok(undefined),
         metaCompiled ?? Signal.ok(undefined),
         xmlCompiled ?? Signal.ok(undefined),
-      ).map(([pm, table, json, jpeg, meta, xml]) => {
+      ).map(([pm, table, json, jpeg, png, meta, xml]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
         let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
@@ -110,6 +114,11 @@ export function compileFiles(
           exportType = mergeModuleType(exportType, jpeg.exportType);
           exportValue = mergeModuleValue(exportValue, jpeg.exportValue);
         }
+        if (png) {
+          rendered = png.rendered;
+          exportType = mergeModuleType(exportType, png.exportType);
+          exportValue = mergeModuleValue(exportValue, png.exportValue);
+        }
         if (pm) {
           rendered = pm.rendered;
           exportType = mergeModuleType(exportType, pm.exportType);
@@ -127,10 +136,11 @@ export function compileFiles(
           (table ? table.problems : Signal.ok(false)),
           (json ? json.problems : Signal.ok(false)),
           (jpeg ? jpeg.problems : Signal.ok(false)),
+          (png ? png.problems : Signal.ok(false)),
           (meta ? meta.problems : Signal.ok(false)),
           (xml ? xml.problems : Signal.ok(false)),
-        ).map(([pm, table, json, jpeg, meta, xml]) =>
-          pm || table || json || jpeg || meta || xml
+        ).map(([pm, table, json, jpeg, png, meta, xml]) =>
+          pm || table || json || jpeg || png || meta || xml
         );
 
         return {
@@ -164,6 +174,7 @@ export function compileFiles(
           table: fileForType('table'),
           json: fileForType('json'),
           jpeg: fileForType('jpeg'),
+          png: fileForType('png'),
           meta: fileForType('meta'),
           xml: fileForType('xml'),
         },

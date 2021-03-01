@@ -57,6 +57,11 @@ export default class Server {
         res.setHeader("Content-Type", "image/jpeg");
         res.end(buffer.get());
 
+      } else if (ext === '.png') {
+          const buffer = note.exportValue.get().get('buffer') ?? bug(`expected buffer`);
+          res.setHeader("Content-Type", "image/png");
+          res.end(buffer.get());
+
       } else if (ext === '.xml') {
         note.rendered.depend(this.reload);
         // TODO(jaked) don't blow up on failed notes
