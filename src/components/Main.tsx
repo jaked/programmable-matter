@@ -2,6 +2,7 @@ import React from 'react';
 import { Flex as FlexBase, Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 import { borders } from 'styled-system';
+import Frame from 'react-frame-component';
 
 import Signal from '../util/Signal';
 
@@ -191,11 +192,7 @@ type DisplayPaneProps = {
 }
 
 const DisplayPane = React.memo((props: DisplayPaneProps) =>
-  <Box
-    flex={1}
-    minWidth={0}
-    padding={1}
-  >
+  <Frame style={{ flex: 1, width: '100%', minWidth: 0, height: '100%', borderStyle: 'none' }}>
     <Signal.node signal={
       props.compiledNoteSignal.flatMap(compiledNote =>
         compiledNote ?
@@ -203,7 +200,7 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
           Signal.ok('no note')
       )
     }/>
-  </Box>
+  </Frame>
 );
 
 type Main = {
