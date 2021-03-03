@@ -11,7 +11,9 @@ const styleType = Type.undefinedOr(Type.object({
   background: Type.undefinedOrString,
   backgroundColor: Type.undefinedOrString,
   borderRadius: Type.undefinedOrString,
+  borderStyle: Type.undefinedOrString,
   borderTop: Type.undefinedOrString,
+  borderWidth: Type.undefinedOrString,
   boxShadow: Type.undefinedOrString,
   color: Type.undefinedOrString,
   float: Type.undefinedOr(Type.enumerate('left', 'right', 'inherit', 'none')),
@@ -234,7 +236,7 @@ export const initTypeEnv = Typecheck.env({
     // theme: PrismTheme
 
     // TODO(jaked) enumerate supported languages
-    language: Type.undefinedOr(Type.singleton('typescript')),
+    language: Type.undefinedOr(Type.enumerate('typescript', 'markup')),
 
     style: styleType,
     inline: Type.undefinedOr(Type.boolean),
