@@ -42,6 +42,24 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     searchCell.setOk(search);
   }
 
+  const notesStrings = Signal.mapMap(props.compiledNotes, note => {
+    const strings: Signal<string>[] = []
+    strings.push(Signal.ok(note.name));
+    // TODO(jaked) put back tag search
+    // strings.push(note.meta.map(meta => meta.tags ?? ''));
+    if (note.files.pm) {
+      strings.push(note.files.pm.content.map(pmContent => {
+        const editor = createEditor();
+        editor.children = (pmContent as model.PMContent).nodes;
+        return Editor.string(editor, []);
+      }));
+    }
+    if (note.files.json) {
+      strings.push(note.files.json.content as Signal<string>);
+    }
+    return { note, strings };
+  })
+
   const matchingNotesSignal = Signal.label('matchingNotes',
     Signal.join(
       props.focusDir,
@@ -52,31 +70,20 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
       const regexp = RegExp(escaped, 'i');
 
       // TODO(jaked) match on source files not compiled note
-      function matchesSearch(note: model.CompiledNote): Signal<{
+      function matchesSearch(
+        noteStrings: { note: model.CompiledNote, strings: Signal<string>[] }
+      ): Signal<{
         matches: boolean,
         mtimeMs: number,
         note: model.CompiledNote
       }> {
+        const { note, strings } = noteStrings;
         const matches =
           focusDir && !note.name.startsWith(focusDir + '/') ? Signal.ok(false) :
-          search ? Signal.join(
-            // TODO(jaked) should search text only
-            note.files.pm ? note.files.pm.content.map(pmContent => {
-              // TODO(jaked)
-              // avoid reconstructing string on every search
-              // could search nodes individually?
-              // could incrementally search nodes as they change?
-              const editor = createEditor();
-              editor.children = (pmContent as model.PMContent).nodes;
-              const string = Editor.string(editor, []);
-              return regexp.test(string);
-             }) : Signal.ok(false),
-
-            note.files.json ? note.files.json.content.map(json => regexp.test(json as string)) : Signal.ok(false),
-            note.meta.map(meta => !!(meta.tags && meta.tags.some(tag => regexp.test(tag)))),
-            Signal.ok(regexp.test(note.name)),
-          ).map(bools => bools.some(bool => bool)) :
-          Signal.ok(true);
+          !search ? Signal.ok(true) :
+          Signal.join(
+            ...strings.map(string => string.map(string => regexp.test(string)))
+          ).map(bools => bools.some(bool => bool));
         const mtimeMs = Signal.join(
           note.files.pm ? note.files.pm.mtimeMs : Signal.ok(0),
           note.files.json ? note.files.json.mtimeMs : Signal.ok(0),
@@ -89,7 +96,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
 
       // TODO(jaked) wrap this up in a function on Signal
       const matchingNotes = Signal.label('matches',
-        Signal.joinMap(Signal.mapMap(props.compiledNotes, matchesSearch))
+        Signal.joinMap(Signal.mapMap(notesStrings, matchesSearch))
           .map(map => MapFuncs.filter(map, ({ matches }) => matches))
       );
 
