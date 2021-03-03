@@ -52,6 +52,9 @@ export class App {
   constructor() {
     this.render();
 
+    const path = process.argv[process.argv.length - 1];
+    this.filesystem.setPath(path);
+
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
     ipc.on('toggle-sidebar-visible', this.toggleSidebarVisible);

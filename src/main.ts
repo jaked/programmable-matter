@@ -54,7 +54,9 @@ async function setDataDir(): Promise<void> {
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow: null | BrowserWindow;
 
-function createWindow () {
+async function createWindow () {
+  const config = await safeReadConfig();
+
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -63,6 +65,8 @@ function createWindow () {
       // TODO(jaked)
       // need to remove this for security
       nodeIntegration: true,
+
+      additionalArguments: [config.dataDir]
     }
   })
 
@@ -323,9 +327,6 @@ function initEventHandlers() {
     initGlobalShortcut();
 
     await createWindow();
-
-    const config = await safeReadConfig();
-    send('set-data-dir', config.dataDir);
   });
 
   // Quit when all windows are closed.
