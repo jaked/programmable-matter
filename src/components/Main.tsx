@@ -1,7 +1,4 @@
 import React from 'react';
-import { Flex as FlexBase, Box as BoxBase } from 'rebass';
-import styled from 'styled-components';
-import { borders } from 'styled-system';
 import Frame from 'react-frame-component';
 
 import Signal from '../util/Signal';
@@ -22,14 +19,6 @@ import RichTextEditor from './editor/RichTextEditor';
 interface Props {
   app: App;
 }
-
-const Box = styled(BoxBase)({
-  height: '100%',
-  overflow: 'auto',
-}, borders);
-
-const Flex = styled(FlexBase)({
-}, borders);
 
 type CodeEditorProps = {
   type: model.Types,
@@ -153,10 +142,14 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   }));
 
   return (
-    <Flex flex={1} minWidth={0} flexDirection='column' >
-      <Box padding={1} flex={1} minHeight={0} >{
-        selectedFile === null || moduleName === null || compiledFile == null ?
-          <Box padding={1}>no note</Box> :
+    <div style={{
+      height: '100%',
+      display: 'grid',
+      gridTemplateRows: '1fr auto',
+      padding: '8px',
+    }}>
+      {
+        selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
         selectedFile.type === 'pm' ?
           <RichEditor
             ref={richEditorRef}
@@ -178,12 +171,12 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
             setSession={props.setSession}
             setSelected={props.setSelected}
           />
-      }</Box>
+      }
       { compiledFile ?
         <Status astAnnotations={compiledFile.astAnnotations ?? Signal.ok(undefined)} mouse={props.mouse} /> :
         null
       }
-    </Flex>
+    </div>
   );
 }));
 
@@ -227,19 +220,50 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
     focusSearchBox
   }))
 
-  const [sideBarWidth, mainPaneWidth] =
-    sideBarVisible ? [ 1/5, 4/5 ] : [ 0, 1 ];
   const [showEditorPane, showDisplayPane] = (
     mainPaneView === 'code' ? [true, false] :
     mainPaneView === 'display' ? [false, true] :
     /* props.app.mainPaneView === 'split' ? */ [true, true]
   );
 
+  // TODO(jaked) this all seems really manual, there's gotta be a better way
+  let gridTemplateColumns = '';
+  let gridTemplateAreasRow1 = '';
+  let gridTemplateAreasRow2 = '';
+  if (sideBarVisible) {
+    gridTemplateColumns += '20% ';
+    gridTemplateAreasRow1 += 'sidebar ';
+    gridTemplateAreasRow2 += 'sidebar ';
+  }
+  if (showEditorPane) {
+    gridTemplateColumns += '2fr ';
+    gridTemplateAreasRow1 += 'header ';
+    gridTemplateAreasRow2 += 'editor ';
+  }
+  if (showDisplayPane) {
+    gridTemplateColumns += '2fr ';
+    gridTemplateAreasRow1 += 'header ';
+    gridTemplateAreasRow2 += 'display ';
+  }
+
   return (
-    <Flex style={{ height: '100vh' }}>
-      { sideBarWidth === 0 ? null :
-        <Catch>
-          <Flex width={sideBarWidth} flexDirection='column'>
+    <div style={{
+      height: '100vh',
+      display: 'grid',
+      gridTemplateColumns,
+      gridTemplateRows: 'auto 1fr',
+      gridTemplateAreas: `"${gridTemplateAreasRow1}" "${gridTemplateAreasRow2}"`,
+      overflow: 'auto',
+    }}>
+      { sideBarVisible &&
+        <div style={{
+          gridArea: 'sidebar',
+          overflow: 'auto',
+          borderRightWidth: '1px',
+          borderRightStyle: 'solid',
+          borderRightColor: '#cccccc',
+        }}>
+          <Catch>
             <Sidebar
               ref={sidebarRef}
               compiledNotes={props.app.compiledNotesSignal}
@@ -251,13 +275,10 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
               onNewNote={props.app.onNewNoteSignal}
               focusEditor={focusEditor}
             />
-          </Flex>
-        </Catch>
+          </Catch>
+        </div>
       }
-      { sideBarWidth === 0 ? null :
-          <Box width='1px' backgroundColor='#cccccc' />
-      }
-      <Flex flex={1} minWidth={0} flexDirection='column'>
+      <div style={{ gridArea: 'header' }}>
         <Header
           name={props.app.selectedCell}
           setName={props.app.setNameSignal}
@@ -266,34 +287,42 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           focusEditor={focusEditor}
           selectedNoteProblems={props.app.selectedNoteProblemsSignal}
           />
-        <Flex flex={1} minHeight={0}>
-          { showEditorPane &&
-            <Catch>
-              <EditorPane
-                ref={editorRef}
-                selectedFile={props.app.selectedFileSignal}
-                moduleName={props.app.selectedCell}
-                compiledFile={props.app.compiledFileSignal}
-                session={props.app.sessionSignal}
-                mouse={props.app.mouseSignal}
-                setSession={props.app.setSessionSignal}
-                setSelected={props.app.setSelected}
-              />
-            </Catch>
-          }
-          { showEditorPane && showDisplayPane &&
-              <Box width='1px' backgroundColor='#cccccc' />
-          }
-          { showDisplayPane &&
-            <Catch>
-              <DisplayPane
-                compiledNoteSignal={props.app.compiledNoteSignal}
-              />
-            </Catch>
-          }
-        </Flex>
-      </Flex>
-    </Flex>
+      </div>
+      { showEditorPane &&
+        <div style={{
+          gridArea: 'editor',
+          overflow: 'auto',
+          borderRightWidth: showDisplayPane ? '1px' : '0px',
+          borderRightStyle: 'solid',
+          borderRightColor: '#cccccc',
+        }}>
+          <Catch>
+            <EditorPane
+              ref={editorRef}
+              selectedFile={props.app.selectedFileSignal}
+              moduleName={props.app.selectedCell}
+              compiledFile={props.app.compiledFileSignal}
+              session={props.app.sessionSignal}
+              mouse={props.app.mouseSignal}
+              setSession={props.app.setSessionSignal}
+              setSelected={props.app.setSelected}
+            />
+          </Catch>
+        </div>
+      }
+      { showDisplayPane &&
+        <div style={{
+          gridArea: 'display',
+          overflow: 'auto'
+        }}>
+          <Catch>
+            <DisplayPane
+              compiledNoteSignal={props.app.compiledNoteSignal}
+            />
+          </Catch>
+        </div>
+      }
+    </div>
   );
 });
 
