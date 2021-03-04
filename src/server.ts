@@ -10,7 +10,72 @@ import { bug } from './util/bug';
 import * as model from './model';
 import * as Name from './util/Name';
 import Signal from './util/Signal';
+import * as ESTree from './lang/ESTree';
+import * as Parse from './lang/Parse';
 import * as Render from './lang/Render';
+import * as PMAST from './model/PMAST';
+
+const e = (el: string, attrs: {}, ...children: string[]) =>
+  `React.createElement(${el}, {}, ${children.join(', ')})`
+
+function evaluateExpression(
+  ast: ESTree.Expression
+): string {
+  switch (ast.type) {
+    case 'Literal':
+      return JSON.stringify(ast.value);
+
+    case 'BinaryExpression': {
+      const left = evaluateExpression(ast.left);
+      const right = evaluateExpression(ast.right);
+      return `(${left} ${ast.operator} ${right})`;
+    }
+
+    case 'ConditionalExpression': {
+      const test = evaluateExpression(ast.test);
+      const consequent = evaluateExpression(ast.consequent);
+      const alternate = evaluateExpression(ast.alternate);
+      return `(${test} ? ${consequent} : ${alternate})`;
+    }
+
+    default:
+      throw new Error('unimplemented');
+  }
+}
+
+export function renderNode(
+  node: PMAST.Node,
+): string {
+  if ('text' in node) {
+    let text: string = JSON.stringify(node.text);
+    if (node.bold)          text = e(`'strong'`, {}, text);
+    if (node.italic)        text = e(`'em'`, {}, text);
+    if (node.underline)     text = e(`'u'`, {}, text);
+    if (node.strikethrough) text = e(`'del'`, {}, text);
+    if (node.subscript)     text = e(`'sub'`, {}, text);
+    if (node.superscript)   text = e(`'sup'`, {}, text);
+    if (node.code)          text = e(`'code'`, {}, text);
+    return e(`'span'`, {}, text);
+  } else {
+    if (node.type === 'code') {
+      throw new Error('unimplemented');
+
+    } else if (node.type === 'inlineCode') {
+      if (!(node.children.length === 1)) bug('expected 1 child');
+      const child = node.children[0];
+      if (!(PMAST.isText(child))) bug('expected text');
+      try {
+        const ast = Parse.parseExpression(child.text);
+        return evaluateExpression(ast);
+      } catch (e) {
+        return 'null';
+      }
+    } else {
+      const children = node.children.map(child => renderNode(child));
+      return e(`'${node.type}'`, {}, ...children);
+    }
+  }
+}
 
 export default class Server {
   compiledNotes: Signal<model.CompiledNotes>;
@@ -30,7 +95,7 @@ export default class Server {
       online: false,
       open: false,
       notify: false,
-      port: 3000,
+      port: 3001,
       ui: false,
     });
   }
@@ -70,7 +135,7 @@ export default class Server {
         res.setHeader("Content-Type", "application/rss+xml");
         res.end(xml)
 
-      } else {
+      } else if (ext === '.html' || ext === '') {
         note.rendered.depend(this.reload);
         // TODO(jaked) don't blow up on failed notes
         const node = note.rendered.get();
@@ -80,9 +145,33 @@ export default class Server {
 
         // TODO(jaked) compute at note compile time?
         const html = ReactDOMServer.renderToStaticMarkup(nodeWithContext);
+        const script = `<script type='module' src='${name}.js'></script>`
 
         res.setHeader("Content-Type", "text/html; charset=UTF-8")
-        res.end(html);
+        res.write(script);
+        res.write(`<div id='root'>` + html + '</div>');
+        res.end();
+
+      } else if (ext === '.js') {
+        const pmContent = note.files.pm?.content.get() as model.PMContent;
+        const nodes = pmContent.nodes.map(renderNode);
+        const element = e('React.Fragment', {}, ...nodes);
+
+        const script = `
+import React from 'https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js';
+import ReactDOM from 'https://cdn.skypack.dev/pin/react-dom@v17.0.1-N7YTiyGWtBI97HFLtv0f/mode=imports/optimized/react-dom.js';
+
+const element = ${element};
+const container = document.getElementById('root');
+
+ReactDOM.hydrate(element, container);
+`
+        res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
+        res.write(script);
+        res.end();
+      } else {
+        res.statusCode = 404;
+        res.end();
       }
     }
   }
