@@ -70,6 +70,8 @@ export type CompiledNote = {
 
   exportType: Signal<Type.ModuleType>;
   exportValue: Signal<Map<string, Signal<unknown>>>;
+
+  ast: Signal<AstAnnotations>;
 }
 
 // file decoded / parsed into an editable / compilable representation

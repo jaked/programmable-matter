@@ -103,7 +103,7 @@ export default class Server {
       } else if (ext === '.js') {
         const pmContent = note.files.pm?.content.get() as model.PMContent;
         // TODO(jaked) compute at note compile time
-        const js = Generate.generatePm(pmContent);
+        const js = Generate.generatePm(pmContent, note.annots.get());
         res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
         res.end(js);
 

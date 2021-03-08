@@ -19,8 +19,9 @@ const e = (el: JS.Expression, attrs: { [s: string]: JS.Expression }, ...children
   )
 
 
-function evaluateExpression(
-  ast: ESTree.Expression
+function genExpr(
+  ast: ESTree.Expression,
+  annots: model.AstAnnotations,
 ): JS.Expression {
   switch (ast.type) {
     case 'Identifier':
@@ -37,15 +38,15 @@ function evaluateExpression(
     case 'BinaryExpression':
       return JS.binaryExpression(
         ast.operator,
-        evaluateExpression(ast.left),
-        evaluateExpression(ast.right),
+        genExpr(ast.left, annots),
+        genExpr(ast.right, annots),
       );
 
     case 'ConditionalExpression':
       return JS.conditionalExpression(
-        evaluateExpression(ast.test),
-        evaluateExpression(ast.consequent),
-        evaluateExpression(ast.alternate),
+        genExpr(ast.test, annots),
+        genExpr(ast.consequent, annots),
+        genExpr(ast.alternate, annots),
       );
 
     default:
@@ -53,8 +54,9 @@ function evaluateExpression(
   }
 }
 
-function renderNode(
+function genNodeExpr(
   node: PMAST.Node,
+  annots: model.AstAnnotations,
   decls: JS.Statement[],
 ): JS.Expression {
   if ('text' in node) {
@@ -78,7 +80,7 @@ function renderNode(
         for (const node of ast.body) {
           switch (node.type) {
             case 'ExpressionStatement':
-              children.push(evaluateExpression(node.expression));
+              children.push(genExpr(node.expression, annots));
               break;
 
             case 'VariableDeclaration': {
@@ -86,7 +88,7 @@ function renderNode(
                 case 'const': {
                   for (const declarator of node.declarations) {
                     const id = declarator.id.name;
-                    const init = evaluateExpression(declarator.init);
+                    const init = genExpr(declarator.init, annots);
                     decls.push(JS.variableDeclaration('const', [
                       JS.variableDeclarator(JS.identifier(id), init)
                     ]));
@@ -110,21 +112,21 @@ function renderNode(
       if (!(PMAST.isText(child))) bug('expected text');
       try {
         const ast = Parse.parseExpression(child.text);
-        return evaluateExpression(ast);
+        return genExpr(ast, annots);
       } catch (e) {
         return JS.nullLiteral();
       }
 
     } else {
-      const children = node.children.map(child => renderNode(child, decls));
+      const children = node.children.map(child => genNodeExpr(child, annots, decls));
       return e(JS.stringLiteral(node.type), {}, ...children);
     }
   }
 }
 
-export function generatePm(content: model.PMContent) {
+export function generatePm(content: model.PMContent, annots: model.AstAnnotations) {
   const decls: JS.Statement[] = []
-  const nodes = content.nodes.map(node => renderNode(node, decls));
+  const nodes = content.nodes.map(node => genNodeExpr(node, annots, decls));
   const declsText = babelGenerator(JS.program(decls)).code;
   const element = babelGenerator(e(reactFragment, {}, ...nodes)).code;
 

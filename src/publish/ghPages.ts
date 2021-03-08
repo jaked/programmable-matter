@@ -86,7 +86,7 @@ export default async function ghPages(
 
       const jsPath = Path.join(tempdir, note.name) + '.js';
       const pmContent = note.files.pm?.content.get() as model.PMContent;
-      const js = Generate.generatePm(pmContent);
+      const js = Generate.generatePm(pmContent, note.annots.get());
 
       await writeFile(jsPath, js);
     }
