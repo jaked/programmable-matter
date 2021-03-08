@@ -22,7 +22,10 @@ function evaluateExpression(
   ast: ESTree.Expression
 ): string {
   switch (ast.type) {
-    case 'Literal':
+    case 'Identifier':
+      return ast.name;
+
+      case 'Literal':
       return JSON.stringify(ast.value);
 
     case 'BinaryExpression': {
@@ -45,6 +48,7 @@ function evaluateExpression(
 
 export function renderNode(
   node: PMAST.Node,
+  decls: string[],
 ): string {
   if ('text' in node) {
     let text: string = JSON.stringify(node.text);
@@ -58,8 +62,39 @@ export function renderNode(
     return e(`'span'`, {}, text);
   } else {
     if (node.type === 'code') {
-      throw new Error('unimplemented');
+      if (!(node.children.length === 1)) bug('expected 1 child');
+      const child = node.children[0];
+      if (!(PMAST.isText(child))) bug('expected text');
+      try {
+        const children: string[] = [];
+        const ast = Parse.parseProgram(child.text);
+        for (const node of ast.body) {
+          switch (node.type) {
+            case 'ExpressionStatement':
+              children.push(evaluateExpression(node.expression));
+              break;
 
+            case 'VariableDeclaration': {
+              switch (node.kind) {
+                case 'const': {
+                  for (const declarator of node.declarations) {
+                    const name = declarator.id.name;
+                    const value = evaluateExpression(declarator.init);
+                    decls.push(`const ${name} = ${value};`);
+                  }
+                }
+              }
+              break;
+            }
+
+            default:
+              throw new Error('unimplemented');
+          }
+        }
+        return e('React.Fragment', {}, ...children);
+      } catch (e) {
+        return 'null';
+      }
     } else if (node.type === 'inlineCode') {
       if (!(node.children.length === 1)) bug('expected 1 child');
       const child = node.children[0];
@@ -70,8 +105,9 @@ export function renderNode(
       } catch (e) {
         return 'null';
       }
+
     } else {
-      const children = node.children.map(child => renderNode(child));
+      const children = node.children.map(child => renderNode(child, decls));
       return e(`'${node.type}'`, {}, ...children);
     }
   }
@@ -154,17 +190,19 @@ export default class Server {
 
       } else if (ext === '.js') {
         const pmContent = note.files.pm?.content.get() as model.PMContent;
-        const nodes = pmContent.nodes.map(renderNode);
+        const decls: string[] = []
+        const nodes = pmContent.nodes.map(node => renderNode(node, decls));
         const element = e('React.Fragment', {}, ...nodes);
 
         const script = `
 import React from 'https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js';
 import ReactDOM from 'https://cdn.skypack.dev/pin/react-dom@v17.0.1-N7YTiyGWtBI97HFLtv0f/mode=imports/optimized/react-dom.js';
 
-const element = ${element};
-const container = document.getElementById('root');
+${decls.join('\n')}
+const __element = ${element};
+const __container = document.getElementById('root');
 
-ReactDOM.hydrate(element, container);
+ReactDOM.hydrate(__element, __container);
 `
         res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
         res.write(script);
