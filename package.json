@@ -47,7 +47,9 @@
     "typescript": "^4.1.2"
   },
   "dependencies": {
+    "@babel/generator": "^7.13.9",
     "@babel/parser": "^7.6.4",
+    "@babel/types": "^7.13.0",
     "atomically": "^1.7.0",
     "browser-sync": "^2.26.7",
     "electron-squirrel-startup": "^1.0.0",

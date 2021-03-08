@@ -3,32 +3,50 @@ import * as model from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
+import * as JS from '@babel/types';
+import babelGenerator from '@babel/generator';
 
-const e = (el: string, attrs: {}, ...children: string[]) =>
-  `__e(${el}, {}, ${children.join(', ')})`
+const reactFragment = JS.memberExpression(JS.identifier('React'), JS.identifier('Fragment'));
+
+const e = (el: JS.Expression, attrs: { [s: string]: JS.Expression }, ...children: JS.Expression[]) =>
+  JS.callExpression(
+    JS.identifier('__e'),
+    [
+      el,
+      JS.objectExpression(Object.keys(attrs).map(key => JS.objectProperty(JS.identifier(key), attrs[key]))),
+      ...children
+    ]
+  )
+
 
 function evaluateExpression(
   ast: ESTree.Expression
-): string {
+): JS.Expression {
   switch (ast.type) {
     case 'Identifier':
-      return ast.name;
+      return JS.identifier(ast.name);
 
-      case 'Literal':
-      return JSON.stringify(ast.value);
+    case 'Literal':
+      switch (typeof ast.value) {
+        case 'boolean': return JS.booleanLiteral(ast.value);
+        case 'number':  return JS.numericLiteral(ast.value);
+        case 'string':  return JS.stringLiteral(ast.value);
+        default: bug(`unexpected literal type ${typeof ast.value}`);
+      }
 
-    case 'BinaryExpression': {
-      const left = evaluateExpression(ast.left);
-      const right = evaluateExpression(ast.right);
-      return `(${left} ${ast.operator} ${right})`;
-    }
+    case 'BinaryExpression':
+      return JS.binaryExpression(
+        ast.operator,
+        evaluateExpression(ast.left),
+        evaluateExpression(ast.right),
+      );
 
-    case 'ConditionalExpression': {
-      const test = evaluateExpression(ast.test);
-      const consequent = evaluateExpression(ast.consequent);
-      const alternate = evaluateExpression(ast.alternate);
-      return `(${test} ? ${consequent} : ${alternate})`;
-    }
+    case 'ConditionalExpression':
+      return JS.conditionalExpression(
+        evaluateExpression(ast.test),
+        evaluateExpression(ast.consequent),
+        evaluateExpression(ast.alternate),
+      );
 
     default:
       throw new Error('unimplemented');
@@ -37,25 +55,25 @@ function evaluateExpression(
 
 function renderNode(
   node: PMAST.Node,
-  decls: string[],
-): string {
+  decls: JS.Statement[],
+): JS.Expression {
   if ('text' in node) {
-    let text: string = JSON.stringify(node.text);
-    if (node.bold)          text = e(`'strong'`, {}, text);
-    if (node.italic)        text = e(`'em'`, {}, text);
-    if (node.underline)     text = e(`'u'`, {}, text);
-    if (node.strikethrough) text = e(`'del'`, {}, text);
-    if (node.subscript)     text = e(`'sub'`, {}, text);
-    if (node.superscript)   text = e(`'sup'`, {}, text);
-    if (node.code)          text = e(`'code'`, {}, text);
-    return e(`'span'`, {}, text);
+    let text: JS.Expression = JS.stringLiteral(node.text);
+    if (node.bold)          text = e(JS.stringLiteral('strong'), {}, text);
+    if (node.italic)        text = e(JS.stringLiteral('em'), {}, text);
+    if (node.underline)     text = e(JS.stringLiteral('u'), {}, text);
+    if (node.strikethrough) text = e(JS.stringLiteral('del'), {}, text);
+    if (node.subscript)     text = e(JS.stringLiteral('sub'), {}, text);
+    if (node.superscript)   text = e(JS.stringLiteral('sup'), {}, text);
+    if (node.code)          text = e(JS.stringLiteral('code'), {}, text);
+    return e(JS.stringLiteral('span'), {}, text);
   } else {
     if (node.type === 'code') {
       if (!(node.children.length === 1)) bug('expected 1 child');
       const child = node.children[0];
       if (!(PMAST.isText(child))) bug('expected text');
       try {
-        const children: string[] = [];
+        const children: JS.Expression[] = [];
         const ast = Parse.parseProgram(child.text);
         for (const node of ast.body) {
           switch (node.type) {
@@ -67,9 +85,11 @@ function renderNode(
               switch (node.kind) {
                 case 'const': {
                   for (const declarator of node.declarations) {
-                    const name = declarator.id.name;
-                    const value = evaluateExpression(declarator.init);
-                    decls.push(`const ${name} = ${value};`);
+                    const id = declarator.id.name;
+                    const init = evaluateExpression(declarator.init);
+                    decls.push(JS.variableDeclaration('const', [
+                      JS.variableDeclarator(JS.identifier(id), init)
+                    ]));
                   }
                 }
               }
@@ -80,9 +100,9 @@ function renderNode(
               throw new Error('unimplemented');
           }
         }
-        return e('React.Fragment', {}, ...children);
+        return e(reactFragment, {}, ...children);
       } catch (e) {
-        return 'null';
+        return JS.nullLiteral();
       }
     } else if (node.type === 'inlineCode') {
       if (!(node.children.length === 1)) bug('expected 1 child');
@@ -92,20 +112,21 @@ function renderNode(
         const ast = Parse.parseExpression(child.text);
         return evaluateExpression(ast);
       } catch (e) {
-        return 'null';
+        return JS.nullLiteral();
       }
 
     } else {
       const children = node.children.map(child => renderNode(child, decls));
-      return e(`'${node.type}'`, {}, ...children);
+      return e(JS.stringLiteral(node.type), {}, ...children);
     }
   }
 }
 
 export function generatePm(content: model.PMContent) {
-  const decls: string[] = []
+  const decls: JS.Statement[] = []
   const nodes = content.nodes.map(node => renderNode(node, decls));
-  const element = e('React.Fragment', {}, ...nodes);
+  const declsText = babelGenerator(JS.program(decls)).code;
+  const element = babelGenerator(e(reactFragment, {}, ...nodes)).code;
 
   // TODO(jaked) can we use symbols instead of __ids to avoid collisions?
   return `
@@ -114,7 +135,7 @@ import ReactDOM from 'https://cdn.skypack.dev/pin/react-dom@v17.0.1-N7YTiyGWtBI9
 
 const __e = (el, props, ...children) => React.createElement(el, props, ...children)
 
-${decls.join('\n')}
+${declsText}
 const __element = ${element};
 
 ReactDOM.hydrate(__element, document.body);
