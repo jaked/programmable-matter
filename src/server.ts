@@ -80,21 +80,32 @@ export default class Server {
           React.createElement(Render.context.Provider, { value: 'server' }, node)
 
         // TODO(jaked) compute at note compile time
-        const html = ReactDOMServer.renderToStaticMarkup(nodeWithContext);
+        // TODO(jaked) consolidate with ghPages.ts
+        let html = ReactDOMServer.renderToStaticMarkup(nodeWithContext);
         const script = `<script type='module' src='${name}.js'></script>`
+        const headIndex = html.indexOf('</head>');
+        if (headIndex === -1) {
+          html = `<html>
+  <head>
+    ${script}
+  </head>
+  <body>
+    ${html}
+  </body>
+</html>`
+        } else {
+          html = `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
+        }
 
         res.setHeader("Content-Type", "text/html; charset=UTF-8")
-        res.write(script);
-        res.write(`<div id='root'>` + html + '</div>');
-        res.end();
+        res.end(html);
 
       } else if (ext === '.js') {
         const pmContent = note.files.pm?.content.get() as model.PMContent;
         // TODO(jaked) compute at note compile time
         const js = Generate.generatePm(pmContent);
         res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
-        res.write(js);
-        res.end();
+        res.end(js);
 
       } else {
         res.statusCode = 404;

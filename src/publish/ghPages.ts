@@ -13,6 +13,7 @@ import ReactDOMServer from 'react-dom/server';
 
 import { bug } from '../util/bug';
 import * as Render from '../lang/Render';
+import * as Generate from '../lang/Generate';
 import * as model from '../model';
 import * as MapFuncs from '../util/MapFuncs';
 
@@ -61,11 +62,33 @@ export default async function ghPages(
       const rendered = note.rendered.get();
       if (!rendered) return;
 
+      // TODO(jaked) consolidate with server.ts
       const renderedWithContext =
         React.createElement(Render.context.Provider, { value: 'server' }, rendered)
-      const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+      let html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+      const script = `<script type='module' src='${note.name}.js'></script>`
+      const headIndex = html.indexOf('</head>');
+      if (headIndex === -1) {
+        html = `<html>
+  <head>
+    ${script}
+  </head>
+  <body>
+    ${html}
+  </body>
+</html>`
+      } else {
+        html = `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
+      }
+
       await mkdir(Path.dirname(path), { recursive: true });
       await writeFile(path, html);
+
+      const jsPath = Path.join(tempdir, note.name) + '.js';
+      const pmContent = note.files.pm?.content.get() as model.PMContent;
+      const js = Generate.generatePm(pmContent);
+
+      await writeFile(jsPath, js);
     }
   }).values()]);
   const publish = true;

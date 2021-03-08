@@ -116,8 +116,7 @@ const __e = (el, props, ...children) => React.createElement(el, props, ...childr
 
 ${decls.join('\n')}
 const __element = ${element};
-const __container = document.getElementById('root');
 
-ReactDOM.hydrate(__element, __container);
+ReactDOM.hydrate(__element, document.body);
 `;
 }
