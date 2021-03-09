@@ -1,4 +1,5 @@
 import { bug } from '../../util/bug';
+import Try from '../../util/Try';
 import * as model from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
@@ -18,12 +19,24 @@ const e = (el: JS.Expression, attrs: { [s: string]: JS.Expression }, ...children
     ]
   )
 
+function genParam(
+  param: ESTree.Pattern
+): JS.Identifier | JS.Pattern {
+  switch (param.type) {
+    case 'Identifier': return JS.identifier(param.name);
+    default: bug(`unimplemented ${param.type}`);
+  }
+}
 
 function genExpr(
   ast: ESTree.Expression,
   annots: model.AstAnnotations,
 ): JS.Expression {
-  switch (ast.type) {
+  const type = annots.get(ast) ?? bug(`expected type`);
+  if (type.kind === 'Error')
+    return JS.identifier('undefined');
+
+    switch (ast.type) {
     case 'Identifier':
       return JS.identifier(ast.name);
 
@@ -35,12 +48,118 @@ function genExpr(
         default: bug(`unexpected literal type ${typeof ast.value}`);
       }
 
-    case 'BinaryExpression':
-      return JS.binaryExpression(
+    case 'JSXExpressionContainer':
+      return genExpr(ast.expression, annots);
+
+    case 'JSXEmptyExpression':
+      return JS.identifier('undefined');
+
+    case 'JSXText': {
+      // whitespace trimming is not specified in JSX
+      // but it is necessary for components (e.g. Victory) that process their children
+      // we follow Babel, see
+      // https://github.com/calebmer/node_modules/tree/master/babel-plugin-transform-jsx#trimming
+      // TODO(jaked) should do this in parsing insted of eval
+      const value = ast.value.replace(/\n\s*/g, '')
+      if (value === '') return JS.nullLiteral();
+      else return JS.stringLiteral(value);
+    }
+
+    case 'JSXElement': {
+      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
+        if (!value) return { [name.name]: true }
+        else return { [name.name]: genExpr(value, annots) };
+      });
+      const attrs = Object.assign({}, ...attrObjs);
+
+      return e(
+        JS.identifier(ast.openingElement.name.name),
+        attrs,
+        ...ast.children.map(child => genExpr(child, annots))
+      );
+    }
+
+    case 'JSXFragment':
+      return e(
+        reactFragment,
+        {},
+        ...ast.children.map(child => genExpr(child, annots))
+      );
+
+    case 'UnaryExpression': {
+      const argType = annots.get(ast.argument) ?? bug(`expected type`);
+      const v = genExpr(ast.argument, annots);
+      switch (ast.operator) {
+        case '!':
+          return JS.unaryExpression('!', v);
+        case 'typeof':
+          if (argType.kind === 'Error')
+            return JS.stringLiteral('error');
+          else
+            return JS.unaryExpression('typeof', v);
+        default: bug(`unimplemented ${(ast as ESTree.UnaryExpression).operator}`);
+      }
+    }
+
+    case 'LogicalExpression': {
+      return JS.logicalExpression(
         ast.operator,
         genExpr(ast.left, annots),
         genExpr(ast.right, annots),
       );
+    }
+
+    case 'BinaryExpression': {
+      const left = genExpr(ast.left, annots);
+      const right = genExpr(ast.right, annots);
+      const leftType = annots.get(ast.left) ?? bug(`expected type`);
+      const rightType = annots.get(ast.right) ?? bug(`expected type`);
+
+      switch (ast.operator) {
+        case '+':
+          if (leftType.kind === 'Error') return right;
+          else if (rightType.kind === 'Error') return left;
+          else return JS.binaryExpression('+', left, right);
+
+        case '===':
+          if (leftType.kind === 'Error' || rightType.kind === 'Error')
+            return JS.booleanLiteral(false);
+          else
+            return JS.binaryExpression('===', left, right);
+
+        case '!==':
+          if (leftType.kind === 'Error' || rightType.kind === 'Error')
+            return JS.booleanLiteral(true);
+          else
+            return JS.binaryExpression('!==', left, right);
+
+        default:
+          bug(`unimplemented ${ast.operator}`);
+      }
+    }
+
+    case 'SequenceExpression':
+      return JS.sequenceExpression(ast.expressions.map(expr => genExpr(expr, annots)));
+
+    case 'MemberExpression':
+      return JS.memberExpression(genExpr(ast.object, annots), genExpr(ast.property, annots));
+
+    case 'CallExpression':
+      return JS.callExpression(
+        genExpr(ast.callee, annots),
+        ast.arguments.map(arg => genExpr(arg, annots))
+      );
+
+    case 'ObjectExpression':
+      return JS.objectExpression(ast.properties.map(prop =>
+        JS.objectProperty(genExpr(prop.key, annots), genExpr(prop.value, annots))
+      ));
+
+    case 'ArrayExpression':
+      return JS.arrayExpression(ast.elements.map(e => genExpr(e, annots)));
+
+    case 'ArrowFunctionExpression':
+      return JS.arrowFunctionExpression(ast.params.map(genParam), genExpr(ast.body, annots));
 
     case 'ConditionalExpression':
       return JS.conditionalExpression(
@@ -50,7 +169,7 @@ function genExpr(
       );
 
     default:
-      throw new Error('unimplemented');
+      bug('unimplemented ${ast.type}');
   }
 }
 
@@ -74,10 +193,10 @@ function genNodeExpr(
       if (!(node.children.length === 1)) bug('expected 1 child');
       const child = node.children[0];
       if (!(PMAST.isText(child))) bug('expected text');
-      try {
+      const ast = Try.apply(() => Parse.parseProgram(child.text));
+      if (ast.type === 'ok') {
         const children: JS.Expression[] = [];
-        const ast = Parse.parseProgram(child.text);
-        for (const node of ast.body) {
+        for (const node of ast.ok.body) {
           switch (node.type) {
             case 'ExpressionStatement':
               children.push(genExpr(node.expression, annots));
@@ -99,21 +218,22 @@ function genNodeExpr(
             }
 
             default:
-              throw new Error('unimplemented');
+              bug(`unimplemented ${ast.type}`);
           }
         }
         return e(reactFragment, {}, ...children);
-      } catch (e) {
+      } else {
         return JS.nullLiteral();
       }
+
     } else if (node.type === 'inlineCode') {
       if (!(node.children.length === 1)) bug('expected 1 child');
       const child = node.children[0];
       if (!(PMAST.isText(child))) bug('expected text');
-      try {
-        const ast = Parse.parseExpression(child.text);
-        return genExpr(ast, annots);
-      } catch (e) {
+      const ast = Try.apply(() => Parse.parseExpression(child.text));
+      if (ast.type === 'ok') {
+        return genExpr(ast.ok, annots);
+      } else {
         return JS.nullLiteral();
       }
 
