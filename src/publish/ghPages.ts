@@ -53,12 +53,12 @@ export default async function ghPages(
 
     } else if (note.type === 'pm') {
       const htmlPath = Path.join(tempdir, note.name) + '.html';
-      const html = note.html.get();
+      const html = note.html?.get();
       await mkdir(Path.dirname(htmlPath), { recursive: true });
       await writeFile(htmlPath, html);
 
       const jsPath = Path.join(tempdir, note.name) + '.js';
-      const js = note.js.get();
+      const js = note.js?.get();
       await writeFile(jsPath, js);
     }
   }).values()]);

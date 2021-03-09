@@ -68,14 +68,14 @@ export default class Server {
         res.end(xml)
 
       } else if (ext === '.html' || ext === '') {
-        note.html.depend(this.reload);
+        note.html?.depend(this.reload);
         res.setHeader("Content-Type", "text/html; charset=UTF-8")
-        res.end(note.html.get());
+        res.end(note.html?.get());
 
       } else if (ext === '.js') {
-        note.js.depend(this.reload);
+        note.js?.depend(this.reload);
         res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
-        res.end(note.js.get());
+        res.end(note.js?.get());
 
       } else {
         res.statusCode = 404;

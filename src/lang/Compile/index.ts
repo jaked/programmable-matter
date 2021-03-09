@@ -93,8 +93,8 @@ export function compileFiles(
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
         let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
-        let html: Signal<string> = Signal.ok('');
-        let js: Signal<string> = Signal.ok('');
+        let html: Signal<string> | undefined;
+        let js: Signal<string> | undefined;
 
         if (meta) {
           rendered = meta.rendered;
@@ -188,8 +188,8 @@ export function compileFiles(
         rendered: parts.flatMap(parts => parts.rendered),
         exportType: parts.flatMap(parts => parts.exportType),
         exportValue: parts.flatMap(parts => parts.exportValue),
-        html: parts.flatMap(parts => parts.html),
-        js: parts.flatMap(parts => parts.js),
+        html: type === 'pm' ? parts.flatMap(parts => parts.html ?? bug()) : undefined,
+        js: type === 'pm' ? parts.flatMap(parts => parts.js ?? bug()) : undefined,
       };
   });
   compiledNotesRef.set(compiledNotes);
