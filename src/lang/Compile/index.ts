@@ -93,7 +93,8 @@ export function compileFiles(
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
         let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
-        let annots: Signal<model.AstAnnotations> = Signal.ok(new Map());
+        let html: Signal<string> = Signal.ok('');
+        let js: Signal<string> = Signal.ok('');
 
         if (meta) {
           rendered = meta.rendered;
@@ -124,8 +125,8 @@ export function compileFiles(
           rendered = pm.rendered;
           exportType = mergeModuleType(exportType, pm.exportType);
           exportValue = mergeModuleValue(exportValue, pm.exportValue);
-          if (pm.astAnnotations)
-            annots = pm.astAnnotations;
+          html = pm.html;
+          js = pm.js;
         }
         if (xml) {
           rendered = xml.rendered;
@@ -151,7 +152,8 @@ export function compileFiles(
           rendered,
           exportType,
           exportValue,
-          annots,
+          html,
+          js,
         };
       });
       let meta: Signal<model.Meta>;
@@ -186,7 +188,8 @@ export function compileFiles(
         rendered: parts.flatMap(parts => parts.rendered),
         exportType: parts.flatMap(parts => parts.exportType),
         exportValue: parts.flatMap(parts => parts.exportValue),
-        annots: parts.flatMap(parts => parts.annots),
+        html: parts.flatMap(parts => parts.html),
+        js: parts.flatMap(parts => parts.js),
       };
   });
   compiledNotesRef.set(compiledNotes);

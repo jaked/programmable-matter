@@ -8,12 +8,7 @@ const mkdir = util.promisify(fs.mkdir);
 const rmdir = util.promisify(fs.rmdir);
 const ghPagesPublish = util.promisify(GHPages.publish);
 
-import * as React from 'react';
-import ReactDOMServer from 'react-dom/server';
-
 import { bug } from '../util/bug';
-import * as Render from '../lang/Render';
-import * as Generate from '../lang/Generate';
 import * as model from '../model';
 import * as MapFuncs from '../util/MapFuncs';
 
@@ -57,37 +52,13 @@ export default async function ghPages(
       await writeFile(path, xml);
 
     } else if (note.type === 'pm') {
-      const path = Path.join(tempdir, note.name) + '.html';
-
-      const rendered = note.rendered.get();
-      if (!rendered) return;
-
-      // TODO(jaked) consolidate with server.ts
-      const renderedWithContext =
-        React.createElement(Render.context.Provider, { value: 'server' }, rendered)
-      let html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
-      const script = `<script type='module' src='${note.name}.js'></script>`
-      const headIndex = html.indexOf('</head>');
-      if (headIndex === -1) {
-        html = `<html>
-  <head>
-    ${script}
-  </head>
-  <body>
-    ${html}
-  </body>
-</html>`
-      } else {
-        html = `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
-      }
-
-      await mkdir(Path.dirname(path), { recursive: true });
-      await writeFile(path, html);
+      const htmlPath = Path.join(tempdir, note.name) + '.html';
+      const html = note.html.get();
+      await mkdir(Path.dirname(htmlPath), { recursive: true });
+      await writeFile(htmlPath, html);
 
       const jsPath = Path.join(tempdir, note.name) + '.js';
-      const pmContent = note.files.pm?.content.get() as model.PMContent;
-      const js = Generate.generatePm(pmContent, note.annots.get());
-
+      const js = note.js.get();
       await writeFile(jsPath, js);
     }
   }).values()]);

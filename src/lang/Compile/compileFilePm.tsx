@@ -2,6 +2,7 @@ import Path from 'path';
 import * as Immutable from 'immutable';
 import * as Immer from 'immer';
 import React from 'react';
+import ReactDOMServer from 'react-dom/server';
 import JSON5 from 'json5';
 
 import { bug } from '../../util/bug';
@@ -16,6 +17,7 @@ import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
+import * as Generate from '../Generate';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import lensValue from './lensValue';
@@ -561,6 +563,38 @@ export default function compileFilePm(
     return Signal.join(...nodes.map(node => renderNode(node, astAnnotations, env, Link)))
   });
 
+  const html = rendered.map(rendered => {
+    const renderedWithContext =
+      React.createElement(Render.context.Provider, { value: 'server' }, rendered)
+    const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+    const script = `<script type='module' src='${moduleName}.js'></script>`
+    const headIndex = html.indexOf('</head>');
+    if (headIndex === -1) {
+      return `<html>
+<head>
+${script}
+</head>
+<body>
+${html}
+</body>
+</html>`
+    } else {
+      return `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
+    }
+  });
+
+  const js = Signal.join(
+    nodes,
+    ast,
+    typecheckInlineCode
+  ).map(([nodes, parsedCode, { astAnnotations }]) => {
+    return Generate.generatePm(
+      nodes,
+      node => parsedCode.get(node) ?? bug(`expected parsed code`),
+      expr => astAnnotations.get(expr) ?? bug(`expected type`),
+    );
+  })
+
   const debug = false;
   const meta = (file.content as Signal.Writable<model.PMContent>).map(content => content.meta);
   const layoutFunction = Signal.join(
@@ -610,5 +644,7 @@ export default function compileFilePm(
     ),
     exportValue: compile.map(({ exportValue }) => exportValue),
     rendered: renderedWithLayout,
+    html,
+    js,
   };
 }

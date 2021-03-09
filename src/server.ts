@@ -3,15 +3,11 @@ import * as Path from 'path';
 import * as Url from 'url';
 
 import BrowserSync from 'browser-sync';
-import React from 'react';
-import ReactDOMServer from 'react-dom/server';
 
 import { bug } from './util/bug';
 import * as model from './model';
 import * as Name from './util/Name';
 import Signal from './util/Signal';
-import * as Render from './lang/Render';
-import * as Generate from './lang/Generate';
 
 export default class Server {
   compiledNotes: Signal<model.CompiledNotes>;
@@ -72,40 +68,14 @@ export default class Server {
         res.end(xml)
 
       } else if (ext === '.html' || ext === '') {
-        note.rendered.depend(this.reload);
-        // TODO(jaked) return 500 with error message on failed notes
-        const node = note.rendered.get();
-
-        const nodeWithContext =
-          React.createElement(Render.context.Provider, { value: 'server' }, node)
-
-        // TODO(jaked) compute at note compile time
-        // TODO(jaked) consolidate with ghPages.ts
-        let html = ReactDOMServer.renderToStaticMarkup(nodeWithContext);
-        const script = `<script type='module' src='${name}.js'></script>`
-        const headIndex = html.indexOf('</head>');
-        if (headIndex === -1) {
-          html = `<html>
-  <head>
-    ${script}
-  </head>
-  <body>
-    ${html}
-  </body>
-</html>`
-        } else {
-          html = `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
-        }
-
+        note.html.depend(this.reload);
         res.setHeader("Content-Type", "text/html; charset=UTF-8")
-        res.end(html);
+        res.end(note.html.get());
 
       } else if (ext === '.js') {
-        const pmContent = note.files.pm?.content.get() as model.PMContent;
-        // TODO(jaked) compute at note compile time
-        const js = Generate.generatePm(pmContent, note.annots.get());
+        note.js.depend(this.reload);
         res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
-        res.end(js);
+        res.end(note.js.get());
 
       } else {
         res.statusCode = 404;

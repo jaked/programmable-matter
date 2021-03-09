@@ -58,6 +58,10 @@ export interface CompiledFile {
   problems: Signal<boolean>;
   exportValue: Signal<Map<string, Signal<unknown>>>;
   rendered: Signal<React.ReactNode>;
+
+  // filled in only for .pm files
+  html: Signal<string>;
+  js: Signal<string>;
 }
 
 export type CompiledNote = {
@@ -71,7 +75,9 @@ export type CompiledNote = {
   exportType: Signal<Type.ModuleType>;
   exportValue: Signal<Map<string, Signal<unknown>>>;
 
-  ast: Signal<AstAnnotations>;
+  // passed through from CompiledFile for .pm file
+  html: Signal<string>;
+  js: Signal<string>;
 }
 
 // file decoded / parsed into an editable / compilable representation

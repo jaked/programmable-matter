@@ -1,9 +1,8 @@
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
-import * as model from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import * as Parse from '../Parse';
+import Type from '../Type';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
@@ -30,9 +29,9 @@ function genParam(
 
 function genExpr(
   ast: ESTree.Expression,
-  annots: model.AstAnnotations,
+  annots: (e: ESTree.Expression) => Type,
 ): JS.Expression {
-  const type = annots.get(ast) ?? bug(`expected type`);
+  const type = annots(ast);
   if (type.kind === 'Error')
     return JS.identifier('undefined');
 
@@ -87,7 +86,7 @@ function genExpr(
       );
 
     case 'UnaryExpression': {
-      const argType = annots.get(ast.argument) ?? bug(`expected type`);
+      const argType = annots(ast.argument);
       const v = genExpr(ast.argument, annots);
       switch (ast.operator) {
         case '!':
@@ -112,8 +111,8 @@ function genExpr(
     case 'BinaryExpression': {
       const left = genExpr(ast.left, annots);
       const right = genExpr(ast.right, annots);
-      const leftType = annots.get(ast.left) ?? bug(`expected type`);
-      const rightType = annots.get(ast.right) ?? bug(`expected type`);
+      const leftType = annots(ast.left);
+      const rightType = annots(ast.right);
 
       switch (ast.operator) {
         case '+':
@@ -175,7 +174,8 @@ function genExpr(
 
 function genNodeExpr(
   node: PMAST.Node,
-  annots: model.AstAnnotations,
+  parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
+  annots: (e: ESTree.Expression) => Type,
   decls: JS.Statement[],
 ): JS.Expression {
   if ('text' in node) {
@@ -190,13 +190,10 @@ function genNodeExpr(
     return e(JS.stringLiteral('span'), {}, text);
   } else {
     if (node.type === 'code') {
-      if (!(node.children.length === 1)) bug('expected 1 child');
-      const child = node.children[0];
-      if (!(PMAST.isText(child))) bug('expected text');
-      const ast = Try.apply(() => Parse.parseProgram(child.text));
+      const ast = parsedCode(node);
       if (ast.type === 'ok') {
         const children: JS.Expression[] = [];
-        for (const node of ast.ok.body) {
+        for (const node of (ast.ok as ESTree.Program).body) {
           switch (node.type) {
             case 'ExpressionStatement':
               children.push(genExpr(node.expression, annots));
@@ -227,28 +224,29 @@ function genNodeExpr(
       }
 
     } else if (node.type === 'inlineCode') {
-      if (!(node.children.length === 1)) bug('expected 1 child');
-      const child = node.children[0];
-      if (!(PMAST.isText(child))) bug('expected text');
-      const ast = Try.apply(() => Parse.parseExpression(child.text));
+      const ast = parsedCode(node);
       if (ast.type === 'ok') {
-        return genExpr(ast.ok, annots);
+        return genExpr(ast.ok as ESTree.Expression, annots);
       } else {
         return JS.nullLiteral();
       }
 
     } else {
-      const children = node.children.map(child => genNodeExpr(child, annots, decls));
+      const children = node.children.map(child => genNodeExpr(child, parsedCode, annots, decls));
       return e(JS.stringLiteral(node.type), {}, ...children);
     }
   }
 }
 
-export function generatePm(content: model.PMContent, annots: model.AstAnnotations) {
+export function generatePm(
+  nodes: PMAST.Node[],
+  parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
+  annots: (e: ESTree.Expression) => Type
+) {
   const decls: JS.Statement[] = []
-  const nodes = content.nodes.map(node => genNodeExpr(node, annots, decls));
+  const elements = nodes.map(node => genNodeExpr(node, parsedCode, annots, decls));
   const declsText = babelGenerator(JS.program(decls)).code;
-  const element = babelGenerator(e(reactFragment, {}, ...nodes)).code;
+  const element = babelGenerator(e(reactFragment, {}, ...elements)).code;
 
   // TODO(jaked) can we use symbols instead of __ids to avoid collisions?
   return `
