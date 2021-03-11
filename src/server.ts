@@ -1,6 +1,7 @@
 import * as Http from 'http';
 import * as Path from 'path';
 import * as Url from 'url';
+import * as Fs from 'fs';
 
 import BrowserSync from 'browser-sync';
 
@@ -40,6 +41,15 @@ export default class Server {
     const decodedPath = decodeURIComponent(path);
     const ext = Path.parse(decodedPath).ext;
     const name = Name.nameOfPath(decodedPath);
+
+    // TODO(jaked) better way to handle namespace collision
+    if (decodedPath.startsWith('/__runtime')) {
+      res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
+      // TODO(jaked) serve from installation directory
+      const data = Fs.readFileSync(`.${decodedPath}`);
+      res.end(data);
+      return;
+    }
 
     const note = this.compiledNotes.get().get(name);
     if (!note || !note.meta.get().publish) {

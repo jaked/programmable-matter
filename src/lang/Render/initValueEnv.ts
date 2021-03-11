@@ -15,6 +15,10 @@ import HighlightedCode from '../HighlightedCode';
 import Signal from '../../util/Signal';
 import { Env } from './index';
 
+// TODO(jaked) clean this up somewhere
+const now = Signal.cellOk(new Date());
+setInterval(() => { now.setOk(new Date()) }, 100);
+
 export function initValueEnv(
   setSelected: (note: string) => void,
 ): Env {
@@ -63,5 +67,7 @@ export function initValueEnv(
 
     undefined: undefined,
     console: console,
-  }).map(Signal.ok);
+  }).map(Signal.ok).concat(Immutable.Map({
+    now
+  }));
 }

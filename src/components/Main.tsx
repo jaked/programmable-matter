@@ -186,13 +186,13 @@ type DisplayPaneProps = {
 
 const DisplayPane = React.memo((props: DisplayPaneProps) =>
   <Frame style={{ flex: 1, width: '100%', minWidth: 0, height: '100%', borderStyle: 'none' }}>
-    <Signal.node signal={
+    {Signal.node(
       props.compiledNoteSignal.flatMap(compiledNote =>
         compiledNote ?
           compiledNote.rendered :
           Signal.ok('no note')
       )
-    }/>
+    )}
   </Frame>
 );
 

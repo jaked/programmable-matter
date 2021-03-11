@@ -1,3 +1,4 @@
+import * as Immer from 'immer';
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import * as PMAST from '../../model/PMAST';
@@ -30,6 +31,7 @@ function genParam(
 function genExpr(
   ast: ESTree.Expression,
   annots: (e: ESTree.Expression) => Type,
+  env: Map<string, JS.Expression>,
 ): JS.Expression {
   const type = annots(ast);
   if (type.kind === 'Error')
@@ -37,7 +39,7 @@ function genExpr(
 
     switch (ast.type) {
     case 'Identifier':
-      return JS.identifier(ast.name);
+      return env.get(ast.name) ?? JS.identifier(ast.name);
 
     case 'Literal':
       switch (typeof ast.value) {
@@ -48,7 +50,7 @@ function genExpr(
       }
 
     case 'JSXExpressionContainer':
-      return genExpr(ast.expression, annots);
+      return genExpr(ast.expression, annots, env);
 
     case 'JSXEmptyExpression':
       return JS.identifier('undefined');
@@ -67,14 +69,14 @@ function genExpr(
     case 'JSXElement': {
       const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
         if (!value) return { [name.name]: true }
-        else return { [name.name]: genExpr(value, annots) };
+        else return { [name.name]: genExpr(value, annots, env) };
       });
       const attrs = Object.assign({}, ...attrObjs);
 
       return e(
         JS.identifier(ast.openingElement.name.name),
         attrs,
-        ...ast.children.map(child => genExpr(child, annots))
+        ...ast.children.map(child => genExpr(child, annots, env))
       );
     }
 
@@ -82,12 +84,12 @@ function genExpr(
       return e(
         reactFragment,
         {},
-        ...ast.children.map(child => genExpr(child, annots))
+        ...ast.children.map(child => genExpr(child, annots, env))
       );
 
     case 'UnaryExpression': {
       const argType = annots(ast.argument);
-      const v = genExpr(ast.argument, annots);
+      const v = genExpr(ast.argument, annots, env);
       switch (ast.operator) {
         case '!':
           return JS.unaryExpression('!', v);
@@ -103,14 +105,14 @@ function genExpr(
     case 'LogicalExpression': {
       return JS.logicalExpression(
         ast.operator,
-        genExpr(ast.left, annots),
-        genExpr(ast.right, annots),
+        genExpr(ast.left, annots, env),
+        genExpr(ast.right, annots, env),
       );
     }
 
     case 'BinaryExpression': {
-      const left = genExpr(ast.left, annots);
-      const right = genExpr(ast.right, annots);
+      const left = genExpr(ast.left, annots, env);
+      const right = genExpr(ast.right, annots, env);
       const leftType = annots(ast.left);
       const rightType = annots(ast.right);
 
@@ -138,33 +140,44 @@ function genExpr(
     }
 
     case 'SequenceExpression':
-      return JS.sequenceExpression(ast.expressions.map(expr => genExpr(expr, annots)));
+      return JS.sequenceExpression(ast.expressions.map(expr => genExpr(expr, annots, env)));
 
-    case 'MemberExpression':
-      return JS.memberExpression(genExpr(ast.object, annots), genExpr(ast.property, annots));
+    case 'MemberExpression': {
+      let property;
+      if (ast.computed) {
+        property = genExpr(ast.property, annots, env);
+      } else {
+        if (ast.property.type === 'Identifier') {
+          property = JS.identifier(ast.property.name);
+        } else {
+          bug (`expected identifier ${JSON.stringify(ast.property)}`);
+        }
+      }
+      return JS.memberExpression(genExpr(ast.object, annots, env), property);
+    }
 
     case 'CallExpression':
       return JS.callExpression(
-        genExpr(ast.callee, annots),
-        ast.arguments.map(arg => genExpr(arg, annots))
+        genExpr(ast.callee, annots, env),
+        ast.arguments.map(arg => genExpr(arg, annots, env))
       );
 
     case 'ObjectExpression':
       return JS.objectExpression(ast.properties.map(prop =>
-        JS.objectProperty(genExpr(prop.key, annots), genExpr(prop.value, annots))
+        JS.objectProperty(genExpr(prop.key, annots, env), genExpr(prop.value, annots, env))
       ));
 
     case 'ArrayExpression':
-      return JS.arrayExpression(ast.elements.map(e => genExpr(e, annots)));
+      return JS.arrayExpression(ast.elements.map(e => genExpr(e, annots, env)));
 
     case 'ArrowFunctionExpression':
-      return JS.arrowFunctionExpression(ast.params.map(genParam), genExpr(ast.body, annots));
+      return JS.arrowFunctionExpression(ast.params.map(genParam), genExpr(ast.body, annots, env));
 
     case 'ConditionalExpression':
       return JS.conditionalExpression(
-        genExpr(ast.test, annots),
-        genExpr(ast.consequent, annots),
-        genExpr(ast.alternate, annots),
+        genExpr(ast.test, annots, env),
+        genExpr(ast.consequent, annots, env),
+        genExpr(ast.alternate, annots, env),
       );
 
     default:
@@ -172,10 +185,72 @@ function genExpr(
   }
 }
 
+function genExprSignal(
+  ast: ESTree.Expression,
+  annots: (e: ESTree.Expression) => Type,
+  env: Map<string, JS.Expression>,
+): JS.Expression {
+  const idents = ESTree.freeIdentifiers(ast);
+  const signals = idents.map(ident => env.get(ident) ?? JS.identifier(ident));
+  // shadow the bindings of things in the global environment
+  const env2 = Immer.produce(env, env => {
+    idents.forEach(ident => {
+      (env as Map<string, JS.Expression>).set(ident, JS.identifier(ident));
+    });
+  });
+  const expr = genExpr(ast, annots, env2);
+
+  switch (idents.length) {
+    case 0:
+      // Signal.ok(${expr})
+      return (
+        JS.callExpression(
+          JS.memberExpression(JS.identifier('Signal'), JS.identifier('ok')),
+          [ expr ]
+        )
+      );
+
+    case 1:
+      // ${signal}.map({$ident} => expr)
+      return (
+        JS.callExpression(
+          JS.memberExpression(signals[0], JS.identifier('map')),
+          [
+            JS.arrowFunctionExpression(
+              [ JS.identifier(idents[0]) ],
+              expr
+            )
+          ]
+        )
+      );
+
+    default:
+      // Signal.join(...${signals}).map(([...${idents}]) => ${expr})
+      return (
+        JS.callExpression(
+          JS.memberExpression(
+            JS.callExpression(
+              JS.memberExpression(JS.identifier('Signal'), JS.identifier('join')),
+              signals
+            ),
+            JS.identifier('map'),
+          ),
+          [
+            JS.arrowFunctionExpression(
+              [ JS.arrayPattern(idents.map(ident => JS.identifier(ident))) ],
+              expr,
+            )
+          ]
+        )
+      );
+  }
+}
+
 function genNodeExpr(
   node: PMAST.Node,
   parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
   annots: (e: ESTree.Expression) => Type,
+  env: Map<string, JS.Expression>,
   decls: JS.Statement[],
 ): JS.Expression {
   if ('text' in node) {
@@ -196,15 +271,21 @@ function genNodeExpr(
         for (const node of (ast.ok as ESTree.Program).body) {
           switch (node.type) {
             case 'ExpressionStatement':
-              children.push(genExpr(node.expression, annots));
+              children.push(
+                JS.callExpression(
+                  JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
+                  [ genExprSignal(node.expression, annots, env) ]
+                )
+              );
               break;
 
+            // TODO(jaked) do this as a separate pass maybe
             case 'VariableDeclaration': {
               switch (node.kind) {
                 case 'const': {
                   for (const declarator of node.declarations) {
                     const id = declarator.id.name;
-                    const init = genExpr(declarator.init, annots);
+                    const init = genExprSignal(declarator.init, annots, env);
                     decls.push(JS.variableDeclaration('const', [
                       JS.variableDeclarator(JS.identifier(id), init)
                     ]));
@@ -226,13 +307,18 @@ function genNodeExpr(
     } else if (node.type === 'inlineCode') {
       const ast = parsedCode(node);
       if (ast.type === 'ok') {
-        return genExpr(ast.ok as ESTree.Expression, annots);
+        return (
+          JS.callExpression(
+            JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
+            [ genExprSignal(ast.ok as ESTree.Expression, annots, env) ]
+          )
+        );
       } else {
         return JS.nullLiteral();
       }
 
     } else {
-      const children = node.children.map(child => genNodeExpr(child, parsedCode, annots, decls));
+      const children = node.children.map(child => genNodeExpr(child, parsedCode, annots, env, decls));
       return e(JS.stringLiteral(node.type), {}, ...children);
     }
   }
@@ -244,7 +330,10 @@ export function generatePm(
   annots: (e: ESTree.Expression) => Type
 ) {
   const decls: JS.Statement[] = []
-  const elements = nodes.map(node => genNodeExpr(node, parsedCode, annots, decls));
+  const env = new Map([
+    ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))]
+  ]);
+  const elements = nodes.map(node => genNodeExpr(node, parsedCode, annots, env, decls));
   const declsText = babelGenerator(JS.program(decls)).code;
   const element = babelGenerator(e(reactFragment, {}, ...elements)).code;
 
@@ -252,6 +341,8 @@ export function generatePm(
   return `
 import React from 'https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js';
 import ReactDOM from 'https://cdn.skypack.dev/pin/react-dom@v17.0.1-N7YTiyGWtBI97HFLtv0f/mode=imports/optimized/react-dom.js';
+import Signal from './__runtime/Signal.js';
+import * as Runtime from './__runtime/Runtime.js';
 
 const __e = (el, props, ...children) => React.createElement(el, props, ...children)
 

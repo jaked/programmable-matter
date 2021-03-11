@@ -1074,7 +1074,7 @@ module Signal {
     return new Label(label, s);
   }
 
-  export const node = ({ signal }) => {
+  const SignalComponent = ({ signal }: { signal: Signal<React.ReactNode> }) => {
     const [_, update] = React.useState({});
     const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
     signal.depend(d);
@@ -1095,7 +1095,10 @@ module Signal {
       },
       [ signal, signal.version ]
     );
-  };
+  }
+
+  export const node = (signal: Signal<React.ReactNode>) =>
+    React.createElement(SignalComponent, { signal })
 
   // inspired by Focal.lift
 

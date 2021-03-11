@@ -1,3 +1,4 @@
+import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 
@@ -250,4 +251,6 @@ export const initTypeEnv = Typecheck.env({
 
   'console':
     Type.object({ log: Type.functionType([Type.string], Type.undefined) }),
+
+  'now': Parse.parseType(`{ toISOString: () => string }`),
 });
