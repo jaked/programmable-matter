@@ -253,4 +253,6 @@ export const initTypeEnv = Typecheck.env({
     Type.object({ log: Type.functionType([Type.string], Type.undefined) }),
 
   'now': Parse.parseType(`{ toISOString: () => string }`),
+
+  'mouse': Parse.parseType('{ clientX: number, clientY: number }'),
 });

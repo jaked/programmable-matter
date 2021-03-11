@@ -15,9 +15,14 @@ import HighlightedCode from '../HighlightedCode';
 import Signal from '../../util/Signal';
 import { Env } from './index';
 
-// TODO(jaked) clean this up somewhere
+// TODO(jaked) clean these up somewhere
 const now = Signal.cellOk(new Date());
 setInterval(() => { now.setOk(new Date()) }, 100);
+
+const mouse = Signal.cellOk({ clientX: 0, clientY: 0 });
+document.addEventListener('mousemove', ({ clientX, clientY }) => {
+  mouse.setOk({ clientX, clientY });
+});
 
 export function initValueEnv(
   setSelected: (note: string) => void,
@@ -68,6 +73,7 @@ export function initValueEnv(
     undefined: undefined,
     console: console,
   }).map(Signal.ok).concat(Immutable.Map({
-    now
+    now,
+    mouse,
   }));
 }

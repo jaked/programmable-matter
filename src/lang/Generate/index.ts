@@ -331,7 +331,8 @@ export function generatePm(
 ) {
   const decls: JS.Statement[] = []
   const env = new Map([
-    ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))]
+    ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))],
+    ['mouse', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('mouse'))],
   ]);
   const elements = nodes.map(node => genNodeExpr(node, parsedCode, annots, env, decls));
   const declsText = babelGenerator(JS.program(decls)).code;
