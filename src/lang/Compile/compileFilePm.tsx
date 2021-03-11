@@ -277,14 +277,14 @@ export function compileCode(
 // memo table of rendered static nodes
 // code nodes or nodes containing code nodes are not memoized
 // since their rendering may depend on typechecking etc.
-const renderedNode = new WeakMap<PMAST.Node, Signal<React.ReactNode>>();
+const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
 
 export function renderNode(
   node: PMAST.Node,
   annots: AstAnnotations,
   env: Render.Env,
   Link: React.FunctionComponent<{ href: string }> = () => null,
-): Signal<React.ReactNode> {
+): React.ReactNode {
   const rendered = renderedNode.get(node);
   if (rendered) return rendered;
   const key = findKey(node);
@@ -297,41 +297,37 @@ export function renderNode(
     if (node.subscript)     text = <sub>{text}</sub>;
     if (node.superscript)   text = <sup>{text}</sup>
     if (node.code)          text = <code>{text}</code>;
-    const rendered = Signal.ok(<span key={key}>{text}</span>);
+    const rendered = <span key={key}>{text}</span>;
     renderedNode.set(node, rendered);
     return rendered;
   } else {
     if (node.type === 'code') {
       const code = parsedCode.get(node) ?? bug(`expected parsed code`);
-      if (code.type !== 'ok') return Signal.ok(null);
-      const rendered: Signal<React.ReactNode>[] = [];
+      if (code.type !== 'ok') return null;
+      const rendered: React.ReactNode[] = [];
       for (const node of (code.ok as ESTree.Program).body) {
         switch (node.type) {
           case 'ExpressionStatement':
-            rendered.push(evaluateExpressionSignal(node.expression, annots, env));
+            rendered.push(Signal.node(evaluateExpressionSignal(node.expression, annots, env)));
             break;
         }
       }
-      return Signal.join(...rendered);
+      return <>{...rendered}</>;
 
     } else if (node.type === 'inlineCode') {
       const code = parsedCode.get(node) ?? bug(`expected parsed code`);
-      if (code.type !== 'ok') return Signal.ok(null);
+      if (code.type !== 'ok') return null;
       const type = annots.get(code.ok) ?? bug(`expected type`);
-      if (type.kind === 'Error') return Signal.ok(null);
-      return evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env);
+      if (type.kind === 'Error') return null;
+      return Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env));
 
     } else {
       const children = node.children.map(child => renderNode(child, annots, env, Link));
       let rendered;
       if (node.type === 'a') {
-        rendered = Signal.join(...children).map(children =>
-          React.createElement(Link, { key, href: node.href }, ...children)
-        );
+        rendered = React.createElement(Link, { key, href: node.href }, ...children);
       } else {
-        rendered = Signal.join(...children).map(children =>
-          React.createElement(node.type, { key }, ...children)
-        );
+        rendered = React.createElement(node.type, { key }, ...children);
       }
       if (node.children.every(node => renderedNode.has(node)))
         renderedNode.set(node, rendered);
@@ -559,8 +555,8 @@ export default function compileFilePm(
     ast, // dependency to ensure parsedCode is up to date
     compile,
     typecheckInlineCode,
-  ).flatMap(([nodes, _ast, { env }, { astAnnotations }]) => {
-    return Signal.join(...nodes.map(node => renderNode(node, astAnnotations, env, Link)))
+  ).map(([nodes, _ast, { env }, { astAnnotations }]) => {
+    return nodes.map(node => renderNode(node, astAnnotations, env, Link));
   });
 
   const html = rendered.map(rendered => {
