@@ -23,8 +23,16 @@ function genParam(
   param: ESTree.Pattern
 ): JS.Identifier | JS.Pattern {
   switch (param.type) {
-    case 'Identifier': return JS.identifier(param.name);
-    default: bug(`unimplemented ${param.type}`);
+    case 'Identifier':
+      return JS.identifier(param.name);
+
+    case 'ObjectPattern':
+      return JS.objectPattern(param.properties.map(prop => {
+        if (prop.key.type !== 'Identifier') bug(`expected Identifier`);
+        return JS.objectProperty(JS.identifier(prop.key.name), genParam(prop.value));
+      }));
+
+    default: bug(`unimplemented ${(param as ESTree.Pattern).type}`);
   }
 }
 
@@ -94,8 +102,10 @@ function genExpr(
       const argType = annots(ast.argument);
       const v = genExpr(ast.argument, annots, env);
       switch (ast.operator) {
+        case '+':
+        case '-':
         case '!':
-          return JS.unaryExpression('!', v);
+          return JS.unaryExpression(ast.operator, v);
         case 'typeof':
           if (argType.kind === 'Error')
             return JS.stringLiteral('error');
@@ -121,9 +131,13 @@ function genExpr(
 
       switch (ast.operator) {
         case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '%':
           if (leftType.kind === 'Error') return right;
           else if (rightType.kind === 'Error') return left;
-          else return JS.binaryExpression('+', left, right);
+          else return JS.binaryExpression(ast.operator, left, right);
 
         case '===':
           if (leftType.kind === 'Error' || rightType.kind === 'Error')
@@ -340,9 +354,13 @@ export function generatePm(
   annots: (e: ESTree.Expression) => Type
 ) {
   const decls: JS.Statement[] = []
-  const env = new Map([
+  const env = new Map<string, JS.Expression>([
     ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))],
     ['mouse', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('mouse'))],
+    ['Math', JS.callExpression(
+      JS.memberExpression(JS.identifier('Signal'), JS.identifier('ok')),
+      [ JS.identifier('Math') ]
+    )],
   ]);
   const elements = nodes.map(node => genNodeExpr(node, parsedCode, annots, env, decls));
   const declsText = babelGenerator(JS.program(decls)).code;

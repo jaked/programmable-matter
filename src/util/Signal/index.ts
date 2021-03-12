@@ -1087,7 +1087,12 @@ module Signal {
       () => {
         if (signal.value.type === 'ok') {
           // TODO(jaked) ReactElement != ReactNode
-          return signal.value.ok as any;
+          const value = signal.value.ok as any;
+          // TODO(jaked) not sure where this should happen
+          // Evaluate returns undefined for invalid code
+          // but React wants null not undefined
+          if (value === undefined) return null;
+          else return value;
         } else {
           console.log(signal.value.err);
           return React.createElement('pre', {}, signal.value.err);

@@ -78,6 +78,10 @@ function synthUnaryExpression(
   switch (type.kind) {
     case 'Error':
       switch (ast.operator) {
+        case '+':
+        case '-':
+          // TODO(jaked) does this make sense?
+          return Type.singleton(0);
         case '!':
           return Type.singleton(true);
         case 'typeof':
@@ -88,6 +92,17 @@ function synthUnaryExpression(
 
     case 'Singleton':
       switch (ast.operator) {
+        case '+':
+        case '-':
+          if (type.base.kind === 'number')
+            switch (ast.operator) {
+              case '+': return Type.singleton(type.value);
+              case '-': return Type.singleton(-type.value);
+              default: bug(`unexpected ast.operator ${ast.operator}`);
+            }
+          else
+            return Error.withLocation(ast, 'incompatible operand to ${ast.operator}', annots);
+
         case '!':
           return Type.singleton(!type.value);
         case 'typeof':
@@ -98,6 +113,16 @@ function synthUnaryExpression(
 
     default:
       switch (ast.operator) {
+        case '+':
+        case '-':
+          if (type.kind === 'number')
+            switch (ast.operator) {
+              case '+': return Type.number;
+              case '-': return Type.number;
+              default: bug(`unexpected ast.operator ${ast.operator}`);
+            }
+          else
+            return Error.withLocation(ast, 'incompatible operand to ${ast.operator}', annots);
         case '!':
           return Type.boolean;
         case 'typeof':
@@ -172,6 +197,7 @@ function synthBinaryExpression(
   let right = synth(ast.right, env, annots);
 
   // TODO(jaked) handle other operators
+  // TODO(jaked) tighten up
   switch (ast.operator) {
     case '===':
       if (left.kind === 'Error' || right.kind === 'Error')
@@ -206,6 +232,58 @@ function synthBinaryExpression(
         return Type.string;
       else
         return Error.withLocation(ast, 'incompatible operands to +', annots);
+
+    case '-':
+      if (left.kind === 'Error')
+        return right;
+      else if (right.kind === 'Error')
+        return left;
+      else if (left.kind === 'Singleton' && left.base.kind === 'number' &&
+          right.kind === 'Singleton' && right.base.kind === 'number')
+        return Type.singleton(left.value - right.value);
+      else if (Type.isPrimitiveSubtype(left, Type.number) && Type.isPrimitiveSubtype(right, Type.number))
+        return Type.number;
+      else
+        return Error.withLocation(ast, 'incompatible operands to -', annots);
+
+    case '*':
+      if (left.kind === 'Error')
+        return right;
+      else if (right.kind === 'Error')
+        return left;
+      else if (left.kind === 'Singleton' && left.base.kind === 'number' &&
+          right.kind === 'Singleton' && right.base.kind === 'number')
+        return Type.singleton(left.value * right.value);
+      else if (Type.isPrimitiveSubtype(left, Type.number) && Type.isPrimitiveSubtype(right, Type.number))
+        return Type.number;
+      else
+        return Error.withLocation(ast, 'incompatible operands to *', annots);
+
+    case '/':
+      if (left.kind === 'Error')
+        return right;
+      else if (right.kind === 'Error')
+        return left;
+      else if (left.kind === 'Singleton' && left.base.kind === 'number' &&
+          right.kind === 'Singleton' && right.base.kind === 'number')
+        return Type.singleton(left.value / right.value);
+      else if (Type.isPrimitiveSubtype(left, Type.number) && Type.isPrimitiveSubtype(right, Type.number))
+        return Type.number;
+      else
+        return Error.withLocation(ast, 'incompatible operands to /', annots);
+
+    case '%':
+      if (left.kind === 'Error')
+        return right;
+      else if (right.kind === 'Error')
+        return left;
+      else if (left.kind === 'Singleton' && left.base.kind === 'number' &&
+          right.kind === 'Singleton' && right.base.kind === 'number')
+        return Type.singleton(left.value % right.value);
+      else if (Type.isPrimitiveSubtype(left, Type.number) && Type.isPrimitiveSubtype(right, Type.number))
+        return Type.number;
+      else
+        return Error.withLocation(ast, 'incompatible operands to %', annots);
 
     default:
       bug(`unimplemented operator ${ast.operator}`);

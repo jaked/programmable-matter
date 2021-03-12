@@ -200,6 +200,7 @@ export const initTypeEnv = Typecheck.env({
   'sup': componentType({}),
 
   'svg': componentType({
+    style: styleType,
     width: Type.numberOrString,
     height: Type.numberOrString,
   }),
@@ -257,6 +258,14 @@ export const initTypeEnv = Typecheck.env({
 
   'console':
     Type.object({ log: Type.functionType([Type.string], Type.undefined) }),
+
+  // TODO(jaked) current Babel parser handles this without the argument labels, maybe upgrade?
+  'Math': Parse.parseType(`{
+    PI: number,
+    sin: (x: number) => number,
+    cos: (x: number) => number,
+    abs: (x: number) => number,
+  }`),
 
   'now': Type.number,
 

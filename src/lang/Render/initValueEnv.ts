@@ -42,6 +42,13 @@ export function initValueEnv(
 
     undefined: undefined,
     console: console,
+
+    Math: {
+      PI: Math.PI,
+      sin: (x: number) => Math.sin(x),
+      cos: (x: number) => Math.cos(x),
+      abs: (x: number) => Math.abs(x),
+    }
   }).map(Signal.ok).concat(Immutable.Map({
     now,
     mouse,

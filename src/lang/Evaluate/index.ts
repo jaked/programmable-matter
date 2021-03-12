@@ -129,6 +129,8 @@ export function evaluateExpression(
       const argType = annots.get(ast.argument) ?? bug(`expected type`);
       const v = evaluateExpression(ast.argument, annots, env);
       switch (ast.operator) {
+        case '+': return v;
+        case '-': return -v;
         case '!': return !v;
         case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
         default: throw new Error(`unhandled ast ${(ast as any).operator}`);
@@ -154,12 +156,20 @@ export function evaluateExpression(
 
       switch (ast.operator) {
         case '+':
-          if (leftType.kind === 'Error')
-            return rv;
-          else if (rightType.kind === 'Error')
-            return lv;
-          else
-            return lv + rv;
+        case '-':
+        case '*':
+        case '/':
+        case '%':
+          if (leftType.kind === 'Error') return rv;
+          else if (rightType.kind === 'Error') return lv;
+          else switch (ast.operator) {
+            case '+': return lv + rv;
+            case '-': return lv - rv;
+            case '*': return lv * rv;
+            case '/': return lv / rv;
+            case '%': return lv % rv;
+            default: bug(`unexpected ast.operator ${ast.operator}`);
+          }
 
         case '===':
           if (leftType.kind === 'Error' || rightType.kind === 'Error')

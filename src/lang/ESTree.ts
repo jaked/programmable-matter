@@ -84,7 +84,7 @@ export interface Identifier extends NodeImpl {
 
 export interface UnaryExpression extends NodeImpl {
   type: 'UnaryExpression';
-  operator: '!' | 'typeof';
+  operator: '+' | '-' | '!' | 'typeof';
   prefix: boolean;
   argument: Expression;
 }
