@@ -35,7 +35,10 @@ const styleType = Type.undefinedOr(Type.object({
   position: Type.undefinedOr(Type.enumerate('static', 'relative', 'fixed', 'absolute', 'sticky')),
   textAlign: Type.undefinedOr(Type.enumerate('left', 'right', 'center', 'justify', 'initial', 'inherit')),
   textRendering: Type.undefinedOr(Type.enumerate('auto', 'optimizeSpeed', 'optimizeLegibility', 'geometricPrecision')),
-  top: Type.undefinedOrString,
+  top: Type.undefinedOr(Type.union(Type.string, Type.number)),
+  left: Type.undefinedOr(Type.union(Type.string, Type.number)),
+  bottom: Type.undefinedOr(Type.union(Type.string, Type.number)),
+  right: Type.undefinedOr(Type.union(Type.string, Type.number)),
   width: Type.undefinedOrString,
   zIndex: Type.undefinedOrString,
 }));
@@ -46,6 +49,9 @@ export const initTypeEnv = Typecheck.env({
   // TODO(jaked)
   // fill out all of HTML, figure out a scheme for common attributes
 
+  // TODO(jaked)
+  // the typechecker treats JSX tags as identifiers and looks them up in the evironment
+  // but these identifiers appearing in non-JSX contexts should not be bound
   'a': componentType({
     href: Type.undefinedOrString,
     className: Type.undefinedOrString,
@@ -252,7 +258,7 @@ export const initTypeEnv = Typecheck.env({
   'console':
     Type.object({ log: Type.functionType([Type.string], Type.undefined) }),
 
-  'now': Parse.parseType(`{ toISOString: () => string }`),
+  'now': Type.number,
 
   'mouse': Parse.parseType('{ clientX: number, clientY: number }'),
 });

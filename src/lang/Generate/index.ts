@@ -28,6 +28,8 @@ function genParam(
   }
 }
 
+const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
+
 function genExpr(
   ast: ESTree.Expression,
   annots: (e: ESTree.Expression) => Type,
@@ -73,8 +75,9 @@ function genExpr(
       });
       const attrs = Object.assign({}, ...attrObjs);
 
+      const name = ast.openingElement.name.name;
       return e(
-        JS.identifier(ast.openingElement.name.name),
+        STARTS_WITH_CAPITAL_LETTER.test(name) ?  JS.identifier(name) : JS.stringLiteral(name),
         attrs,
         ...ast.children.map(child => genExpr(child, annots, env))
       );
@@ -146,12 +149,10 @@ function genExpr(
       let property;
       if (ast.computed) {
         property = genExpr(ast.property, annots, env);
+      } else if (ast.property.type === 'Identifier') {
+        property = JS.identifier(ast.property.name);
       } else {
-        if (ast.property.type === 'Identifier') {
-          property = JS.identifier(ast.property.name);
-        } else {
-          bug (`expected identifier ${JSON.stringify(ast.property)}`);
-        }
+        bug (`expected identifier ${JSON.stringify(ast.property)}`);
       }
       return JS.memberExpression(genExpr(ast.object, annots, env), property);
     }
@@ -163,9 +164,17 @@ function genExpr(
       );
 
     case 'ObjectExpression':
-      return JS.objectExpression(ast.properties.map(prop =>
-        JS.objectProperty(genExpr(prop.key, annots, env), genExpr(prop.value, annots, env))
-      ));
+      return JS.objectExpression(ast.properties.map(prop => {
+        let key;
+        if (prop.computed) {
+          key = genExpr(prop.key, annots, env);
+        } else if (prop.key.type === 'Identifier') {
+          key = JS.identifier(prop.key.name);
+        } else {
+          bug (`expected identifier ${JSON.stringify(prop.key)}`);
+        }
+        return JS.objectProperty(key, genExpr(prop.value, annots, env));
+      }));
 
     case 'ArrayExpression':
       return JS.arrayExpression(ast.elements.map(e => genExpr(e, annots, env)));
@@ -191,6 +200,7 @@ function genExprSignal(
   env: Map<string, JS.Expression>,
 ): JS.Expression {
   const idents = ESTree.freeIdentifiers(ast);
+  console.log(idents);
   const signals = idents.map(ident => env.get(ident) ?? JS.identifier(ident));
   // shadow the bindings of things in the global environment
   const env2 = Immer.produce(env, env => {

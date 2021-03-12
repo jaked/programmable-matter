@@ -1,5 +1,5 @@
 import React from 'react';
-import Frame from 'react-frame-component';
+import Frame, { FrameContextConsumer } from 'react-frame-component';
 
 import Signal from '../util/Signal';
 
@@ -15,6 +15,9 @@ import Sidebar from './search/Sidebar';
 import Header from './Header'
 import Editor from './Editor';
 import RichTextEditor from './editor/RichTextEditor';
+
+// TODO(jaked) straighten out dependencies
+import { mouse } from '../lang/Render/initValueEnv';
 
 interface Props {
   app: App;
@@ -185,14 +188,30 @@ type DisplayPaneProps = {
 }
 
 const DisplayPane = React.memo((props: DisplayPaneProps) =>
-  <Frame style={{ flex: 1, width: '100%', minWidth: 0, height: '100%', borderStyle: 'none' }}>
-    {Signal.node(
-      props.compiledNoteSignal.flatMap(compiledNote =>
-        compiledNote ?
-          compiledNote.rendered :
-          Signal.ok('no note')
-      )
-    )}
+  <Frame
+    style={{
+      flex: 1,
+      width: '100%',
+      minWidth: 0,
+      height: '100%',
+      borderStyle: 'none'
+    }}
+  >
+    <FrameContextConsumer>{
+      ({ document }) => {
+        document.onmousemove = (e: MouseEvent) => {
+          mouse.setOk({ clientX: e.clientX, clientY: e.clientY });
+        }
+
+        return Signal.node(
+          props.compiledNoteSignal.flatMap(compiledNote =>
+            compiledNote ?
+              compiledNote.rendered :
+              Signal.ok('no note')
+          )
+        );
+      }
+    }</FrameContextConsumer>
   </Frame>
 );
 

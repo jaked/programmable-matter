@@ -580,6 +580,8 @@ export function visit(
   }
 }
 
+const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
+
 export function freeIdentifiers(expr: Expression): Array<string> {
   const free: Array<string> = [];
 
@@ -612,13 +614,19 @@ export function freeIdentifiers(expr: Expression): Array<string> {
         }
 
         case 'JSXOpeningElement': {
-          fn(node.name, bound);
+          // lowercase tags are passed through as strings
+          if (STARTS_WITH_CAPITAL_LETTER.test(node.name.name))
+            fn(node.name, bound);
           node.attributes.forEach(attr =>  {
             // keys are not identifier references, skip them
             if (attr.value) fn(attr.value, bound);
           });
           return false;
         }
+
+        case 'JSXClosingElement':
+          // tag is handled in JSXOpeningElement
+          return false;
 
         case 'ArrowFunctionExpression':
           node.params.forEach(pat => {

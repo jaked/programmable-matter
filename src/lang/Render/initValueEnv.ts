@@ -16,47 +16,17 @@ import Signal from '../../util/Signal';
 import { Env } from './index';
 
 // TODO(jaked) clean these up somewhere
-const now = Signal.cellOk(new Date());
-setInterval(() => { now.setOk(new Date()) }, 100);
+const now = Signal.cellOk(Date.now());
+setInterval(() => { now.setOk(Date.now()) }, 100);
 
-const mouse = Signal.cellOk({ clientX: 0, clientY: 0 });
-document.addEventListener('mousemove', ({ clientX, clientY }) => {
-  mouse.setOk({ clientX, clientY });
-});
+// updated by onmousemove handler in DisplayPane
+// TODO(jaked) should go elsewhere
+export const mouse = Signal.cellOk({ clientX: 0, clientY: 0 });
 
 export function initValueEnv(
   setSelected: (note: string) => void,
 ): Env {
   return Immutable.Map({
-    a: 'a',
-    br: 'br',
-    body: 'body',
-    button: 'button',
-    code: 'pre',
-    div: 'div',
-    ellipse: 'ellipse',
-    footer: 'footer',
-    h1: 'h1',
-    head: 'head',
-    header: 'header',
-    hr: 'hr',
-    html: 'html',
-    img: 'img',
-    inlineCode: 'code',
-    input: 'input',
-    label: 'label',
-    li: 'li',
-    p: 'p',
-    section: 'section',
-    span: 'span',
-    strong: 'strong',
-    style: 'style',
-    sub: 'sub',
-    sup: 'sup',
-    svg: 'svg',
-    title: 'title',
-    ul: 'ul',
-
     Inspector: Inspector,
     Tweet: TwitterTweetEmbed,
     YouTube: YouTube,

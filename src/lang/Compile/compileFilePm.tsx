@@ -587,7 +587,7 @@ ${html}
     return Generate.generatePm(
       nodes,
       node => parsedCode.get(node) ?? bug(`expected parsed code`),
-      expr => astAnnotations.get(expr) ?? bug(`expected type`),
+      expr => astAnnotations.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
     );
   })
 
