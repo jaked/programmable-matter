@@ -136,6 +136,7 @@ it('recovers from fixed errors in inline code', () => {
 });
 
 it('renders marks', () => {
+  console.error = jest.fn(); // suppress React warning about keys
   const compiled = compileFilePm({
     type: 'pm',
     path: '/foo.pm',
