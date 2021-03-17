@@ -45,7 +45,7 @@ export function synthCode(
   moduleEnv: Map<string, Type.ModuleType>,
   env: Typecheck.Env,
   exportTypes: { [s: string]: Type },
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Typecheck.Env {
   const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code => {
@@ -64,7 +64,7 @@ export function synthCode(
 export function synthInlineCode(
   node: PMAST.InlineCode,
   env: Typecheck.Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ) {
   const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code =>

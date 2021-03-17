@@ -12,7 +12,7 @@ function checkSubtype(
   ast: ESTree.Expression,
   env: Env,
   type: Type,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     case 'JSXExpressionContainer':
@@ -73,7 +73,7 @@ function checkTuple(
   ast: ESTree.Expression,
   env: Env,
   type: Type.TupleType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     case 'ArrayExpression': {
@@ -101,7 +101,7 @@ function checkArray(
   ast: ESTree.Expression,
   env: Env,
   type: Type.ArrayType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
@@ -138,7 +138,7 @@ function checkSet(
   ast: ESTree.Expression,
   env: Env,
   type: Type.SetType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     // TODO(jaked) Set literals?
@@ -152,7 +152,7 @@ function checkMap(
   ast: ESTree.Expression,
   env: Env,
   type: Type.MapType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     // TODO(jaked) Map literals?
@@ -166,7 +166,7 @@ function patTypeEnvIdentifier(
   ast: ESTree.Identifier,
   type: Type,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   if (env.has(ast.name)) {
     Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, annots);
@@ -180,7 +180,7 @@ function patTypeEnvObjectPattern(
   ast: ESTree.ObjectPattern,
   t: Type.ObjectType,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
@@ -199,7 +199,7 @@ function patTypeEnv(
   ast: ESTree.Pattern,
   t: Type,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   if (ast.type === 'ObjectPattern' && t.kind === 'Object')
     return patTypeEnvObjectPattern(ast, t, env, annots);
@@ -215,7 +215,7 @@ function checkFunction(
   ast: ESTree.Expression,
   env: Env,
   type: Type.FunctionType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
@@ -238,7 +238,7 @@ function checkUnion(
   ast: ESTree.Expression,
   env: Env,
   type: Type.UnionType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   // to get a more localized error message we'd like to decompose the type and expression
   // as far as possible, but for unions we don't know which arm to break down.
@@ -260,7 +260,7 @@ function checkIntersection(
   ast: ESTree.Expression,
   env: Env,
   type: Type.IntersectionType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   // TODO(jaked)
   // how should we return / display errors here?
@@ -273,7 +273,7 @@ function checkSingleton(
   ast: ESTree.Expression,
   env: Env,
   type: Type.SingletonType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   return checkSubtype(ast, env, type, annots);
 }
@@ -282,7 +282,7 @@ function checkObject(
   ast: ESTree.Expression,
   env: Env,
   type: Type.ObjectType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   if (ast.type === 'ObjectExpression') {
     const types = ast.properties.map(prop => {
@@ -327,7 +327,7 @@ function checkAbstract(
   ast: ESTree.Expression,
   env: Env,
   type: Type.AbstractType,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   return check(ast, env, Type.expand(type), annots);
 }
@@ -336,7 +336,7 @@ function checkHelper(
   ast: ESTree.Expression,
   env: Env,
   type: Type,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (type.kind) {
     case 'Tuple':         return checkTuple(ast, env, type, annots);
@@ -358,7 +358,7 @@ export function check(
   ast: ESTree.Expression,
   env: Env,
   type: Type,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const actualType = checkHelper(ast, env, type, annots);
   if (annots) annots.set(ast, actualType);

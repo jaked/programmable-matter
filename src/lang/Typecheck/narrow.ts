@@ -143,7 +143,7 @@ export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
   assume: boolean,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':

@@ -12,7 +12,7 @@ import { narrowType, narrowEnvironment } from './narrow';
 function synthIdentifier(
   ast: ESTree.Identifier,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const type = env.get(ast.name);
   if (type) return type;
@@ -23,7 +23,7 @@ function synthIdentifier(
 function synthLiteral(
   ast: ESTree.Literal,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   return Type.singleton(ast.value);
 }
@@ -31,7 +31,7 @@ function synthLiteral(
 function synthArrayExpression(
   ast: ESTree.ArrayExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const types = ast.elements.map(e => synth(e, env, annots));
   const elem = Type.union(...types);
@@ -41,7 +41,7 @@ function synthArrayExpression(
 function synthObjectExpression(
   ast: ESTree.ObjectExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const seen = new Set();
   const fieldTypes = ast.properties.reduce<{ [n: string]: Type }>(
@@ -71,7 +71,7 @@ const typeofType =
 function synthUnaryExpression(
   ast: ESTree.UnaryExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const type = synth(ast.argument, env, annots);
 
@@ -136,7 +136,7 @@ function synthUnaryExpression(
 function synthLogicalExpression(
   ast: ESTree.LogicalExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.operator) {
     case '&&': {
@@ -191,7 +191,7 @@ function synthLogicalExpression(
 function synthBinaryExpression(
   ast: ESTree.BinaryExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   let left = synth(ast.left, env, annots);
   let right = synth(ast.right, env, annots);
@@ -293,7 +293,7 @@ function synthBinaryExpression(
 function synthSequenceExpression(
   ast: ESTree.SequenceExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   ast.expressions.forEach((e, i) => {
     if (i < ast.expressions.length - 1)
@@ -305,7 +305,7 @@ function synthSequenceExpression(
 function synthMemberExpression(
   ast: ESTree.MemberExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
   objectType?: Type | undefined
 ): Type {
   objectType = objectType || synth(ast.object, env, annots);
@@ -318,7 +318,7 @@ function synthMemberExpression(
       objectType.types
         // don't annotate AST with possibly spurious errors
         // TODO(jaked) rethink
-        .map(type => synthMemberExpression(ast, env, undefined, type));
+        .map(type => synthMemberExpression(ast, env, new Map(), type));
     if (memberTypes.every(type => type.kind === 'Error')) {
       if (ast.property.type === 'Identifier')
         return Error.unknownField(ast.property, ast.property.name, annots);
@@ -556,7 +556,7 @@ function synthMemberExpression(
 function synthCallExpression(
   ast: ESTree.CallExpression,
   env:Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
   calleeType?: Type | undefined
 ): Type {
   calleeType = calleeType || Type.expand(synth(ast.callee, env, annots));
@@ -565,7 +565,7 @@ function synthCallExpression(
     const callTypes =
       calleeType.types
         .filter(type => type.kind === 'Function')
-        .map(type => synthCallExpression(ast, env, undefined, type));
+        .map(type => synthCallExpression(ast, env, new Map(), type));
     const okTypes = callTypes.filter(type => type.kind !== 'Error');
     switch (okTypes.size) {
       case 0:
@@ -615,7 +615,7 @@ function patTypeEnvIdentifier(
   ast: ESTree.Identifier,
   type: Type,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   if (env.has(ast.name)) {
     Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, annots);
@@ -629,7 +629,7 @@ function patTypeEnvObjectPattern(
   ast: ESTree.ObjectPattern,
   t: Type.ObjectType,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
@@ -647,7 +647,7 @@ function patTypeEnv(
   ast: ESTree.Pattern,
   t: Type,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   if (ast.type === 'ObjectPattern' && t.kind === 'Object')
     return patTypeEnvObjectPattern(ast, t, env, annots);
@@ -680,7 +680,7 @@ function genPatType(
 function synthArrowFunctionExpression(
   ast: ESTree.ArrowFunctionExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   let patEnv: Env = Immutable.Map();
   const paramTypes = ast.params.map(param => {
@@ -701,7 +701,7 @@ function synthArrowFunctionExpression(
 function synthConditionalExpression(
   ast: ESTree.ConditionalExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const testType = synth(ast.test, env, annots);
 
@@ -737,7 +737,7 @@ function synthConditionalExpression(
 function synthTemplateLiteral(
   ast: ESTree.TemplateLiteral,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   // TODO(jaked) handle interpolations
   return Type.string;
@@ -746,7 +746,7 @@ function synthTemplateLiteral(
 function synthJSXIdentifier(
   ast: ESTree.JSXIdentifier,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const type = env.get(ast.name);
   if (type) return type;
@@ -756,7 +756,7 @@ function synthJSXIdentifier(
 function synthJSXElement(
   ast: ESTree.JSXElement,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const type = Type.expand(synth(ast.openingElement.name, env, annots));
 
@@ -833,7 +833,7 @@ function synthJSXElement(
 function synthJSXFragment(
   ast: ESTree.JSXFragment,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   ast.children.forEach(child =>
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
@@ -845,7 +845,7 @@ function synthJSXFragment(
 function synthJSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   return synth(ast.expression, env, annots);
 }
@@ -853,7 +853,7 @@ function synthJSXExpressionContainer(
 function synthJSXText(
   ast: ESTree.JSXText,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   return Type.string;
 }
@@ -861,7 +861,7 @@ function synthJSXText(
 function synthJSXEmptyExpression(
   ast: ESTree.JSXEmptyExpression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   return Type.undefined;
 }
@@ -869,7 +869,7 @@ function synthJSXEmptyExpression(
 function synthHelper(
   ast: ESTree.Expression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   switch (ast.type) {
     case 'Identifier':              return synthIdentifier(ast, env, annots);
@@ -900,7 +900,7 @@ function synthHelper(
 export function synth(
   ast: ESTree.Expression,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Type {
   const type = synthHelper(ast, env, annots);
   if (annots) annots.set(ast, type);
@@ -912,7 +912,7 @@ function importDecl(
   decl: ESTree.ImportDeclaration,
   moduleEnv: Map<string, Type.ModuleType>,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   const importedModuleName = Name.rewriteResolve(moduleEnv, moduleName, decl.source.value);
   if (!importedModuleName) {
@@ -959,7 +959,7 @@ function importDecl(
 function synthVariableDecl(
   decl: ESTree.VariableDeclaration,
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
   exportTypes?: { [s: string]: Type },
 ): Env {
   decl.declarations.forEach(declarator => {
@@ -996,7 +996,7 @@ function synthAndExportNamedDecl(
   decl: ESTree.ExportNamedDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   return synthVariableDecl(
     decl.declaration,
@@ -1010,7 +1010,7 @@ function exportDefaultDecl(
   decl: ESTree.ExportDefaultDeclaration,
   exportTypes: { [s: string]: Type },
   env: Env,
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ) {
   exportTypes['default'] = synth(decl.declaration, env, annots);
 }
@@ -1021,7 +1021,7 @@ export function synthProgram(
   program: ESTree.Program,
   env: Env,
   exportTypes: { [s: string]: Type },
-  annots?: AstAnnotations,
+  annots: AstAnnotations,
 ): Env {
   program.body.forEach(node => {
     switch (node.type) {
