@@ -93,6 +93,27 @@ const handleDelimitedShortcut = (
 
 export const insertText = (editor: Editor) => {
   const { insertText } = editor;
+
+  // the default Slate insertText
+  // but with the business about moving the cursor outside the inline removed
+  // TODO(jaked) find out why it's like this
+/*
+  const insertText = (text: string) => {
+    const { selection, marks } = editor
+
+    if (selection) {
+      if (marks) {
+        const node = { text, ...marks }
+        Transforms.insertNodes(editor, node)
+      } else {
+        Transforms.insertText(editor, text)
+      }
+
+      editor.marks = null
+    }
+  }
+  */
+
   return (text: string) => {
     const above = Editor.above(editor);
     if (!above) return insertText(text);

@@ -3,6 +3,7 @@ import { Editor } from 'slate';
 import { jsx } from '../util/slate-hyperscript-jsx';
 import { insertText } from './insertText';
 import { isInline } from './isInline';
+import { expectEditor } from './expectEditor';
 
 describe('Markdown shortcuts', () => {
   it('sets type to header on #', () => {
@@ -198,5 +199,46 @@ describe('urls', () => {
         <stext> </stext>
       </p>
     ]);
+  });
+});
+
+describe('inlines', () => {
+/*
+  it('inserts inside inline when cursor at end', () => {
+    expectEditor(
+      <editor>
+        <p>
+          foo <inlineCode>bar<cursor/></inlineCode> baz
+        </p>
+      </editor>,
+      editor => {
+        editor.isInline = isInline(editor);
+        editor.insertText('quux');
+      },
+      <editor>
+        <p>
+          foo <inlineCode>barquux<cursor/></inlineCode> baz
+        </p>
+      </editor>,
+    )
+  });
+*/
+  it('inserts outside inline when cursor after', () => {
+    expectEditor(
+      <editor>
+        <p>
+          foo <inlineCode>bar</inlineCode><cursor/> baz
+        </p>
+      </editor>,
+      editor => {
+        editor.isInline = isInline(editor);
+        editor.insertText('quux');
+      },
+      <editor>
+        <p>
+          foo <inlineCode>bar</inlineCode>quux<cursor/> baz
+        </p>
+      </editor>,
+    )
   });
 });
