@@ -138,7 +138,6 @@ function narrowExpression(
 
 // narrow the type of identifiers appearing in `ast` to reflect what
 // we can deduce when the expression is assumed to be true or false.
-// `ast` has already been typechecked so we can use `etype` fields in it.
 export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,

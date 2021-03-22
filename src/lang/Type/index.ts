@@ -77,6 +77,26 @@ module Type {
   export const falsy = Predef.falsy;
   export const notFalsy = Predef.notFalsy;
 
+  // TODO(jaked) reorganize
+  export function isTruthy(type: Type) {
+    switch (type.kind) {
+      case 'Object': return true;
+      case 'Function': return true;
+      case 'Singleton': return !!type.value;
+      default: return false;
+    }
+  }
+
+  export function isFalsy(type: Type) {
+    switch (type.kind) {
+      case 'Error': return true;
+      case 'undefined': return true;
+      case 'null': return true;
+      case 'Singleton': return !type.value;
+      default: return false;
+    }
+  }
+
   export const toString = ToString.toString;
   export const ofTSType = OfTSType;
 

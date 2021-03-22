@@ -5,7 +5,7 @@ import * as ESTree from '../ESTree';
 import { AstAnnotations } from '../../model';
 import { Env } from './env';
 import * as Error from './error';
-import { synth } from './synth';
+import { synth, synthAndThen } from './synth';
 import { narrowEnvironment } from './narrow';
 
 function checkSubtype(
@@ -19,35 +19,22 @@ function checkSubtype(
       return check(ast.expression, env, type, annots);
 
     case 'ConditionalExpression': {
-      const testType = synth(ast.test, env, annots);
+      const envConsequent = narrowEnvironment(env, ast.test, true, annots);
+      const envAlternate = narrowEnvironment(env, ast.test, false, annots);
 
-      switch (testType.kind) {
-        // conjecture: we can't learn anything new from narrowing
-        // when test is error / singleton
-        // (would be nice to prove this, but no harm in not narrowing)
-
-        // when the test has a static value we don't check the untaken branch
-        // this is a little weird but consistent with typechecking
-        // only as much as needed to run the program
-
-        case 'Error': {
-          return check(ast.alternate, env, type, annots);
-        }
-
-        case 'Singleton':
-          if (testType.value)
-            return check(ast.consequent, env, type, annots);
-          else
-            return check(ast.alternate, env, type, annots);
-
-        default: {
-          const envConsequent = narrowEnvironment(env, ast.test, true, annots);
-          const envAlternate = narrowEnvironment(env, ast.test, false, annots);
+      return synthAndThen(ast.test, env, annots, test => {
+        if (Type.isTruthy(test)) {
+          synth(ast.alternate, envAlternate, annots);
+          return check(ast.consequent, envConsequent, type, annots)
+        } else if (Type.isFalsy(test)) {
+          synth(ast.consequent, envConsequent, annots);
+          return check(ast.alternate, envAlternate, type, annots);
+        } else {
           const consequent = check(ast.consequent, envConsequent, type, annots);
           const alternate = check(ast.alternate, envAlternate, type, annots);
           return Type.union(consequent, alternate);
         }
-      }
+      });
     }
 
     case 'SequenceExpression': {
@@ -285,6 +272,7 @@ function checkObject(
   annots: AstAnnotations,
 ): Type {
   if (ast.type === 'ObjectExpression') {
+    const seen = new Set();
     const types = ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
@@ -292,11 +280,21 @@ function checkObject(
         case 'Literal': name = prop.key.value; break;
         default: bug('expected Identifier or Literal prop key name');
       }
-      const fieldType = type.getFieldType(name);
-      if (fieldType) return check(prop.value, env, fieldType, annots);
-      else {
-        Error.extraField(prop.key, name, annots);
-        return synth(prop.value, env, annots);
+      if (seen.has(name)) {
+        synth(prop.value, env, annots);
+        // TODO(jaked) this highlights the error but we also need to skip evaluation
+        Error.withLocation(prop.key, `duplicate property name '${name}'`, annots);
+        return Type.undefined;
+      } else {
+        seen.add(name);
+        const fieldType = type.getFieldType(name);
+        if (fieldType) return check(prop.value, env, fieldType, annots);
+        else {
+          // TODO(jaked) this highlights the error but we also need to skip evaluation
+          Error.extraField(prop.key, name, annots);
+          synth(prop.value, env, annots);
+          return Type.undefined;
+        }
       }
     });
 
