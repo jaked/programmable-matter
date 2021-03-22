@@ -81,34 +81,31 @@ const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>(
 }));
 
 type StatusProps = {
-  astAnnotations: Signal<model.AstAnnotations | undefined>;
   mouse: Signal<{ clientX: number, clientY: number }>;
 }
 
 const Status = (props: StatusProps) => {
-  const _astAnnotations = Signal.useSignal(props.astAnnotations);
   const mouse = Signal.useSignal(props.mouse);
-  const ref = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (ref.current) {
-      // we need to run this in an effect after the doc is rendered
-      // since it relies on the rendered DOM
-      const elem = document.elementFromPoint(mouse.clientX, mouse.clientY);
+  const [ status, setStatus ] = React.useState<undefined | string>(undefined);
+  React.useLayoutEffect(() => {
+    // we need to run this in an effect after the doc is rendered
+    // since it relies on the rendered DOM
+    const elem = document.elementFromPoint(mouse.clientX, mouse.clientY);
 
-      let status: string | undefined = undefined;
-      if (elem) {
-        // Slate wraps an extra span around the text
-        // so the element with the status field is its parent
-        const parent = elem.parentElement;
-        if (parent) {
-          status = (parent as HTMLElement).dataset.status;
-        }
+    let status: undefined | string = undefined;
+    if (elem) {
+      // Slate wraps an extra span around the text
+      // so the element with the status field is its parent
+      const parent = elem.parentElement;
+      if (parent) {
+        status = (parent as HTMLElement).dataset.status;
       }
-
-      ref.current.textContent = status ?? null;
     }
-  });
-  return <div ref={ref} style={{ backgroundColor: '#ffc0c0' }}></div>
+    setStatus(status);
+  }, [mouse]);
+  return (<>
+    {status && <div style={{ padding: '8px', backgroundColor: '#ffc0c0' }}>{status}</div>}
+  </>);
 }
 
 type EditorPaneProps = {
@@ -149,8 +146,9 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
       height: '100%',
       display: 'grid',
       gridTemplateRows: '1fr auto',
-      padding: '8px',
+      overflow: 'hidden',
     }}>
+      <div style={{ padding: '8px', overflow: 'auto'}}>
       {
         selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
         selectedFile.type === 'pm' ?
@@ -175,10 +173,8 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
             setSelected={props.setSelected}
           />
       }
-      { compiledFile ?
-        <Status astAnnotations={compiledFile.astAnnotations ?? Signal.ok(undefined)} mouse={props.mouse} /> :
-        null
-      }
+      </div>
+        <Status mouse={props.mouse} />
     </div>
   );
 }));
@@ -310,7 +306,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       { showEditorPane &&
         <div style={{
           gridArea: 'editor',
-          overflow: 'auto',
+          overflow: 'hidden',
           borderRightWidth: showDisplayPane ? '1px' : '0px',
           borderRightStyle: 'solid',
           borderRightColor: '#cccccc',
