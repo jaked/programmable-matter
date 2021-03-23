@@ -283,6 +283,7 @@ export function renderNode(
   node: PMAST.Node,
   annots: AstAnnotations,
   env: Render.Env,
+  nextRootId: [ number ],
   Link: React.FunctionComponent<{ href: string }> = () => null,
 ): React.ReactNode {
   const rendered = renderedNode.get(node);
@@ -308,7 +309,10 @@ export function renderNode(
       for (const node of (code.ok as ESTree.Program).body) {
         switch (node.type) {
           case 'ExpressionStatement':
-            rendered.push(Signal.node(evaluateExpressionSignal(node.expression, annots, env)));
+            rendered.push(<div id={`__root${nextRootId[0]}`}>{
+              Signal.node(evaluateExpressionSignal(node.expression, annots, env))
+            }</div>);
+            nextRootId[0]++;
             break;
         }
       }
@@ -319,10 +323,12 @@ export function renderNode(
       if (code.type !== 'ok') return null;
       const type = annots.get(code.ok) ?? bug(`expected type`);
       if (type.kind === 'Error') return null;
-      return Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env));
+      return (<span id={`__root${nextRootId[0]}`}>{
+        Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env))
+      }</span>);
 
     } else {
-      const children = node.children.map(child => renderNode(child, annots, env, Link));
+      const children = node.children.map(child => renderNode(child, annots, env, nextRootId, Link));
       let rendered;
       if (node.type === 'a') {
         rendered = React.createElement(Link, { key, href: node.href }, ...children);
@@ -556,7 +562,8 @@ export default function compileFilePm(
     compile,
     typecheckInlineCode,
   ).map(([nodes, _ast, { env }, { astAnnotations }]) => {
-    return nodes.map(node => renderNode(node, astAnnotations, env, Link));
+    const nextRootId: [ number ] = [ 0 ];
+    return nodes.map(node => renderNode(node, astAnnotations, env, nextRootId, Link));
   });
 
   const html = rendered.map(rendered => {

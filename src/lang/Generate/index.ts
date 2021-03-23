@@ -270,81 +270,74 @@ function genExprSignal(
   }
 }
 
-function genNodeExpr(
+function genNode(
   node: PMAST.Node,
   parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
   annots: (e: ESTree.Expression) => Type,
   env: Map<string, JS.Expression>,
   decls: JS.Statement[],
-): JS.Expression {
-  if ('text' in node) {
-    let text: JS.Expression = JS.stringLiteral(node.text);
-    if (node.bold)          text = e(JS.stringLiteral('strong'), {}, text);
-    if (node.italic)        text = e(JS.stringLiteral('em'), {}, text);
-    if (node.underline)     text = e(JS.stringLiteral('u'), {}, text);
-    if (node.strikethrough) text = e(JS.stringLiteral('del'), {}, text);
-    if (node.subscript)     text = e(JS.stringLiteral('sub'), {}, text);
-    if (node.superscript)   text = e(JS.stringLiteral('sup'), {}, text);
-    if (node.code)          text = e(JS.stringLiteral('code'), {}, text);
-    return e(JS.stringLiteral('span'), {}, text);
-  } else {
-    if (node.type === 'code') {
-      const ast = parsedCode(node);
-      if (ast.type === 'ok') {
-        const children: JS.Expression[] = [];
-        for (const node of (ast.ok as ESTree.Program).body) {
-          switch (node.type) {
-            case 'ExpressionStatement':
-              children.push(
-                JS.callExpression(
-                  JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
-                  [ genExprSignal(node.expression, annots, env) ]
-                )
-              );
-              break;
+  hydrates: JS.Statement[],
+): void {
+  const hydrate = (e: ESTree.Expression) => {
+    // ReactDOM.hydrate(Signal.node(expr), document.getElementById(id))
+    hydrates.push(
+      JS.expressionStatement(
+        JS.callExpression(
+          JS.memberExpression(JS.identifier('ReactDOM'), JS.identifier('hydrate')),
+          [
+            JS.callExpression(
+              JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
+              [ genExprSignal(e, annots, env) ]
+            ),
+            JS.callExpression(
+              JS.memberExpression(JS.identifier('document'), JS.identifier('getElementById')),
+              [ JS.stringLiteral(`__root${hydrates.length}`) ]
+            )
+          ]
+        )
+      )
+    );
+  }
 
-            // TODO(jaked) do this as a separate pass maybe
-            case 'VariableDeclaration': {
-              switch (node.kind) {
-                case 'const': {
-                  for (const declarator of node.declarations) {
-                    const id = declarator.id.name;
-                    const init = genExprSignal(declarator.init, annots, env);
-                    decls.push(JS.variableDeclaration('const', [
-                      JS.variableDeclarator(JS.identifier(id), init)
-                    ]));
-                  }
+  if (PMAST.isCode(node)) {
+    const ast = parsedCode(node);
+    if (ast.type === 'ok') {
+      for (const node of (ast.ok as ESTree.Program).body) {
+        switch (node.type) {
+          case 'ExpressionStatement':
+            hydrate(node.expression);
+            break;
+
+          // TODO(jaked) do this as a separate pass maybe
+          case 'VariableDeclaration': {
+            switch (node.kind) {
+              case 'const': {
+                for (const declarator of node.declarations) {
+                  const id = declarator.id.name;
+                  const init = genExprSignal(declarator.init, annots, env);
+                  decls.push(JS.variableDeclaration('const', [
+                    JS.variableDeclarator(JS.identifier(id), init)
+                  ]));
                 }
               }
-              break;
             }
-
-            default:
-              bug(`unimplemented ${ast.type}`);
+            break;
           }
+
+          default:
+            bug(`unimplemented ${ast.type}`);
         }
-        return e(reactFragment, {}, ...children);
-      } else {
-        return JS.nullLiteral();
       }
-
-    } else if (node.type === 'inlineCode') {
-      const ast = parsedCode(node);
-      if (ast.type === 'ok') {
-        return (
-          JS.callExpression(
-            JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
-            [ genExprSignal(ast.ok as ESTree.Expression, annots, env) ]
-          )
-        );
-      } else {
-        return JS.nullLiteral();
-      }
-
-    } else {
-      const children = node.children.map(child => genNodeExpr(child, parsedCode, annots, env, decls));
-      return e(JS.stringLiteral(node.type), {}, ...children);
     }
+
+  } else if (PMAST.isInlineCode(node)) {
+    const ast = parsedCode(node);
+    if (ast.type === 'ok') {
+      hydrate(ast.ok as ESTree.Expression);
+    }
+
+  } else if (PMAST.isElement(node)) {
+    node.children.forEach(child => genNode(child, parsedCode, annots, env, decls, hydrates));
   }
 }
 
@@ -353,7 +346,8 @@ export function generatePm(
   parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
   annots: (e: ESTree.Expression) => Type
 ) {
-  const decls: JS.Statement[] = []
+  const decls: JS.Statement[] = [];
+  const hydrates: JS.Statement[] = [];
   const env = new Map<string, JS.Expression>([
     ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))],
     ['mouse', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('mouse'))],
@@ -362,9 +356,9 @@ export function generatePm(
       [ JS.identifier('Math') ]
     )],
   ]);
-  const elements = nodes.map(node => genNodeExpr(node, parsedCode, annots, env, decls));
+  nodes.forEach(node => genNode(node, parsedCode, annots, env, decls, hydrates));
   const declsText = babelGenerator(JS.program(decls)).code;
-  const element = babelGenerator(e(reactFragment, {}, ...elements)).code;
+  const hydratesText = babelGenerator(JS.program(hydrates)).code;
 
   // TODO(jaked) can we use symbols instead of __ids to avoid collisions?
   return `
@@ -376,8 +370,6 @@ import * as Runtime from './__runtime/Runtime.js';
 const __e = (el, props, ...children) => React.createElement(el, props, ...children)
 
 ${declsText}
-const __element = ${element};
-
-ReactDOM.hydrate(__element, document.body);
+${hydratesText}
 `;
 }
