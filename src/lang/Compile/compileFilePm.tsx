@@ -627,14 +627,25 @@ ${html}
    return Signal.ok(undefined);
  });
 
+  // the purpose of this wrapper is to avoid remounts when `component` changes.
+  // React assumes that a changed component is likely to be very different,
+  // so remounts the whole tree, losing the state of stateful DOM components.
+  // TODO(jaked) memoize on individual props?
+  const functionComponent = React.memo<{ component, props }>(({ component, props }) =>
+    component(props)
+  )
+
  const renderedWithLayout = Signal.join(
     rendered,
     meta,
     layoutFunction,
   ).map(([rendered, meta, layoutFunction]) => {
-    if (layoutFunction)
-      return (layoutFunction as any)({ children: rendered, meta }); // TODO(jaked)
-    else
+    if (layoutFunction) {
+      return React.createElement(
+        functionComponent,
+        { component: layoutFunction, props: { children: rendered, meta }}
+      );
+    } else
       return rendered
   });
 
