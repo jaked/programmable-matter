@@ -60,11 +60,11 @@ describe('highlight', () => {
     // TODO(jaked) this is a lot of setup
     const ast = Parse.parseExpression(expr);
     const typeEnv = Immutable.Map<string, Type>();
-    const annots = new Map<unknown, Type>();
-    Typecheck.synth(ast, typeEnv, annots);
+    const typesMap = new Map<unknown, Type>();
+    Typecheck.synth(ast, typeEnv, typesMap);
 
     const spans: Span[] = [];
-    computeJsSpans(ast, annots, spans);
+    computeJsSpans(ast, typesMap, spans);
     const rendered = renderSpans(expr, spans);
     expect(rendered).toEqual(expected);
   }

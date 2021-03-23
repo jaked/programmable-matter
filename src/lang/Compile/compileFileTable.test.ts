@@ -27,10 +27,10 @@ it('succeeds with type error', () => {
     },
   );
   expect(compiled.problems.get()).toBeTruthy();
-  const annots = compiled.astAnnotations;
-  expect(annots).toBeDefined();
-  if (!annots) throw 'bug';
-  expect(() => annots.get()).not.toThrow();
+  const typesMap = compiled.typesMap;
+  expect(typesMap).toBeDefined();
+  if (!typesMap) throw 'bug';
+  expect(() => typesMap.get()).not.toThrow();
 });
 
 it('empty table', () => {

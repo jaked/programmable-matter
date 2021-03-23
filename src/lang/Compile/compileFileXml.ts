@@ -49,7 +49,7 @@ export default function compileFileXml(
 
   return {
     ast: Signal.ok(undefined),
-    astAnnotations: Signal.ok(new Map()),
+    typesMap: Signal.ok(new Map()),
     problems: Signal.ok(false),
     exportType: Signal.ok(Type.module({})),
     exportValue: Signal.ok(new Map()),

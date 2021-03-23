@@ -142,7 +142,7 @@ type Range = {
 export const makeDecorate =
   (
     parsedCode: WeakMap<Node, unknown>,
-    astAnnotations?: model.AstAnnotations,
+    astAnnotations?: model.TypesMap,
   ) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
@@ -269,7 +269,7 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   const parsedCode = Signal.useSignal(props.compiledFile.ast) as WeakMap<Node, unknown>;
   // TODO(jaked) can we use astAnnotations conditionally? breaks the rules of hooks but does it matter?
-  const astAnnotations = Signal.useSignal(props.compiledFile.astAnnotations ?? Signal.ok(undefined));
+  const astAnnotations = Signal.useSignal(props.compiledFile.typesMap ?? Signal.ok(undefined));
   const decorate = React.useMemo(
     () => makeDecorate(parsedCode, astAnnotations),
     [astAnnotations],

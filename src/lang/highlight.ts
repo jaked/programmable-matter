@@ -15,7 +15,7 @@ export type Span = {
 
 export function computeJsSpans(
   ast: ESTree.Node,
-  annots: model.AstAnnotations | undefined,
+  typesMap: model.TypesMap | undefined,
   spans: Array<Span>
 ) {
   function span(
@@ -26,7 +26,7 @@ export function computeJsSpans(
     start?: number,
     end?: number,
   ) {
-    const type = annots && annots.get(ast);
+    const type = typesMap && typesMap.get(ast);
     if (type && type.kind === 'Error') {
       status = type.err.message;
     }
@@ -56,7 +56,7 @@ export function computeJsSpans(
       {
         let status: string | undefined = undefined;
           if (ast.shorthand) {
-            let type = annots && annots.get(ast.value);
+            let type = typesMap && typesMap.get(ast.value);
             if (type && type.kind === 'Error') {
               status = type.err.message;
             }
@@ -128,7 +128,7 @@ export function computeJsSpans(
         // TODO(jaked) handle `as`
         {
           let status: string | undefined = undefined;
-          let type = annots && annots.get(ast.imported);
+          let type = typesMap && typesMap.get(ast.imported);
           if (type && type.kind === 'Error') {
             status = type.err.message;
           }

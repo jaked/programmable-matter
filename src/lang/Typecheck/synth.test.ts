@@ -369,14 +369,14 @@ describe('synthProgram', () => {
     `);
     const env = Typecheck.env();
     const exportTypes: { [s: string]: Type } = {};
-    const annots = new Map<unknown, Type>();
+    const typesMap = new Map<unknown, Type>();
     const env2 = Typecheck.synthProgram(
       moduleName,
       moduleEnv,
       program,
       env,
       exportTypes,
-      annots
+      typesMap
     );
     const x = env2.get('x');
 
@@ -391,14 +391,14 @@ describe('synthProgram', () => {
     `);
     const env = Typecheck.env();
     const exportTypes: { [s: string]: Type } = {};
-    const annots = new Map<unknown, Type>();
+    const typesMap = new Map<unknown, Type>();
     const env2 = Typecheck.synthProgram(
       moduleName,
       moduleEnv,
       program,
       env,
       exportTypes,
-      annots
+      typesMap
     );
     const x = env2.get('x');
 

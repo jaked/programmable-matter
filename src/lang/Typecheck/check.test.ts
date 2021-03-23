@@ -26,9 +26,9 @@ describe('check', () => {
       Typecheck.env();
     type = (typeof type === 'string') ? Parse.parseType(type) : type;
     error = (error !== undefined) ? error : false;
-    const annots = new Map<unknown, Type>();
-    const actualTypeValue = Typecheck.check(expr, env, type, annots);
-    const errorValue = [...annots.values()].some(t => t.kind === 'Error');
+    const typesMap = new Map<unknown, Type>();
+    const actualTypeValue = Typecheck.check(expr, env, type, typesMap);
+    const errorValue = [...typesMap.values()].some(t => t.kind === 'Error');
     if (error !== undefined) expect(errorValue).toBe(error);
     if (actualType) expect(actualTypeValue).toEqual(actualType);
   }

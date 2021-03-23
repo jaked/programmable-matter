@@ -22,7 +22,7 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type AstAnnotations = Map<unknown, Type>;
+export type TypesMap = Map<unknown, Type>;
 
 export type NoteFiles = {
   'meta'?: Content;
@@ -54,7 +54,7 @@ export type Table = {
 export interface CompiledFile {
   ast: Signal<unknown>;
   exportType: Signal<Type.ModuleType>;
-  astAnnotations?: Signal<AstAnnotations>;
+  typesMap?: Signal<TypesMap>;
   problems: Signal<boolean>;
   exportValue: Signal<Map<string, Signal<unknown>>>;
   rendered: Signal<React.ReactNode>;

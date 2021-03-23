@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as ESTree from '../ESTree';
 import { bug } from '../../util/bug';
-import { AstAnnotations } from '../../model';
+import { TypesMap } from '../../model';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
@@ -47,10 +47,10 @@ const functionComponent = React.memo<{ component, props }>(({ component, props }
 
 export function evaluateExpression(
   ast: ESTree.Expression,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   env: Env,
 ): any {
-  const type = annots.get(ast) ?? bug(`expected type`);
+  const type = typesMap.get(ast) ?? bug(`expected type`);
   if (type.kind === 'Error')
     return undefined;
 
@@ -63,7 +63,7 @@ export function evaluateExpression(
       else bug(`expected value for ${ast.name}`);
 
     case 'JSXExpressionContainer':
-      return evaluateExpression(ast.expression, annots, env);
+      return evaluateExpression(ast.expression, typesMap, env);
 
     case 'JSXEmptyExpression':
       return undefined;
@@ -82,7 +82,7 @@ export function evaluateExpression(
     case 'JSXElement': {
       const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
         if (!value) return { [name.name]: true }
-        else return { [name.name]: evaluateExpression(value, annots, env) };
+        else return { [name.name]: evaluateExpression(value, typesMap, env) };
       });
       const attrs = Object.assign({}, ...attrObjs);
 
@@ -112,10 +112,10 @@ export function evaluateExpression(
       }
 
       const children = ast.children.map(child => {
-        const type = annots.get(child) ?? bug(`expected type`);
+        const type = typesMap.get(child) ?? bug(`expected type`);
         // TODO(jaked) undefined seems to be an acceptable ReactNode
         // in some contexts but not others; maybe we need `null` here
-        return evaluateExpression(child, annots, env);
+        return evaluateExpression(child, typesMap, env);
       });
       if (typeof elem === 'function' && !isConstructor(elem))
         return React.createElement(functionComponent, { component: elem, props: { ...attrs, children } });
@@ -123,11 +123,11 @@ export function evaluateExpression(
     }
 
     case 'JSXFragment':
-      return ast.children.map(child => evaluateExpression(child, annots, env));
+      return ast.children.map(child => evaluateExpression(child, typesMap, env));
 
     case 'UnaryExpression': {
-      const argType = annots.get(ast.argument) ?? bug(`expected type`);
-      const v = evaluateExpression(ast.argument, annots, env);
+      const argType = typesMap.get(ast.argument) ?? bug(`expected type`);
+      const v = evaluateExpression(ast.argument, typesMap, env);
       switch (ast.operator) {
         case '+': return v;
         case '-': return -v;
@@ -140,19 +140,19 @@ export function evaluateExpression(
     case 'LogicalExpression': {
       switch (ast.operator) {
         case '||':
-          return evaluateExpression(ast.left, annots, env) || evaluateExpression(ast.right, annots, env);
+          return evaluateExpression(ast.left, typesMap, env) || evaluateExpression(ast.right, typesMap, env);
         case '&&':
-          return evaluateExpression(ast.left, annots, env) && evaluateExpression(ast.right, annots, env);
+          return evaluateExpression(ast.left, typesMap, env) && evaluateExpression(ast.right, typesMap, env);
         default:
           throw new Error(`unexpected binary operator ${(ast as any).operator}`)
       }
     }
 
     case 'BinaryExpression': {
-      const lv = evaluateExpression(ast.left, annots, env);
-      const rv = evaluateExpression(ast.right, annots, env);
-      const leftType = annots.get(ast.left) ?? bug(`expected type`);
-      const rightType = annots.get(ast.right) ?? bug(`expected type`);
+      const lv = evaluateExpression(ast.left, typesMap, env);
+      const rv = evaluateExpression(ast.right, typesMap, env);
+      const leftType = typesMap.get(ast.left) ?? bug(`expected type`);
+      const rightType = typesMap.get(ast.right) ?? bug(`expected type`);
 
       switch (ast.operator) {
         case '+':
@@ -191,14 +191,14 @@ export function evaluateExpression(
     case 'SequenceExpression':
       ast.expressions.forEach((e, i) => {
         if (i < ast.expressions.length - 1)
-          evaluateExpression(e, annots, env);
+          evaluateExpression(e, typesMap, env);
       });
-      return evaluateExpression(ast.expressions[ast.expressions.length - 1], annots, env);
+      return evaluateExpression(ast.expressions[ast.expressions.length - 1], typesMap, env);
 
     case 'MemberExpression': {
-      const object = evaluateExpression(ast.object, annots, env);
+      const object = evaluateExpression(ast.object, typesMap, env);
       if (ast.computed) {
-        const property = evaluateExpression(ast.property, annots, env);
+        const property = evaluateExpression(ast.property, typesMap, env);
         return object[property];
       } else {
         if (ast.property.type !== 'Identifier')
@@ -208,11 +208,11 @@ export function evaluateExpression(
     }
 
     case 'CallExpression': {
-      const args = ast.arguments.map(arg => evaluateExpression(arg, annots, env));
+      const args = ast.arguments.map(arg => evaluateExpression(arg, typesMap, env));
       if (ast.callee.type === 'MemberExpression') {
-        const object = evaluateExpression(ast.callee.object, annots, env);
+        const object = evaluateExpression(ast.callee.object, typesMap, env);
         if (ast.callee.computed) {
-          const method = evaluateExpression(ast.callee.property, annots, env);
+          const method = evaluateExpression(ast.callee.property, typesMap, env);
           return method.apply(object, args);
         } else {
           if (ast.callee.property.type !== 'Identifier')
@@ -221,14 +221,14 @@ export function evaluateExpression(
           return method.apply(object, args);
         }
       } else {
-        const callee = evaluateExpression(ast.callee, annots, env);
+        const callee = evaluateExpression(ast.callee, typesMap, env);
         return callee(...args);
       }
     }
 
     case 'ObjectExpression': {
       const properties = ast.properties.map(prop => {
-        const value = evaluateExpression(prop.value, annots, env);
+        const value = evaluateExpression(prop.value, typesMap, env);
         return { ...prop, value };
       });
       return Object.assign({}, ...properties.map(prop => {
@@ -243,21 +243,21 @@ export function evaluateExpression(
     }
 
     case 'ArrayExpression':
-      return ast.elements.map(e => evaluateExpression(e, annots, env));
+      return ast.elements.map(e => evaluateExpression(e, typesMap, env));
 
     case 'ArrowFunctionExpression':
       return (...args: Array<any>) => {
         ast.params.forEach((pat, i) => {
           env = patValueEnv(pat, args[i], env);
         });
-        return evaluateExpression(ast.body, annots, env);
+        return evaluateExpression(ast.body, typesMap, env);
       };
 
     case 'ConditionalExpression': {
-      if (evaluateExpression(ast.test, annots, env)) {
-        return evaluateExpression(ast.consequent, annots, env);
+      if (evaluateExpression(ast.test, typesMap, env)) {
+        return evaluateExpression(ast.consequent, typesMap, env);
       } else {
-        return evaluateExpression(ast.alternate, annots, env)
+        return evaluateExpression(ast.alternate, typesMap, env)
       }
     }
 

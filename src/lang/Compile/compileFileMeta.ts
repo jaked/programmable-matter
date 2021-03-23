@@ -15,16 +15,16 @@ export default function compileFileMeta(
 ): CompiledFile {
   const compiled = file.content.map(content => {
     const ast = Parse.parseExpression(content as string);
-    const annots = new Map<unknown, Type>();
-    const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, annots);
-    const problems = [...annots.values()].some(t => t.kind === 'Error');
+    const typesMap = new Map<unknown, Type>();
+    const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, typesMap);
+    const problems = [...typesMap.values()].some(t => t.kind === 'Error');
     const value = error.kind === 'Error' ?
       Signal.err(error.err) :
-      Signal.ok(Meta.validate(Evaluate.evaluateExpression(ast, annots, Immutable.Map())));
+      Signal.ok(Meta.validate(Evaluate.evaluateExpression(ast, typesMap, Immutable.Map())));
     const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,
-      annots,
+      typesMap,
       problems,
       exportValue,
     }
@@ -32,7 +32,7 @@ export default function compileFileMeta(
   return {
     ast: compiled.map(({ ast }) => ast),
     exportType,
-    astAnnotations: compiled.map(({ annots }) => annots),
+    typesMap: compiled.map(({ typesMap }) => typesMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

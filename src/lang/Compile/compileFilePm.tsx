@@ -11,7 +11,7 @@ import * as Name from '../../util/Name';
 import * as MapFuncs from '../../util/MapFuncs';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import { AstAnnotations, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
+import { TypesMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -45,7 +45,7 @@ export function synthCode(
   moduleEnv: Map<string, Type.ModuleType>,
   env: Typecheck.Env,
   exportTypes: { [s: string]: Type },
-  annots: AstAnnotations,
+  typesMap: TypesMap,
 ): Typecheck.Env {
   const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code => {
@@ -55,7 +55,7 @@ export function synthCode(
       code as ESTree.Program,
       env,
       exportTypes,
-      annots
+      typesMap
     );
   });
   return env;
@@ -64,17 +64,17 @@ export function synthCode(
 export function synthInlineCode(
   node: PMAST.InlineCode,
   env: Typecheck.Env,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
 ) {
   const code = parsedCode.get(node) ?? bug('expected parsed code');
   code.forEach(code =>
-    Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, annots)
+    Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, typesMap)
   );
 }
 
 function evaluateExpressionSignal(
   ast: ESTree.Expression,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   env: Render.ValueEnv,
 ): Signal<unknown> {
   // TODO(jaked) join only over dynamic variables
@@ -86,20 +86,20 @@ function evaluateExpressionSignal(
   });
   return Signal.join(...signals).map(values => {
     const env = Immutable.Map(idents.map((id, i) => [id, values[i]]));
-    return Evaluate.evaluateExpression(ast, annots, env);
+    return Evaluate.evaluateExpression(ast, typesMap, env);
   });
 }
 
 function importDecl(
   mdxName: string,
   decl: ESTree.ImportDeclaration,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   moduleEnv: Map<string, Signal<Map<string, Signal<unknown>>>>,
   env: Render.ValueEnv,
 ): Render.ValueEnv {
   // TODO(jaked) finding errors in the AST is delicate.
   // need to separate error semantics from error highlighting.
-  const type = annots.get(decl.source);
+  const type = typesMap.get(decl.source);
   if (type && type.kind === 'Error') {
     decl.specifiers.forEach(spec => {
       env = env.set(spec.local.name, Signal.ok(type.err));
@@ -118,7 +118,7 @@ function importDecl(
         }
 
         case 'ImportDefaultSpecifier': {
-          const type = annots.get(spec.local);
+          const type = typesMap.get(spec.local);
           if (type && type.kind === 'Error') {
             env = env.set(spec.local.name, Signal.ok(type.err))
           } else {
@@ -131,7 +131,7 @@ function importDecl(
         break;
 
         case 'ImportSpecifier': {
-          const type = annots.get(spec.imported);
+          const type = typesMap.get(spec.imported);
           if (type && type.kind === 'Error') {
             env = env.set(spec.local.name, Signal.ok(type.err))
           } else {
@@ -152,7 +152,7 @@ function evalVariableDecl(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   env: Render.ValueEnv,
   exportValue?: Map<string, Signal<unknown>>
 ): Render.ValueEnv {
@@ -160,7 +160,7 @@ function evalVariableDecl(
     case 'const': {
       decl.declarations.forEach(declarator => {
         const name = declarator.id.name;
-        const value = evaluateExpressionSignal(declarator.init, annots, env);
+        const value = evaluateExpressionSignal(declarator.init, typesMap, env);
         if (exportValue) exportValue.set(name, value);
         env = env.set(name, value);
       });
@@ -170,12 +170,12 @@ function evalVariableDecl(
     case 'let': {
       decl.declarations.forEach(declarator => {
         let name = declarator.id.name;
-        const lensType = annots.get(declarator.id) ?? bug(`expected type`);
+        const lensType = typesMap.get(declarator.id) ?? bug(`expected type`);
         if (lensType.kind === 'Error') return env;
         else if (lensType.kind !== 'Abstract' || lensType.params.size !== 1) bug(`expected lensType`);
         const type = lensType.params.get(0) ?? bug(`expected param`);
         const init = declarator.init;
-        const value = Evaluate.evaluateExpression(init, annots, Immutable.Map({ undefined: undefined }));
+        const value = Evaluate.evaluateExpression(init, typesMap, Immutable.Map({ undefined: undefined }));
         const setValue = (v) => {
           nodes.produce(nodes => {
             function walk(nodes: PMAST.Node[]): boolean {
@@ -223,20 +223,20 @@ function evalAndExportNamedDecl(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   decl: ESTree.ExportNamedDeclaration,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   env: Render.ValueEnv,
   exportValue: Map<string, Signal<unknown>>
 ): Render.ValueEnv {
-  return evalVariableDecl(nodes, node, decl.declaration, annots, env, exportValue);
+  return evalVariableDecl(nodes, node, decl.declaration, typesMap, env, exportValue);
 }
 
 function exportDefaultDecl(
   decl: ESTree.ExportDefaultDeclaration,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   env: Render.ValueEnv,
   exportValue: Map<string, Signal<unknown>>
 ): Render.ValueEnv {
-  const value = evaluateExpressionSignal(decl.declaration, annots, env);
+  const value = evaluateExpressionSignal(decl.declaration, typesMap, env);
   exportValue.set('default', value);
   return env;
 }
@@ -244,7 +244,7 @@ function exportDefaultDecl(
 export function compileCode(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   moduleName: string,
   moduleEnv: Map<string, Signal<Map<string, Signal<unknown>>>>,
   env: Render.ValueEnv,
@@ -255,19 +255,19 @@ export function compileCode(
     for (const decl of (code as ESTree.Program).body) {
       switch (decl.type) {
         case 'ImportDeclaration':
-          env = importDecl(moduleName, decl, annots, moduleEnv, env);
+          env = importDecl(moduleName, decl, typesMap, moduleEnv, env);
           break;
 
         case 'ExportNamedDeclaration':
-          env = evalAndExportNamedDecl(nodes, node, decl, annots, env, exportValue);
+          env = evalAndExportNamedDecl(nodes, node, decl, typesMap, env, exportValue);
           break;
 
         case 'ExportDefaultDeclaration':
-          env = exportDefaultDecl(decl, annots, env, exportValue);
+          env = exportDefaultDecl(decl, typesMap, env, exportValue);
           break;
 
         case 'VariableDeclaration':
-          env = evalVariableDecl(nodes, node, decl, annots, env);
+          env = evalVariableDecl(nodes, node, decl, typesMap, env);
           break;
       }
     }
@@ -282,7 +282,7 @@ const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
 
 export function renderNode(
   node: PMAST.Node,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
   env: Render.ValueEnv,
   nextRootId: [ number ],
   Link: React.FunctionComponent<{ href: string }> = () => null,
@@ -311,7 +311,7 @@ export function renderNode(
         switch (node.type) {
           case 'ExpressionStatement':
             rendered.push(<div id={`__root${nextRootId[0]}`}>{
-              Signal.node(evaluateExpressionSignal(node.expression, annots, env) as Signal<React.ReactNode>)
+              Signal.node(evaluateExpressionSignal(node.expression, typesMap, env) as Signal<React.ReactNode>)
             }</div>);
             nextRootId[0]++;
             break;
@@ -322,14 +322,14 @@ export function renderNode(
     } else if (node.type === 'inlineCode') {
       const code = parsedCode.get(node) ?? bug(`expected parsed code`);
       if (code.type !== 'ok') return null;
-      const type = annots.get(code.ok) ?? bug(`expected type`);
+      const type = typesMap.get(code.ok) ?? bug(`expected type`);
       if (type.kind === 'Error') return null;
       return (<span id={`__root${nextRootId[0]}`}>{
-        Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env) as Signal<React.ReactNode>)
+        Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, typesMap, env) as Signal<React.ReactNode>)
       }</span>);
 
     } else {
-      const children = node.children.map(child => renderNode(child, annots, env, nextRootId, Link));
+      const children = node.children.map(child => renderNode(child, typesMap, env, nextRootId, Link));
       let rendered;
       if (node.type === 'a') {
         rendered = React.createElement(Link, { key, href: node.href }, ...children);
@@ -653,7 +653,7 @@ ${html}
   return {
     ast,
     exportType: typecheckCode.map(({ exportType }) => exportType),
-    astAnnotations: typecheckInlineCode.map(({ astAnnotations }) => astAnnotations),
+    typesMap: typecheckInlineCode.map(({ astAnnotations }) => astAnnotations),
     problems: typecheckInlineCode.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

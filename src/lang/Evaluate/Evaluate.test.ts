@@ -33,14 +33,14 @@ describe('evaluateExpression', () => {
         venv :
         (Immutable.Map(venv))) :
       (Immutable.Map());
-    const annots = new Map<unknown, Type>();
-    Typecheck.synth(expr, tenv, annots);
+    const typesMap = new Map<unknown, Type>();
+    Typecheck.synth(expr, tenv, typesMap);
 
     // TODO(jaked) not sure why this is necessary
     // maybe because Immutable.Map construction doesn't constrain types?
     if (!isVEnv(venv)) bug(`expected VEnv`);
 
-    expect(Evaluate.evaluateExpression(expr, annots, venv)).toEqual(value)
+    expect(Evaluate.evaluateExpression(expr, typesMap, venv)).toEqual(value)
   }
 
   const error = new Error('error');

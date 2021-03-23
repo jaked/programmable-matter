@@ -24,11 +24,11 @@ function stringOfQualifiedIdentifier(
 
 export default function ofTSType(
   tsType: ESTree.TypeAnnotation,
-  annots?: model.AstAnnotations,
+  typesMap?: model.TypesMap,
 ): Types.Type {
   switch (tsType.type) {
     case 'TSParenthesizedType':
-      return ofTSType(tsType.typeAnnotation, annots);
+      return ofTSType(tsType.typeAnnotation, typesMap);
 
     case 'TSNeverKeyword': return Type.never;
     case 'TSUnknownKeyword': return Type.unknown;
@@ -45,7 +45,7 @@ export default function ofTSType(
             if (mem.type !== 'TSPropertySignature') bug(`unimplemented ${mem.type}`);
             if (mem.key.type !== 'Identifier') bug(`unimplemented ${mem.key.type}`);
             if (!mem.typeAnnotation) bug(`expected type for ${mem.key.name}`);
-            const type = ofTSType(mem.typeAnnotation.typeAnnotation, annots);
+            const type = ofTSType(mem.typeAnnotation.typeAnnotation, typesMap);
             return Object.assign(obj, { [mem.key.name]: type });
           },
           { }
@@ -54,10 +54,10 @@ export default function ofTSType(
     }
 
     case 'TSTupleType':
-      return Type.tuple(...tsType.elementTypes.map(t => ofTSType(t, annots)));
+      return Type.tuple(...tsType.elementTypes.map(t => ofTSType(t, typesMap)));
 
     case 'TSArrayType':
-      return Type.array(ofTSType(tsType.elementType, annots));
+      return Type.array(ofTSType(tsType.elementType, typesMap));
 
     case 'TSFunctionType': {
       const args =
@@ -65,10 +65,10 @@ export default function ofTSType(
           if (param.type !== 'Identifier') bug(`unimplemented ${param.type}`);
           if (!param.typeAnnotation) bug(`expected type for ${param.name}`);
           if (param.typeAnnotation.type !== 'TSTypeAnnotation') bug(`unimplemented ${param.typeAnnotation.type}`);
-          return ofTSType(param.typeAnnotation.typeAnnotation, annots);
+          return ofTSType(param.typeAnnotation.typeAnnotation, typesMap);
         });
       if (!tsType.typeAnnotation) bug(`expected return type`);
-      const ret = ofTSType(tsType.typeAnnotation.typeAnnotation, annots);
+      const ret = ofTSType(tsType.typeAnnotation.typeAnnotation, typesMap);
       return Type.functionType(args, ret);
     }
 
@@ -76,22 +76,22 @@ export default function ofTSType(
       return Type.singleton(tsType.literal.value);
 
     case 'TSUnionType':
-      return union(...tsType.types.map(t => ofTSType(t, annots)));
+      return union(...tsType.types.map(t => ofTSType(t, typesMap)));
 
     case 'TSIntersectionType':
-      return intersection(...tsType.types.map(t => ofTSType(t, annots)));
+      return intersection(...tsType.types.map(t => ofTSType(t, typesMap)));
 
     case 'TSTypeReference': {
       const label = stringOfQualifiedIdentifier(tsType.typeName);
       const tsParams = tsType.typeParameters?.params ?? [];
       const params: Types.Type[] = [];
 
-      // tsParams.map(t => ofTSType(t, annots));
+      // tsParams.map(t => ofTSType(t, typesMap));
 
       switch (label) {
         case 'React.ReactNode':
           tsParams.forEach(tsP =>
-            Error.withLocation(tsP, 'expected 0 params', annots)
+            Error.withLocation(tsP, 'expected 0 params', typesMap)
           );
           break;
 
@@ -104,33 +104,33 @@ export default function ofTSType(
 
         case 'React.Component':
           if (tsParams.length < 1) {
-            Error.withLocation(tsType.typeName, 'expected 1 param', annots);
+            Error.withLocation(tsType.typeName, 'expected 1 param', typesMap);
             params.push(Type.object({ }));
           } else {
             tsParams.forEach((tsP, i) => {
               switch (i) {
                 case 0: {
-                  const param = ofTSType(tsP, annots);
+                  const param = ofTSType(tsP, typesMap);
                   if (param.kind === 'Object') {
                     params.push(param);
                   } else {
-                    Error.withLocation(tsP, 'expected object param', annots)
+                    Error.withLocation(tsP, 'expected object param', typesMap)
                     params.push(Type.object({ }));
                   }
                 }
                 break;
 
                 default:
-                  Error.withLocation(tsP, 'expected 1 param', annots);
+                  Error.withLocation(tsP, 'expected 1 param', typesMap);
               }
             });
           }
           break;
 
         default:
-          Error.withLocation(tsType.typeName, 'unknown type', annots);
+          Error.withLocation(tsType.typeName, 'unknown type', typesMap);
           tsParams.forEach(tsP =>
-            Error.withLocation(tsP, 'unknown type', annots)
+            Error.withLocation(tsP, 'unknown type', typesMap)
           );
           return Type.unknown;
       }

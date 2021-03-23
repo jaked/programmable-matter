@@ -88,12 +88,12 @@ export default function compileFileJson(
   const meta = metaForPath(file.path, compiledFiles);
 
   const compiled = Signal.join(ast, meta).map(([ast, meta]) => {
-    const annots = new Map<unknown, Type>();
+    const typesMap = new Map<unknown, Type>();
     let type =
       meta.dataType ?
-        Typecheck.check(ast, Typecheck.env(), meta.dataType, annots) :
-        Typecheck.synth(ast, Typecheck.env(), annots);
-    const problems = [...annots.values()].some(t => t.kind === 'Error');
+        Typecheck.check(ast, Typecheck.env(), meta.dataType, typesMap) :
+        Typecheck.synth(ast, Typecheck.env(), typesMap);
+    const problems = [...typesMap.values()].some(t => t.kind === 'Error');
 
     if (type.kind === 'Error') {
       // TODO(jaked) these should be Signal.err
@@ -110,7 +110,7 @@ export default function compileFileJson(
         exportType,
         exportValue,
         rendered,
-        annots,
+        typesMap,
         problems,
       }
     } else {
@@ -124,7 +124,7 @@ export default function compileFileJson(
         default: type,
         mutable: lensType(type),
       });
-      const value = Evaluate.evaluateExpression(ast, annots, Immutable.Map());
+      const value = Evaluate.evaluateExpression(ast, typesMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
       const exportValue = new Map([
@@ -148,7 +148,7 @@ export default function compileFileJson(
         exportType,
         exportValue,
         rendered,
-        annots,
+        typesMap: typesMap,
         problems: false,
       };
     }
@@ -157,7 +157,7 @@ export default function compileFileJson(
   return {
     ast,
     exportType: compiled.map(({ exportType }) => exportType),
-    astAnnotations: compiled.map(({ annots }) => annots),
+    typesMap: compiled.map(({ typesMap }) => typesMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

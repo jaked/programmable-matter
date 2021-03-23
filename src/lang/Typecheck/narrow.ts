@@ -3,7 +3,7 @@ import { Tuple2 } from '../../util/Tuple';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { AstAnnotations } from '../../model';
+import { TypesMap } from '../../model';
 import { Env } from './env';
 import { synth } from './synth';
 
@@ -142,13 +142,13 @@ export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
   assume: boolean,
-  annots: AstAnnotations,
+  typesMap: TypesMap,
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':
       switch (ast.operator) {
         case '!':
-          return narrowEnvironment(env, ast.argument, !assume, annots);
+          return narrowEnvironment(env, ast.argument, !assume, typesMap);
         case 'typeof':
           // typeof always returns a truthy value
           return env;
@@ -160,21 +160,21 @@ export function narrowEnvironment(
       switch (ast.operator) {
         case '&&':
           if (assume) {
-            env = narrowEnvironment(env, ast.left, true, annots);
-            return narrowEnvironment(env, ast.right, true, annots);
+            env = narrowEnvironment(env, ast.left, true, typesMap);
+            return narrowEnvironment(env, ast.right, true, typesMap);
           } else return env;
         case '||':
           if (!assume) {
-            env = narrowEnvironment(env, ast.left, false, annots);
-            return narrowEnvironment(env, ast.right, false, annots);
+            env = narrowEnvironment(env, ast.left, false, typesMap);
+            return narrowEnvironment(env, ast.right, false, typesMap);
           } else return env;
         default:
           return bug(`unexpected AST ${(ast as any).operator}`);
       }
 
     case 'BinaryExpression':
-      const left = synth(ast.left, env, annots);
-      const right = synth(ast.right, env, annots);
+      const left = synth(ast.left, env, typesMap);
+      const right = synth(ast.right, env, typesMap);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         env = narrowExpression(env, ast.left, right);
         return narrowExpression(env, ast.right, left);
