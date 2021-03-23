@@ -495,12 +495,12 @@ export default function compileFilePm(
     if (tableType) env = env.set('table', tableType);
 
     const exportTypes: { [s: string]: Type.Type } = {};
-    const astAnnotations = new Map<unknown, Type>();
+    const typesMap = new Map<unknown, Type>();
     codeNodes.forEach(node =>
-      env = synthCode(moduleName, node, moduleTypeEnv, env, exportTypes, astAnnotations)
+      env = synthCode(moduleName, node, moduleTypeEnv, env, exportTypes, typesMap)
     );
     const exportType = Type.module(exportTypes);
-    return { astAnnotations, env, exportType }
+    return { typesMap, env, exportType }
   });
 
   // TODO(jaked)
@@ -509,24 +509,24 @@ export default function compileFilePm(
   const typecheckInlineCode = Signal.join(
     typecheckCode,
     inlineCodeNodes,
-  ).map(([{ astAnnotations, env }, inlineCodeNodes]) => {
+  ).map(([{ typesMap, env }, inlineCodeNodes]) => {
     // clone to avoid polluting annotations between versions
     // TODO(jaked) works fine but not very clear
-    astAnnotations = new Map(astAnnotations);
+    typesMap = new Map(typesMap);
 
     inlineCodeNodes.forEach(node =>
-      synthInlineCode(node, env, astAnnotations)
+      synthInlineCode(node, env, typesMap)
     );
-    const problems = [...astAnnotations.values()].some(t => t.kind === 'Error');
+    const problems = [...typesMap.values()].some(t => t.kind === 'Error');
     if (problems && debug) {
       const errorAnnotations = new Map<unknown, Type>();
-      astAnnotations.forEach((v, k) => {
+      typesMap.forEach((v, k) => {
         if (v.kind === 'Error')
           errorAnnotations.set(k, v);
       });
       console.log(errorAnnotations);
     }
-    return { astAnnotations, problems }
+    return { typesMap, problems }
   });
 
   const ast = Signal.join(codeNodes, inlineCodeNodes).map(_ => parsedCode);
@@ -539,7 +539,7 @@ export default function compileFilePm(
     jsonValue,
     tableValue,
     moduleValueEnv,
-  ).map(([codeNodes, { astAnnotations }, jsonValue, tableValue, moduleValueEnv]) => {
+  ).map(([codeNodes, { typesMap }, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let env = Render.initValueEnv;
 
@@ -548,7 +548,7 @@ export default function compileFilePm(
 
     const exportValue: Map<string, Signal<unknown>> = new Map();
     codeNodes.forEach(node =>
-      env = compileCode(nodes, node, astAnnotations, moduleName, moduleValueEnv, env, exportValue)
+      env = compileCode(nodes, node, typesMap, moduleName, moduleValueEnv, env, exportValue)
     );
     return { env, exportValue };
    });
@@ -562,9 +562,9 @@ export default function compileFilePm(
     ast, // dependency to ensure parsedCode is up to date
     compile,
     typecheckInlineCode,
-  ).map(([nodes, _ast, { env }, { astAnnotations }]) => {
+  ).map(([nodes, _ast, { env }, { typesMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
-    return nodes.map(node => renderNode(node, astAnnotations, env, nextRootId, Link));
+    return nodes.map(node => renderNode(node, typesMap, env, nextRootId, Link));
   });
 
   const html = rendered.map(rendered => {
@@ -591,11 +591,11 @@ ${html}
     nodes,
     ast,
     typecheckInlineCode
-  ).map(([nodes, parsedCode, { astAnnotations }]) => {
+  ).map(([nodes, parsedCode, { typesMap }]) => {
     return Generate.generatePm(
       nodes,
       node => parsedCode.get(node) ?? bug(`expected parsed code`),
-      expr => astAnnotations.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
+      expr => typesMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
     );
   })
 
@@ -653,7 +653,7 @@ ${html}
   return {
     ast,
     exportType: typecheckCode.map(({ exportType }) => exportType),
-    typesMap: typecheckInlineCode.map(({ astAnnotations }) => astAnnotations),
+    typesMap: typecheckInlineCode.map(({ typesMap }) => typesMap),
     problems: typecheckInlineCode.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

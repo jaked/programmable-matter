@@ -142,7 +142,7 @@ type Range = {
 export const makeDecorate =
   (
     parsedCode: WeakMap<Node, unknown>,
-    astAnnotations?: model.TypesMap,
+    typesMap?: model.TypesMap,
   ) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
@@ -151,7 +151,7 @@ export const makeDecorate =
     if (code) {
       code.forEach(code => {
         const spans: Highlight.Span[] = [];
-        Highlight.computeJsSpans(code, astAnnotations, spans);
+        Highlight.computeJsSpans(code, typesMap, spans);
         for (const span of spans) {
           ranges.push({
             anchor: { path, offset: span.start },
@@ -268,11 +268,11 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
 
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   const parsedCode = Signal.useSignal(props.compiledFile.ast) as WeakMap<Node, unknown>;
-  // TODO(jaked) can we use astAnnotations conditionally? breaks the rules of hooks but does it matter?
-  const astAnnotations = Signal.useSignal(props.compiledFile.typesMap ?? Signal.ok(undefined));
+  // TODO(jaked) can we use typesMap conditionally? breaks the rules of hooks but does it matter?
+  const typesMap = Signal.useSignal(props.compiledFile.typesMap ?? Signal.ok(undefined));
   const decorate = React.useMemo(
-    () => makeDecorate(parsedCode, astAnnotations),
-    [astAnnotations],
+    () => makeDecorate(parsedCode, typesMap),
+    [typesMap],
   );
 
   const renderLeaf = React.useMemo(
