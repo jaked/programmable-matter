@@ -75,11 +75,12 @@ export function synthInlineCode(
 function evaluateExpressionSignal(
   ast: ESTree.Expression,
   annots: AstAnnotations,
-  env: Render.Env
-): Signal<any> {
+  env: Render.ValueEnv,
+): Signal<unknown> {
+  // TODO(jaked) join only over dynamic variables
   const idents = ESTree.freeIdentifiers(ast);
   const signals = idents.map(id => {
-    const signal = env.get(id);
+    const signal = env.get(id) as Signal<unknown>;
     if (signal) return signal;
     else return Signal.ok(Error(`unbound identifier ${id}`));
   });
@@ -94,8 +95,8 @@ function importDecl(
   decl: ESTree.ImportDeclaration,
   annots: AstAnnotations,
   moduleEnv: Map<string, Signal<Map<string, Signal<unknown>>>>,
-  env: Render.Env,
-): Render.Env {
+  env: Render.ValueEnv,
+): Render.ValueEnv {
   // TODO(jaked) finding errors in the AST is delicate.
   // need to separate error semantics from error highlighting.
   const type = annots.get(decl.source);
@@ -152,9 +153,9 @@ function evalVariableDecl(
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   annots: AstAnnotations,
-  env: Render.Env,
+  env: Render.ValueEnv,
   exportValue?: Map<string, Signal<unknown>>
-): Render.Env {
+): Render.ValueEnv {
   switch (decl.kind) {
     case 'const': {
       decl.declarations.forEach(declarator => {
@@ -223,18 +224,18 @@ function evalAndExportNamedDecl(
   node: PMAST.Code,
   decl: ESTree.ExportNamedDeclaration,
   annots: AstAnnotations,
-  env: Render.Env,
+  env: Render.ValueEnv,
   exportValue: Map<string, Signal<unknown>>
-): Render.Env {
+): Render.ValueEnv {
   return evalVariableDecl(nodes, node, decl.declaration, annots, env, exportValue);
 }
 
 function exportDefaultDecl(
   decl: ESTree.ExportDefaultDeclaration,
   annots: AstAnnotations,
-  env: Render.Env,
+  env: Render.ValueEnv,
   exportValue: Map<string, Signal<unknown>>
-): Render.Env {
+): Render.ValueEnv {
   const value = evaluateExpressionSignal(decl.declaration, annots, env);
   exportValue.set('default', value);
   return env;
@@ -246,9 +247,9 @@ export function compileCode(
   annots: AstAnnotations,
   moduleName: string,
   moduleEnv: Map<string, Signal<Map<string, Signal<unknown>>>>,
-  env: Render.Env,
+  env: Render.ValueEnv,
   exportValue: Map<string, Signal<unknown>>
-): Render.Env {
+): Render.ValueEnv {
   const code = parsedCode.get(node) ?? bug(`expected parsed code`);
   code.forEach(code => {
     for (const decl of (code as ESTree.Program).body) {
@@ -282,7 +283,7 @@ const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
 export function renderNode(
   node: PMAST.Node,
   annots: AstAnnotations,
-  env: Render.Env,
+  env: Render.ValueEnv,
   nextRootId: [ number ],
   Link: React.FunctionComponent<{ href: string }> = () => null,
 ): React.ReactNode {
@@ -310,7 +311,7 @@ export function renderNode(
         switch (node.type) {
           case 'ExpressionStatement':
             rendered.push(<div id={`__root${nextRootId[0]}`}>{
-              Signal.node(evaluateExpressionSignal(node.expression, annots, env))
+              Signal.node(evaluateExpressionSignal(node.expression, annots, env) as Signal<React.ReactNode>)
             }</div>);
             nextRootId[0]++;
             break;
@@ -324,7 +325,7 @@ export function renderNode(
       const type = annots.get(code.ok) ?? bug(`expected type`);
       if (type.kind === 'Error') return null;
       return (<span id={`__root${nextRootId[0]}`}>{
-        Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env))
+        Signal.node(evaluateExpressionSignal(code.ok as ESTree.Expression, annots, env) as Signal<React.ReactNode>)
       }</span>);
 
     } else {
@@ -540,7 +541,7 @@ export default function compileFilePm(
     moduleValueEnv,
   ).map(([codeNodes, { astAnnotations }, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
-    let env = Render.initValueEnv(setSelected);
+    let env = Render.initValueEnv;
 
     if (jsonValue) env = env.set('data', Signal.ok(jsonValue));
     if (tableValue) env = env.set('table', Signal.ok(tableValue));

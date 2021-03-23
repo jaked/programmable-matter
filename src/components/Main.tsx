@@ -17,7 +17,7 @@ import Editor from './Editor';
 import RichTextEditor from './editor/RichTextEditor';
 
 // TODO(jaked) straighten out dependencies
-import { mouse } from '../lang/Render/initValueEnv';
+import { mouse } from '../lang/Render/initEnv';
 
 interface Props {
   app: App;

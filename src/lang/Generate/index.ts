@@ -325,7 +325,7 @@ function genNode(
           }
 
           default:
-            bug(`unimplemented ${ast.type}`);
+            bug(`unimplemented ${node.type}`);
         }
       }
     }
