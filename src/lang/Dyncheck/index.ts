@@ -9,7 +9,7 @@ export function expression(
   dynamicEnv: Render.DynamicEnv,
 ): boolean {
   const idents = ESTree.freeIdentifiers(ast);
-  return idents.some(ident => dynamicEnv.get(ident) ?? bug(`expected ident`));
+  return idents.some(ident => dynamicEnv.get(ident) ?? false);
 }
 
 function exportDefaultDecl(
@@ -27,7 +27,6 @@ function variableDecl(
   exportDynamic?: Map<string, boolean>,
 ): Render.DynamicEnv {
   decl.declarations.forEach(declarator => {
-    if (!declarator.init) bug(`expected initializer`);
     let dynamic: boolean;
     if (decl.kind === 'let') {
       // updates to let-variables are compile-time changes
@@ -37,8 +36,10 @@ function variableDecl(
       const type = typeEnv.get(declarator.id.name) ?? bug(`expected type`);
       if (type.kind === 'Error')
         dynamic = false;
-      else
+      else {
+        if (!declarator.init) bug(`expected initializer`);
         dynamic = expression(declarator.init, dynamicEnv);
+      }
     }
     if (exportDynamic) exportDynamic.set(declarator.id.name, dynamic);
     dynamicEnv = dynamicEnv.set(declarator.id.name, dynamic);

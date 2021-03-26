@@ -100,8 +100,7 @@ function isDynamic(
   dynamicEnv: Render.DynamicEnv
 ): boolean {
   return ESTree.freeIdentifiers(ast).some(ident => {
-    const dynamic = dynamicEnv.get(ident) ?? bug(`expected dynamic`);
-    return dynamic
+    return dynamicEnv.get(ident) ?? false;
   });
 }
 
@@ -112,8 +111,7 @@ function evaluateExpressionSignal(
   valueEnv: Render.ValueEnv,
 ): Signal<unknown> {
   const dynamicIdents = ESTree.freeIdentifiers(ast).filter(ident => {
-    const dynamic = dynamicEnv.get(ident) ?? bug(`expected dynamic`);
-    return dynamic
+    return dynamicEnv.get(ident) ?? false;
   });
   const signals = dynamicIdents.map(id =>
     (valueEnv.get(id) as Signal<unknown>) ?? bug(`expected signal`)
@@ -197,6 +195,7 @@ function evalVariableDecl(
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   typesMap: TypesMap,
+  typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
   exportValue?: Map<string, unknown>
@@ -205,12 +204,17 @@ function evalVariableDecl(
     case 'const': {
       decl.declarations.forEach(declarator => {
         const name = declarator.id.name;
-        const value =
-          (dynamicEnv.get(name) ?? bug(`expected dynamic`)) ?
-            evaluateExpressionSignal(declarator.init, typesMap, dynamicEnv, valueEnv) :
-            Evaluate.evaluateExpression(declarator.init, typesMap, valueEnv);
-        if (exportValue) exportValue.set(name, value);
-        valueEnv = valueEnv.set(name, value);
+        const type = typeEnv.get(name) ?? bug(`expected type`);
+        if (type.kind === 'Error') {
+          valueEnv = valueEnv.set(name, undefined);
+        } else {
+          const value =
+            (dynamicEnv.get(name) ?? bug(`expected dynamic`)) ?
+              evaluateExpressionSignal(declarator.init, typesMap, dynamicEnv, valueEnv) :
+              Evaluate.evaluateExpression(declarator.init, typesMap, valueEnv);
+          if (exportValue) exportValue.set(name, value);
+          valueEnv = valueEnv.set(name, value);
+        }
       });
     }
     break;
@@ -255,7 +259,7 @@ function evalVariableDecl(
           //   put a cell in the environment so we can update it
           //   Signal.Writable that writes back to node?
         }
-        const lens = Signal.ok(lensValue(value, setValue, type));
+        const lens = lensValue(value, setValue, type);
         if (exportValue) exportValue.set(name, lens);
         valueEnv = valueEnv.set(name, lens);
       });
@@ -272,11 +276,12 @@ function evalAndExportNamedDecl(
   node: PMAST.Code,
   decl: ESTree.ExportNamedDeclaration,
   typesMap: TypesMap,
+  typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
   exportValue: Map<string, unknown>
 ): Render.ValueEnv {
-  return evalVariableDecl(nodes, node, decl.declaration, typesMap, dynamicEnv, valueEnv, exportValue);
+  return evalVariableDecl(nodes, node, decl.declaration, typesMap, typeEnv, dynamicEnv, valueEnv, exportValue);
 }
 
 function exportDefaultDecl(
@@ -287,7 +292,7 @@ function exportDefaultDecl(
   exportValue: Map<string, unknown>
 ): Render.ValueEnv {
   const value =
-    (dynamicEnv.get('default') ?? bug(`expected dynamic`)) ?
+    isDynamic(decl.declaration, dynamicEnv) ?
       evaluateExpressionSignal(decl.declaration, typesMap, dynamicEnv, valueEnv) :
       Evaluate.evaluateExpression(decl.declaration, typesMap, valueEnv);
   exportValue.set('default', value);
@@ -301,6 +306,7 @@ export function compileCode(
   moduleName: string,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
+  typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
   exportValue: Map<string, unknown>
@@ -314,7 +320,7 @@ export function compileCode(
           break;
 
         case 'ExportNamedDeclaration':
-          valueEnv = evalAndExportNamedDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv, exportValue);
+          valueEnv = evalAndExportNamedDecl(nodes, node, decl, typesMap, typeEnv, dynamicEnv, valueEnv, exportValue);
           break;
 
         case 'ExportDefaultDeclaration':
@@ -322,7 +328,7 @@ export function compileCode(
           break;
 
         case 'VariableDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl, typesMap, typeEnv, dynamicEnv, valueEnv);
           break;
       }
     }
@@ -630,7 +636,7 @@ export default function compileFilePm(
     tableValue,
     moduleDynamicEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { typesMap, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { typesMap, typeEnv, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -639,7 +645,7 @@ export default function compileFilePm(
 
     const exportValue: Map<string, Signal<unknown>> = new Map();
     codeNodes.forEach(node =>
-      valueEnv = compileCode(nodes, node, typesMap, moduleName, moduleDynamicEnv, moduleValueEnv, dynamicEnv, valueEnv, exportValue)
+      valueEnv = compileCode(nodes, node, typesMap, moduleName, moduleDynamicEnv, moduleValueEnv, typeEnv, dynamicEnv, valueEnv, exportValue)
     );
     return { valueEnv, exportValue };
   });
@@ -685,12 +691,14 @@ ${html}
   const js = Signal.join(
     nodes,
     ast,
-    typecheckedInlineCode
-  ).map(([nodes, parsedCode, { typesMap }]) => {
+    typecheckedCode,
+    typecheckedInlineCode,
+  ).map(([nodes, parsedCode, { dynamicEnv }, { typesMap }]) => {
     return Generate.generatePm(
       nodes,
       node => parsedCode.get(node) ?? bug(`expected parsed code`),
       expr => typesMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
+      dynamicEnv,
     );
   })
 

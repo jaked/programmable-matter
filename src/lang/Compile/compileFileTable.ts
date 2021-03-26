@@ -263,7 +263,7 @@ export default function compileFileTable(
       // TODO(jaked) should include non-data table fields
       default: lensType(Type.map(Type.string, tableDataType))
     });
-    const exportValue = new Map([[ 'default', table ]]);
+    const exportValue = table.map(table => new Map([[ 'default', table ]]));
 
     const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
 
@@ -286,7 +286,7 @@ export default function compileFileTable(
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
-    exportValue: compiled.map(({ exportValue }) => exportValue),
+    exportValue: compiled.flatMap(({ exportValue }) => exportValue),
     exportDynamic,
     rendered: compiled.flatMap(({ rendered }) => rendered),
   };

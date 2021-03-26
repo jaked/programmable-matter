@@ -72,10 +72,10 @@ export default function compileFilePng(
       default: imgType,
     });
     const exportValue = new Map<string, unknown>([
-      [ 'buffer', Signal.ok(buffer) ],
-      [ 'objectUrl', Signal.ok(objectUrl) ],
-      [ 'img', Signal.ok(component) ],
-      [ 'default', Signal.ok(component) ],
+      [ 'buffer', buffer ],
+      [ 'objectUrl', objectUrl ],
+      [ 'img', component ],
+      [ 'default', component ],
     ])
 
     const rendered =
