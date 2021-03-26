@@ -79,7 +79,7 @@ it('compiles exports', () => {
   });
   expect(compiled.problems.get()).toBeFalsy();
   expect(compiled.exportType.get().getFieldType('foo')).toEqual(Type.singleton(7));
-  expect(compiled.exportValue.get().get('foo')?.get()).toEqual(7);
+  expect(compiled.exportValue.get().get('foo')).toEqual(7);
 });
 
 it('reports errors', () => {
@@ -280,7 +280,8 @@ it('compiles with import', () => {
         problems: Signal.err(new Error('problems')),
         rendered: Signal.err(new Error('rendered')),
         exportType: Signal.ok(Type.module({ bar: Type.number })),
-        exportValue: Signal.ok(new Map([[ 'bar', Signal.ok(9) ]])),
+        exportValue: Signal.ok(new Map([[ 'bar', 9 ]])),
+        exportDynamic: Signal.ok(new Map([[ 'bar', false ]])),
       },
     ]])),
   );
@@ -304,9 +305,9 @@ it('compiles referencing data / table', () => {
         nodes: [
           { type: 'p', children: [
             { text: 'foo ' },
-            { type: 'inlineCode', children: [{ text: 'data.bar' }]},
+           { type: 'inlineCode', children: [{ text: 'data.bar' }]},
             { text: ' ' },
-            { type: 'inlineCode', children: [{ text: 'table.baz' }]},
+           { type: 'inlineCode', children: [{ text: 'table.baz' }]},
           ]},
         ]
       })
@@ -314,14 +315,16 @@ it('compiles referencing data / table', () => {
     Signal.ok(new Map([
       ['/foo.json', {
         exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
-        exportValue: Signal.ok(new Map([[ 'mutable', Signal.ok({ bar: 'bar' }) ]])),
+        exportValue: Signal.ok(new Map([[ 'mutable', { bar: 'bar' } ]])),
+        exportDynamic: Signal.ok(new Map([[ 'mutable', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
       }],
       ['/foo.table', {
         exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
-        exportValue: Signal.ok(new Map([[ 'default', Signal.ok({ baz: 7 }) ]])),
+        exportValue: Signal.ok(new Map([[ 'default', { baz: 7 } ]])),
+        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
@@ -363,10 +366,10 @@ it('compiles with layout', () => {
           default: Type.layoutFunctionType,
         })),
         exportValue: Signal.ok(new Map([[
-          'default', Signal.ok((props: { children: React.ReactNode, meta: {} }) =>
+          'default', (props: { children: React.ReactNode, meta: {} }) =>
             React.createElement('div', {}, props.children)
-          )
         ]])),
+        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
       }
     ]])),
   );

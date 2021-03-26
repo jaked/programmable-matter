@@ -53,6 +53,7 @@ export default function compileFileXml(
     problems: Signal.ok(false),
     exportType: Signal.ok(Type.module({})),
     exportValue: Signal.ok(new Map()),
+    exportDynamic: Signal.ok(new Map()),
     rendered
   }
 }

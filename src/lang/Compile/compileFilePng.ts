@@ -27,6 +27,13 @@ const styleType = Type.undefinedOr(Type.object({
   padding: Type.undefinedOrString,
 }));
 
+const exportDynamic = Signal.ok(new Map<string, boolean>([
+  [ 'buffer', false ],
+  [ 'objectUrl', false ],
+  [ 'img', false ],
+  [ 'default', false ],
+]));
+
 export default function compileFilePng(
   file: Content
 ): CompiledFile {
@@ -64,7 +71,7 @@ export default function compileFilePng(
       img: imgType,
       default: imgType,
     });
-    const exportValue = new Map<string, Signal<unknown>>([
+    const exportValue = new Map<string, unknown>([
       [ 'buffer', Signal.ok(buffer) ],
       [ 'objectUrl', Signal.ok(objectUrl) ],
       [ 'img', Signal.ok(component) ],
@@ -95,6 +102,7 @@ export default function compileFilePng(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
+    exportDynamic,
     rendered: compiled.map(({ rendered }) => rendered)
   };
 }

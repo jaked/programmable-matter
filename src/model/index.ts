@@ -53,11 +53,14 @@ export type Table = {
 
 export interface CompiledFile {
   ast: Signal<unknown>;
-  exportType: Signal<Type.ModuleType>;
   typesMap?: Signal<TypesMap>;
   problems: Signal<boolean>;
-  exportValue: Signal<Map<string, Signal<unknown>>>;
   rendered: Signal<React.ReactNode>;
+
+  // TODO(jaked) bundle these together?
+  exportType: Signal<Type.ModuleType>;
+  exportDynamic: Signal<Map<string, boolean>>;
+  exportValue: Signal<Map<string, unknown>>;
 
   // filled in only for .pm files
   html?: Signal<string>;
@@ -72,8 +75,10 @@ export type CompiledNote = {
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
 
+  // TODO(jaked) bundle these together?
   exportType: Signal<Type.ModuleType>;
-  exportValue: Signal<Map<string, Signal<unknown>>>;
+  exportDynamic: Signal<Map<string, boolean>>;
+  exportValue: Signal<Map<string, unknown>>;
 
   // passed through from CompiledFile for .pm file
   html?: Signal<string>;

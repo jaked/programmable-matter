@@ -11,11 +11,11 @@ export function every<K, V>(
 
 export function map<K, V, U>(
   vmap: Map<K, V>,
-  f: (v: V) => U
+  f: (v: V, k: K) => U
 ): Map<K, U> {
   const umap = new Map<K, U>();
   vmap.forEach((v, k) => {
-    umap.set(k, f(v));
+    umap.set(k, f(v, k));
   });
   return umap;
 }

@@ -785,6 +785,7 @@ function importDecl(
             env = env.set(spec.local.name, importedField._2);
           } else {
             const error = Error.withLocation(spec.imported, `no exported member '${spec.imported.name}' on '${decl.source.value}'`, typesMap);
+            typesMap.set(spec.local, error);
             env = env.set(spec.local.name, error);
           }
         }

@@ -1,21 +1,20 @@
 import * as Path from 'path';
-import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import Type from '../Type';
 import * as model from '../../model';
 
 function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
-  return metaFile.exportValue.flatMap(exportValue =>
-    exportValue.get('default') ?? bug(`expected default`)
-  ).liftToTry().map(metaTry =>
-    metaTry.type === 'ok' ? metaTry.ok as model.Meta : {}
-  );
+  return metaFile.exportValue.map(exportValue => {
+    const meta = exportValue.get('default');
+    return (meta instanceof Error) ? {} : meta as model.Meta
+  });
 }
 
 const emptyMeta: model.CompiledFile = {
   exportType: Signal.ok(Type.module({ })),
-  exportValue: Signal.ok(new Map([[ 'default', Signal.ok({}) ]])),
+  exportValue: Signal.ok(new Map([[ 'default', {} ]])),
+  exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
   rendered: Signal.ok(null),
   problems: Signal.ok(false),
   ast: Signal.ok(null),

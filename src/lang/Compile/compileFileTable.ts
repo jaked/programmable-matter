@@ -96,7 +96,7 @@ function computeTable(
   const tryLensTable = Signal.joinImmutableMap(Signal.ok(
     Immutable.Map<string, Signal<Try<any>>>().withMutations(map =>
       noteEnv.forEach((note, name) => {
-        const mutableValue = note.exportValue.flatMap(exportValue =>
+        const mutableValue = note.exportValue.map(exportValue =>
           exportValue.get('mutable') ?? bug(`expected mutable value`)
         );
 
@@ -202,6 +202,8 @@ function computeFields(
   });
 }
 
+const exportDynamic = Signal.ok(new Map([[ 'default', false ]]));
+
 export default function compileFileTable(
   file: Content,
   compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
@@ -244,7 +246,7 @@ export default function compileFileTable(
       return {
         // TODO(jaked) these should be Signal.err
         exportType: Type.module({ default: error }),
-        exportValue: new Map([[ 'default', Signal.ok(error.err) ]]),
+        exportValue: new Map([[ 'default', error.err ]]),
         rendered: Signal.ok(null),
         typesMap,
         problems,
@@ -285,6 +287,7 @@ export default function compileFileTable(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
+    exportDynamic,
     rendered: compiled.flatMap(({ rendered }) => rendered),
   };
 }

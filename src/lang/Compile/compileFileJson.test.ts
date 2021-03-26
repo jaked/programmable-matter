@@ -39,10 +39,11 @@ it('compiles with meta', () => {
       'foo.meta', {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok(new Map([[
-          'default', Signal.ok({
+          'default', {
             dataType: Type.object({ foo: Type.number })
-          })
+          }
         ]])),
+        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),
@@ -63,7 +64,8 @@ it('succeeds with meta error', () => {
     Signal.ok(new Map([[
       'foo.meta', {
         exportType: Signal.ok(Type.module({ })),
-        exportValue: Signal.ok(new Map([[ 'default', Signal.err(new Error('bad meta')) ]])),
+        exportValue: Signal.ok(new Map([[ 'default', new Error('bad meta') ]])),
+        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),
@@ -86,10 +88,11 @@ it('succeeds with type error', () => {
       'foo.meta', {
         exportType: Signal.ok(Type.module({ })),
         exportValue: Signal.ok(new Map([[
-          'default', Signal.ok({
+          'default', {
             dataType: Type.object({ foo: Type.string })
-          })
+          }
         ]])),
+        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.ok(null),

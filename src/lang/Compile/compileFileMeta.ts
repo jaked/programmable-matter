@@ -8,6 +8,7 @@ import { Content, CompiledFile } from '../../model';
 import * as Meta from '../../model/Meta';
 
 const exportType = Signal.ok(Type.module({ default: Type.metaType }));
+const exportDynamic = Signal.ok(new Map([[ 'default', false ]]));
 const rendered = Signal.ok(null);
 
 export default function compileFileMeta(
@@ -19,8 +20,8 @@ export default function compileFileMeta(
     const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, typesMap);
     const problems = [...typesMap.values()].some(t => t.kind === 'Error');
     const value = error.kind === 'Error' ?
-      Signal.err(error.err) :
-      Signal.ok(Meta.validate(Evaluate.evaluateExpression(ast, typesMap, Immutable.Map())));
+      error.err :
+      Meta.validate(Evaluate.evaluateExpression(ast, typesMap, Immutable.Map()));
     const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,
@@ -37,6 +38,7 @@ export default function compileFileMeta(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
+    exportDynamic,
     rendered
   };
 }

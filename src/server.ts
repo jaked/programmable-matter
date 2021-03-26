@@ -62,12 +62,12 @@ export default class Server {
       if (ext === '.jpeg') {
         const buffer = note.exportValue.get().get('buffer') ?? bug(`expected buffer`);
         res.setHeader("Content-Type", "image/jpeg");
-        res.end(buffer.get());
+        res.end(buffer);
 
       } else if (ext === '.png') {
           const buffer = note.exportValue.get().get('buffer') ?? bug(`expected buffer`);
           res.setHeader("Content-Type", "image/png");
-          res.end(buffer.get());
+          res.end(buffer);
 
       } else if (ext === '.xml') {
         note.rendered.depend(this.reload);

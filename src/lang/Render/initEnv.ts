@@ -68,7 +68,7 @@ const styleType = Type.undefinedOr(Type.object({
 
 type Binding = {
   type: Type,
-  value: unknown | Signal<unknown>,
+  value: unknown,
   dynamic: boolean
 };
 // TODO(jaked) full types for components

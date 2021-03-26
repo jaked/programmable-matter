@@ -76,6 +76,11 @@ function fieldComponent(field: string, type: Type) {
   }
 }
 
+const exportDynamic = Signal.ok(new Map([
+  [ 'default', false ],
+  [ 'mutable', false ],
+]));
+
 export default function compileFileJson(
   file: Content,
   compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
@@ -102,8 +107,8 @@ export default function compileFileJson(
         mutable: type,
       });
       const exportValue = new Map([
-        [ 'default', Signal.ok(type.err) ],
-        [ 'mutable', Signal.ok(type.err) ]
+        [ 'default', type.err ],
+        [ 'mutable', type.err ]
       ]);
       const rendered = Signal.ok(null);
       return {
@@ -128,8 +133,8 @@ export default function compileFileJson(
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
       const exportValue = new Map([
-        [ 'default', Signal.ok(value) ],
-        [ 'mutable', Signal.ok(lens) ]
+        [ 'default', value ],
+        [ 'mutable', lens ]
       ]);
 
       const rendered = Signal.constant(Try.apply(() => {
@@ -162,6 +167,7 @@ export default function compileFileJson(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
+    exportDynamic,
     rendered: compiled.flatMap(({ rendered }) => rendered),
   };
 }

@@ -22,10 +22,10 @@ function mergeModuleType(
   );
 }
 
-function mergeModuleValue(
-  v1: Signal<Map<string, Signal<unknown>>>,
-  v2: Signal<Map<string, Signal<unknown>>>,
-): Signal<Map<string, Signal<unknown>>> {
+function mergeModule<T>(
+  v1: Signal<Map<string, T>>,
+  v2: Signal<Map<string, T>>,
+): Signal<Map<string, T>> {
   return Signal.join(v1, v2).map(([v1, v2]) => new Map([...v1.entries(), ...v2.entries()]));
 }
 
@@ -92,46 +92,54 @@ export function compileFiles(
       ).map(([pm, table, json, jpeg, png, meta, xml]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
-        let exportValue: Signal<Map<string, Signal<unknown>>> = Signal.ok(new Map());
+        let exportValue: Signal<Map<string, unknown>> = Signal.ok(new Map());
+        let exportDynamic: Signal<Map<string, boolean>> = Signal.ok(new Map());
         let html: Signal<string> | undefined;
         let js: Signal<string> | undefined;
 
         if (meta) {
           rendered = meta.rendered;
           exportType = mergeModuleType(exportType, meta.exportType);
-          exportValue = mergeModuleValue(exportValue, meta.exportValue);
+          exportValue = mergeModule(exportValue, meta.exportValue);
+          exportDynamic = mergeModule(exportDynamic, meta.exportDynamic);
         }
         if (table) {
           rendered = table.rendered;
           exportType = mergeModuleType(exportType, table.exportType);
-          exportValue = mergeModuleValue(exportValue, table.exportValue);
+          exportValue = mergeModule(exportValue, table.exportValue);
+          exportDynamic = mergeModule(exportDynamic, table.exportDynamic);
         }
         if (json) {
           rendered = json.rendered;
           exportType = mergeModuleType(exportType, json.exportType);
-          exportValue = mergeModuleValue(exportValue, json.exportValue);
+          exportValue = mergeModule(exportValue, json.exportValue);
+          exportDynamic = mergeModule(exportDynamic, json.exportDynamic);
         }
         if (jpeg) {
           rendered = jpeg.rendered;
           exportType = mergeModuleType(exportType, jpeg.exportType);
-          exportValue = mergeModuleValue(exportValue, jpeg.exportValue);
+          exportValue = mergeModule(exportValue, jpeg.exportValue);
+          exportDynamic = mergeModule(exportDynamic, jpeg.exportDynamic);
         }
         if (png) {
           rendered = png.rendered;
           exportType = mergeModuleType(exportType, png.exportType);
-          exportValue = mergeModuleValue(exportValue, png.exportValue);
+          exportValue = mergeModule(exportValue, png.exportValue);
+          exportDynamic = mergeModule(exportDynamic, png.exportDynamic);
         }
         if (pm) {
           rendered = pm.rendered;
           exportType = mergeModuleType(exportType, pm.exportType);
-          exportValue = mergeModuleValue(exportValue, pm.exportValue);
+          exportValue = mergeModule(exportValue, pm.exportValue);
+          exportDynamic = mergeModule(exportDynamic, pm.exportDynamic);
           html = pm.html;
           js = pm.js;
         }
         if (xml) {
           rendered = xml.rendered;
           exportType = mergeModuleType(exportType, xml.exportType);
-          exportValue = mergeModuleValue(exportValue, xml.exportValue);
+          exportValue = mergeModule(exportValue, xml.exportValue);
+          exportDynamic = mergeModule(exportDynamic, xml.exportDynamic);
         }
 
         // TODO(jaked) ugh optional Signal-valued fields are a pain
@@ -152,6 +160,7 @@ export function compileFiles(
           rendered,
           exportType,
           exportValue,
+          exportDynamic,
           html,
           js,
         };
@@ -188,6 +197,7 @@ export function compileFiles(
         rendered: parts.flatMap(parts => parts.rendered),
         exportType: parts.flatMap(parts => parts.exportType),
         exportValue: parts.flatMap(parts => parts.exportValue),
+        exportDynamic: parts.flatMap(parts => parts.exportDynamic),
         html: type === 'pm' ? parts.flatMap(parts => parts.html ?? bug()) : undefined,
         js: type === 'pm' ? parts.flatMap(parts => parts.js ?? bug()) : undefined,
       };

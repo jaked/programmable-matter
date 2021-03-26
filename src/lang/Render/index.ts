@@ -6,7 +6,7 @@ import Type from '../Type';
 import initEnv from './initEnv';
 
 export type TypeEnv = Immutable.Map<string, Type>;
-export type ValueEnv = Immutable.Map<string, unknown | Signal<unknown>>;
+export type ValueEnv = Immutable.Map<string, unknown>;
 export type DynamicEnv = Immutable.Map<string, boolean>;
 
 export const initTypeEnv: TypeEnv = initEnv.map(({ type }) => type);
