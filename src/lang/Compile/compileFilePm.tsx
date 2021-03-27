@@ -95,31 +95,43 @@ function typecheckInlineCode(
   );
 }
 
-function isDynamic(
-  ast: ESTree.Expression,
-  dynamicEnv: Render.DynamicEnv
-): boolean {
-  return ESTree.freeIdentifiers(ast).some(ident => {
-    return dynamicEnv.get(ident) ?? false;
-  });
-}
-
-function evaluateExpressionSignal(
+function evalDynamicExpression(
   ast: ESTree.Expression,
   typesMap: TypesMap,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
-): Signal<unknown> {
-  const dynamicIdents = ESTree.freeIdentifiers(ast).filter(ident => {
+): { value: unknown, dynamic: boolean } {
+  const type = typesMap.get(ast) ?? bug(`expected type`);
+  if (type.kind === 'Error') return { value: undefined, dynamic: false };
+  const idents = ESTree.freeIdentifiers(ast).filter(ident => {
     return dynamicEnv.get(ident) ?? false;
   });
-  const signals = dynamicIdents.map(id =>
+  const signals = idents.map(id =>
     (valueEnv.get(id) as Signal<unknown>) ?? bug(`expected signal`)
   );
-  return Signal.join(...signals).map(values => {
-    valueEnv = valueEnv.concat(Immutable.Map(dynamicIdents.map((id, i) => [id, values[i]])));
-    return Evaluate.evaluateExpression(ast, typesMap, valueEnv);
-  });
+  switch (signals.length) {
+    case 0:
+      return {
+        value: Evaluate.evaluateExpression(ast, typesMap, valueEnv),
+        dynamic: false
+      };
+    case 1:
+      return {
+        value: signals[0].map(value => {
+          const valueEnv2 = valueEnv.set(idents[0], value);
+          return Evaluate.evaluateExpression(ast, typesMap, valueEnv2);
+        }),
+        dynamic: true
+      };
+    default:
+      return {
+        value: Signal.join(...signals).map(values => {
+          const valueEnv2 = valueEnv.concat(Immutable.Map(idents.map((id, i) => [id, values[i]])));
+          return Evaluate.evaluateExpression(ast, typesMap, valueEnv2);
+        }),
+        dynamic: true
+      };
+  }
 }
 
 function importDecl(
@@ -165,9 +177,7 @@ function importDecl(
 
         case 'ImportDefaultSpecifier': {
           const type = typesMap.get(spec.local);
-          if (type && type.kind === 'Error') {
-            valueEnv = valueEnv.set(spec.local.name, type.err);
-          } else {
+          if (!type || type.kind !== 'Error') {
             const defaultField = moduleValue.get('default') ?? bug(`expected default`);
             valueEnv = valueEnv.set(spec.local.name, defaultField);
           }
@@ -176,9 +186,7 @@ function importDecl(
 
         case 'ImportSpecifier': {
           const type = typesMap.get(spec.imported);
-          if (type && type.kind === 'Error') {
-            valueEnv = valueEnv.set(spec.local.name, type.err);
-          } else {
+          if (!type || type.kind !== 'Error') {
             const importedField = moduleValue.get(spec.imported.name) ?? bug(`expected ${spec.imported.name}`);
             valueEnv = valueEnv.set(spec.local.name, importedField);
           }
@@ -195,7 +203,6 @@ function evalVariableDecl(
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   typesMap: TypesMap,
-  typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
   exportValue?: Map<string, unknown>
@@ -203,18 +210,11 @@ function evalVariableDecl(
   switch (decl.kind) {
     case 'const': {
       decl.declarations.forEach(declarator => {
+        if (!declarator.init) return;
         const name = declarator.id.name;
-        const type = typeEnv.get(name) ?? bug(`expected type`);
-        if (type.kind === 'Error') {
-          valueEnv = valueEnv.set(name, undefined);
-        } else {
-          const value =
-            (dynamicEnv.get(name) ?? bug(`expected dynamic`)) ?
-              evaluateExpressionSignal(declarator.init, typesMap, dynamicEnv, valueEnv) :
-              Evaluate.evaluateExpression(declarator.init, typesMap, valueEnv);
-          if (exportValue) exportValue.set(name, value);
-          valueEnv = valueEnv.set(name, value);
-        }
+        const { value } = evalDynamicExpression(declarator.init, typesMap, dynamicEnv, valueEnv);
+        if (exportValue) exportValue.set(name, value);
+        valueEnv = valueEnv.set(name, value);
       });
     }
     break;
@@ -276,12 +276,11 @@ function evalAndExportNamedDecl(
   node: PMAST.Code,
   decl: ESTree.ExportNamedDeclaration,
   typesMap: TypesMap,
-  typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
   exportValue: Map<string, unknown>
 ): Render.ValueEnv {
-  return evalVariableDecl(nodes, node, decl.declaration, typesMap, typeEnv, dynamicEnv, valueEnv, exportValue);
+  return evalVariableDecl(nodes, node, decl.declaration, typesMap, dynamicEnv, valueEnv, exportValue);
 }
 
 function exportDefaultDecl(
@@ -291,10 +290,7 @@ function exportDefaultDecl(
   valueEnv: Render.ValueEnv,
   exportValue: Map<string, unknown>
 ): Render.ValueEnv {
-  const value =
-    isDynamic(decl.declaration, dynamicEnv) ?
-      evaluateExpressionSignal(decl.declaration, typesMap, dynamicEnv, valueEnv) :
-      Evaluate.evaluateExpression(decl.declaration, typesMap, valueEnv);
+  const { value } = evalDynamicExpression(decl.declaration, typesMap, dynamicEnv, valueEnv);
   exportValue.set('default', value);
   return valueEnv;
 }
@@ -306,7 +302,6 @@ export function compileCode(
   moduleName: string,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
-  typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Render.ValueEnv,
   exportValue: Map<string, unknown>
@@ -320,7 +315,7 @@ export function compileCode(
           break;
 
         case 'ExportNamedDeclaration':
-          valueEnv = evalAndExportNamedDecl(nodes, node, decl, typesMap, typeEnv, dynamicEnv, valueEnv, exportValue);
+          valueEnv = evalAndExportNamedDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv, exportValue);
           break;
 
         case 'ExportDefaultDeclaration':
@@ -328,7 +323,7 @@ export function compileCode(
           break;
 
         case 'VariableDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl, typesMap, typeEnv, dynamicEnv, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv);
           break;
       }
     }
@@ -371,15 +366,15 @@ export function renderNode(
       const rendered: React.ReactNode[] = [];
       for (const node of (code.ok as ESTree.Program).body) {
         if (node.type === 'ExpressionStatement') {
-          const type = typesMap.get(node.expression) ?? bug(`expected type`);
-          if (type.kind !== 'Error') {
-            if (isDynamic(node.expression, dynamicEnv)) {
-              const signal = evaluateExpressionSignal(node.expression, typesMap, dynamicEnv, valueEnv) as Signal<React.ReactNode>;
-              rendered.push(<div id={`__root${nextRootId[0]}`}>{Signal.node(signal)}</div>);
-              nextRootId[0]++;
-            } else {
-              rendered.push(Evaluate.evaluateExpression(node.expression, typesMap, valueEnv));
-            }
+          const { value, dynamic } =
+            evalDynamicExpression(node.expression, typesMap, dynamicEnv, valueEnv);
+          if (dynamic) {
+            rendered.push(<div id={`__root${nextRootId[0]}`}>{
+              Signal.node(value as Signal<React.ReactNode>)
+            }</div>);
+            nextRootId[0]++;
+          } else {
+            rendered.push(value as React.ReactNode);
           }
         }
       }
@@ -389,15 +384,16 @@ export function renderNode(
       const code = parsedCode.get(node) ?? bug(`expected parsed code`);
       if (code.type !== 'ok') return null;
       const expr = code.ok as ESTree.Expression;
-      const type = typesMap.get(expr) ?? bug(`expected type`);
-      if (type.kind === 'Error') return null;
-      if (isDynamic(expr, dynamicEnv)) {
-        const signal = evaluateExpressionSignal(expr, typesMap, dynamicEnv, valueEnv) as Signal<React.ReactNode>;
-        const elem = <span id={`__root${nextRootId[0]}`}>{Signal.node(signal)}</span>;
+      const { value, dynamic } =
+        evalDynamicExpression(expr, typesMap, dynamicEnv, valueEnv);
+      if (dynamic) {
+        const elem = <span id={`__root${nextRootId[0]}`}>
+          {Signal.node(value as Signal<React.ReactNode>)}
+        </span>;
         nextRootId[0]++;
         return elem;
       } else {
-        return Evaluate.evaluateExpression(expr, typesMap, valueEnv)
+        return value as React.ReactNode
       }
 
     } else {
@@ -636,7 +632,7 @@ export default function compileFilePm(
     tableValue,
     moduleDynamicEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { typesMap, typeEnv, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { typesMap, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -645,7 +641,7 @@ export default function compileFilePm(
 
     const exportValue: Map<string, Signal<unknown>> = new Map();
     codeNodes.forEach(node =>
-      valueEnv = compileCode(nodes, node, typesMap, moduleName, moduleDynamicEnv, moduleValueEnv, typeEnv, dynamicEnv, valueEnv, exportValue)
+      valueEnv = compileCode(nodes, node, typesMap, moduleName, moduleDynamicEnv, moduleValueEnv, dynamicEnv, valueEnv, exportValue)
     );
     return { valueEnv, exportValue };
   });
@@ -667,40 +663,6 @@ export default function compileFilePm(
     const nextRootId: [ number ] = [ 0 ];
     return nodes.map(node => renderNode(node, typesMap, dynamicEnv, valueEnv, nextRootId, Link));
   });
-
-  const html = rendered.map(rendered => {
-    const renderedWithContext =
-      React.createElement(Render.context.Provider, { value: 'server' }, rendered)
-    const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
-    const script = `<script type='module' src='${moduleName}.js'></script>`
-    const headIndex = html.indexOf('</head>');
-    if (headIndex === -1) {
-      return `<html>
-<head>
-${script}
-</head>
-<body>
-${html}
-</body>
-</html>`
-    } else {
-      return `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
-    }
-  });
-
-  const js = Signal.join(
-    nodes,
-    ast,
-    typecheckedCode,
-    typecheckedInlineCode,
-  ).map(([nodes, parsedCode, { dynamicEnv }, { typesMap }]) => {
-    return Generate.generatePm(
-      nodes,
-      node => parsedCode.get(node) ?? bug(`expected parsed code`),
-      expr => typesMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
-      dynamicEnv,
-    );
-  })
 
   const debug = false;
   const meta = (file.content as Signal.Writable<model.PMContent>).map(content => content.meta);
@@ -761,6 +723,40 @@ ${html}
       );
     } else
       return rendered
+  });
+
+  const html = renderedWithLayout.map(rendered => {
+    const renderedWithContext =
+      React.createElement(Render.context.Provider, { value: 'server' }, rendered)
+    const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+    const script = `<script type='module' src='${moduleName}.js'></script>`
+    const headIndex = html.indexOf('</head>');
+    if (headIndex === -1) {
+      return `<html>
+<head>
+${script}
+</head>
+<body>
+${html}
+</body>
+</html>`
+    } else {
+      return `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
+    }
+  });
+
+  const js = Signal.join(
+    nodes,
+    ast,
+    typecheckedCode,
+    typecheckedInlineCode,
+  ).map(([nodes, parsedCode, { dynamicEnv }, { typesMap }]) => {
+    return Generate.generatePm(
+      nodes,
+      node => parsedCode.get(node) ?? bug(`expected parsed code`),
+      expr => typesMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
+      dynamicEnv,
+    );
   });
 
   return {

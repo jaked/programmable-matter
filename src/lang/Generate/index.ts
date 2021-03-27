@@ -4,6 +4,7 @@ import Try from '../../util/Try';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
+import * as Render from '../Render';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
@@ -208,16 +209,20 @@ function genExpr(
   }
 }
 
-function genExprSignal(
+function genDynamicExpr(
   ast: ESTree.Expression,
   typesMap: (e: ESTree.Expression) => Type,
-  env: Map<string, JS.Expression>,
+  dynamicEnv: Render.DynamicEnv,
+  valueEnv: Map<string, JS.Expression>,
 ): JS.Expression {
-  const idents = ESTree.freeIdentifiers(ast);
-  console.log(idents);
-  const signals = idents.map(ident => env.get(ident) ?? JS.identifier(ident));
+  const type = typesMap(ast);
+  if (type.kind === 'Error') return JS.identifier('undefined');
+  const idents = ESTree.freeIdentifiers(ast).filter(ident => {
+    return dynamicEnv.get(ident) ?? false;
+  });
+  const signals = idents.map(ident => valueEnv.get(ident) ?? JS.identifier(ident));
   // shadow the bindings of things in the global environment
-  const env2 = Immer.produce(env, env => {
+  const env2 = Immer.produce(valueEnv, env => {
     idents.forEach(ident => {
       (env as Map<string, JS.Expression>).set(ident, JS.identifier(ident));
     });
@@ -226,13 +231,7 @@ function genExprSignal(
 
   switch (idents.length) {
     case 0:
-      // Signal.ok(${expr})
-      return (
-        JS.callExpression(
-          JS.memberExpression(JS.identifier('Signal'), JS.identifier('ok')),
-          [ expr ]
-        )
-      );
+      return expr;
 
     case 1:
       // ${signal}.map({$ident} => expr)
@@ -270,11 +269,22 @@ function genExprSignal(
   }
 }
 
+function isDynamic(
+  ast: ESTree.Expression,
+  dynamicEnv: Render.DynamicEnv
+): boolean {
+  return ESTree.freeIdentifiers(ast).some(ident => {
+    const dynamic = dynamicEnv.get(ident) ?? bug(`expected dynamic`);
+    return dynamic
+  });
+}
+
 function genNode(
   node: PMAST.Node,
   parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
   typesMap: (e: ESTree.Expression) => Type,
-  env: Map<string, JS.Expression>,
+  dynamicEnv: Render.DynamicEnv,
+  valueEnv: Map<string, JS.Expression>,
   decls: JS.Statement[],
   hydrates: JS.Statement[],
 ): void {
@@ -287,7 +297,7 @@ function genNode(
           [
             JS.callExpression(
               JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
-              [ genExprSignal(e, typesMap, env) ]
+              [ genDynamicExpr(e, typesMap, dynamicEnv, valueEnv) ]
             ),
             JS.callExpression(
               JS.memberExpression(JS.identifier('document'), JS.identifier('getElementById')),
@@ -304,25 +314,35 @@ function genNode(
     if (ast.type === 'ok') {
       for (const node of (ast.ok as ESTree.Program).body) {
         switch (node.type) {
-          case 'ExpressionStatement':
-            hydrate(node.expression);
-            break;
+          case 'ExpressionStatement': {
+            const type = typesMap(node.expression);
+            if (type.kind !== 'Error' && isDynamic(node.expression, dynamicEnv)) {
+              hydrate(node.expression);
+            }
+          }
+          break;
 
           // TODO(jaked) do this as a separate pass maybe
           case 'VariableDeclaration': {
             switch (node.kind) {
               case 'const': {
                 for (const declarator of node.declarations) {
-                  const id = declarator.id.name;
-                  const init = genExprSignal(declarator.init, typesMap, env);
+                  if (!declarator.init) return;
+                  const name = declarator.id.name;
+                  const init =
+                    genDynamicExpr(declarator.init, typesMap, dynamicEnv, valueEnv);
                   decls.push(JS.variableDeclaration('const', [
-                    JS.variableDeclarator(JS.identifier(id), init)
+                    JS.variableDeclarator(JS.identifier(name), init)
                   ]));
                 }
               }
             }
             break;
           }
+
+          case 'ImportDeclaration':
+            // TODO(jaked)
+            break;
 
           default:
             bug(`unimplemented ${node.type}`);
@@ -333,30 +353,39 @@ function genNode(
   } else if (PMAST.isInlineCode(node)) {
     const ast = parsedCode(node);
     if (ast.type === 'ok') {
-      hydrate(ast.ok as ESTree.Expression);
+      const expr = ast.ok as ESTree.Expression;
+      const type = typesMap(expr);
+      if (type.kind !== 'Error' && isDynamic(expr, dynamicEnv)) {
+        hydrate(expr);
+      }
     }
 
   } else if (PMAST.isElement(node)) {
-    node.children.forEach(child => genNode(child, parsedCode, typesMap, env, decls, hydrates));
+    node.children.forEach(child => genNode(child, parsedCode, typesMap, dynamicEnv, valueEnv, decls, hydrates));
   }
 }
 
 export function generatePm(
   nodes: PMAST.Node[],
   parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
-  typesMap: (e: ESTree.Expression) => Type
+  typesMap: (e: ESTree.Expression) => Type,
+  dynamicEnv: Render.DynamicEnv,
 ) {
   const decls: JS.Statement[] = [];
   const hydrates: JS.Statement[] = [];
-  const env = new Map<string, JS.Expression>([
+  const valueEnv = new Map<string, JS.Expression>([
     ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))],
     ['mouse', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('mouse'))],
-    ['Math', JS.callExpression(
-      JS.memberExpression(JS.identifier('Signal'), JS.identifier('ok')),
-      [ JS.identifier('Math') ]
-    )],
+    ['Math', JS.identifier('Math')]
   ]);
-  nodes.forEach(node => genNode(node, parsedCode, typesMap, env, decls, hydrates));
+  nodes.forEach(node => genNode(node, parsedCode, typesMap, dynamicEnv, valueEnv, decls, hydrates));
+
+  // TODO(jaked)
+  // don't generate imports / bindings
+  // unless they are referenced via a dynamic element or an export
+  if (decls.length === 0 && hydrates.length === 0)
+    return '';
+
   const declsText = babelGenerator(JS.program(decls)).code;
   const hydratesText = babelGenerator(JS.program(hydrates)).code;
 
@@ -364,8 +393,8 @@ export function generatePm(
   return `
 import React from 'https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js';
 import ReactDOM from 'https://cdn.skypack.dev/pin/react-dom@v17.0.1-N7YTiyGWtBI97HFLtv0f/mode=imports/optimized/react-dom.js';
-import Signal from './__runtime/Signal.js';
-import * as Runtime from './__runtime/Runtime.js';
+import Signal from '/__runtime/Signal.js';
+import * as Runtime from '/__runtime/Runtime.js';
 
 const __e = (el, props, ...children) => React.createElement(el, props, ...children)
 

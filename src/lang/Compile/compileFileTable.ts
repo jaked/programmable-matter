@@ -246,7 +246,7 @@ export default function compileFileTable(
       return {
         // TODO(jaked) these should be Signal.err
         exportType: Type.module({ default: error }),
-        exportValue: new Map([[ 'default', error.err ]]),
+        exportValue: Signal.ok(new Map([[ 'default', error.err ]])),
         rendered: Signal.ok(null),
         typesMap,
         problems,
