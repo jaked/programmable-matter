@@ -148,7 +148,12 @@ export interface ArrayExpression extends NodeImpl {
 export interface ArrowFunctionExpression extends NodeImpl {
   type: 'ArrowFunctionExpression';
   params: Array<Pattern & { typeAnnotation?: TSTypeAnnotation }>;
-  body: Expression;
+  body: Expression | BlockStatement;
+}
+
+export interface BlockStatement extends NodeImpl {
+  type: 'BlockStatement';
+  body: Array<Statement>;
 }
 
 export interface ConditionalExpression extends NodeImpl {
@@ -377,10 +382,13 @@ export interface ExportDefaultDeclaration extends NodeImpl {
   declaration: Expression;
 }
 
+export type Statement =
+  ExpressionStatement | VariableDeclaration | BlockStatement;
+
 export type Node =
-  Program | ExpressionStatement | Expression | Pattern | PropertyPattern |
+  Program | Statement | Expression | Pattern | PropertyPattern |
   ImportSpecifier | ImportNamespaceSpecifier | ImportDefaultSpecifier | ImportDeclaration |
-  VariableDeclarator | VariableDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration |
+  VariableDeclarator | ExportNamedDeclaration | ExportDefaultDeclaration |
   TSTypeAnnotation | TSPropertySignature | TSQualifiedName | TSTypeParameterInstantiation | TypeAnnotation;
 
 // if fn returns false, don't recurse into children
@@ -474,6 +482,9 @@ export function visit(
 
     case 'ArrowFunctionExpression':
       visit(ast.params, fn);
+      return visit(ast.body, fn);
+
+    case 'BlockStatement':
       return visit(ast.body, fn);
 
     case 'ConditionalExpression':
@@ -582,11 +593,11 @@ export function visit(
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
-export function freeIdentifiers(expr: Expression): Array<string> {
+export function freeIdentifiers(expr: Node): Array<string> {
   const free: Array<string> = [];
 
   function fn(
-    expr: Expression,
+    expr: Node,
     bound: Immutable.Set<string>,
   ) {
     visit(expr, node => {

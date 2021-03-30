@@ -1,38 +1,7 @@
-import * as Immutable from 'immutable';
-import * as ESTree from '../ESTree';
-import * as Parse from '../Parse';
 import Type from '../Type';
-import Typecheck from './index';
-
-// TODO(jaked)
-// seems like TS should be able to figure it out from the instanceof
-function isEnv(env: any): env is Typecheck.Env {
-  return env instanceof Immutable.Map;
-}
+import expectCheck from './expectCheck';
 
 describe('check', () => {
-  function expectCheck({ expr, env, type, actualType, error }: {
-    expr: ESTree.Expression | string,
-    env?: Typecheck.Env | { [s: string]: string | Type },
-    type: Type | string,
-    actualType?: Type,
-    error?: boolean,
-  }) {
-    expr = (typeof expr === 'string') ? Parse.parseExpression(expr) : expr;
-    env = env ?
-      (isEnv(env) ?
-        env :
-        Typecheck.env(env as any)) :
-      Typecheck.env();
-    type = (typeof type === 'string') ? Parse.parseType(type) : type;
-    error = (error !== undefined) ? error : false;
-    const typesMap = new Map<unknown, Type>();
-    const actualTypeValue = Typecheck.check(expr, env, type, typesMap);
-    const errorValue = [...typesMap.values()].some(t => t.kind === 'Error');
-    if (error !== undefined) expect(errorValue).toBe(error);
-    if (actualType) expect(actualTypeValue).toEqual(actualType);
-  }
-
   describe('primitives', () => {
     describe('literals', () => {
       it('succeeds', () => {
@@ -187,70 +156,6 @@ describe('check', () => {
         type,
       });
     });
-  });
-
-  describe('function expressions', () => {
-    const type = '(n: number) => number';
-
-    it('ok', () => {
-      expectCheck({
-        expr: 'x => x + 7',
-        type,
-      });
-    });
-
-    it('fewer args ok', () => {
-      expectCheck({
-        expr: '() => 7',
-        type,
-      });
-    });
-
-    it('too many args', () => {
-      expectCheck({
-        expr: '(x, y) => x + y',
-        type,
-        error: true,
-      });
-    });
-
-    it('wrong body type', () => {
-      expectCheck({
-        expr: `x => 'foo'`,
-        type,
-        error: true
-      });
-    });
-
-    it('object pattern arg', () => {
-      expectCheck({
-        expr: '({ x: xArg, y: yArg }) => xArg + yArg',
-        type: '(o: { x: number, y: number }) => number',
-      });
-    });
-
-    it('shorthand object pattern arg', () => {
-      expectCheck({
-        expr: '({ x, y }) => x + y',
-        type: '(o: { x: number, y: number }) => number',
-      });
-    });
-
-    // Babel parser already checks this
-    // it('duplicate identifiers', () => {
-    //   const type = Type.functionType(
-    //     [ Type.object({ x: Type.number, y: Type.number }) ],
-    //     Type.number
-    //   );
-    //   expectCheckThrows('({ x: z, y: z }) => z + z', type);
-    // });
-
-    it('function component', () => {
-      expectCheck({
-        expr: '({ children, foo }) => foo',
-        type: 'React.FC<{ foo: string }>',
-      });
-    })
   });
 
   describe('singletons', () => {

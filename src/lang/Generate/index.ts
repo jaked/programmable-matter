@@ -194,8 +194,21 @@ function genExpr(
     case 'ArrayExpression':
       return JS.arrayExpression(ast.elements.map(e => genExpr(e, typesMap, env)));
 
-    case 'ArrowFunctionExpression':
-      return JS.arrowFunctionExpression(ast.params.map(genParam), genExpr(ast.body, typesMap, env));
+    case 'ArrowFunctionExpression': {
+      if (ast.body.type === 'BlockStatement') {
+        const stmts = ast.body.body.map(stmt => {
+          switch (stmt.type) {
+            case 'ExpressionStatement':
+              return JS.expressionStatement(genExpr(stmt.expression, typesMap, env));
+            default:
+              bug(`unimplemented ${stmt.type}`);
+          }
+        });
+        return JS.arrowFunctionExpression(ast.params.map(genParam), JS.blockStatement(stmts));
+      } else {
+        return JS.arrowFunctionExpression(ast.params.map(genParam), genExpr(ast.body, typesMap, env));
+      }
+    }
 
     case 'ConditionalExpression':
       return JS.conditionalExpression(
@@ -205,7 +218,7 @@ function genExpr(
       );
 
     default:
-      bug('unimplemented ${ast.type}');
+      bug(`unimplemented ${ast.type}`);
   }
 }
 

@@ -492,6 +492,25 @@ function synthArrowFunction(
   return Type.functionType(paramTypes, type);
 }
 
+function synthBlockStatement(
+  ast: ESTree.BlockStatement,
+  env: Env,
+  typesMap: TypesMap,
+): Type {
+  const types = ast.body.map(stmt => {
+    switch (stmt.type) {
+      case 'ExpressionStatement':
+        return synth(stmt.expression, env, typesMap);
+      default:
+        bug(`unimplemented ${stmt.type}`);
+    }
+  });
+  if (types.length === 0)
+    return Type.undefined;
+  else
+    return types[types.length - 1];
+}
+
 function synthConditional(
   ast: ESTree.ConditionalExpression,
   env: Env,
@@ -653,7 +672,7 @@ function synthJSXEmptyExpression(
 }
 
 function synthHelper(
-  ast: ESTree.Expression,
+  ast: ESTree.Node,
   env: Env,
   typesMap: TypesMap,
 ): Type {
@@ -663,6 +682,7 @@ function synthHelper(
     case 'ArrayExpression':         return synthArray(ast, env, typesMap);
     case 'ObjectExpression':        return synthObject(ast, env, typesMap);
     case 'ArrowFunctionExpression': return synthArrowFunction(ast, env, typesMap);
+    case 'BlockStatement':          return synthBlockStatement(ast, env, typesMap);
     case 'UnaryExpression':         return synthUnary(ast, env, typesMap);
     case 'LogicalExpression':       return synthLogical(ast, env, typesMap);
     case 'BinaryExpression':        return synthBinary(ast, env, typesMap);
@@ -684,7 +704,7 @@ function synthHelper(
 }
 
 export function synth(
-  ast: ESTree.Expression,
+  ast: ESTree.Node,
   env: Env,
   typesMap: TypesMap,
 ): Type {

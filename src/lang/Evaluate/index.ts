@@ -188,12 +188,12 @@ export function evaluateExpression(
       }
     }
 
-    case 'SequenceExpression':
-      ast.expressions.forEach((e, i) => {
-        if (i < ast.expressions.length - 1)
-          evaluateExpression(e, typesMap, env);
-      });
-      return evaluateExpression(ast.expressions[ast.expressions.length - 1], typesMap, env);
+    case 'SequenceExpression': {
+      const values = ast.expressions.map(e =>
+        evaluateExpression(e, typesMap, env)
+      );
+      return values[values.length - 1];
+    }
 
     case 'MemberExpression': {
       const object = evaluateExpression(ast.object, typesMap, env);
@@ -245,13 +245,34 @@ export function evaluateExpression(
     case 'ArrayExpression':
       return ast.elements.map(e => evaluateExpression(e, typesMap, env));
 
-    case 'ArrowFunctionExpression':
-      return (...args: Array<any>) => {
-        ast.params.forEach((pat, i) => {
-          env = patValueEnv(pat, args[i], env);
-        });
-        return evaluateExpression(ast.body, typesMap, env);
-      };
+    case 'ArrowFunctionExpression': {
+      const body = ast.body;
+      if (body.type === 'BlockStatement') {
+        return (...args: Array<any>) => {
+          ast.params.forEach((pat, i) => {
+            env = patValueEnv(pat, args[i], env);
+          });
+          const values = body.body.map(stmt => {
+            switch (stmt.type) {
+              case 'ExpressionStatement':
+                return evaluateExpression(stmt.expression, typesMap, env);
+              default:
+                bug(`unimplemented ${stmt.type}`);
+            }
+          });
+          if (values.length === 0) return undefined;
+          else return values[values.length - 1];
+        }
+
+      } else {
+        return (...args: Array<any>) => {
+            ast.params.forEach((pat, i) => {
+              env = patValueEnv(pat, args[i], env);
+            });
+            return evaluateExpression(body, typesMap, env);
+          };
+      }
+    }
 
     case 'ConditionalExpression': {
       if (evaluateExpression(ast.test, typesMap, env)) {

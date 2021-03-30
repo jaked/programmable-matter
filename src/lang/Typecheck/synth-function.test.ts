@@ -22,6 +22,20 @@ it('ok with params', () => {
   });
 });
 
+it('ok with block body', () => {
+  expectSynth({
+    expr: '(x: number, y: 7) => { x + y }',
+    type: '(n: number, s: 7) => number',
+  });
+});
+
+it('ok with empty block body', () => {
+  expectSynth({
+    expr: '(x: number, y: 7) => { }',
+    type: '(n: number, s: 7) => undefined',
+  });
+});
+
 it('erroneous return', () => {
   expectSynth({
     expr: '(x: number) => error',

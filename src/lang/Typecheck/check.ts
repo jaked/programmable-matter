@@ -212,9 +212,44 @@ function checkFunction(
       ast.params.forEach((pat, i) => {
         patEnv = patTypeEnv(pat, type.args.get(i) ?? bug(), patEnv, typesMap);
       });
-      const retType = check(ast.body, env.merge(patEnv), type.ret, typesMap);
-      if (retType.kind === 'Error') return retType;
-      else return Type.functionType(type.args.toArray(), retType);
+      env = env.merge(patEnv);
+      const body = ast.body;
+      if (body.type === 'BlockStatement') {
+        body.body.forEach((stmt, i) => {
+          if (i < body.body.length - 1) {
+            switch (stmt.type) {
+              case 'ExpressionStatement':
+                return synth(stmt.expression, env, typesMap);
+              default:
+                bug(`unimplemented ${stmt.type}`);
+            }
+          }
+        });
+        if (body.body.length === 0) {
+          const actual = Type.undefined;
+          if (Type.isSubtype(actual, type))
+            return actual;
+          else
+            return Error.expectedType(ast, type, actual, typesMap);
+
+        } else {
+          const stmt = body.body[body.body.length - 1];
+          switch (stmt.type) {
+            case 'ExpressionStatement': {
+              const retType = check(stmt.expression, env, type.ret, typesMap);
+              if (retType.kind === 'Error') return retType;
+              else return Type.functionType(type.args.toArray(), retType);
+            }
+            default:
+              bug(`unimplemented ${stmt.type}`);
+          }
+        }
+
+      } else {
+        const retType = check(body, env, type.ret, typesMap);
+        if (retType.kind === 'Error') return retType;
+        else return Type.functionType(type.args.toArray(), retType);
+      }
 
     default:
       return checkSubtype(ast, env, type, typesMap);
