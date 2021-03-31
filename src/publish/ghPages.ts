@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as Path from 'path';
+import * as Fs from 'fs';
 import { remote } from 'electron';
 import util from 'util';
 import GHPages from 'gh-pages';
@@ -19,8 +20,16 @@ export default async function ghPages(
 
   // TODO(jaked) generate random dir name?
   const tempdir = Path.resolve(remote.app.getPath("temp"), 'programmable-matter');
-  await rmdir(tempdir, { recursive: true } as any);
+  await rmdir(tempdir, { recursive: true });
   await mkdir(tempdir);
+  const runtime = Path.resolve(tempdir, '__runtime');
+  await mkdir(runtime);
+  for (const name of ['Try.js', 'Signal.js', 'Runtime.js']) {
+    const srcPath = Path.resolve('.', '__runtime', name);
+    const dstPath = Path.resolve(runtime, name);
+    const data = Fs.readFileSync(srcPath);
+    Fs.writeFileSync(dstPath, data);
+  }
   await writeFile(Path.resolve(tempdir, '.nojekyll'), '');
   await writeFile(Path.resolve(tempdir, 'CNAME'), "jaked.org");
   await Promise.all([...MapFuncs.map(compiledNotes, async note => {
