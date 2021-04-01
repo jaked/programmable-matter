@@ -1,6 +1,5 @@
 import * as Immer from 'immer';
 import { bug } from '../../util/bug';
-import Try from '../../util/Try';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';

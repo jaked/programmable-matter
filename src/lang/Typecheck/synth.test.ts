@@ -362,7 +362,6 @@ describe('synth', () => {
 
 describe('synthProgram', () => {
   it('binds unexported variables', () => {
-    const moduleName = 'foo';
     const moduleEnv = new Map();
     const program = Parse.parseProgram(`
       const x = 7
@@ -371,7 +370,6 @@ describe('synthProgram', () => {
     const exportTypes: { [s: string]: Type } = {};
     const typesMap = new Map<unknown, Type>();
     const env2 = Typecheck.synthProgram(
-      moduleName,
       moduleEnv,
       program,
       env,
@@ -384,7 +382,6 @@ describe('synthProgram', () => {
   });
 
   it('binding gets ascribed type', () => {
-    const moduleName = 'foo';
     const moduleEnv = new Map();
     const program = Parse.parseProgram(`
       const x: number = 7
@@ -393,7 +390,6 @@ describe('synthProgram', () => {
     const exportTypes: { [s: string]: Type } = {};
     const typesMap = new Map<unknown, Type>();
     const env2 = Typecheck.synthProgram(
-      moduleName,
       moduleEnv,
       program,
       env,

@@ -21,7 +21,6 @@ import * as Dyncheck from '../Dyncheck';
 import makeLink from '../../components/makeLink';
 
 function typecheckCode(
-  moduleName: string,
   node: PMAST.Code,
   moduleEnv: Map<string, Type.ModuleType>,
   typeEnv: Typecheck.Env,
@@ -31,7 +30,6 @@ function typecheckCode(
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
     typeEnv = Typecheck.synthProgram(
-      moduleName,
       moduleEnv,
       code as ESTree.Program,
       typeEnv,
@@ -43,7 +41,6 @@ function typecheckCode(
 }
 
 function dyncheckCode(
-  moduleName: string,
   node: PMAST.Code,
   moduleEnv: Map<string, Map<string, boolean>>,
   typeEnv: Render.TypeEnv,
@@ -53,7 +50,6 @@ function dyncheckCode(
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
     dynamicEnv = Dyncheck.program(
-      moduleName,
       moduleEnv,
       code as ESTree.Program,
       typeEnv,
@@ -139,13 +135,10 @@ export default function compileFilePm(
     Signal.join(imports, compiledNotes).map(([imports, compiledNotes]) => {
       const noteEnv = new Map<string, CompiledNote>();
       imports.forEach(name => {
-        // TODO(jaked)
-        // we do this resolution here, in Synth, and in Render
-        // could rewrite or annotate the AST to do it just once
         const resolvedName = Name.rewriteResolve(compiledNotes, moduleName, name);
         if (resolvedName) {
           const note = compiledNotes.get(resolvedName) ?? bug(`expected module '${resolvedName}'`);
-          noteEnv.set(resolvedName, note);
+          noteEnv.set(name, note);
         }
       });
       return noteEnv;
@@ -225,7 +218,6 @@ export default function compileFilePm(
     const typesMap = new Map<unknown, Type>();
     codeNodes.forEach(node => {
       typeEnv = typecheckCode(
-        moduleName,
         node,
         moduleTypeEnv,
         typeEnv,
@@ -233,7 +225,6 @@ export default function compileFilePm(
         typesMap
       );
       dynamicEnv = dyncheckCode(
-        moduleName,
         node,
         moduleDynamicEnv,
         typeEnv,
@@ -293,7 +284,6 @@ export default function compileFilePm(
         nodes,
         node,
         typesMap,
-        moduleName,
         moduleDynamicEnv,
         moduleValueEnv,
         dynamicEnv,

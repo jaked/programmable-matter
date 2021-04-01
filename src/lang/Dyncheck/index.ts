@@ -57,20 +57,17 @@ function exportNamedDecl(
 }
 
 function importDecl(
-  moduleName: string,
   decl: ESTree.ImportDeclaration,
   moduleEnv: Map<string, Map<string, boolean>>,
   typeEnv: Render.TypeEnv,
   dynamicEnv: Render.DynamicEnv,
 ): Render.DynamicEnv {
-  // TODO(jaked) remove duplication with synth.ts
-  const importedModuleName = Name.rewriteResolve(moduleEnv, moduleName, decl.source.value);
-  if (!importedModuleName) {
+  const module = moduleEnv.get(decl.source.value);
+  if (!module) {
     decl.specifiers.forEach(spec => {
       dynamicEnv = dynamicEnv.set(spec.local.name, false);
     });
   } else {
-    const module = moduleEnv.get(importedModuleName) ?? bug(`expected module '${importedModuleName}'`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -98,7 +95,6 @@ function importDecl(
 }
 
 export function program(
-  moduleName: string,
   moduleEnv: Map<string, Map<string, boolean>>,
   program: ESTree.Program,
   typeEnv: Render.TypeEnv,
@@ -116,7 +112,7 @@ export function program(
         break;
 
       case 'ImportDeclaration':
-        dynamicEnv = importDecl(moduleName, node, moduleEnv, typeEnv, dynamicEnv);
+        dynamicEnv = importDecl(node, moduleEnv, typeEnv, dynamicEnv);
         break;
 
       case 'VariableDeclaration':

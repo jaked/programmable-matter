@@ -1,5 +1,4 @@
 import * as Immutable from 'immutable';
-import * as Name from '../../util/Name';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
@@ -767,20 +766,18 @@ export function synthAndThen(
 }
 
 function importDecl(
-  moduleName: string,
   decl: ESTree.ImportDeclaration,
   moduleEnv: Map<string, Type.ModuleType>,
   env: Env,
   typesMap: TypesMap,
 ): Env {
-  const importedModuleName = Name.rewriteResolve(moduleEnv, moduleName, decl.source.value);
-  if (!importedModuleName) {
+  const module = moduleEnv.get(decl.source.value);
+  if (!module) {
     const error = Error.withLocation(decl.source, `no module '${decl.source.value}'`, typesMap);
     decl.specifiers.forEach(spec => {
       env = env.set(spec.local.name, error);
     });
   } else {
-    const module = moduleEnv.get(importedModuleName) ?? bug(`expected module '${importedModuleName}'`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -876,7 +873,6 @@ function exportDefaultDecl(
 }
 
 export function synthProgram(
-  moduleName: string,
   moduleEnv: Map<string, Type.ModuleType>,
   program: ESTree.Program,
   env: Env,
@@ -894,7 +890,7 @@ export function synthProgram(
         break;
 
       case 'ImportDeclaration':
-        env = importDecl(moduleName, node, moduleEnv, env, typesMap);
+        env = importDecl(node, moduleEnv, env, typesMap);
         break;
 
       case 'VariableDeclaration':

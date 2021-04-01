@@ -6,7 +6,6 @@ import * as ESTree from '../ESTree';
 import * as PMAST from '../../model/PMAST';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
-import * as Name from '../../util/Name';
 import * as MapFuncs from '../../util/MapFuncs';
 import { TypesMap } from '../../model';
 import * as Parse from '../Parse';
@@ -121,7 +120,6 @@ export function evaluateExpression(
       }
 
       const children = ast.children.map(child => {
-        const type = typesMap.get(child) ?? bug(`expected type`);
         // TODO(jaked) undefined seems to be an acceptable ReactNode
         // in some contexts but not others; maybe we need `null` here
         return evaluateExpression(child, typesMap, env);
@@ -346,7 +344,6 @@ export function evaluateDynamicExpression(
 }
 
 function importDecl(
-  mdxName: string,
   decl: ESTree.ImportDeclaration,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
@@ -361,9 +358,8 @@ function importDecl(
       valueEnv = valueEnv.set(spec.local.name, type.err);
     });
   } else {
-    const moduleName = Name.rewriteResolve(moduleValueEnv, mdxName, decl.source.value) || bug(`expected module '${decl.source.value}'`);
-    const moduleValue = moduleValueEnv.get(moduleName) ?? bug(`expected moduleValue`);
-    const moduleDynamic = moduleDynamicEnv.get(moduleName) ?? bug(`expected moduleDynamic`);
+    const moduleValue = moduleValueEnv.get(decl.source.value) ?? bug(`expected moduleValue`);
+    const moduleDynamic = moduleDynamicEnv.get(decl.source.value) ?? bug(`expected moduleDynamic`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -510,7 +506,6 @@ export function evaluateCodeNode(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   typesMap: TypesMap,
-  moduleName: string,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   dynamicEnv: Render.DynamicEnv,
@@ -522,7 +517,7 @@ export function evaluateCodeNode(
     for (const decl of (code as ESTree.Program).body) {
       switch (decl.type) {
         case 'ImportDeclaration':
-          valueEnv = importDecl(moduleName, decl, moduleDynamicEnv, moduleValueEnv, typesMap, valueEnv);
+          valueEnv = importDecl(decl, moduleDynamicEnv, moduleValueEnv, typesMap, valueEnv);
           break;
 
         case 'ExportNamedDeclaration':
