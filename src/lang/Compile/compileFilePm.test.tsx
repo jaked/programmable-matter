@@ -383,3 +383,55 @@ it('compiles with layout', () => {
     </>
   );
 });
+
+it('identifier uses itself in initializer with dynamic value', () => {
+  const compiled = compileFilePm(
+    {
+      type: 'pm',
+      path: '/foo.pm',
+      mtimeMs: Signal.ok(0),
+      content: Signal.cellOk({
+        meta: {},
+        nodes: [
+          { type: 'code', children: [
+            // use of foo is an error,
+            // skip over it but don't blow up
+            { text: `import { bar } from '/bar'; const foo = bar + foo` }
+          ]},
+          { type: 'p', children: [
+            { text: 'foo is '},
+            { type: 'inlineCode', children: [
+              { text: 'foo' }
+            ]},
+          ]}
+        ]
+      }),
+    },
+    Signal.ok(new Map()),
+    Signal.ok(new Map([[
+      '/bar', {
+        name: '/bar',
+        type: 'pm',
+        meta: Signal.ok({}),
+        files: {},
+        problems: Signal.ok(false),
+        rendered: Signal.ok(null),
+        exportType: Signal.ok(Type.module({
+          bar: Type.number,
+        })),
+        exportValue: Signal.ok(new Map([[
+          'bar', Signal.ok(7)
+        ]])),
+        exportDynamic: Signal.ok(new Map([[ 'bar', true ]])),
+      }
+    ]])),
+  );
+  expect(compiled.problems.get()).toBeTruthy();
+  expectRenderEqual(
+    compiled.rendered.get(),
+    // TODO(jaked) strip out the React root elements somehow
+    <>
+      <p><span>foo is </span><span id="__root0">7</span></p>
+    </>
+  );
+});

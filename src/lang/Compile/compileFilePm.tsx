@@ -104,7 +104,13 @@ function evalDynamicExpression(
   const type = typesMap.get(ast) ?? bug(`expected type`);
   if (type.kind === 'Error') return { value: undefined, dynamic: false };
   const idents = ESTree.freeIdentifiers(ast).filter(ident => {
-    return dynamicEnv.get(ident) ?? false;
+    // happens when an unbound identifier is used
+    if (!dynamicEnv.has(ident)) return false;
+    // happens when an identifier is used in its own definition
+    if (!valueEnv.has(ident)) return false;
+    // TODO(jaked) check for these cases explicitly
+    // so we don't hit them for an actual bug
+    return dynamicEnv.get(ident) ?? bug(`expected dynamic`);
   });
   const signals = idents.map(id =>
     (valueEnv.get(id) as Signal<unknown>) ?? bug(`expected signal`)
