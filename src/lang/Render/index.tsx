@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import * as React from 'react';
 
 import Signal from '../../util/Signal';
@@ -6,17 +5,14 @@ import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import { TypesMap } from '../../model';
 import * as Parse from '../Parse';
+import Typecheck from '../Typecheck';
+import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
-import Type from '../Type';
 import initEnv from './initEnv';
 
-export type TypeEnv = Immutable.Map<string, Type>;
-export type ValueEnv = Immutable.Map<string, unknown>;
-export type DynamicEnv = Immutable.Map<string, boolean>;
-
-export const initTypeEnv: TypeEnv = initEnv.map(({ type }) => type);
-export const initValueEnv: ValueEnv = initEnv.map(({ value }) => value);
-export const initDynamicEnv: DynamicEnv = initEnv.map(({ dynamic }) => dynamic);
+export const initTypeEnv: Typecheck.Env = initEnv.map(({ type }) => type);
+export const initDynamicEnv: Dyncheck.Env = initEnv.map(({ dynamic }) => dynamic);
+export const initValueEnv: Evaluate.Env = initEnv.map(({ value }) => value);
 
 export const context = React.createContext<'screen' | 'server'>('screen');
 
@@ -39,8 +35,8 @@ const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
 export function renderNode(
   node: PMAST.Node,
   typesMap: TypesMap,
-  dynamicEnv: DynamicEnv,
-  valueEnv: ValueEnv,
+  dynamicEnv: Dyncheck.Env,
+  valueEnv: Evaluate.Env,
   nextRootId: [ number ],
   Link: React.FunctionComponent<{ href: string }> = () => null,
 ): React.ReactNode {

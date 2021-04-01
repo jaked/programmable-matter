@@ -43,10 +43,10 @@ function typecheckCode(
 function dyncheckCode(
   node: PMAST.Code,
   moduleEnv: Map<string, Map<string, boolean>>,
-  typeEnv: Render.TypeEnv,
-  dynamicEnv: Render.DynamicEnv,
+  typeEnv: Typecheck.Env,
+  dynamicEnv: Dyncheck.Env,
   exportDynamic: Map<string, boolean>,
-): Render.DynamicEnv {
+): Dyncheck.Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
     dynamicEnv = Dyncheck.program(

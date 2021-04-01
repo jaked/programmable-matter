@@ -9,7 +9,7 @@ import Signal from '../../util/Signal';
 import * as MapFuncs from '../../util/MapFuncs';
 import { TypesMap } from '../../model';
 import * as Parse from '../Parse';
-import * as Render from '../Render';
+import * as Dyncheck from '../Dyncheck';
 import lensValue from '../Compile/lensValue';
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
@@ -301,8 +301,8 @@ export function evaluateExpression(
 export function evaluateDynamicExpression(
   ast: ESTree.Expression,
   typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
+  dynamicEnv: Dyncheck.Env,
+  valueEnv: Env,
 ): { value: unknown, dynamic: boolean } {
   const type = typesMap.get(ast) ?? bug(`expected type`);
   if (type.kind === 'Error') return { value: undefined, dynamic: false };
@@ -348,8 +348,8 @@ function importDecl(
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   typesMap: TypesMap,
-  valueEnv: Render.ValueEnv,
-): Render.ValueEnv {
+  valueEnv: Env,
+): Env {
   // TODO(jaked) finding errors in the AST is delicate.
   // need to separate error semantics from error highlighting.
   const type = typesMap.get(decl.source);
@@ -410,10 +410,10 @@ function evalVariableDecl(
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
+  dynamicEnv: Dyncheck.Env,
+  valueEnv: Env,
   exportValue?: Map<string, unknown>
-): Render.ValueEnv {
+): Env {
   switch (decl.kind) {
     case 'const': {
       decl.declarations.forEach(declarator => {
@@ -483,20 +483,20 @@ function evalAndExportNamedDecl(
   node: PMAST.Code,
   decl: ESTree.ExportNamedDeclaration,
   typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
+  dynamicEnv: Dyncheck.Env,
+  valueEnv: Env,
   exportValue: Map<string, unknown>
-): Render.ValueEnv {
+): Env {
   return evalVariableDecl(nodes, node, decl.declaration, typesMap, dynamicEnv, valueEnv, exportValue);
 }
 
 function exportDefaultDecl(
   decl: ESTree.ExportDefaultDeclaration,
   typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
+  dynamicEnv: Dyncheck.Env,
+  valueEnv: Env,
   exportValue: Map<string, unknown>
-): Render.ValueEnv {
+): Env {
   const { value } = evaluateDynamicExpression(decl.declaration, typesMap, dynamicEnv, valueEnv);
   exportValue.set('default', value);
   return valueEnv;
@@ -508,10 +508,10 @@ export function evaluateCodeNode(
   typesMap: TypesMap,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
+  dynamicEnv: Dyncheck.Env,
+  valueEnv: Env,
   exportValue: Map<string, unknown>
-): Render.ValueEnv {
+): Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
     for (const decl of (code as ESTree.Program).body) {

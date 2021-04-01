@@ -4,7 +4,7 @@ import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import * as Parse from '../Parse';
-import * as Render from '../Render';
+import * as Dyncheck from '../Dyncheck';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
@@ -225,7 +225,7 @@ function genExpr(
 function genDynamicExpr(
   ast: ESTree.Expression,
   typesMap: (e: ESTree.Expression) => Type,
-  dynamicEnv: Render.DynamicEnv,
+  dynamicEnv: Dyncheck.Env,
   valueEnv: Map<string, JS.Expression>,
 ): JS.Expression {
   const type = typesMap(ast);
@@ -284,7 +284,7 @@ function genDynamicExpr(
 
 function isDynamic(
   ast: ESTree.Expression,
-  dynamicEnv: Render.DynamicEnv
+  dynamicEnv: Dyncheck.Env
 ): boolean {
   return ESTree.freeIdentifiers(ast).some(ident => {
     const dynamic = dynamicEnv.get(ident) ?? bug(`expected dynamic`);
@@ -295,7 +295,7 @@ function isDynamic(
 function genNode(
   node: PMAST.Node,
   typesMap: (e: ESTree.Expression) => Type,
-  dynamicEnv: Render.DynamicEnv,
+  dynamicEnv: Dyncheck.Env,
   valueEnv: Map<string, JS.Expression>,
   decls: JS.Statement[],
   hydrates: JS.Statement[],
@@ -380,7 +380,7 @@ function genNode(
 export function generatePm(
   nodes: PMAST.Node[],
   typesMap: (e: ESTree.Expression) => Type,
-  dynamicEnv: Render.DynamicEnv,
+  dynamicEnv: Dyncheck.Env,
 ) {
   const decls: JS.Statement[] = [];
   const hydrates: JS.Statement[] = [];

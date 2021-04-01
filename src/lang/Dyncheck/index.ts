@@ -1,12 +1,13 @@
+import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
-import * as Name from '../../util/Name';
 import * as ESTree from '../ESTree';
-// TODO(jaked) sort out the dependencies on various envs
-import * as Render from '../Render';
+import Typecheck from '../Typecheck';
+
+export type Env = Immutable.Map<string, boolean>;
 
 export function expression(
   ast: ESTree.Expression,
-  dynamicEnv: Render.DynamicEnv,
+  dynamicEnv: Env,
 ): boolean {
   const idents = ESTree.freeIdentifiers(ast);
   return idents.some(ident => dynamicEnv.get(ident) ?? false);
@@ -15,17 +16,17 @@ export function expression(
 function exportDefaultDecl(
   decl: ESTree.ExportDefaultDeclaration,
   exportDynamic: Map<string, boolean>,
-  dynamicEnv: Render.DynamicEnv,
+  dynamicEnv: Env,
 ) {
   exportDynamic.set('default', expression(decl.declaration, dynamicEnv));
 }
 
 function variableDecl(
   decl: ESTree.VariableDeclaration,
-  typeEnv: Render.TypeEnv,
-  dynamicEnv: Render.DynamicEnv,
+  typeEnv: Typecheck.Env,
+  dynamicEnv: Env,
   exportDynamic?: Map<string, boolean>,
-): Render.DynamicEnv {
+): Env {
   decl.declarations.forEach(declarator => {
     let dynamic: boolean;
     if (decl.kind === 'let') {
@@ -49,19 +50,19 @@ function variableDecl(
 
 function exportNamedDecl(
   decl: ESTree.ExportNamedDeclaration,
-  typeEnv: Render.TypeEnv,
-  dynamicEnv: Render.DynamicEnv,
+  typeEnv: Typecheck.Env,
+  dynamicEnv: Env,
   exportDynamic: Map<string, boolean>,
-): Render.DynamicEnv {
+): Env {
   return variableDecl(decl.declaration, typeEnv, dynamicEnv, exportDynamic);
 }
 
 function importDecl(
   decl: ESTree.ImportDeclaration,
   moduleEnv: Map<string, Map<string, boolean>>,
-  typeEnv: Render.TypeEnv,
-  dynamicEnv: Render.DynamicEnv,
-): Render.DynamicEnv {
+  typeEnv: Typecheck.Env,
+  dynamicEnv: Env,
+): Env {
   const module = moduleEnv.get(decl.source.value);
   if (!module) {
     decl.specifiers.forEach(spec => {
@@ -97,10 +98,10 @@ function importDecl(
 export function program(
   moduleEnv: Map<string, Map<string, boolean>>,
   program: ESTree.Program,
-  typeEnv: Render.TypeEnv,
-  dynamicEnv: Render.DynamicEnv,
+  typeEnv: Typecheck.Env,
+  dynamicEnv: Env,
   exportDynamic: Map<string, boolean>
-): Render.DynamicEnv {
+): Env {
   program.body.forEach(node => {
     switch (node.type) {
       case 'ExportDefaultDeclaration':
