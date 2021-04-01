@@ -1,16 +1,12 @@
 import Path from 'path';
 import * as Immutable from 'immutable';
-import * as Immer from 'immer';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
-import JSON5 from 'json5';
 
 import { bug } from '../../util/bug';
 import * as model from '../../model';
 import * as Name from '../../util/Name';
-import * as MapFuncs from '../../util/MapFuncs';
 import Signal from '../../util/Signal';
-import Try from '../../util/Try';
 import { TypesMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
@@ -21,24 +17,8 @@ import * as Generate from '../Generate';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Dyncheck from '../Dyncheck';
-import lensValue from './lensValue';
 
 import makeLink from '../../components/makeLink';
-
-let nextKey = 0;
-const KEYS = new WeakMap<PMAST.Node, string>();
-function findKey(node: PMAST.Node): string {
-  let key = KEYS.get(node);
-  if (key === undefined) {
-    key = `${nextKey++}`;
-    KEYS.set(node, key);
-  }
-  return key;
-}
-
-// Slate guarantees fresh objects for changed nodes
-// so it's safe to keep a global weak map (I think?)
-const parsedCode = new WeakMap<PMAST.Node, Try<ESTree.Node>>();
 
 function typecheckCode(
   moduleName: string,
@@ -48,7 +28,7 @@ function typecheckCode(
   exportTypes: { [s: string]: Type },
   typesMap: TypesMap,
 ): Typecheck.Env {
-  const code = parsedCode.get(node) ?? bug('expected parsed code');
+  const code = Parse.parseCodeNode(node);
   code.forEach(code => {
     typeEnv = Typecheck.synthProgram(
       moduleName,
@@ -70,7 +50,7 @@ function dyncheckCode(
   dynamicEnv: Render.DynamicEnv,
   exportDynamic: Map<string, boolean>,
 ): Render.DynamicEnv {
-  const code = parsedCode.get(node) ?? bug('expected parsed code');
+  const code = Parse.parseCodeNode(node);
   code.forEach(code => {
     dynamicEnv = Dyncheck.program(
       moduleName,
@@ -89,332 +69,10 @@ function typecheckInlineCode(
   env: Typecheck.Env,
   typesMap: TypesMap,
 ) {
-  const code = parsedCode.get(node) ?? bug('expected parsed code');
+  const code = Parse.parseInlineCodeNode(node);
   code.forEach(code =>
     Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, typesMap)
   );
-}
-
-function evalDynamicExpression(
-  ast: ESTree.Expression,
-  typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
-): { value: unknown, dynamic: boolean } {
-  const type = typesMap.get(ast) ?? bug(`expected type`);
-  if (type.kind === 'Error') return { value: undefined, dynamic: false };
-  const idents = ESTree.freeIdentifiers(ast).filter(ident => {
-    // happens when an unbound identifier is used
-    if (!dynamicEnv.has(ident)) return false;
-    // happens when an identifier is used in its own definition
-    if (!valueEnv.has(ident)) return false;
-    // TODO(jaked) check for these cases explicitly
-    // so we don't hit them for an actual bug
-    return dynamicEnv.get(ident) ?? bug(`expected dynamic`);
-  });
-  const signals = idents.map(id =>
-    (valueEnv.get(id) as Signal<unknown>) ?? bug(`expected signal`)
-  );
-  switch (signals.length) {
-    case 0:
-      return {
-        value: Evaluate.evaluateExpression(ast, typesMap, valueEnv),
-        dynamic: false
-      };
-    case 1:
-      return {
-        value: signals[0].map(value => {
-          const valueEnv2 = valueEnv.set(idents[0], value);
-          return Evaluate.evaluateExpression(ast, typesMap, valueEnv2);
-        }),
-        dynamic: true
-      };
-    default:
-      return {
-        value: Signal.join(...signals).map(values => {
-          const valueEnv2 = valueEnv.concat(Immutable.Map(idents.map((id, i) => [id, values[i]])));
-          return Evaluate.evaluateExpression(ast, typesMap, valueEnv2);
-        }),
-        dynamic: true
-      };
-  }
-}
-
-function importDecl(
-  mdxName: string,
-  decl: ESTree.ImportDeclaration,
-  moduleDynamicEnv: Map<string, Map<string, boolean>>,
-  moduleValueEnv: Map<string, Map<string, unknown>>,
-  typesMap: TypesMap,
-  valueEnv: Render.ValueEnv,
-): Render.ValueEnv {
-  // TODO(jaked) finding errors in the AST is delicate.
-  // need to separate error semantics from error highlighting.
-  const type = typesMap.get(decl.source);
-  if (type && type.kind === 'Error') {
-    decl.specifiers.forEach(spec => {
-      valueEnv = valueEnv.set(spec.local.name, type.err);
-    });
-  } else {
-    const moduleName = Name.rewriteResolve(moduleValueEnv, mdxName, decl.source.value) || bug(`expected module '${decl.source.value}'`);
-    const moduleValue = moduleValueEnv.get(moduleName) ?? bug(`expected moduleValue`);
-    const moduleDynamic = moduleDynamicEnv.get(moduleName) ?? bug(`expected moduleDynamic`);
-    decl.specifiers.forEach(spec => {
-      switch (spec.type) {
-        case 'ImportNamespaceSpecifier': {
-          // TODO(jaked) carry dynamic flags in Type.ModuleType
-          // so we can distinguish dynamic/static module members at the point of use
-          // for now if any member is dynamic the whole module is dynamic, else static
-          let value;
-          if ([...moduleDynamic.values()].some(dynamic => dynamic)) {
-            value = Signal.joinMap(Signal.ok(MapFuncs.map(moduleValue, (v, k) => {
-              if (moduleDynamic.get(k) ?? bug(`expected dynamic`))
-                return v as Signal<unknown>;
-              else
-                return Signal.ok(v);
-            })))
-              .map(moduleValue => Object.fromEntries(moduleValue.entries()));
-          } else {
-            value = Object.fromEntries(moduleValue.entries());
-          }
-          valueEnv = valueEnv.set(spec.local.name, value);
-          break;
-        }
-
-        case 'ImportDefaultSpecifier': {
-          const type = typesMap.get(spec.local);
-          if (!type || type.kind !== 'Error') {
-            const defaultField = moduleValue.get('default') ?? bug(`expected default`);
-            valueEnv = valueEnv.set(spec.local.name, defaultField);
-          }
-        }
-        break;
-
-        case 'ImportSpecifier': {
-          const type = typesMap.get(spec.imported);
-          if (!type || type.kind !== 'Error') {
-            const importedField = moduleValue.get(spec.imported.name) ?? bug(`expected ${spec.imported.name}`);
-            valueEnv = valueEnv.set(spec.local.name, importedField);
-          }
-        }
-        break;
-      }
-    });
-  }
-  return valueEnv;
-}
-
-function evalVariableDecl(
-  nodes: Signal.Writable<PMAST.Node[]>,
-  node: PMAST.Code,
-  decl: ESTree.VariableDeclaration,
-  typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
-  exportValue?: Map<string, unknown>
-): Render.ValueEnv {
-  switch (decl.kind) {
-    case 'const': {
-      decl.declarations.forEach(declarator => {
-        if (!declarator.init) return;
-        const name = declarator.id.name;
-        const { value } = evalDynamicExpression(declarator.init, typesMap, dynamicEnv, valueEnv);
-        if (exportValue) exportValue.set(name, value);
-        valueEnv = valueEnv.set(name, value);
-      });
-    }
-    break;
-
-    case 'let': {
-      decl.declarations.forEach(declarator => {
-        let name = declarator.id.name;
-        const lensType = typesMap.get(declarator.id) ?? bug(`expected type`);
-        if (lensType.kind === 'Error') return valueEnv;
-        else if (lensType.kind !== 'Abstract' || lensType.params.size !== 1) bug(`expected lensType`);
-        const type = lensType.params.get(0) ?? bug(`expected param`);
-        const init = declarator.init;
-        const value = Evaluate.evaluateExpression(init, typesMap, Immutable.Map({ undefined: undefined }));
-        const setValue = (v) => {
-          nodes.produce(nodes => {
-            function walk(nodes: PMAST.Node[]): boolean {
-              for (let i = 0; i < nodes.length; i++) {
-                const oldNode = nodes[i];
-                if (Immer.original(oldNode) === node) {
-                  const code =
-                    (node.children[0] && PMAST.isText(node.children[0]) && node.children[0].text) ||
-                    bug(`expected text child`);
-                  const newNode: PMAST.Node = { type: 'code', children: [{ text:
-                    code.substr(0, init.start) + JSON5.stringify(v) + code.substr(init.end)
-                  }]};
-                  nodes[i] = newNode;
-                  return true;
-                } else if (PMAST.isElement(oldNode)) {
-                  if (walk(oldNode.children)) {
-                    return true;
-                  }
-                }
-              }
-              return false;
-            }
-
-            if (!walk(nodes)) bug(`expected node`);
-          });
-          // TODO(jaked)
-          // what if changing node invalidates selection?
-          // how can we avoid recompiling the note / dependents?
-          //   put a cell in the environment so we can update it
-          //   Signal.Writable that writes back to node?
-        }
-        const lens = lensValue(value, setValue, type);
-        if (exportValue) exportValue.set(name, lens);
-        valueEnv = valueEnv.set(name, lens);
-      });
-    }
-    break;
-
-    default: throw new Error('unexpected AST ' + decl.kind);
-  }
-  return valueEnv;
-}
-
-function evalAndExportNamedDecl(
-  nodes: Signal.Writable<PMAST.Node[]>,
-  node: PMAST.Code,
-  decl: ESTree.ExportNamedDeclaration,
-  typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
-  exportValue: Map<string, unknown>
-): Render.ValueEnv {
-  return evalVariableDecl(nodes, node, decl.declaration, typesMap, dynamicEnv, valueEnv, exportValue);
-}
-
-function exportDefaultDecl(
-  decl: ESTree.ExportDefaultDeclaration,
-  typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
-  exportValue: Map<string, unknown>
-): Render.ValueEnv {
-  const { value } = evalDynamicExpression(decl.declaration, typesMap, dynamicEnv, valueEnv);
-  exportValue.set('default', value);
-  return valueEnv;
-}
-
-export function compileCode(
-  nodes: Signal.Writable<PMAST.Node[]>,
-  node: PMAST.Code,
-  typesMap: TypesMap,
-  moduleName: string,
-  moduleDynamicEnv: Map<string, Map<string, boolean>>,
-  moduleValueEnv: Map<string, Map<string, unknown>>,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
-  exportValue: Map<string, unknown>
-): Render.ValueEnv {
-  const code = parsedCode.get(node) ?? bug(`expected parsed code`);
-  code.forEach(code => {
-    for (const decl of (code as ESTree.Program).body) {
-      switch (decl.type) {
-        case 'ImportDeclaration':
-          valueEnv = importDecl(moduleName, decl, moduleDynamicEnv, moduleValueEnv, typesMap, valueEnv);
-          break;
-
-        case 'ExportNamedDeclaration':
-          valueEnv = evalAndExportNamedDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv, exportValue);
-          break;
-
-        case 'ExportDefaultDeclaration':
-          valueEnv = exportDefaultDecl(decl, typesMap, dynamicEnv, valueEnv, exportValue);
-          break;
-
-        case 'VariableDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv);
-          break;
-      }
-    }
-  });
-  return valueEnv;
-}
-
-// memo table of rendered static nodes
-// code nodes or nodes containing code nodes are not memoized
-// since their rendering may depend on typechecking etc.
-const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
-
-export function renderNode(
-  node: PMAST.Node,
-  typesMap: TypesMap,
-  dynamicEnv: Render.DynamicEnv,
-  valueEnv: Render.ValueEnv,
-  nextRootId: [ number ],
-  Link: React.FunctionComponent<{ href: string }> = () => null,
-): React.ReactNode {
-  const rendered = renderedNode.get(node);
-  if (rendered) return rendered;
-  const key = findKey(node);
-  if ('text' in node) {
-    let text: any = node.text;
-    if (node.bold)          text = <strong>{text}</strong>;
-    if (node.italic)        text = <em>{text}</em>;
-    if (node.underline)     text = <u>{text}</u>;
-    if (node.strikethrough) text = <del>{text}</del>;
-    if (node.subscript)     text = <sub>{text}</sub>;
-    if (node.superscript)   text = <sup>{text}</sup>
-    if (node.code)          text = <code>{text}</code>;
-    const rendered = <span key={key}>{text}</span>;
-    renderedNode.set(node, rendered);
-    return rendered;
-  } else {
-    if (node.type === 'code') {
-      const code = parsedCode.get(node) ?? bug(`expected parsed code`);
-      if (code.type !== 'ok') return null;
-      const rendered: React.ReactNode[] = [];
-      for (const node of (code.ok as ESTree.Program).body) {
-        if (node.type === 'ExpressionStatement') {
-          const { value, dynamic } =
-            evalDynamicExpression(node.expression, typesMap, dynamicEnv, valueEnv);
-          if (dynamic) {
-            rendered.push(<div id={`__root${nextRootId[0]}`}>{
-              Signal.node(value as Signal<React.ReactNode>)
-            }</div>);
-            nextRootId[0]++;
-          } else {
-            rendered.push(value as React.ReactNode);
-          }
-        }
-      }
-      return <>{...rendered}</>;
-
-    } else if (node.type === 'inlineCode') {
-      const code = parsedCode.get(node) ?? bug(`expected parsed code`);
-      if (code.type !== 'ok') return null;
-      const expr = code.ok as ESTree.Expression;
-      const { value, dynamic } =
-        evalDynamicExpression(expr, typesMap, dynamicEnv, valueEnv);
-      if (dynamic) {
-        const elem = <span id={`__root${nextRootId[0]}`}>
-          {Signal.node(value as Signal<React.ReactNode>)}
-        </span>;
-        nextRootId[0]++;
-        return elem;
-      } else {
-        return value as React.ReactNode
-      }
-
-    } else {
-      const children = node.children.map(child => renderNode(child, typesMap, dynamicEnv, valueEnv, nextRootId, Link));
-      let rendered;
-      if (node.type === 'a') {
-        rendered = React.createElement(Link, { key, href: node.href }, ...children);
-      } else {
-        rendered = React.createElement(node.type, { key }, ...children);
-      }
-      if (node.children.every(node => renderedNode.has(node)))
-        renderedNode.set(node, rendered);
-      return rendered;
-    }
-  }
 }
 
 export default function compileFilePm(
@@ -435,50 +93,34 @@ export default function compileFilePm(
   // we want just the bindings and imports here, but this also includes ExpressionStatements
   const codeNodes = nodes.map(nodes =>
     Immutable.List<PMAST.Code>().withMutations(codeNodes => {
-      function parseCode(node: PMAST.Node) {
+      function pushCodeNodes(node: PMAST.Node) {
         if (PMAST.isCode(node)) {
           codeNodes.push(node);
-          if (!parsedCode.has(node)) {
-            // TODO(jaked) enforce tree constraints in editor
-            if (!(node.children.length === 1)) bug('expected 1 child');
-            const child = node.children[0];
-            if (!(PMAST.isText(child))) bug('expected text');
-            const ast = Try.apply(() => Parse.parseProgram(child.text));
-            parsedCode.set(node, ast);
-          }
         } else if (PMAST.isElement(node)) {
-          node.children.forEach(parseCode);
+          node.children.forEach(pushCodeNodes);
         }
       }
-      nodes.forEach(parseCode);
+      nodes.forEach(pushCodeNodes);
     })
   );
 
   const inlineCodeNodes = nodes.map(nodes =>
     Immutable.List<PMAST.InlineCode>().withMutations(inlineCodeNodes => {
-      function parseInlineCode(node: PMAST.Node) {
+      function pushInlineCodeNodes(node: PMAST.Node) {
         if (PMAST.isInlineCode(node)) {
           inlineCodeNodes.push(node);
-          if (!parsedCode.has(node)) {
-              // TODO(jaked) enforce tree constraints in editor
-            if (!(node.children.length === 1)) bug('expected 1 child');
-            const child = node.children[0];
-            if (!(PMAST.isText(child))) bug('expected text');
-            const ast = Try.apply(() => Parse.parseExpression(child.text));
-            parsedCode.set(node, ast);
-          }
         } else if (PMAST.isElement(node)) {
-          node.children.forEach(parseInlineCode);
+          node.children.forEach(pushInlineCodeNodes);
         }
       }
-      nodes.forEach(parseInlineCode);
+      nodes.forEach(pushInlineCodeNodes);
     })
   );
 
   const imports = codeNodes.map(codeNodes =>
     Immutable.List<string>().withMutations(imports => {
       codeNodes.forEach(node => {
-        const code = (parsedCode.get(node)) ?? bug(`expected parsed code`);
+        const code = Parse.parseCodeNode(node);
         code.forEach(code =>
           (code as ESTree.Program).body.forEach(node => {
             switch (node.type) {
@@ -647,27 +289,34 @@ export default function compileFilePm(
 
     const exportValue: Map<string, Signal<unknown>> = new Map();
     codeNodes.forEach(node =>
-      valueEnv = compileCode(nodes, node, typesMap, moduleName, moduleDynamicEnv, moduleValueEnv, dynamicEnv, valueEnv, exportValue)
+      valueEnv = Evaluate.evaluateCodeNode(
+        nodes,
+        node,
+        typesMap,
+        moduleName,
+        moduleDynamicEnv,
+        moduleValueEnv,
+        dynamicEnv,
+        valueEnv,
+        exportValue
+      )
     );
     return { valueEnv, exportValue };
   });
 
   const Link = makeLink(moduleName, setSelected);
 
-  const ast = Signal.join(codeNodes, inlineCodeNodes).map(_ => parsedCode);
-
   // TODO(jaked)
   // re-render only nodes that have changed since previous render
   // or when env changes
   const rendered = Signal.join(
     nodes,
-    ast, // dependency to ensure parsedCode is up to date
     compile,
     typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, _ast, { valueEnv }, { dynamicEnv }, { typesMap }]) => {
+  ).map(([nodes, { valueEnv }, { dynamicEnv }, { typesMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
-    return nodes.map(node => renderNode(node, typesMap, dynamicEnv, valueEnv, nextRootId, Link));
+    return nodes.map(node => Render.renderNode(node, typesMap, dynamicEnv, valueEnv, nextRootId, Link));
   });
 
   const debug = false;
@@ -753,20 +402,18 @@ ${html}
 
   const js = Signal.join(
     nodes,
-    ast,
     typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, parsedCode, { dynamicEnv }, { typesMap }]) => {
+  ).map(([nodes, { dynamicEnv }, { typesMap }]) => {
     return Generate.generatePm(
       nodes,
-      node => parsedCode.get(node) ?? bug(`expected parsed code`),
       expr => typesMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
       dynamicEnv,
     );
   });
 
   return {
-    ast,
+    ast: Signal.ok(null),
     typesMap: typecheckedInlineCode.map(({ typesMap }) => typesMap),
     problems: typecheckedInlineCode.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true

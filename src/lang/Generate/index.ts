@@ -4,6 +4,7 @@ import Try from '../../util/Try';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
+import * as Parse from '../Parse';
 import * as Render from '../Render';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
@@ -294,7 +295,6 @@ function isDynamic(
 
 function genNode(
   node: PMAST.Node,
-  parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
   typesMap: (e: ESTree.Expression) => Type,
   dynamicEnv: Render.DynamicEnv,
   valueEnv: Map<string, JS.Expression>,
@@ -323,7 +323,7 @@ function genNode(
   }
 
   if (PMAST.isCode(node)) {
-    const ast = parsedCode(node);
+    const ast = Parse.parseCodeNode(node);
     if (ast.type === 'ok') {
       for (const node of (ast.ok as ESTree.Program).body) {
         switch (node.type) {
@@ -364,7 +364,7 @@ function genNode(
     }
 
   } else if (PMAST.isInlineCode(node)) {
-    const ast = parsedCode(node);
+    const ast = Parse.parseInlineCodeNode(node);
     if (ast.type === 'ok') {
       const expr = ast.ok as ESTree.Expression;
       const type = typesMap(expr);
@@ -374,13 +374,12 @@ function genNode(
     }
 
   } else if (PMAST.isElement(node)) {
-    node.children.forEach(child => genNode(child, parsedCode, typesMap, dynamicEnv, valueEnv, decls, hydrates));
+    node.children.forEach(child => genNode(child, typesMap, dynamicEnv, valueEnv, decls, hydrates));
   }
 }
 
 export function generatePm(
   nodes: PMAST.Node[],
-  parsedCode: (code: PMAST.Node) => Try<ESTree.Node>,
   typesMap: (e: ESTree.Expression) => Type,
   dynamicEnv: Render.DynamicEnv,
 ) {
@@ -391,7 +390,7 @@ export function generatePm(
     ['mouse', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('mouse'))],
     ['Math', JS.identifier('Math')]
   ]);
-  nodes.forEach(node => genNode(node, parsedCode, typesMap, dynamicEnv, valueEnv, decls, hydrates));
+  nodes.forEach(node => genNode(node, typesMap, dynamicEnv, valueEnv, decls, hydrates));
 
   // TODO(jaked)
   // don't generate imports / bindings

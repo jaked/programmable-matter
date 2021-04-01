@@ -5,11 +5,10 @@ import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
 
-import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as model from '../../model';
 import * as PMAST from '../../model/PMAST';
-import * as ESTree from '../../lang/ESTree';
+import * as Parse from '../../lang/Parse';
 import * as PMEditor from '../../editor/PMEditor';
 import * as Highlight from '../../lang/highlight';
 import makeLink from '../../components/makeLink';
@@ -139,15 +138,14 @@ type Range = {
   link?: string;
 }
 
-export const makeDecorate =
-  (
-    parsedCode: WeakMap<Node, unknown>,
-    typesMap?: model.TypesMap,
-  ) =>
+export const makeDecorate = (typesMap?: model.TypesMap) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
     const ranges: Range[] = [];
-    const code = parsedCode.get(node) as Try<ESTree.Node>;
+    const code =
+      PMAST.isCode(node) ? Parse.parseCodeNode(node) :
+      PMAST.isInlineCode(node) ? Parse.parseInlineCodeNode(node) :
+      null;
     if (code) {
       code.forEach(code => {
         const spans: Highlight.Span[] = [];
@@ -267,11 +265,10 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
   }), [editor]);
 
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
-  const parsedCode = Signal.useSignal(props.compiledFile.ast) as WeakMap<Node, unknown>;
   // TODO(jaked) can we use typesMap conditionally? breaks the rules of hooks but does it matter?
   const typesMap = Signal.useSignal(props.compiledFile.typesMap ?? Signal.ok(undefined));
   const decorate = React.useMemo(
-    () => makeDecorate(parsedCode, typesMap),
+    () => makeDecorate(typesMap),
     [typesMap],
   );
 

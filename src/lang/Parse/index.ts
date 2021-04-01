@@ -1,6 +1,8 @@
 import * as Babel from '@babel/parser';
 
 import { bug } from '../../util/bug';
+import Try from '../../util/Try';
+import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 
@@ -32,4 +34,34 @@ export function parseType(input: string): Type {
   const ast = parseExpression(`_ as ${input}`);
   if (ast.type !== 'TSAsExpression') bug(`unexpected ${ast.type}`);
   return Type.ofTSType(ast.typeAnnotation);
+}
+
+// Slate guarantees fresh objects for changed nodes
+// so it's safe to keep a global weak map (I think?)
+// TODO(jaked)
+// maybe it would be better to keep an explicit context of parsed code
+// with explicit lifetimes?
+// or maybe rewrite the PMAST with parsed code (and types / dynamic flags)
+const parsedCode = new WeakMap<PMAST.Node, Try<ESTree.Node>>();
+
+export function parseCodeNode(node: PMAST.Code): Try<ESTree.Node> {
+  const ast = parsedCode.get(node);
+  if (ast) return ast;
+  if (!(node.children.length === 1)) bug('expected 1 child');
+  const child = node.children[0];
+  if (!(PMAST.isText(child))) bug('expected text');
+  const ast2 = Try.apply(() => parseProgram(child.text));
+  parsedCode.set(node, ast2);
+  return ast2;
+}
+
+export function parseInlineCodeNode(node: PMAST.InlineCode): Try<ESTree.Node> {
+  const ast = parsedCode.get(node);
+  if (ast) return ast;
+  if (!(node.children.length === 1)) bug('expected 1 child');
+  const child = node.children[0];
+  if (!(PMAST.isText(child))) bug('expected text');
+  const ast2 = Try.apply(() => parseExpression(child.text));
+  parsedCode.set(node, ast2);
+  return ast2;
 }
