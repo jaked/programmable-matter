@@ -13,19 +13,10 @@ export function expression(
   return idents.some(ident => dynamicEnv.get(ident) ?? false);
 }
 
-function exportDefaultDecl(
-  decl: ESTree.ExportDefaultDeclaration,
-  exportDynamic: Map<string, boolean>,
-  dynamicEnv: Env,
-) {
-  exportDynamic.set('default', expression(decl.declaration, dynamicEnv));
-}
-
 function variableDecl(
   decl: ESTree.VariableDeclaration,
   typeEnv: Typecheck.Env,
   dynamicEnv: Env,
-  exportDynamic?: Map<string, boolean>,
 ): Env {
   decl.declarations.forEach(declarator => {
     let dynamic: boolean;
@@ -42,19 +33,9 @@ function variableDecl(
         dynamic = expression(declarator.init, dynamicEnv);
       }
     }
-    if (exportDynamic) exportDynamic.set(declarator.id.name, dynamic);
     dynamicEnv = dynamicEnv.set(declarator.id.name, dynamic);
   });
   return dynamicEnv;
-}
-
-function exportNamedDecl(
-  decl: ESTree.ExportNamedDeclaration,
-  typeEnv: Typecheck.Env,
-  dynamicEnv: Env,
-  exportDynamic: Map<string, boolean>,
-): Env {
-  return variableDecl(decl.declaration, typeEnv, dynamicEnv, exportDynamic);
 }
 
 function importDecl(
@@ -100,16 +81,15 @@ export function program(
   program: ESTree.Program,
   typeEnv: Typecheck.Env,
   dynamicEnv: Env,
-  exportDynamic: Map<string, boolean>
 ): Env {
   program.body.forEach(node => {
     switch (node.type) {
       case 'ExportDefaultDeclaration':
-        exportDefaultDecl(node, exportDynamic, dynamicEnv);
+        dynamicEnv = dynamicEnv.set('default', expression(node.declaration, dynamicEnv));
         break;
 
       case 'ExportNamedDeclaration':
-        dynamicEnv = exportNamedDecl(node, typeEnv, dynamicEnv, exportDynamic);
+        dynamicEnv = variableDecl(node.declaration, typeEnv, dynamicEnv);
         break;
 
       case 'ImportDeclaration':

@@ -24,7 +24,6 @@ function typecheckCode(
   node: PMAST.Code,
   moduleEnv: Map<string, Type.ModuleType>,
   typeEnv: Typecheck.Env,
-  exportTypes: { [s: string]: Type },
   typesMap: TypesMap,
 ): Typecheck.Env {
   const code = Parse.parseCodeNode(node);
@@ -33,7 +32,6 @@ function typecheckCode(
       moduleEnv,
       code as ESTree.Program,
       typeEnv,
-      exportTypes,
       typesMap
     );
   });
@@ -45,7 +43,6 @@ function dyncheckCode(
   moduleEnv: Map<string, Map<string, boolean>>,
   typeEnv: Typecheck.Env,
   dynamicEnv: Dyncheck.Env,
-  exportDynamic: Map<string, boolean>,
 ): Dyncheck.Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
@@ -54,7 +51,6 @@ function dyncheckCode(
       code as ESTree.Program,
       typeEnv,
       dynamicEnv,
-      exportDynamic,
     );
   });
   return dynamicEnv;
@@ -213,15 +209,12 @@ export default function compileFilePm(
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
-    const exportTypes: { [s: string]: Type.Type } = {};
-    const exportDynamic: Map<string, boolean> = new Map();
     const typesMap = new Map<unknown, Type>();
     codeNodes.forEach(node => {
       typeEnv = typecheckCode(
         node,
         moduleTypeEnv,
         typeEnv,
-        exportTypes,
         typesMap
       );
       dynamicEnv = dyncheckCode(
@@ -229,11 +222,9 @@ export default function compileFilePm(
         moduleDynamicEnv,
         typeEnv,
         dynamicEnv,
-        exportDynamic
       );
     });
-    const exportType = Type.module(exportTypes);
-    return { typesMap, typeEnv, exportType, dynamicEnv, exportDynamic }
+    return { typesMap, typeEnv, dynamicEnv }
   });
 
   // TODO(jaked)
@@ -287,8 +278,7 @@ export default function compileFilePm(
         moduleDynamicEnv,
         moduleValueEnv,
         dynamicEnv,
-        valueEnv,
-        exportValue
+        valueEnv
       )
     );
     return { valueEnv, exportValue };
@@ -402,6 +392,53 @@ ${html}
     );
   });
 
+  const exports = codeNodes.map(codeNodes =>
+    Immutable.List<string>().withMutations(exports => {
+      codeNodes.forEach(node => {
+        const code = Parse.parseCodeNode(node);
+        code.forEach(code => {
+          for (const decl of (code as ESTree.Program).body) {
+            switch (decl.type) {
+              case 'ExportNamedDeclaration':
+                decl.declaration.declarations.forEach(declarator => {
+                  exports.push(declarator.id.name);
+                })
+                break;
+
+              case 'ExportDefaultDeclaration':
+                exports.push('default');
+                break;
+            }
+          }
+        });
+      });
+    })
+  );
+
+  const exportType = Signal.join(exports, typecheckedCode).map(([exportNames, { typeEnv }]) => {
+    const exportTypes: { [s: string]: Type.Type } = {};
+    exportNames.forEach(name => {
+      exportTypes[name] = typeEnv.get(name) ?? bug(`expected type`);
+    });
+    return Type.module(exportTypes);
+  });
+
+  const exportDynamic = Signal.join(exports, typecheckedCode).map(([exportNames, { dynamicEnv }]) => {
+    const exportDynamic: Map<string, boolean> = new Map();
+    exportNames.forEach(name => {
+      exportDynamic.set(name, dynamicEnv.get(name) ?? bug(`expected dynamic`));
+    });
+    return exportDynamic;
+  });
+
+  const exportValue = Signal.join(exports, compile).map(([exportNames, { valueEnv }]) => {
+    const exportValue: Map<string, unknown> = new Map();
+    exportNames.forEach(name => {
+      exportValue.set(name, valueEnv.get(name) ?? bug(`expected value`));
+    });
+    return exportValue;
+  });
+
   return {
     ast: Signal.ok(null),
     typesMap: typecheckedInlineCode.map(({ typesMap }) => typesMap),
@@ -410,9 +447,9 @@ ${html}
     ),
     rendered: renderedWithLayout,
 
-    exportType: typecheckedCode.map(({ exportType }) => exportType),
-    exportValue: compile.map(({ exportValue }) => exportValue),
-    exportDynamic: typecheckedCode.map(({ exportDynamic }) => exportDynamic),
+    exportType,
+    exportValue,
+    exportDynamic,
 
     html,
     js,

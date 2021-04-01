@@ -412,7 +412,6 @@ function evalVariableDecl(
   typesMap: TypesMap,
   dynamicEnv: Dyncheck.Env,
   valueEnv: Env,
-  exportValue?: Map<string, unknown>
 ): Env {
   switch (decl.kind) {
     case 'const': {
@@ -420,7 +419,6 @@ function evalVariableDecl(
         if (!declarator.init) return;
         const name = declarator.id.name;
         const { value } = evaluateDynamicExpression(declarator.init, typesMap, dynamicEnv, valueEnv);
-        if (exportValue) exportValue.set(name, value);
         valueEnv = valueEnv.set(name, value);
       });
     }
@@ -467,7 +465,6 @@ function evalVariableDecl(
           //   Signal.Writable that writes back to node?
         }
         const lens = lensValue(value, setValue, type);
-        if (exportValue) exportValue.set(name, lens);
         valueEnv = valueEnv.set(name, lens);
       });
     }
@@ -475,30 +472,6 @@ function evalVariableDecl(
 
     default: throw new Error('unexpected AST ' + decl.kind);
   }
-  return valueEnv;
-}
-
-function evalAndExportNamedDecl(
-  nodes: Signal.Writable<PMAST.Node[]>,
-  node: PMAST.Code,
-  decl: ESTree.ExportNamedDeclaration,
-  typesMap: TypesMap,
-  dynamicEnv: Dyncheck.Env,
-  valueEnv: Env,
-  exportValue: Map<string, unknown>
-): Env {
-  return evalVariableDecl(nodes, node, decl.declaration, typesMap, dynamicEnv, valueEnv, exportValue);
-}
-
-function exportDefaultDecl(
-  decl: ESTree.ExportDefaultDeclaration,
-  typesMap: TypesMap,
-  dynamicEnv: Dyncheck.Env,
-  valueEnv: Env,
-  exportValue: Map<string, unknown>
-): Env {
-  const { value } = evaluateDynamicExpression(decl.declaration, typesMap, dynamicEnv, valueEnv);
-  exportValue.set('default', value);
   return valueEnv;
 }
 
@@ -510,7 +483,6 @@ export function evaluateCodeNode(
   moduleValueEnv: Map<string, Map<string, unknown>>,
   dynamicEnv: Dyncheck.Env,
   valueEnv: Env,
-  exportValue: Map<string, unknown>
 ): Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
@@ -521,12 +493,14 @@ export function evaluateCodeNode(
           break;
 
         case 'ExportNamedDeclaration':
-          valueEnv = evalAndExportNamedDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv, exportValue);
+          valueEnv = evalVariableDecl(nodes, node, decl.declaration, typesMap, dynamicEnv, valueEnv);
           break;
 
-        case 'ExportDefaultDeclaration':
-          valueEnv = exportDefaultDecl(decl, typesMap, dynamicEnv, valueEnv, exportValue);
-          break;
+        case 'ExportDefaultDeclaration': {
+          const { value } = evaluateDynamicExpression(decl.declaration, typesMap, dynamicEnv, valueEnv);
+          valueEnv = valueEnv.set('default', value);
+        }
+        break;
 
         case 'VariableDeclaration':
           valueEnv = evalVariableDecl(nodes, node, decl, typesMap, dynamicEnv, valueEnv);

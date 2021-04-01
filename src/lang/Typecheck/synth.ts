@@ -817,7 +817,6 @@ function synthVariableDecl(
   decl: ESTree.VariableDeclaration,
   env: Env,
   typesMap: TypesMap,
-  exportTypes?: { [s: string]: Type },
 ): Env {
   decl.declarations.forEach(declarator => {
     let type: Type;
@@ -843,50 +842,25 @@ function synthVariableDecl(
       declType = Type.abstract('lensType', declType);
 
     if (typesMap) typesMap.set(declarator.id, declType);
-    if (exportTypes) exportTypes[declarator.id.name] = declType;
     env = env.set(declarator.id.name, declType);
   });
   return env;
-}
-
-function synthAndExportNamedDecl(
-  decl: ESTree.ExportNamedDeclaration,
-  exportTypes: { [s: string]: Type },
-  env: Env,
-  typesMap: TypesMap,
-): Env {
-  return synthVariableDecl(
-    decl.declaration,
-    env,
-    typesMap,
-    exportTypes,
-  );
-}
-
-function exportDefaultDecl(
-  decl: ESTree.ExportDefaultDeclaration,
-  exportTypes: { [s: string]: Type },
-  env: Env,
-  typesMap: TypesMap,
-) {
-  exportTypes['default'] = synth(decl.declaration, env, typesMap);
 }
 
 export function synthProgram(
   moduleEnv: Map<string, Type.ModuleType>,
   program: ESTree.Program,
   env: Env,
-  exportTypes: { [s: string]: Type },
   typesMap: TypesMap,
 ): Env {
   program.body.forEach(node => {
     switch (node.type) {
       case 'ExportDefaultDeclaration':
-        exportDefaultDecl(node, exportTypes, env, typesMap);
+        env = env.set('default', synth(node.declaration, env, typesMap));
         break;
 
       case 'ExportNamedDeclaration':
-        env = synthAndExportNamedDecl(node, exportTypes, env, typesMap);
+        env = synthVariableDecl(node.declaration, env, typesMap);
         break;
 
       case 'ImportDeclaration':
