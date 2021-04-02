@@ -349,8 +349,25 @@ function genNode(
                 }
               }
             }
-            break;
           }
+          break;
+
+          case 'ExportNamedDeclaration': {
+            switch (node.declaration.kind) {
+              case 'const': {
+                for (const declarator of node.declaration.declarations) {
+                  if (!declarator.init) return;
+                  const name = declarator.id.name;
+                  const init =
+                    genDynamicExpr(declarator.init, typesMap, dynamicEnv, valueEnv);
+                  decls.push(JS.exportNamedDeclaration(JS.variableDeclaration('const', [
+                    JS.variableDeclarator(JS.identifier(name), init)
+                  ])));
+                }
+              }
+            }
+          }
+          break;
 
           case 'ImportDeclaration':
             // TODO(jaked)
@@ -381,6 +398,7 @@ export function generatePm(
   nodes: PMAST.Node[],
   typesMap: (e: ESTree.Expression) => Type,
   dynamicEnv: Dyncheck.Env,
+  header: boolean = true,
 ) {
   const decls: JS.Statement[] = [];
   const hydrates: JS.Statement[] = [];
@@ -391,17 +409,22 @@ export function generatePm(
   ]);
   nodes.forEach(node => genNode(node, typesMap, dynamicEnv, valueEnv, decls, hydrates));
 
+  const hasHydrates = hydrates.length > 0;
+  const hasExports = decls.some(decl =>
+    decl.type === 'ExportNamedDeclaration' || decl.type === 'ExportDefaultDeclaration'
+  );
+
   // TODO(jaked)
   // don't generate imports / bindings
   // unless they are referenced via a dynamic element or an export
-  if (decls.length === 0 && hydrates.length === 0)
+  if (!hasHydrates && !hasExports)
     return '';
 
   const declsText = babelGenerator(JS.program(decls)).code;
   const hydratesText = babelGenerator(JS.program(hydrates)).code;
 
   // TODO(jaked) can we use symbols instead of __ids to avoid collisions?
-  return `
+  if (header) return `
 import React from 'https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js';
 import ReactDOM from 'https://cdn.skypack.dev/pin/react-dom@v17.0.1-N7YTiyGWtBI97HFLtv0f/mode=imports/optimized/react-dom.js';
 import Signal from '/__runtime/Signal.js';
@@ -411,5 +434,9 @@ const __e = (el, props, ...children) => React.createElement(el, props, ...childr
 
 ${declsText}
 ${hydratesText}
-`;
+`
+  else return `
+  ${declsText}
+  ${hydratesText}
+`
 }
