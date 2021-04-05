@@ -405,6 +405,7 @@ export function generatePm(
   const valueEnv = new Map<string, JS.Expression>([
     ['now', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('now'))],
     ['mouse', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('mouse'))],
+    ['window', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('window'))],
     ['Math', JS.identifier('Math')]
   ]);
   nodes.forEach(node => genNode(node, typesMap, dynamicEnv, valueEnv, decls, hydrates));

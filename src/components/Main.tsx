@@ -18,6 +18,7 @@ import RichTextEditor from './editor/RichTextEditor';
 
 // TODO(jaked) straighten out dependencies
 import { mouse } from '../lang/Render/initEnv';
+import { window as windowSignal } from '../lang/Render/initEnv';
 
 interface Props {
   app: App;
@@ -179,6 +180,49 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   );
 }));
 
+type DisplayPaneWithHooksProps = {
+  compiledNoteSignal: Signal<model.CompiledNote | null>;
+  // TODO(jaked) fix types
+  document: any;
+  window: any;
+}
+
+// can't use hooks directly inside FrameContextConsumer
+const DisplayPaneWithHooks = (props : DisplayPaneWithHooksProps) => {
+  const onMousemove = (e: MouseEvent) => {
+    mouse.setOk({ clientX: e.clientX, clientY: e.clientY });
+  }
+
+  const onScrollOrResize = () => {
+    windowSignal.setOk({
+      innerWidth: props.window.innerWidth,
+      innerHeight: props.window.innerHeight,
+      scrollX: props.window.scrollX,
+      scrollY: props.window.scrollY,
+    });
+  }
+
+  React.useEffect(() => {
+    onScrollOrResize();
+    props.document.addEventListener('mousemove', onMousemove);
+    props.document.addEventListener('scroll', onScrollOrResize);
+    props.window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      props.document.removeEventListener('mousemove', onMousemove);
+      props.document.removeEventListener('scroll', onScrollOrResize);
+      props.window.removeEventListener('resize', onScrollOrResize);
+    }
+  }, []);
+
+  return Signal.node(
+    props.compiledNoteSignal.flatMap(compiledNote =>
+      compiledNote ?
+        compiledNote.rendered :
+        Signal.ok('no note')
+    )
+  );
+}
+
 type DisplayPaneProps = {
   compiledNoteSignal: Signal<model.CompiledNote | null>;
 }
@@ -194,19 +238,12 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
     }}
   >
     <FrameContextConsumer>{
-      ({ document }) => {
-        document.onmousemove = (e: MouseEvent) => {
-          mouse.setOk({ clientX: e.clientX, clientY: e.clientY });
-        }
-
-        return Signal.node(
-          props.compiledNoteSignal.flatMap(compiledNote =>
-            compiledNote ?
-              compiledNote.rendered :
-              Signal.ok('no note')
-          )
-        );
-      }
+      ({ document, window }) =>
+        <DisplayPaneWithHooks
+          compiledNoteSignal={props.compiledNoteSignal}
+          document={document}
+          window={window}
+        />
     }</FrameContextConsumer>
   </Frame>
 );

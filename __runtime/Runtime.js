@@ -9,5 +9,17 @@ document.addEventListener('mousemove', ({ clientX, clientY }) => {
   mouse.setOk({ clientX, clientY });
 });
 
+const windowSignal = Signal.cellOk({ innerWidth: 0, innerHeight: 0, scrollX: 0, scrollY: 0 });
+const onScrollOrResize = (e) => {
+  windowSignal.setOk({
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+  });
+}
+window.addEventListener('resize', onScrollOrResize);
+document.addEventListener('scroll', onScrollOrResize);
+onScrollOrResize();
 
-export { mouse, now };
+export { mouse, now, windowSignal as window };

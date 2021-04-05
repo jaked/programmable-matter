@@ -25,6 +25,10 @@ setInterval(() => { now.setOk(Date.now()) }, 100);
 // TODO(jaked) should go elsewhere
 export const mouse = Signal.cellOk({ clientX: 0, clientY: 0 });
 
+// updated by onscroll / onresize handler in DisplayPane
+// TODO(jaked) should go elsewhere
+export const window = Signal.cellOk({ innerWidth: 0, innerHeight: 0, scrollX: 0, scrollY: 0 })
+
 // TODO(jaked) move to Typecheck?
 function componentType(props: { [f: string]: Type }): Type {
   return Type.abstract('React.Component', Type.object(props));
@@ -467,6 +471,12 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
   'mouse': {
     type: Parse.parseType('{ clientX: number, clientY: number }'),
     value: mouse,
+    dynamic: true
+  },
+
+  'window': {
+    type: Parse.parseType('{ innerWidth: number, innerHeight: number, scrollX: number, scrollY: number }'),
+    value: window,
     dynamic: true
   }
 });
