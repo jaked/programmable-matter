@@ -1,4 +1,4 @@
-import { Editor, Transforms } from 'slate';
+import * as Slate from 'slate';
 
 import { bug } from '../util/bug';
 
@@ -9,10 +9,10 @@ import { dedent } from './dedent';
 import { inBlockquote } from './inBlockquote'
 import { inListItem } from './inListItem'
 
-export const deleteBackward = (editor: Editor) => {
+export const deleteBackward = (editor: Slate.Editor) => {
   const { deleteBackward } = editor;
   return (unit: 'character' | 'word' | 'line' | 'block') => {
-    Editor.withoutNormalizing(editor, () => {
+    Slate.Editor.withoutNormalizing(editor, () => {
       if (atStartOfBlock(editor)) {
         if (inListItem(editor)) {
           if (!blockIsEmpty(editor)) {
@@ -23,7 +23,7 @@ export const deleteBackward = (editor: Editor) => {
             // the stock deleteBackward deletes the whole list item
             // so we special case it
             const [_, path] = blockAbove(editor) ?? bug(`expected blockEntry`);
-            return Transforms.delete(editor, { at: path });
+            return Slate.Transforms.delete(editor, { at: path });
           }
         }
 

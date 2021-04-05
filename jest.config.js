@@ -113,7 +113,7 @@ module.exports = {
 
   // A list of paths to directories that Jest should use to search for files in
   roots: [
-    'build',
+    'src',
   ],
 
   // Allows you to use a custom runner instead of Jest's default test runner
@@ -165,6 +165,14 @@ module.exports = {
 
   // A map from regular expressions to paths to transformers
   // transform: null,
+  "transform": {
+    "^.+\\.tsx?$": [
+      "esbuild-jest",
+      {
+
+      }
+    ]
+  }
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   // transformIgnorePatterns: [

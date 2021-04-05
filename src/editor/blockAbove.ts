@@ -1,15 +1,15 @@
-import { Editor, Location, NodeEntry } from 'slate';
+import * as Slate from 'slate';
 import * as PMAST from '../model/PMAST';
 
 export const blockAbove = (
-  editor: Editor,
-  opts: { at?: Location } = {}
+  editor: Slate.Editor,
+  opts: { at?: Slate.Location } = {}
 ) => {
-  const blockEntry = Editor.above(editor, {
+  const blockEntry = Slate.Editor.above(editor, {
     at: opts.at,
-    match: node => Editor.isBlock(editor, node)
+    match: node => Slate.Editor.isBlock(editor, node)
   });
   if (blockEntry) {
-    return blockEntry as NodeEntry<PMAST.Block>
+    return blockEntry as Slate.NodeEntry<PMAST.Block>
   }
 }
