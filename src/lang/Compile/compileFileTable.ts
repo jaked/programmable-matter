@@ -14,7 +14,7 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
-import { TypesMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
+import { TypeMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
 import * as model from '../../model';
 import { Table } from '../../components/Table';
 import lensType from './lensType';
@@ -53,7 +53,7 @@ const tableType =
 
 function computeTableConfig(
   ast: ESTree.Expression,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): model.Table {
   // TODO(jaked)
   // blows up if a type string cannot be parsed
@@ -62,7 +62,7 @@ function computeTableConfig(
   // maybe we could evaluate with respect to a type
   // and do conversion internally to evaluation
   return {
-    fields: Evaluate.evaluateExpression(ast, typesMap, Immutable.Map()).fields.map(field => {
+    fields: Evaluate.evaluateExpression(ast, typeMap, Immutable.Map()).fields.map(field => {
       switch (field.kind) {
         case 'data':
           const type = Parse.parseType(field.type);
@@ -238,9 +238,9 @@ export default function compileFileTable(
   );
 
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
-    const typesMap = new Map<ESTree.Node, Type>();
-    const error = Typecheck.check(ast, Typecheck.env(), tableType, typesMap);
-    const problems = [...typesMap.values()].some(t => t.kind === 'Error');
+    const typeMap = new Map<ESTree.Node, Type>();
+    const error = Typecheck.check(ast, Typecheck.env(), tableType, typeMap);
+    const problems = [...typeMap.values()].some(t => t.kind === 'Error');
 
     if (error.kind === 'Error') {
       return {
@@ -248,11 +248,11 @@ export default function compileFileTable(
         exportType: Type.module({ default: error }),
         exportValue: Signal.ok(new Map([[ 'default', error.err ]])),
         rendered: Signal.ok(null),
-        typesMap,
+        typeMap,
         problems,
       }
     }
-    const tableConfig = computeTableConfig(ast, typesMap);
+    const tableConfig = computeTableConfig(ast, typeMap);
     const tableDataType = computeTableDataType(tableConfig);
 
     const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
@@ -274,7 +274,7 @@ export default function compileFileTable(
       exportType,
       exportValue,
       rendered,
-      typesMap,
+      typeMap: typeMap,
       problems,
     };
   });
@@ -282,7 +282,7 @@ export default function compileFileTable(
   return {
     ast,
     exportType: compiled.map(({ exportType }) => exportType),
-    typesMap: compiled.map(({ typesMap }) => typesMap),
+    typeMap: compiled.map(({ typeMap }) => typeMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

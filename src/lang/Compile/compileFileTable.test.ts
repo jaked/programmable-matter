@@ -27,10 +27,10 @@ it('succeeds with type error', () => {
     },
   );
   expect(compiled.problems.get()).toBeTruthy();
-  const typesMap = compiled.typesMap;
-  expect(typesMap).toBeDefined();
-  if (!typesMap) throw 'bug';
-  expect(() => typesMap.get()).not.toThrow();
+  const typeMap = compiled.typeMap;
+  expect(typeMap).toBeDefined();
+  if (!typeMap) throw 'bug';
+  expect(() => typeMap.get()).not.toThrow();
 });
 
 it('empty table', () => {

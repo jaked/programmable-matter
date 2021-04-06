@@ -23,11 +23,11 @@ function stringOfQualifiedIdentifier(
 
 export default function ofTSType(
   tsType: ESTree.TypeAnnotation,
-  typesMap?: model.TypesMap,
+  typeMap?: model.TypeMap,
 ): Types.Type {
   switch (tsType.type) {
     case 'TSParenthesizedType':
-      return ofTSType(tsType.typeAnnotation, typesMap);
+      return ofTSType(tsType.typeAnnotation, typeMap);
 
     case 'TSNeverKeyword': return Type.never;
     case 'TSUnknownKeyword': return Type.unknown;
@@ -44,7 +44,7 @@ export default function ofTSType(
             if (mem.type !== 'TSPropertySignature') bug(`unimplemented ${mem.type}`);
             if (mem.key.type !== 'Identifier') bug(`unimplemented ${mem.key.type}`);
             if (!mem.typeAnnotation) bug(`expected type for ${mem.key.name}`);
-            const type = ofTSType(mem.typeAnnotation.typeAnnotation, typesMap);
+            const type = ofTSType(mem.typeAnnotation.typeAnnotation, typeMap);
             return Object.assign(obj, { [mem.key.name]: type });
           },
           { }
@@ -53,10 +53,10 @@ export default function ofTSType(
     }
 
     case 'TSTupleType':
-      return Type.tuple(...tsType.elementTypes.map(t => ofTSType(t, typesMap)));
+      return Type.tuple(...tsType.elementTypes.map(t => ofTSType(t, typeMap)));
 
     case 'TSArrayType':
-      return Type.array(ofTSType(tsType.elementType, typesMap));
+      return Type.array(ofTSType(tsType.elementType, typeMap));
 
     case 'TSFunctionType': {
       const args =
@@ -64,10 +64,10 @@ export default function ofTSType(
           if (param.type !== 'Identifier') bug(`unimplemented ${param.type}`);
           if (!param.typeAnnotation) bug(`expected type for ${param.name}`);
           if (param.typeAnnotation.type !== 'TSTypeAnnotation') bug(`unimplemented ${param.typeAnnotation.type}`);
-          return ofTSType(param.typeAnnotation.typeAnnotation, typesMap);
+          return ofTSType(param.typeAnnotation.typeAnnotation, typeMap);
         });
       if (!tsType.typeAnnotation) bug(`expected return type`);
-      const ret = ofTSType(tsType.typeAnnotation.typeAnnotation, typesMap);
+      const ret = ofTSType(tsType.typeAnnotation.typeAnnotation, typeMap);
       return Type.functionType(args, ret);
     }
 
@@ -75,15 +75,15 @@ export default function ofTSType(
       return Type.singleton(tsType.literal.value);
 
     case 'TSUnionType':
-      return union(...tsType.types.map(t => ofTSType(t, typesMap)));
+      return union(...tsType.types.map(t => ofTSType(t, typeMap)));
 
     case 'TSIntersectionType':
-      return intersection(...tsType.types.map(t => ofTSType(t, typesMap)));
+      return intersection(...tsType.types.map(t => ofTSType(t, typeMap)));
 
     case 'TSTypeReference': {
       const label = stringOfQualifiedIdentifier(tsType.typeName);
       const tsParams = tsType.typeParameters?.params ?? [];
-      const params= tsParams.map(t => ofTSType(t, typesMap));
+      const params= tsParams.map(t => ofTSType(t, typeMap));
       return Type.abstract(label, ...params);
     }
 

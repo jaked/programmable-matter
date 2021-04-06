@@ -1,7 +1,7 @@
 import { bug } from '../../util/bug';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import { TypesMap } from '../../model';
+import { TypeMap } from '../../model';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
@@ -12,7 +12,7 @@ import * as Generate from './index';
 // duplicates some of compileFilePm but without Signals
 function typecheckNodes(
   nodes: PMAST.Node[],
-): { typesMap: TypesMap, dynamicEnv: Dyncheck.Env } {
+): { typeMap: TypeMap, dynamicEnv: Dyncheck.Env } {
   const codeNodes: PMAST.Code[] = [];
   const inlineCodeNodes: PMAST.InlineCode[] = [];
   function walkNodes(node: PMAST.Node) {
@@ -26,7 +26,7 @@ function typecheckNodes(
   const moduleDynamicEnv: Map<string, Map<string, boolean>> = new Map();
   let typeEnv = Render.initTypeEnv;
   let dynamicEnv = Render.initDynamicEnv;
-  const typesMap: TypesMap = new Map();
+  const typeMap: TypeMap = new Map();
 
   codeNodes.forEach(node => {
     const code = Parse.parseCodeNode(node);
@@ -35,7 +35,7 @@ function typecheckNodes(
         moduleTypeEnv,
         code,
         typeEnv,
-        typesMap
+        typeMap
       );
       dynamicEnv = Dyncheck.program(
         moduleDynamicEnv,
@@ -53,23 +53,23 @@ function typecheckNodes(
         code,
         typeEnv,
         Type.reactNodeType,
-        typesMap
+        typeMap
       );
     })
   });
 
-  return { typesMap, dynamicEnv };
+  return { typeMap, dynamicEnv };
 }
 
 function expectGenerate(
   nodes: PMAST.Node[],
   expected: string
 ) {
-  const { typesMap, dynamicEnv } = typecheckNodes(nodes);
+  const { typeMap, dynamicEnv } = typecheckNodes(nodes);
   const js =
     Generate.generatePm(
       nodes,
-      (e: ESTree.Expression) => typesMap.get(e) ?? bug(`expected type`),
+      (e: ESTree.Expression) => typeMap.get(e) ?? bug(`expected type`),
       dynamicEnv,
       false
     );

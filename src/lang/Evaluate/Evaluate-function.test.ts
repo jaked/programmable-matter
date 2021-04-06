@@ -10,8 +10,8 @@ it('evals', () => {
   const code = `() => { 1; 2; 3 }`;
   const expr = Parse.parseExpression(code);
   const tenv = Typecheck.env();
-  const typesMap = new Map<ESTree.Node, Type>();
-  Typecheck.synth(expr, tenv, typesMap);
+  const typeMap = new Map<ESTree.Node, Type>();
+  Typecheck.synth(expr, tenv, typeMap);
   const venv: Evaluate.Env = Immutable.Map();
-  expect(Evaluate.evaluateExpression(expr, typesMap, venv)()).toEqual(3);
+  expect(Evaluate.evaluateExpression(expr, typeMap, venv)()).toEqual(3);
 });

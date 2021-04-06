@@ -61,11 +61,11 @@ describe('highlight', () => {
     // TODO(jaked) this is a lot of setup
     const ast = Parse.parseExpression(expr);
     const typeEnv = Immutable.Map<string, Type>();
-    const typesMap = new Map<ESTree.Node, Type>();
-    Typecheck.synth(ast, typeEnv, typesMap);
+    const typeMap = new Map<ESTree.Node, Type>();
+    Typecheck.synth(ast, typeEnv, typeMap);
 
     const spans: Span[] = [];
-    computeJsSpans(ast, typesMap, spans);
+    computeJsSpans(ast, typeMap, spans);
     const rendered = renderSpans(expr, spans);
     expect(rendered).toEqual(expected);
   }

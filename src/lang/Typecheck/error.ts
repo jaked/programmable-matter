@@ -1,11 +1,11 @@
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { TypesMap } from '../../model';
+import { TypeMap } from '../../model';
 
-export function withLocation(ast: ESTree.Node, err: string | Error, typesMap?: TypesMap) {
+export function withLocation(ast: ESTree.Node, err: string | Error, typeMap?: TypeMap) {
   if (typeof err === 'string') err = new Error(err);
   const type = Type.error(err);
-  if (typesMap) typesMap.set(ast, type);
+  if (typeMap) typeMap.set(ast, type);
   return type;
 }
 
@@ -13,69 +13,69 @@ export function expectedType(
   ast: ESTree.Node,
   expected: string | Type,
   actual: string | Type,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
   if (typeof expected !== 'string')
     expected = Type.toString(expected);
   if (typeof actual !== 'string')
     actual = Type.toString(actual);
-  return withLocation(ast, `expected ${expected}, got ${actual}`, typesMap);
+  return withLocation(ast, `expected ${expected}, got ${actual}`, typeMap);
 }
 
 export function unknownField(
   ast: ESTree.Node,
   field: string,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `unknown field '${field}'`, typesMap);
+  return withLocation(ast, `unknown field '${field}'`, typeMap);
 }
 
 export function noElementAtIndex(
   ast: ESTree.Node,
   elem: number,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `no element at index ${elem}`, typesMap);
+  return withLocation(ast, `no element at index ${elem}`, typeMap);
 }
 
 export function missingField(
   ast: ESTree.Node,
   field: string,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `missing field '${field}'`, typesMap);
+  return withLocation(ast, `missing field '${field}'`, typeMap);
 }
 
 export function extraField(
   ast: ESTree.Node,
   field: string,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `extra field ${field}`, typesMap);
+  return withLocation(ast, `extra field ${field}`, typeMap);
 }
 
 export function wrongArgsLength(
   ast: ESTree.Node,
   expected: number,
   actual: number,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `expected ${expected} args, function has ${actual} args`, typesMap);
+  return withLocation(ast, `expected ${expected} args, function has ${actual} args`, typeMap);
 }
 
 export function wrongParamsLength(
   ast: ESTree.Node,
   expected: number,
   actual: number,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `expected ${expected} type params, got ${actual} params`, typesMap);
+  return withLocation(ast, `expected ${expected} type params, got ${actual} params`, typeMap);
 }
 
 export function duplicateIdentifier(
   ast: ESTree.Node,
   ident: string,
-  typesMap: TypesMap
+  typeMap: TypeMap
 ) {
-  return withLocation(ast, `duplicate identifier ${ident}`, typesMap);
+  return withLocation(ast, `duplicate identifier ${ident}`, typeMap);
 }

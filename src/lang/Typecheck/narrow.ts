@@ -3,7 +3,7 @@ import { Tuple2 } from '../../util/Tuple';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { TypesMap } from '../../model';
+import { TypeMap } from '../../model';
 import { Env } from './env';
 import { synth } from './synth';
 
@@ -142,13 +142,13 @@ export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
   assume: boolean,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':
       switch (ast.operator) {
         case '!':
-          return narrowEnvironment(env, ast.argument, !assume, typesMap);
+          return narrowEnvironment(env, ast.argument, !assume, typeMap);
         case 'typeof':
           // typeof always returns a truthy value
           return env;
@@ -160,21 +160,21 @@ export function narrowEnvironment(
       switch (ast.operator) {
         case '&&':
           if (assume) {
-            env = narrowEnvironment(env, ast.left, true, typesMap);
-            return narrowEnvironment(env, ast.right, true, typesMap);
+            env = narrowEnvironment(env, ast.left, true, typeMap);
+            return narrowEnvironment(env, ast.right, true, typeMap);
           } else return env;
         case '||':
           if (!assume) {
-            env = narrowEnvironment(env, ast.left, false, typesMap);
-            return narrowEnvironment(env, ast.right, false, typesMap);
+            env = narrowEnvironment(env, ast.left, false, typeMap);
+            return narrowEnvironment(env, ast.right, false, typeMap);
           } else return env;
         default:
           return bug(`unexpected AST ${(ast as any).operator}`);
       }
 
     case 'BinaryExpression':
-      const left = synth(ast.left, env, typesMap);
-      const right = synth(ast.right, env, typesMap);
+      const left = synth(ast.left, env, typeMap);
+      const right = synth(ast.right, env, typeMap);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         env = narrowExpression(env, ast.left, right);
         return narrowExpression(env, ast.right, left);

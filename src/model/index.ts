@@ -23,7 +23,7 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type TypesMap = Map<ESTree.Node, Type>;
+export type TypeMap = Map<ESTree.Node, Type>;
 
 export type NoteFiles = {
   'meta'?: Content;
@@ -54,7 +54,7 @@ export type Table = {
 
 export interface CompiledFile {
   ast: Signal<unknown>;
-  typesMap?: Signal<TypesMap>;
+  typeMap?: Signal<TypeMap>;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
 

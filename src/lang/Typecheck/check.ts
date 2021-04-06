@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { TypesMap } from '../../model';
+import { TypeMap } from '../../model';
 import { Env } from './env';
 import * as Error from './error';
 import { synth, synthAndThen } from './synth';
@@ -12,26 +12,26 @@ function checkSubtype(
   ast: ESTree.Expression,
   env: Env,
   type: Type,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (ast.type) {
     case 'JSXExpressionContainer':
-      return check(ast.expression, env, type, typesMap);
+      return check(ast.expression, env, type, typeMap);
 
     case 'ConditionalExpression': {
-      const envConsequent = narrowEnvironment(env, ast.test, true, typesMap);
-      const envAlternate = narrowEnvironment(env, ast.test, false, typesMap);
+      const envConsequent = narrowEnvironment(env, ast.test, true, typeMap);
+      const envAlternate = narrowEnvironment(env, ast.test, false, typeMap);
 
-      return synthAndThen(ast.test, env, typesMap, test => {
+      return synthAndThen(ast.test, env, typeMap, test => {
         if (Type.isTruthy(test)) {
-          synth(ast.alternate, envAlternate, typesMap);
-          return check(ast.consequent, envConsequent, type, typesMap)
+          synth(ast.alternate, envAlternate, typeMap);
+          return check(ast.consequent, envConsequent, type, typeMap)
         } else if (Type.isFalsy(test)) {
-          synth(ast.consequent, envConsequent, typesMap);
-          return check(ast.alternate, envAlternate, type, typesMap);
+          synth(ast.consequent, envConsequent, typeMap);
+          return check(ast.alternate, envAlternate, type, typeMap);
         } else {
-          const consequent = check(ast.consequent, envConsequent, type, typesMap);
-          const alternate = check(ast.alternate, envAlternate, type, typesMap);
+          const consequent = check(ast.consequent, envConsequent, type, typeMap);
+          const alternate = check(ast.alternate, envAlternate, type, typeMap);
           return Type.union(consequent, alternate);
         }
       });
@@ -40,19 +40,19 @@ function checkSubtype(
     case 'SequenceExpression': {
       ast.expressions.forEach((e, i) => {
         if (i < ast.expressions.length - 1)
-          synth(e, env, typesMap);
+          synth(e, env, typeMap);
       });
-      return check(ast.expressions[ast.expressions.length - 1], env, type, typesMap);
+      return check(ast.expressions[ast.expressions.length - 1], env, type, typeMap);
     }
 
     default:
-      const actual = synth(ast, env, typesMap);
+      const actual = synth(ast, env, typeMap);
       if (Type.isSubtype(actual, type))
         return actual;
       else if (actual.kind === 'Error')
         return actual;
       else
-        return Error.expectedType(ast, type, actual, typesMap);
+        return Error.expectedType(ast, type, actual, typeMap);
   }
 }
 
@@ -60,13 +60,13 @@ function checkTuple(
   ast: ESTree.Expression,
   env: Env,
   type: Type.TupleType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (ast.type) {
     case 'ArrayExpression': {
       const types = type.elems.map((expectedType, i) => {
         if (i < ast.elements.length) {
-          const type = check(ast.elements[i], env, expectedType, typesMap);
+          const type = check(ast.elements[i], env, expectedType, typeMap);
           if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
             return Type.undefined;
           else
@@ -80,7 +80,7 @@ function checkTuple(
     }
 
     default:
-      return checkSubtype(ast, env, type, typesMap);
+      return checkSubtype(ast, env, type, typeMap);
   }
 }
 
@@ -88,14 +88,14 @@ function checkArray(
   ast: ESTree.Expression,
   env: Env,
   type: Type.ArrayType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
     case 'JSXFragment': {
       const expectedType = type.elem;
       const types = ast.children.map(child => {
-        const type = check(child, env, expectedType, typesMap);
+        const type = check(child, env, expectedType, typeMap);
         if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
           return Type.undefined;
         else
@@ -107,7 +107,7 @@ function checkArray(
     case 'ArrayExpression': {
       const expectedType = type.elem;
       const types = ast.elements.map(child => {
-        const type = check(child, env, expectedType, typesMap);
+        const type = check(child, env, expectedType, typeMap);
         if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
           return Type.undefined;
         else
@@ -117,7 +117,7 @@ function checkArray(
     }
 
     default:
-      return checkSubtype(ast, env, type, typesMap);
+      return checkSubtype(ast, env, type, typeMap);
   }
 }
 
@@ -125,13 +125,13 @@ function checkSet(
   ast: ESTree.Expression,
   env: Env,
   type: Type.SetType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (ast.type) {
     // TODO(jaked) Set literals?
 
     default:
-      return checkSubtype(ast, env, type, typesMap);
+      return checkSubtype(ast, env, type, typeMap);
   }
 }
 
@@ -139,13 +139,13 @@ function checkMap(
   ast: ESTree.Expression,
   env: Env,
   type: Type.MapType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (ast.type) {
     // TODO(jaked) Map literals?
 
     default:
-      return checkSubtype(ast, env, type, typesMap);
+      return checkSubtype(ast, env, type, typeMap);
   }
 }
 
@@ -153,10 +153,10 @@ function patTypeEnvIdentifier(
   ast: ESTree.Identifier,
   type: Type,
   env: Env,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Env {
   if (env.has(ast.name)) {
-    Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, typesMap);
+    Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, typeMap);
     return env;
   } else {
     return env.set(ast.name, type);
@@ -167,15 +167,15 @@ function patTypeEnvObjectPattern(
   ast: ESTree.ObjectPattern,
   t: Type.ObjectType,
   env: Env,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
     const field = t.fields.find(field => field._1 === key.name)
     if (!field) {
-      Error.unknownField(key, key.name, typesMap);
+      Error.unknownField(key, key.name, typeMap);
     } else {
-      env = patTypeEnv(prop.value, field._2, env, typesMap);
+      env = patTypeEnv(prop.value, field._2, env, typeMap);
     }
   });
   return env;
@@ -186,14 +186,14 @@ function patTypeEnv(
   ast: ESTree.Pattern,
   t: Type,
   env: Env,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Env {
   if (ast.type === 'ObjectPattern' && t.kind === 'Object')
-    return patTypeEnvObjectPattern(ast, t, env, typesMap);
+    return patTypeEnvObjectPattern(ast, t, env, typeMap);
   else if (ast.type === 'Identifier')
-    return patTypeEnvIdentifier(ast, t, env, typesMap);
+    return patTypeEnvIdentifier(ast, t, env, typeMap);
   else {
-    Error.withLocation(ast, `incompatible pattern for type ${Type.toString(t)}`, typesMap);
+    Error.withLocation(ast, `incompatible pattern for type ${Type.toString(t)}`, typeMap);
     return env;
   }
 }
@@ -202,15 +202,15 @@ function checkFunction(
   ast: ESTree.Expression,
   env: Env,
   type: Type.FunctionType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
       if (ast.params.length > type.args.size)
-        return Error.wrongArgsLength(ast, type.args.size, ast.params.length, typesMap);
+        return Error.wrongArgsLength(ast, type.args.size, ast.params.length, typeMap);
       let patEnv: Env = Immutable.Map(); // TODO(jaked) Env.empty();
       ast.params.forEach((pat, i) => {
-        patEnv = patTypeEnv(pat, type.args.get(i) ?? bug(), patEnv, typesMap);
+        patEnv = patTypeEnv(pat, type.args.get(i) ?? bug(), patEnv, typeMap);
       });
       env = env.merge(patEnv);
       const body = ast.body;
@@ -219,7 +219,7 @@ function checkFunction(
           if (i < body.body.length - 1) {
             switch (stmt.type) {
               case 'ExpressionStatement':
-                return synth(stmt.expression, env, typesMap);
+                return synth(stmt.expression, env, typeMap);
               default:
                 bug(`unimplemented ${stmt.type}`);
             }
@@ -230,13 +230,13 @@ function checkFunction(
           if (Type.isSubtype(actual, type))
             return actual;
           else
-            return Error.expectedType(ast, type, actual, typesMap);
+            return Error.expectedType(ast, type, actual, typeMap);
 
         } else {
           const stmt = body.body[body.body.length - 1];
           switch (stmt.type) {
             case 'ExpressionStatement': {
-              const retType = check(stmt.expression, env, type.ret, typesMap);
+              const retType = check(stmt.expression, env, type.ret, typeMap);
               if (retType.kind === 'Error') return retType;
               else return Type.functionType(type.args.toArray(), retType);
             }
@@ -246,13 +246,13 @@ function checkFunction(
         }
 
       } else {
-        const retType = check(body, env, type.ret, typesMap);
+        const retType = check(body, env, type.ret, typeMap);
         if (retType.kind === 'Error') return retType;
         else return Type.functionType(type.args.toArray(), retType);
       }
 
     default:
-      return checkSubtype(ast, env, type, typesMap);
+      return checkSubtype(ast, env, type, typeMap);
   }
 }
 
@@ -260,7 +260,7 @@ function checkUnion(
   ast: ESTree.Expression,
   env: Env,
   type: Type.UnionType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   // to get a more localized error message we'd like to decompose the type and expression
   // as far as possible, but for unions we don't know which arm to break down.
@@ -273,21 +273,21 @@ function checkUnion(
     (t.kind === 'Function' && ast.type === 'ArrowFunctionExpression')
   );
   if (matchingArms.size === 1)
-    return check(ast, env, matchingArms.get(0) ?? bug(), typesMap);
+    return check(ast, env, matchingArms.get(0) ?? bug(), typeMap);
   else
-    return checkSubtype(ast, env, type, typesMap);
+    return checkSubtype(ast, env, type, typeMap);
 }
 
 function checkIntersection(
   ast: ESTree.Expression,
   env: Env,
   type: Type.IntersectionType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   // TODO(jaked)
   // how should we return / display errors here?
   // we don't have a way to show alternatives in editor
-  const types = type.types.map(type => check(ast, env, type, typesMap));
+  const types = type.types.map(type => check(ast, env, type, typeMap));
   return types.find(type => type.kind === 'Error') ?? type;
 }
 
@@ -295,16 +295,16 @@ function checkSingleton(
   ast: ESTree.Expression,
   env: Env,
   type: Type.SingletonType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
-  return checkSubtype(ast, env, type, typesMap);
+  return checkSubtype(ast, env, type, typeMap);
 }
 
 function checkObject(
   ast: ESTree.Expression,
   env: Env,
   type: Type.ObjectType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   if (ast.type === 'ObjectExpression') {
     const seen = new Set();
@@ -316,18 +316,18 @@ function checkObject(
         default: bug('expected Identifier or Literal prop key name');
       }
       if (seen.has(name)) {
-        synth(prop.value, env, typesMap);
+        synth(prop.value, env, typeMap);
         // TODO(jaked) this highlights the error but we also need to skip evaluation
-        Error.withLocation(prop.key, `duplicate property name '${name}'`, typesMap);
+        Error.withLocation(prop.key, `duplicate property name '${name}'`, typeMap);
         return Type.undefined;
       } else {
         seen.add(name);
         const fieldType = type.getFieldType(name);
-        if (fieldType) return check(prop.value, env, fieldType, typesMap);
+        if (fieldType) return check(prop.value, env, fieldType, typeMap);
         else {
           // TODO(jaked) this highlights the error but we also need to skip evaluation
-          Error.extraField(prop.key, name, typesMap);
-          synth(prop.value, env, typesMap);
+          Error.extraField(prop.key, name, typeMap);
+          synth(prop.value, env, typeMap);
           return Type.undefined;
         }
       }
@@ -346,44 +346,44 @@ function checkObject(
     type.fields.forEach(({ _1: name, _2: type }) => {
       if (!propNames.has(name) && !Type.isSubtype(Type.undefined, type))
         // TODO(jaked) stop after first one? aggregate all?
-        missingField = Error.missingField(ast, name, typesMap);
+        missingField = Error.missingField(ast, name, typeMap);
     });
 
     if (missingField) return missingField;
     return types.find(type => type.kind === 'Error') ?? type;
   }
 
-  else return checkSubtype(ast, env, type, typesMap);
+  else return checkSubtype(ast, env, type, typeMap);
 }
 
 function checkAbstract(
   ast: ESTree.Expression,
   env: Env,
   type: Type.AbstractType,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
-  return check(ast, env, Type.expand(type), typesMap);
+  return check(ast, env, Type.expand(type), typeMap);
 }
 
 function checkHelper(
   ast: ESTree.Expression,
   env: Env,
   type: Type,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
   switch (type.kind) {
-    case 'Tuple':         return checkTuple(ast, env, type, typesMap);
-    case 'Array':         return checkArray(ast, env, type, typesMap);
-    case 'Set':           return checkSet(ast, env, type, typesMap);
-    case 'Map':           return checkMap(ast, env, type, typesMap);
-    case 'Object':        return checkObject(ast, env, type, typesMap);
-    case 'Function':      return checkFunction(ast, env, type, typesMap);
-    case 'Union':         return checkUnion(ast, env, type, typesMap);
-    case 'Intersection':  return checkIntersection(ast, env, type, typesMap);
-    case 'Singleton':     return checkSingleton(ast, env, type, typesMap);
-    case 'Abstract':      return checkAbstract(ast, env, type, typesMap);
+    case 'Tuple':         return checkTuple(ast, env, type, typeMap);
+    case 'Array':         return checkArray(ast, env, type, typeMap);
+    case 'Set':           return checkSet(ast, env, type, typeMap);
+    case 'Map':           return checkMap(ast, env, type, typeMap);
+    case 'Object':        return checkObject(ast, env, type, typeMap);
+    case 'Function':      return checkFunction(ast, env, type, typeMap);
+    case 'Union':         return checkUnion(ast, env, type, typeMap);
+    case 'Intersection':  return checkIntersection(ast, env, type, typeMap);
+    case 'Singleton':     return checkSingleton(ast, env, type, typeMap);
+    case 'Abstract':      return checkAbstract(ast, env, type, typeMap);
 
-    default:              return checkSubtype(ast, env, type, typesMap);
+    default:              return checkSubtype(ast, env, type, typeMap);
   }
 }
 
@@ -391,9 +391,9 @@ export function check(
   ast: ESTree.Expression,
   env: Env,
   type: Type,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Type {
-  const actualType = checkHelper(ast, env, type, typesMap);
-  if (typesMap) typesMap.set(ast, actualType);
+  const actualType = checkHelper(ast, env, type, typeMap);
+  if (typeMap) typeMap.set(ast, actualType);
   return actualType;
 }

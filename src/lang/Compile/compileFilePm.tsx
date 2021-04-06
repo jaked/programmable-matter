@@ -7,7 +7,7 @@ import { bug } from '../../util/bug';
 import * as model from '../../model';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
-import { TypesMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
+import { TypeMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -24,7 +24,7 @@ function typecheckCode(
   node: PMAST.Code,
   moduleEnv: Map<string, Type.ModuleType>,
   typeEnv: Typecheck.Env,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ): Typecheck.Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
@@ -32,7 +32,7 @@ function typecheckCode(
       moduleEnv,
       code,
       typeEnv,
-      typesMap
+      typeMap
     );
   });
   return typeEnv;
@@ -59,11 +59,11 @@ function dyncheckCode(
 function typecheckInlineCode(
   node: PMAST.InlineCode,
   env: Typecheck.Env,
-  typesMap: TypesMap,
+  typeMap: TypeMap,
 ) {
   const code = Parse.parseInlineCodeNode(node);
   code.forEach(code =>
-    Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, typesMap)
+    Typecheck.check(code as ESTree.Expression, env, Type.reactNodeType, typeMap)
   );
 }
 
@@ -209,13 +209,13 @@ export default function compileFilePm(
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
-    const typesMap = new Map<ESTree.Node, Type>();
+    const typeMap = new Map<ESTree.Node, Type>();
     codeNodes.forEach(node => {
       typeEnv = typecheckCode(
         node,
         moduleTypeEnv,
         typeEnv,
-        typesMap
+        typeMap
       );
       dynamicEnv = dyncheckCode(
         node,
@@ -224,7 +224,7 @@ export default function compileFilePm(
         dynamicEnv,
       );
     });
-    return { typesMap, typeEnv, dynamicEnv }
+    return { typeMap, typeEnv, dynamicEnv }
   });
 
   // TODO(jaked)
@@ -233,24 +233,24 @@ export default function compileFilePm(
   const typecheckedInlineCode = Signal.join(
     typecheckedCode,
     inlineCodeNodes,
-  ).map(([{ typesMap, typeEnv }, inlineCodeNodes]) => {
+  ).map(([{ typeMap, typeEnv }, inlineCodeNodes]) => {
     // clone to avoid polluting annotations between versions
     // TODO(jaked) works fine but not very clear
-    typesMap = new Map(typesMap);
+    typeMap = new Map(typeMap);
 
     inlineCodeNodes.forEach(node =>
-      typecheckInlineCode(node, typeEnv, typesMap)
+      typecheckInlineCode(node, typeEnv, typeMap)
     );
-    const problems = [...typesMap.values()].some(t => t.kind === 'Error');
+    const problems = [...typeMap.values()].some(t => t.kind === 'Error');
     if (problems && debug) {
       const errorAnnotations = new Map<unknown, Type>();
-      typesMap.forEach((v, k) => {
+      typeMap.forEach((v, k) => {
         if (v.kind === 'Error')
           errorAnnotations.set(k, v);
       });
       console.log(errorAnnotations);
     }
-    return { typesMap, problems }
+    return { typeMap, problems }
   });
 
   // TODO(jaked)
@@ -262,7 +262,7 @@ export default function compileFilePm(
     tableValue,
     moduleDynamicEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { typesMap, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { typeMap, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -274,7 +274,7 @@ export default function compileFilePm(
       valueEnv = Evaluate.evaluateCodeNode(
         nodes,
         node,
-        typesMap,
+        typeMap,
         moduleDynamicEnv,
         moduleValueEnv,
         dynamicEnv,
@@ -294,9 +294,9 @@ export default function compileFilePm(
     compile,
     typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, { valueEnv }, { dynamicEnv }, { typesMap }]) => {
+  ).map(([nodes, { valueEnv }, { dynamicEnv }, { typeMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
-    return nodes.map(node => Render.renderNode(node, typesMap, dynamicEnv, valueEnv, nextRootId, Link));
+    return nodes.map(node => Render.renderNode(node, typeMap, dynamicEnv, valueEnv, nextRootId, Link));
   });
 
   const debug = false;
@@ -384,10 +384,10 @@ ${html}
     nodes,
     typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, { dynamicEnv }, { typesMap }]) => {
+  ).map(([nodes, { dynamicEnv }, { typeMap }]) => {
     return Generate.generatePm(
       nodes,
-      expr => typesMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
+      expr => typeMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
       dynamicEnv,
     );
   });
@@ -441,7 +441,7 @@ ${html}
 
   return {
     ast: Signal.ok(null),
-    typesMap: typecheckedInlineCode.map(({ typesMap }) => typesMap),
+    typeMap: typecheckedInlineCode.map(({ typeMap }) => typeMap),
     problems: typecheckedInlineCode.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
