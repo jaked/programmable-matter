@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import * as Parse from '../Parse';
+import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
@@ -16,7 +17,7 @@ export default function compileFileMeta(
 ): CompiledFile {
   const compiled = file.content.map(content => {
     const ast = Parse.parseExpression(content as string);
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, typesMap);
     const problems = [...typesMap.values()].some(t => t.kind === 'Error');
     const value = error.kind === 'Error' ?

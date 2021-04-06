@@ -486,7 +486,7 @@ export function evaluateCodeNode(
 ): Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
-    for (const decl of (code as ESTree.Program).body) {
+    for (const decl of code.body) {
       switch (decl.type) {
         case 'ImportDeclaration':
           valueEnv = importDecl(decl, moduleDynamicEnv, moduleValueEnv, typesMap, valueEnv);

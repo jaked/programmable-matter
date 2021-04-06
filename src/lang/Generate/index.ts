@@ -324,7 +324,7 @@ function genNode(
   if (PMAST.isCode(node)) {
     const ast = Parse.parseCodeNode(node);
     if (ast.type === 'ok') {
-      for (const node of (ast.ok as ESTree.Program).body) {
+      for (const node of ast.ok.body) {
         switch (node.type) {
           case 'ExpressionStatement': {
             const type = typesMap(node.expression);

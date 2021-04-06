@@ -3,6 +3,7 @@ import React from 'react';
 import Signal from '../util/Signal';
 import Type from '../lang/Type';
 import * as PMAST from '../model/PMAST';
+import * as ESTree from '../lang/ESTree';
 
 export type File = {
   mtimeMs: number;
@@ -22,7 +23,7 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type TypesMap = Map<unknown, Type>;
+export type TypesMap = Map<ESTree.Node, Type>;
 
 export type NoteFiles = {
   'meta'?: Content;

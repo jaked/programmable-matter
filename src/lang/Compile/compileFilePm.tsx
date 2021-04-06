@@ -30,7 +30,7 @@ function typecheckCode(
   code.forEach(code => {
     typeEnv = Typecheck.synthProgram(
       moduleEnv,
-      code as ESTree.Program,
+      code,
       typeEnv,
       typesMap
     );
@@ -48,7 +48,7 @@ function dyncheckCode(
   code.forEach(code => {
     dynamicEnv = Dyncheck.program(
       moduleEnv,
-      code as ESTree.Program,
+      code,
       typeEnv,
       dynamicEnv,
     );
@@ -114,7 +114,7 @@ export default function compileFilePm(
       codeNodes.forEach(node => {
         const code = Parse.parseCodeNode(node);
         code.forEach(code =>
-          (code as ESTree.Program).body.forEach(node => {
+          code.body.forEach(node => {
             switch (node.type) {
               case 'ImportDeclaration':
                 imports.push(node.source.value);
@@ -209,7 +209,7 @@ export default function compileFilePm(
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     codeNodes.forEach(node => {
       typeEnv = typecheckCode(
         node,
@@ -397,7 +397,7 @@ ${html}
       codeNodes.forEach(node => {
         const code = Parse.parseCodeNode(node);
         code.forEach(code => {
-          for (const decl of (code as ESTree.Program).body) {
+          for (const decl of code.body) {
             switch (decl.type) {
               case 'ExportNamedDeclaration':
                 decl.declaration.declarations.forEach(declarator => {

@@ -238,7 +238,7 @@ export default function compileFileTable(
   );
 
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     const error = Typecheck.check(ast, Typecheck.env(), tableType, typesMap);
     const problems = [...typesMap.values()].some(t => t.kind === 'Error');
 

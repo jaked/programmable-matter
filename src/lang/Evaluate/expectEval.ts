@@ -32,7 +32,7 @@ export default function expectEval({ expr, tenv, venv, value } : {
       venv :
       (Immutable.Map(venv))) :
     (Immutable.Map());
-  const typesMap = new Map<unknown, Type>();
+  const typesMap = new Map<ESTree.Node, Type>();
   Typecheck.synth(expr, tenv, typesMap);
 
   // TODO(jaked) not sure why this is necessary

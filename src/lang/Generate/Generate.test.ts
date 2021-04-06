@@ -33,13 +33,13 @@ function typecheckNodes(
     code.forEach(code => {
       typeEnv = Typecheck.synthProgram(
         moduleTypeEnv,
-        code as ESTree.Program,
+        code,
         typeEnv,
         typesMap
       );
       dynamicEnv = Dyncheck.program(
         moduleDynamicEnv,
-        code as ESTree.Program,
+        code,
         typeEnv,
         dynamicEnv
       )
@@ -50,7 +50,7 @@ function typecheckNodes(
     const code = Parse.parseInlineCodeNode(node);
     code.forEach(code => {
       Typecheck.check(
-        code as ESTree.Expression,
+        code,
         typeEnv,
         Type.reactNodeType,
         typesMap

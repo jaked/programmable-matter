@@ -5,10 +5,12 @@ import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
 
+import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as model from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as Parse from '../../lang/Parse';
+import * as ESTree from '../../lang/ESTree';
 import * as PMEditor from '../../editor/PMEditor';
 import * as Highlight from '../../lang/highlight';
 import makeLink from '../../components/makeLink';
@@ -142,7 +144,7 @@ export const makeDecorate = (typesMap?: model.TypesMap) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
     const ranges: Range[] = [];
-    const code =
+    const code: Try<ESTree.Node> | null =
       PMAST.isCode(node) ? Parse.parseCodeNode(node) :
       PMAST.isInlineCode(node) ? Parse.parseInlineCodeNode(node) :
       null;

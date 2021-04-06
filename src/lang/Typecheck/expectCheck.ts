@@ -25,7 +25,7 @@ export default function expectCheck({ expr, env, type, actualType, error }: {
     Typecheck.env();
   type = (typeof type === 'string') ? Parse.parseType(type) : type;
   error = (error !== undefined) ? error : false;
-  const typesMap = new Map<unknown, Type>();
+  const typesMap = new Map<ESTree.Node, Type>();
   const actualTypeValue = Typecheck.check(expr, env, type, typesMap);
   const errorValue = [...typesMap.values()].some(t => t.kind === 'Error');
   if (error !== undefined) expect(errorValue).toBe(error);

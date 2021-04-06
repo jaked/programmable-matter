@@ -6,6 +6,7 @@ import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import { bug } from '../../util/bug';
 import * as Parse from '../Parse';
+import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
@@ -93,7 +94,7 @@ export default function compileFileJson(
   const meta = metaForPath(file.path, compiledFiles);
 
   const compiled = Signal.join(ast, meta).map(([ast, meta]) => {
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     let type =
       meta.dataType ?
         Typecheck.check(ast, Typecheck.env(), meta.dataType, typesMap) :

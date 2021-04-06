@@ -1,6 +1,7 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
 import * as Parse from '../lang/Parse';
+import * as ESTree from '../lang/ESTree';
 import Type from '../lang/Type';
 import Typecheck from '../lang/Typecheck';
 import { computeJsSpans, Span } from './highlight';
@@ -60,7 +61,7 @@ describe('highlight', () => {
     // TODO(jaked) this is a lot of setup
     const ast = Parse.parseExpression(expr);
     const typeEnv = Immutable.Map<string, Type>();
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     Typecheck.synth(ast, typeEnv, typesMap);
 
     const spans: Span[] = [];

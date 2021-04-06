@@ -1,4 +1,5 @@
 import * as Parse from '../Parse';
+import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from './index';
 import expectSynth from './expectSynth';
@@ -367,7 +368,7 @@ describe('synthProgram', () => {
       const x = 7
     `);
     const env = Typecheck.env();
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
@@ -385,7 +386,7 @@ describe('synthProgram', () => {
       const x: number = 7
     `);
     const env = Typecheck.env();
-    const typesMap = new Map<unknown, Type>();
+    const typesMap = new Map<ESTree.Node, Type>();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
