@@ -7,7 +7,7 @@ import * as PMAST from '../../model/PMAST';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as MapFuncs from '../../util/MapFuncs';
-import { TypeMap } from '../../model';
+import { DynamicMap, TypeMap } from '../../model';
 import * as Parse from '../Parse';
 import * as Dyncheck from '../Dyncheck';
 import lensValue from '../Compile/lensValue';
@@ -56,8 +56,9 @@ const functionComponent = React.memo<{ component, props }>(({ component, props }
 export function evaluateExpression(
   ast: ESTree.Expression,
   typeMap: TypeMap,
+  dynamicMap: DynamicMap,
   env: Env,
-): any {
+): unknown {
   const type = typeMap.get(ast) ?? bug(`expected type`);
   if (type.kind === 'Error')
     return undefined;
@@ -71,7 +72,7 @@ export function evaluateExpression(
       else bug(`expected value for ${ast.name}`);
 
     case 'JSXExpressionContainer':
-      return evaluateExpression(ast.expression, typeMap, env);
+      return evaluateExpression(ast.expression, typeMap, dynamicMap, env);
 
     case 'JSXEmptyExpression':
       return undefined;
@@ -90,7 +91,7 @@ export function evaluateExpression(
     case 'JSXElement': {
       const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
         if (!value) return { [name.name]: true }
-        else return { [name.name]: evaluateExpression(value, typeMap, env) };
+        else return { [name.name]: evaluateExpression(value, typeMap, dynamicMap, env) };
       });
       const attrs = Object.assign({}, ...attrObjs);
 
@@ -122,7 +123,7 @@ export function evaluateExpression(
       const children = ast.children.map(child => {
         // TODO(jaked) undefined seems to be an acceptable ReactNode
         // in some contexts but not others; maybe we need `null` here
-        return evaluateExpression(child, typeMap, env);
+        return evaluateExpression(child, typeMap, dynamicMap, env) as React.ReactNode;
       });
       if (typeof elem === 'function' && !isConstructor(elem))
         return React.createElement(functionComponent, { component: elem, props: { ...attrs, children } });
@@ -130,14 +131,14 @@ export function evaluateExpression(
     }
 
     case 'JSXFragment':
-      return ast.children.map(child => evaluateExpression(child, typeMap, env));
+      return ast.children.map(child => evaluateExpression(child, typeMap, dynamicMap, env));
 
     case 'UnaryExpression': {
       const argType = typeMap.get(ast.argument) ?? bug(`expected type`);
-      const v = evaluateExpression(ast.argument, typeMap, env);
+      const v = evaluateExpression(ast.argument, typeMap, dynamicMap, env);
       switch (ast.operator) {
         case '+': return v;
-        case '-': return -v;
+        case '-': return -(v as number);
         case '!': return !v;
         case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
         default: throw new Error(`unhandled ast ${(ast as any).operator}`);
@@ -147,17 +148,17 @@ export function evaluateExpression(
     case 'LogicalExpression': {
       switch (ast.operator) {
         case '||':
-          return evaluateExpression(ast.left, typeMap, env) || evaluateExpression(ast.right, typeMap, env);
+          return evaluateExpression(ast.left, typeMap, dynamicMap, env) || evaluateExpression(ast.right, typeMap, dynamicMap, env);
         case '&&':
-          return evaluateExpression(ast.left, typeMap, env) && evaluateExpression(ast.right, typeMap, env);
+          return evaluateExpression(ast.left, typeMap, dynamicMap, env) && evaluateExpression(ast.right, typeMap, dynamicMap, env);
         default:
           throw new Error(`unexpected binary operator ${(ast as any).operator}`)
       }
     }
 
     case 'BinaryExpression': {
-      const lv = evaluateExpression(ast.left, typeMap, env);
-      const rv = evaluateExpression(ast.right, typeMap, env);
+      const lv = evaluateExpression(ast.left, typeMap, dynamicMap, env);
+      const rv = evaluateExpression(ast.right, typeMap, dynamicMap, env);
       const leftType = typeMap.get(ast.left) ?? bug(`expected type`);
       const rightType = typeMap.get(ast.right) ?? bug(`expected type`);
 
@@ -169,13 +170,17 @@ export function evaluateExpression(
         case '%':
           if (leftType.kind === 'Error') return rv;
           else if (rightType.kind === 'Error') return lv;
-          else switch (ast.operator) {
-            case '+': return lv + rv;
-            case '-': return lv - rv;
-            case '*': return lv * rv;
-            case '/': return lv / rv;
-            case '%': return lv % rv;
-            default: bug(`unexpected ast.operator ${ast.operator}`);
+          else {
+            const lvn = lv as number;
+            const rvn = rv as number;
+            switch (ast.operator) {
+              case '+': return lvn + rvn;
+              case '-': return lvn - rvn;
+              case '*': return lvn * rvn;
+              case '/': return lvn / rvn;
+              case '%': return lvn % rvn;
+              default: bug(`unexpected ast.operator ${ast.operator}`);
+            }
           }
 
         case '===':
@@ -197,15 +202,15 @@ export function evaluateExpression(
 
     case 'SequenceExpression': {
       const values = ast.expressions.map(e =>
-        evaluateExpression(e, typeMap, env)
+        evaluateExpression(e, typeMap, dynamicMap, env)
       );
       return values[values.length - 1];
     }
 
     case 'MemberExpression': {
-      const object = evaluateExpression(ast.object, typeMap, env);
+      const object = evaluateExpression(ast.object, typeMap, dynamicMap, env) as object;
       if (ast.computed) {
-        const property = evaluateExpression(ast.property, typeMap, env);
+        const property = evaluateExpression(ast.property, typeMap, dynamicMap, env) as (string | number);
         return object[property];
       } else {
         if (ast.property.type !== 'Identifier')
@@ -215,11 +220,11 @@ export function evaluateExpression(
     }
 
     case 'CallExpression': {
-      const args = ast.arguments.map(arg => evaluateExpression(arg, typeMap, env));
+      const args = ast.arguments.map(arg => evaluateExpression(arg, typeMap, dynamicMap, env));
       if (ast.callee.type === 'MemberExpression') {
-        const object = evaluateExpression(ast.callee.object, typeMap, env);
+        const object = evaluateExpression(ast.callee.object, typeMap, dynamicMap, env) as object;
         if (ast.callee.computed) {
-          const method = evaluateExpression(ast.callee.property, typeMap, env);
+          const method = evaluateExpression(ast.callee.property, typeMap, dynamicMap, env) as any;
           return method.apply(object, args);
         } else {
           if (ast.callee.property.type !== 'Identifier')
@@ -228,14 +233,14 @@ export function evaluateExpression(
           return method.apply(object, args);
         }
       } else {
-        const callee = evaluateExpression(ast.callee, typeMap, env);
+        const callee = evaluateExpression(ast.callee, typeMap, dynamicMap, env) as any;
         return callee(...args);
       }
     }
 
     case 'ObjectExpression': {
       const properties = ast.properties.map(prop => {
-        const value = evaluateExpression(prop.value, typeMap, env);
+        const value = evaluateExpression(prop.value, typeMap, dynamicMap, env);
         return { ...prop, value };
       });
       return Object.assign({}, ...properties.map(prop => {
@@ -250,7 +255,7 @@ export function evaluateExpression(
     }
 
     case 'ArrayExpression':
-      return ast.elements.map(e => evaluateExpression(e, typeMap, env));
+      return ast.elements.map(e => evaluateExpression(e, typeMap, dynamicMap, env));
 
     case 'ArrowFunctionExpression': {
       const body = ast.body;
@@ -262,7 +267,7 @@ export function evaluateExpression(
           const values = body.body.map(stmt => {
             switch (stmt.type) {
               case 'ExpressionStatement':
-                return evaluateExpression(stmt.expression, typeMap, env);
+                return evaluateExpression(stmt.expression, typeMap, dynamicMap, env);
               default:
                 bug(`unimplemented ${stmt.type}`);
             }
@@ -276,16 +281,16 @@ export function evaluateExpression(
             ast.params.forEach((pat, i) => {
               env = patValueEnv(pat, args[i], env);
             });
-            return evaluateExpression(body, typeMap, env);
+            return evaluateExpression(body, typeMap, dynamicMap, env);
           };
       }
     }
 
     case 'ConditionalExpression': {
-      if (evaluateExpression(ast.test, typeMap, env)) {
-        return evaluateExpression(ast.consequent, typeMap, env);
+      if (evaluateExpression(ast.test, typeMap, dynamicMap, env)) {
+        return evaluateExpression(ast.consequent, typeMap, dynamicMap, env);
       } else {
-        return evaluateExpression(ast.alternate, typeMap, env)
+        return evaluateExpression(ast.alternate, typeMap, dynamicMap, env)
       }
     }
 
@@ -301,6 +306,7 @@ export function evaluateExpression(
 export function evaluateDynamicExpression(
   ast: ESTree.Expression,
   typeMap: TypeMap,
+  dynamicMap: DynamicMap,
   dynamicEnv: Dyncheck.Env,
   valueEnv: Env,
 ): { value: unknown, dynamic: boolean } {
@@ -321,14 +327,14 @@ export function evaluateDynamicExpression(
   switch (signals.length) {
     case 0:
       return {
-        value: evaluateExpression(ast, typeMap, valueEnv),
+        value: evaluateExpression(ast, typeMap, dynamicMap, valueEnv),
         dynamic: false
       };
     case 1:
       return {
         value: signals[0].map(value => {
           const valueEnv2 = valueEnv.set(idents[0], value);
-          return evaluateExpression(ast, typeMap, valueEnv2);
+          return evaluateExpression(ast, typeMap, dynamicMap, valueEnv2);
         }),
         dynamic: true
       };
@@ -336,7 +342,7 @@ export function evaluateDynamicExpression(
       return {
         value: Signal.join(...signals).map(values => {
           const valueEnv2 = valueEnv.concat(Immutable.Map(idents.map((id, i) => [id, values[i]])));
-          return evaluateExpression(ast, typeMap, valueEnv2);
+          return evaluateExpression(ast, typeMap, dynamicMap, valueEnv2);
         }),
         dynamic: true
       };
@@ -410,6 +416,7 @@ function evalVariableDecl(
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   typeMap: TypeMap,
+  dynamicMap: DynamicMap,
   dynamicEnv: Dyncheck.Env,
   valueEnv: Env,
 ): Env {
@@ -418,7 +425,7 @@ function evalVariableDecl(
       decl.declarations.forEach(declarator => {
         if (!declarator.init) return;
         const name = declarator.id.name;
-        const { value } = evaluateDynamicExpression(declarator.init, typeMap, dynamicEnv, valueEnv);
+        const { value } = evaluateDynamicExpression(declarator.init, typeMap, dynamicMap, dynamicEnv, valueEnv);
         valueEnv = valueEnv.set(name, value);
       });
     }
@@ -432,7 +439,7 @@ function evalVariableDecl(
         else if (lensType.kind !== 'Abstract' || lensType.params.size !== 1) bug(`expected lensType`);
         const type = lensType.params.get(0) ?? bug(`expected param`);
         const init = declarator.init;
-        const value = evaluateExpression(init, typeMap, Immutable.Map({ undefined: undefined }));
+        const value = evaluateExpression(init, typeMap, dynamicMap, Immutable.Map({ undefined: undefined }));
         const setValue = (v) => {
           nodes.produce(nodes => {
             function walk(nodes: PMAST.Node[]): boolean {
@@ -479,6 +486,7 @@ export function evaluateCodeNode(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   typeMap: TypeMap,
+  dynamicMap: DynamicMap,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   dynamicEnv: Dyncheck.Env,
@@ -493,17 +501,17 @@ export function evaluateCodeNode(
           break;
 
         case 'ExportNamedDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl.declaration, typeMap, dynamicEnv, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl.declaration, typeMap, dynamicMap, dynamicEnv, valueEnv);
           break;
 
         case 'ExportDefaultDeclaration': {
-          const { value } = evaluateDynamicExpression(decl.declaration, typeMap, dynamicEnv, valueEnv);
+          const { value } = evaluateDynamicExpression(decl.declaration, typeMap, dynamicMap, dynamicEnv, valueEnv);
           valueEnv = valueEnv.set('default', value);
         }
         break;
 
         case 'VariableDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl, typeMap, dynamicEnv, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl, typeMap, dynamicMap, dynamicEnv, valueEnv);
           break;
       }
     }

@@ -13,8 +13,9 @@ import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
+import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
-import { TypeMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
+import { DynamicMap, TypeMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
 import * as model from '../../model';
 import { Table } from '../../components/Table';
 import lensType from './lensType';
@@ -54,6 +55,7 @@ const tableType =
 function computeTableConfig(
   ast: ESTree.Expression,
   typeMap: TypeMap,
+  dynamicMap: DynamicMap,
 ): model.Table {
   // TODO(jaked)
   // blows up if a type string cannot be parsed
@@ -62,7 +64,7 @@ function computeTableConfig(
   // maybe we could evaluate with respect to a type
   // and do conversion internally to evaluation
   return {
-    fields: Evaluate.evaluateExpression(ast, typeMap, Immutable.Map()).fields.map(field => {
+    fields: (Evaluate.evaluateExpression(ast, typeMap, dynamicMap, Immutable.Map()) as any).fields.map(field => {
       switch (field.kind) {
         case 'data':
           const type = Parse.parseType(field.type);
@@ -240,6 +242,8 @@ export default function compileFileTable(
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
     const typeMap = new Map<ESTree.Node, Type>();
     const error = Typecheck.check(ast, Typecheck.env(), tableType, typeMap);
+    const dynamicMap = new Map<ESTree.Node, boolean>();
+    Dyncheck.expression(ast, typeMap, Immutable.Map(), dynamicMap);
     const problems = [...typeMap.values()].some(t => t.kind === 'Error');
 
     if (error.kind === 'Error') {
@@ -252,7 +256,7 @@ export default function compileFileTable(
         problems,
       }
     }
-    const tableConfig = computeTableConfig(ast, typeMap);
+    const tableConfig = computeTableConfig(ast, typeMap, dynamicMap);
     const tableDataType = computeTableDataType(tableConfig);
 
     const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);

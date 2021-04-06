@@ -9,6 +9,7 @@ import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
+import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import { Content, CompiledFile } from '../../model';
 import { Record } from '../../components/Record';
@@ -99,6 +100,8 @@ export default function compileFileJson(
       meta.dataType ?
         Typecheck.check(ast, Typecheck.env(), meta.dataType, typeMap) :
         Typecheck.synth(ast, Typecheck.env(), typeMap);
+    const dynamicMap = new Map<ESTree.Node, boolean>();
+    Dyncheck.expression(ast, typeMap, Immutable.Map(), dynamicMap);
     const problems = [...typeMap.values()].some(t => t.kind === 'Error');
 
     if (type.kind === 'Error') {
@@ -130,7 +133,7 @@ export default function compileFileJson(
         default: type,
         mutable: lensType(type),
       });
-      const value = Evaluate.evaluateExpression(ast, typeMap, Immutable.Map());
+      const value = Evaluate.evaluateExpression(ast, typeMap, dynamicMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
       const exportValue = new Map([

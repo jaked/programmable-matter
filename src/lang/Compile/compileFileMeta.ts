@@ -4,6 +4,7 @@ import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
+import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import { Content, CompiledFile } from '../../model';
 import * as Meta from '../../model/Meta';
@@ -19,10 +20,12 @@ export default function compileFileMeta(
     const ast = Parse.parseExpression(content as string);
     const typeMap = new Map<ESTree.Node, Type>();
     const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, typeMap);
+    const dynamicMap = new Map<ESTree.Node, boolean>();
+    Dyncheck.expression(ast, typeMap, Immutable.Map(), dynamicMap);
     const problems = [...typeMap.values()].some(t => t.kind === 'Error');
     const value = error.kind === 'Error' ?
       error.err :
-      Meta.validate(Evaluate.evaluateExpression(ast, typeMap, Immutable.Map()));
+      Meta.validate(Evaluate.evaluateExpression(ast, typeMap, dynamicMap, Immutable.Map()));
     const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,

@@ -8,6 +8,10 @@ const tenv = Typecheck.env({
   error: Type.error(error),
   bug: Type.functionType([], Type.never),
 });
+const denv = Immutable.Map({
+  error: false,
+  bug: false,
+})
 const venv = Immutable.Map({
   error: error,
   bug: () => { throw 'bug' },
@@ -53,6 +57,7 @@ describe('logical expressions', () => {
       expr: 'false && bug()',
       value: false,
       tenv,
+      denv,
       venv,
     });
   });
@@ -65,6 +70,7 @@ describe('logical expressions', () => {
       expr: 'error && bug()',
       value: undefined,
       tenv,
+      denv,
       venv,
     });
   });
@@ -74,6 +80,7 @@ describe('logical expressions', () => {
       expr: 'true || bug()',
       value: true,
       tenv,
+      denv,
       venv,
     });
   });
@@ -83,6 +90,7 @@ describe('logical expressions', () => {
       expr: 'error || true',
       value: true,
       tenv,
+      denv,
       venv,
     });
   });
@@ -95,6 +103,7 @@ describe('binary expressions', () => {
         expr: `7 + error`,
         value: 7,
         tenv,
+        denv,
         venv,
       });
     });
@@ -104,6 +113,7 @@ describe('binary expressions', () => {
         expr: `error + 7`,
         value: 7,
         tenv,
+        denv,
         venv,
       });
     });
@@ -116,6 +126,11 @@ describe('member expressions', () => {
     object: '{ foo: boolean }',
     array: 'number[]',
   });
+  const denv = Immutable.Map({
+    error: false,
+    object: false,
+    array: false,
+  });
   const venv = Immutable.Map({
     error: error,
     object: { foo: true },
@@ -127,6 +142,7 @@ describe('member expressions', () => {
       expr: `error.foo`,
       value: undefined,
       tenv,
+      denv,
       venv,
     });
   });
@@ -136,6 +152,7 @@ describe('member expressions', () => {
       expr: `object[error]`,
       value: undefined,
       tenv,
+      denv,
       venv,
     });
   });
@@ -145,6 +162,7 @@ describe('member expressions', () => {
       expr: `array[error]`,
       value: undefined,
       tenv,
+      denv,
       venv,
     });
   });
@@ -178,6 +196,10 @@ describe('call expressions', () => {
     error: Type.error(error),
     g: '(a: undefined | boolean, b: boolean, c: undefined | boolean) => boolean',
   });
+  const denv = Immutable.Map({
+    error: false,
+    g: false,
+  });
   const venv = Immutable.Map({
     error: error,
     g: (a, b, c) => a || b || c
@@ -188,6 +210,7 @@ describe('call expressions', () => {
       expr: `g(false, true)`,
       value: true,
       tenv,
+      denv,
       venv,
     });
   });
@@ -197,6 +220,7 @@ describe('call expressions', () => {
       expr: `g(error, false, false)`,
       value: false,
       tenv,
+      denv,
       venv,
     });
   });
@@ -207,6 +231,10 @@ describe('JSX', () => {
     Foo: '(o: { bar: boolean }) => boolean',
     Bar: 'React.FC<{ baz: undefined | string }>',
     Baz: 'React.FC<{ quux: string }>',
+  });
+  const denv = Immutable.Map({
+    Foo: false,
+    Bar: false,
   });
   const venv = Immutable.Map({
     Foo: ({ bar }) => bar,
@@ -257,6 +285,7 @@ describe('Map#filter', () => {
       expr: `foo.filter((v, k) => k === 'bar').size`,
       value: 1,
       tenv: { foo: Type.map(Type.string, Type.number) },
+      denv: { foo: false },
       venv: {
         foo: Immutable.Map({
           bar: 7,

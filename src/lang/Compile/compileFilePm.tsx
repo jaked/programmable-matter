@@ -283,7 +283,7 @@ export default function compileFilePm(
     tableValue,
     moduleDynamicEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { typeMap, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { typeMap, dynamicMap, dynamicEnv }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -296,6 +296,7 @@ export default function compileFilePm(
         nodes,
         node,
         typeMap,
+        dynamicMap,
         moduleDynamicEnv,
         moduleValueEnv,
         dynamicEnv,
@@ -315,9 +316,9 @@ export default function compileFilePm(
     compile,
     typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, { valueEnv }, { dynamicEnv }, { typeMap }]) => {
+  ).map(([nodes, { valueEnv }, { dynamicEnv, dynamicMap }, { typeMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
-    return nodes.map(node => Render.renderNode(node, typeMap, dynamicEnv, valueEnv, nextRootId, Link));
+    return nodes.map(node => Render.renderNode(node, typeMap, dynamicMap, dynamicEnv, valueEnv, nextRootId, Link));
   });
 
   const debug = false;

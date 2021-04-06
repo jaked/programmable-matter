@@ -3,6 +3,7 @@ import Type from '../Type';
 import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Typecheck from '../Typecheck';
+import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from './index';
 
 it('evals', () => {
@@ -12,6 +13,9 @@ it('evals', () => {
   const tenv = Typecheck.env();
   const typeMap = new Map<ESTree.Node, Type>();
   Typecheck.synth(expr, tenv, typeMap);
+  const denv: Dyncheck.Env = Immutable.Map();
+  const dynamicMap = new Map<ESTree.Node, boolean>();
+  Dyncheck.expression(expr, typeMap, denv, dynamicMap)
   const venv: Evaluate.Env = Immutable.Map();
-  expect(Evaluate.evaluateExpression(expr, typeMap, venv)()).toEqual(3);
+  expect((Evaluate.evaluateExpression(expr, typeMap, dynamicMap, venv) as any)()).toEqual(3);
 });
