@@ -1,7 +1,7 @@
 import { bug } from '../../util/bug';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import { TypeMap } from '../../model';
+import { DynamicMap, TypeMap } from '../../model';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
@@ -27,6 +27,7 @@ function typecheckNodes(
   let typeEnv = Render.initTypeEnv;
   let dynamicEnv = Render.initDynamicEnv;
   const typeMap: TypeMap = new Map();
+  const dynamicMap: DynamicMap = new Map();
 
   codeNodes.forEach(node => {
     const code = Parse.parseCodeNode(node);
@@ -41,7 +42,9 @@ function typecheckNodes(
         moduleDynamicEnv,
         code,
         typeEnv,
-        dynamicEnv
+        typeMap,
+        dynamicEnv,
+        dynamicMap,
       )
     });
   });

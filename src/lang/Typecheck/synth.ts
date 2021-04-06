@@ -708,10 +708,7 @@ export function synth(
   typeMap: TypeMap,
 ): Type {
   const type = synthHelper(ast, env, typeMap);
-  if (typeMap) {
-    if (!type) bug(`expected type for ${JSON.stringify(ast)}`);
-    typeMap.set(ast, type);
-  }
+  typeMap.set(ast, type);
   return type;
 }
 

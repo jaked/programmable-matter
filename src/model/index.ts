@@ -5,6 +5,8 @@ import Type from '../lang/Type';
 import * as PMAST from '../model/PMAST';
 import * as ESTree from '../lang/ESTree';
 
+// TODO(jaked) a lot of this doesn't belong here
+
 export type File = {
   mtimeMs: number;
   buffer: Buffer;
@@ -24,6 +26,7 @@ export type Meta = {
 }
 
 export type TypeMap = Map<ESTree.Node, Type>;
+export type DynamicMap = Map<ESTree.Node, boolean>;
 
 export type NoteFiles = {
   'meta'?: Content;

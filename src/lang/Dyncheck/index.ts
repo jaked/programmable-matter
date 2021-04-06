@@ -2,21 +2,278 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
 import Typecheck from '../Typecheck';
+import { DynamicMap, TypeMap } from '../../model';
 
 export type Env = Immutable.Map<string, boolean>;
 
+function identifier(
+  ast: ESTree.Identifier,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const dynamic = env.get(ast.name);
+  if (dynamic !== undefined) return dynamic;
+  else if (ast.name === 'undefined') return false;
+  else bug(`unbound identifier`);
+}
+
+function literal(
+  ast: ESTree.Literal,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return false;
+}
+
+function array(
+  ast: ESTree.ArrayExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return ast.elements.map(ast => expression(ast, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+}
+
+function object(
+  ast: ESTree.ObjectExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const seen = new Set();
+  return ast.properties.map(prop => {
+    let name: string;
+    switch (prop.key.type) {
+      case 'Identifier': name = prop.key.name; break;
+      case 'Literal': name = prop.key.value; break;
+      default: bug('expected Identifier or Literal property name');
+    }
+    if (seen.has(name)) return false;
+    else {
+      seen.add(name);
+      return expression(prop.value, typeMap, env, dynamicMap);
+    }
+  }).some(dynamic => dynamic);
+}
+
+function arrowFunction(
+  ast: ESTree.ArrowFunctionExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return false;
+}
+
+function unary(
+  ast: ESTree.UnaryExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return expression(ast.argument, typeMap, env, dynamicMap);
+}
+
+function logical(
+  ast: ESTree.LogicalExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const left = expression(ast.left, typeMap, env, dynamicMap);
+  const right = expression(ast.right, typeMap, env, dynamicMap);
+  return left || right;
+}
+
+function binary(
+  ast: ESTree.BinaryExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const left = expression(ast.left, typeMap, env, dynamicMap);
+  const right = expression(ast.right, typeMap, env, dynamicMap);
+  return left || right;
+}
+
+function sequence(
+  ast: ESTree.SequenceExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return ast.expressions.map(ast => expression(ast, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+}
+
+function member(
+  ast: ESTree.MemberExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const object = expression(ast.object, typeMap, env, dynamicMap);
+  if (ast.computed) {
+    const property = expression(ast.property, typeMap, env, dynamicMap);
+    return object || property;
+  } else {
+    return object;
+  }
+}
+
+function call(
+  ast: ESTree.CallExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const callee = expression(ast.callee, typeMap, env, dynamicMap);
+  const args = ast.arguments.map(ast => expression(ast, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+  return callee || args;
+}
+
+function conditional(
+  ast: ESTree.ConditionalExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const test = expression(ast.test, typeMap, env, dynamicMap);
+  const consequent = expression(ast.consequent, typeMap, env, dynamicMap);
+  const alternate = expression(ast.alternate, typeMap, env, dynamicMap);
+  return test || consequent || alternate;
+}
+
+function templateLiteral(
+  ast: ESTree.TemplateLiteral,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  // TODO(jaked) handle interpolations
+  return false;
+}
+
+function jSXIdentifier(
+  ast: ESTree.JSXIdentifier,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const dynamic = env.get(ast.name);
+  if (dynamic !== undefined) return dynamic;
+  else if (ast.name === 'undefined') return false;
+  else bug(`unbound identifier ${ast.name}`);
+}
+
+function jSXElement(
+  ast: ESTree.JSXElement,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const elem = expression(ast.openingElement.name, typeMap, env, dynamicMap);
+  const attrs = ast.openingElement.attributes.map(attr => {
+    if (attr.value)
+      return expression(attr.value, typeMap, env, dynamicMap);
+    else
+      return false;
+  }).some(dynamic => dynamic);
+  const children = ast.children.map(child =>
+    expression(child, typeMap, env, dynamicMap)
+  ).some(dynamic => dynamic);
+  return elem || attrs || children;
+}
+
+function jSXFragment(
+  ast: ESTree.JSXFragment,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return ast.children.map(child => expression(child, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+}
+
+function jSXExpressionContainer(
+  ast: ESTree.JSXExpressionContainer,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return expression(ast.expression, typeMap, env, dynamicMap);
+}
+
+function jSXText(
+  ast: ESTree.JSXText,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return false;
+}
+
+function jSXEmpty(
+  ast: ESTree.JSXEmptyExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return false;
+}
+
+function dynamicHelper(
+  ast: ESTree.Expression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  const type = typeMap.get(ast);
+  if (type && type.kind === 'Error') return false;
+
+  switch (ast.type) {
+    case 'Identifier':              return identifier(ast, typeMap, env, dynamicMap);
+    case 'Literal':                 return literal(ast, typeMap, env, dynamicMap);
+    case 'ArrayExpression':         return array(ast, typeMap, env, dynamicMap);
+    case 'ObjectExpression':        return object(ast, typeMap, env, dynamicMap);
+    case 'ArrowFunctionExpression': return arrowFunction(ast, typeMap, env, dynamicMap);
+    case 'UnaryExpression':         return unary(ast, typeMap, env, dynamicMap);
+    case 'LogicalExpression':       return logical(ast, typeMap, env, dynamicMap);
+    case 'BinaryExpression':        return binary(ast, typeMap, env, dynamicMap);
+    case 'SequenceExpression':      return sequence(ast, typeMap, env, dynamicMap);
+    case 'MemberExpression':        return member(ast, typeMap, env, dynamicMap);
+    case 'CallExpression':          return call(ast, typeMap, env, dynamicMap);
+    case 'ConditionalExpression':   return conditional(ast, typeMap, env, dynamicMap);
+    case 'TemplateLiteral':         return templateLiteral(ast, typeMap, env, dynamicMap);
+    case 'JSXIdentifier':           return jSXIdentifier(ast, typeMap, env, dynamicMap);
+    case 'JSXElement':              return jSXElement(ast, typeMap, env, dynamicMap);
+    case 'JSXFragment':             return jSXFragment(ast, typeMap, env, dynamicMap);
+    case 'JSXExpressionContainer':  return jSXExpressionContainer(ast, typeMap, env, dynamicMap);
+    case 'JSXText':                 return jSXText(ast, typeMap, env, dynamicMap);
+    case 'JSXEmptyExpression':      return jSXEmpty(ast, typeMap, env, dynamicMap);
+
+    default:
+      return bug(`unimplemented AST ${ast.type}`);
+  }
+}
+
 export function expression(
   ast: ESTree.Expression,
+  typeMap: TypeMap,
   dynamicEnv: Env,
+  dynamicMap: DynamicMap,
 ): boolean {
-  const idents = ESTree.freeIdentifiers(ast);
-  return idents.some(ident => dynamicEnv.get(ident) ?? false);
+  const dynamic = dynamicHelper(ast, typeMap, dynamicEnv, dynamicMap);
+  dynamicMap.set(ast, dynamic);
+  return dynamic;
 }
 
 function variableDecl(
   decl: ESTree.VariableDeclaration,
   typeEnv: Typecheck.Env,
+  typeMap: TypeMap,
   dynamicEnv: Env,
+  dynamicMap: DynamicMap,
 ): Env {
   decl.declarations.forEach(declarator => {
     let dynamic: boolean;
@@ -30,7 +287,7 @@ function variableDecl(
         dynamic = false;
       else {
         if (!declarator.init) bug(`expected initializer`);
-        dynamic = expression(declarator.init, dynamicEnv);
+        dynamic = expression(declarator.init, typeMap, dynamicEnv, dynamicMap);
       }
     }
     dynamicEnv = dynamicEnv.set(declarator.id.name, dynamic);
@@ -43,6 +300,7 @@ function importDecl(
   moduleEnv: Map<string, Map<string, boolean>>,
   typeEnv: Typecheck.Env,
   dynamicEnv: Env,
+  dynamicMap: DynamicMap,
 ): Env {
   const module = moduleEnv.get(decl.source.value);
   if (!module) {
@@ -80,27 +338,30 @@ export function program(
   moduleEnv: Map<string, Map<string, boolean>>,
   program: ESTree.Program,
   typeEnv: Typecheck.Env,
+  typeMap: TypeMap,
   dynamicEnv: Env,
+  dynamicMap: DynamicMap,
 ): Env {
   program.body.forEach(node => {
     switch (node.type) {
       case 'ExportDefaultDeclaration':
-        dynamicEnv = dynamicEnv.set('default', expression(node.declaration, dynamicEnv));
+        dynamicEnv = dynamicEnv.set('default', expression(node.declaration, typeMap, dynamicEnv, dynamicMap));
         break;
 
       case 'ExportNamedDeclaration':
-        dynamicEnv = variableDecl(node.declaration, typeEnv, dynamicEnv);
+        dynamicEnv = variableDecl(node.declaration, typeEnv, typeMap, dynamicEnv, dynamicMap);
         break;
 
       case 'ImportDeclaration':
-        dynamicEnv = importDecl(node, moduleEnv, typeEnv, dynamicEnv);
+        dynamicEnv = importDecl(node, moduleEnv, typeEnv, dynamicEnv, dynamicMap);
         break;
 
       case 'VariableDeclaration':
-        dynamicEnv = variableDecl(node, typeEnv, dynamicEnv);
+        dynamicEnv = variableDecl(node, typeEnv, typeMap, dynamicEnv, dynamicMap);
         break;
 
       case 'ExpressionStatement':
+        expression(node.expression, typeMap, dynamicEnv, dynamicMap);
         break;
     }
   });
