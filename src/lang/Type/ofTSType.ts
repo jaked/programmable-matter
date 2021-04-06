@@ -5,7 +5,6 @@ import * as Type from './constructors';
 import { union } from './union';
 import { intersection } from './intersection';
 import * as model from '../../model';
-import * as Error from '../Typecheck/error';
 
 function stringOfQualifiedIdentifier(
   ident: ESTree.QualifiedIdentifier
@@ -84,57 +83,7 @@ export default function ofTSType(
     case 'TSTypeReference': {
       const label = stringOfQualifiedIdentifier(tsType.typeName);
       const tsParams = tsType.typeParameters?.params ?? [];
-      const params: Types.Type[] = [];
-
-      // tsParams.map(t => ofTSType(t, typesMap));
-
-      switch (label) {
-        case 'React.ReactNode':
-          tsParams.forEach(tsP =>
-            Error.withLocation(tsP, 'expected 0 params', typesMap)
-          );
-          break;
-
-        // TODO(jaked)
-        // this seems to be somewhat deprecated, see
-        // https://github.com/typescript-cheatsheets/react-typescript-cheatsheet#function-components
-        // but it is useful to avoid a separate `type Props = ...`
-        case 'React.FC':
-        case 'React.FunctionComponent':
-
-        case 'React.Component':
-          if (tsParams.length < 1) {
-            Error.withLocation(tsType.typeName, 'expected 1 param', typesMap);
-            params.push(Type.object({ }));
-          } else {
-            tsParams.forEach((tsP, i) => {
-              switch (i) {
-                case 0: {
-                  const param = ofTSType(tsP, typesMap);
-                  if (param.kind === 'Object') {
-                    params.push(param);
-                  } else {
-                    Error.withLocation(tsP, 'expected object param', typesMap)
-                    params.push(Type.object({ }));
-                  }
-                }
-                break;
-
-                default:
-                  Error.withLocation(tsP, 'expected 1 param', typesMap);
-              }
-            });
-          }
-          break;
-
-        default:
-          Error.withLocation(tsType.typeName, 'unknown type', typesMap);
-          tsParams.forEach(tsP =>
-            Error.withLocation(tsP, 'unknown type', typesMap)
-          );
-          return Type.unknown;
-      }
-
+      const params= tsParams.map(t => ofTSType(t, typesMap));
       return Type.abstract(label, ...params);
     }
 
