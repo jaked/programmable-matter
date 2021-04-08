@@ -593,26 +593,24 @@ export function visit(
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
-export function freeIdentifiers(expr: Node): Array<string> {
-  const free: Array<string> = [];
+export function freeIdentifiers(expr: Node): Array<Identifier | JSXIdentifier> {
+  const free: Array<Identifier | JSXIdentifier> = [];
 
   function fn(
     expr: Node,
-    bound: Immutable.Set<string>,
+    bound: Immutable.Set<Identifier | JSXIdentifier>,
   ) {
     visit(expr, node => {
       switch (node.type) {
         case 'Identifier': {
-          const id = node.name;
-          if (!bound.contains(id) && !free.includes(id))
-            free.push(id);
+          if (!bound.contains(node) && !free.includes(node))
+            free.push(node);
           break;
         }
 
         case 'JSXIdentifier': {
-          const id = node.name;
-          if (!bound.contains(id) && !free.includes(id))
-            free.push(id);
+          if (!bound.contains(node) && !free.includes(node))
+            free.push(node);
           break;
         }
 
@@ -643,13 +641,13 @@ export function freeIdentifiers(expr: Node): Array<string> {
           node.params.forEach(pat => {
             switch (pat.type) {
               case 'Identifier':
-                bound = bound.add(pat.name);
+                bound = bound.add(pat);
                 break;
 
               case 'ObjectPattern':
                 pat.properties.forEach(pat => {
                   if (pat.key.type === 'Identifier') {
-                    bound = bound.add(pat.key.name);
+                    bound = bound.add(pat.key);
                   } else {
                     throw new Error ('expected Identifier');
                   }

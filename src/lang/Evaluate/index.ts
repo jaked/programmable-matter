@@ -9,10 +9,7 @@ import Signal from '../../util/Signal';
 import * as MapFuncs from '../../util/MapFuncs';
 import { DynamicMap, TypeMap } from '../../model';
 import * as Parse from '../Parse';
-import * as Dyncheck from '../Dyncheck';
 import lensValue from '../Compile/lensValue';
-
-const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
 export type Env = Immutable.Map<string, any>;
 
@@ -53,6 +50,32 @@ const functionComponent = React.memo<{ component, props }>(({ component, props }
   component(props)
 )
 
+function joinDynamicExpressions(
+  exprs: ESTree.Expression[],
+  typeMap: TypeMap,
+  dynamicMap: DynamicMap,
+  env: Env,
+  fn: (values: unknown[]) => unknown
+): unknown {
+  const values = exprs.map(expr => evaluateExpression(expr, typeMap, dynamicMap, env));
+  const dynamics = exprs.map(expr => dynamicMap.get(expr) ?? bug(`expected dynamic`));
+  if (dynamics.some(dynamic => dynamic)) {
+    const signals = values.filter((value, i) => dynamics[i]) as Signal<unknown>[];
+    return Signal.join(...signals).map(signalValues => {
+      const allValues = dynamics.map((dynamic, i) => {
+        if (dynamic) {
+          return signalValues.shift();
+        } else {
+          return values[i];
+        }
+      });
+      return fn(allValues);
+    });
+  } else {
+    return fn(values);
+  }
+}
+
 export function evaluateExpression(
   ast: ESTree.Expression,
   typeMap: TypeMap,
@@ -68,6 +91,7 @@ export function evaluateExpression(
       return ast.value;
 
     case 'Identifier':
+    case 'JSXIdentifier':
       if (env.has(ast.name)) return env.get(ast.name);
       else bug(`expected value for ${ast.name}`);
 
@@ -89,178 +113,250 @@ export function evaluateExpression(
     }
 
     case 'JSXElement': {
-      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
-        if (!value) return { [name.name]: true }
-        else return { [name.name]: evaluateExpression(value, typeMap, dynamicMap, env) };
-      });
-      const attrs = Object.assign({}, ...attrObjs);
+      const exprs: ESTree.Expression[] = [];
+      ast.openingElement.attributes.forEach(({ value }) => { if (value) exprs.push(value) });
+      exprs.push(ast.openingElement.name);
+      exprs.push(...ast.children);
 
-      // TODO(jaked) maybe support bind in component lib instead of built-in
-      // TODO(jaked) what if both bind and value/onChange are given?
-      if (attrs['bind']) {
-        const bind = attrs['bind'];
-        attrs['onChange'] = (e) => bind(e.currentTarget.value);
-        attrs['value'] = bind();
-      }
+      return joinDynamicExpressions(
+        exprs,
+        typeMap,
+        dynamicMap,
+        env,
+        values =>  {
+          const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
+            if (!value) return { [name.name]: true }
+            else return { [name.name]: values.shift() };
+          });
+          const attrs = Object.assign({}, ...attrObjs);
 
-      let elem: any;
-      const name = ast.openingElement.name.name;
-      if (STARTS_WITH_CAPITAL_LETTER.test(name)) {
-        elem = env.get(name);
-        if (typeof elem === 'undefined')
-          throw new Error(`unbound identifier ${name}`);
+          // TODO(jaked) maybe support bind in component lib instead of built-in
+          // TODO(jaked) what if both bind and value/onChange are given?
+          if (attrs['bind']) {
+            const bind = attrs['bind'];
+            attrs['onChange'] = (e) => bind(e.currentTarget.value);
+            attrs['value'] = bind();
+          }
 
-      // TODO(jaked) figure out another way to handle internal links
-      // } else if (name === 'a') {
-      //   // TODO(jaked) fix hack somehow
-      //   elem = env.get('Link');
-      //   attrs['to'] = attrs['href']
+          const elem = values.shift() as any;
 
-      } else {
-        elem = name;
-      }
+          const children = ast.children.map(child => values.shift() as React.ReactNode);
 
-      const children = ast.children.map(child => {
-        // TODO(jaked) undefined seems to be an acceptable ReactNode
-        // in some contexts but not others; maybe we need `null` here
-        return evaluateExpression(child, typeMap, dynamicMap, env) as React.ReactNode;
-      });
-      if (typeof elem === 'function' && !isConstructor(elem))
-        return React.createElement(functionComponent, { component: elem, props: { ...attrs, children } });
-      else return React.createElement(elem, attrs, ...children);
+          if (typeof elem === 'function' && !isConstructor(elem))
+            return React.createElement(functionComponent, { component: elem, props: { ...attrs, children } });
+          else return React.createElement(elem, attrs, ...children);
+        }
+      );
     }
 
     case 'JSXFragment':
-      return ast.children.map(child => evaluateExpression(child, typeMap, dynamicMap, env));
+      return joinDynamicExpressions(
+        ast.children,
+        typeMap,
+        dynamicMap,
+        env,
+        values => values
+      );
 
-    case 'UnaryExpression': {
-      const argType = typeMap.get(ast.argument) ?? bug(`expected type`);
-      const v = evaluateExpression(ast.argument, typeMap, dynamicMap, env);
-      switch (ast.operator) {
-        case '+': return v;
-        case '-': return -(v as number);
-        case '!': return !v;
-        case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
-        default: throw new Error(`unhandled ast ${(ast as any).operator}`);
-      }
-    }
+    case 'UnaryExpression':
+      return joinDynamicExpressions(
+        [ast.argument],
+        typeMap,
+        dynamicMap,
+        env,
+        ([v]) => {
+          const argType = typeMap.get(ast.argument) ?? bug(`expected type`);
+          switch (ast.operator) {
+            case '+': return v;
+            case '-': return -(v as number);
+            case '!': return !v;
+            case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
+            default: throw new Error(`unhandled ast ${(ast as any).operator}`);
+          }
+        }
+      );
 
     case 'LogicalExpression': {
-      switch (ast.operator) {
-        case '||':
-          return evaluateExpression(ast.left, typeMap, dynamicMap, env) || evaluateExpression(ast.right, typeMap, dynamicMap, env);
-        case '&&':
-          return evaluateExpression(ast.left, typeMap, dynamicMap, env) && evaluateExpression(ast.right, typeMap, dynamicMap, env);
-        default:
-          throw new Error(`unexpected binary operator ${(ast as any).operator}`)
+      // when either left or right is dynamic the whole expression is dynamic
+      // but only evaluate right if needed
+      const leftDynamic = dynamicMap.get(ast.left) ?? bug(`expected dynamic`);
+      const rightDynamic = dynamicMap.get(ast.right) ?? bug(`expected dynamic`);
+      const fn = (left: unknown) => {
+        switch (ast.operator) {
+          case '||':
+            if (left) return rightDynamic ? Signal.ok(left) : left;
+            else return evaluateExpression(ast.right, typeMap, dynamicMap, env);
+          case '&&':
+            if (!left) return rightDynamic ? Signal.ok(left) : left;
+            else return evaluateExpression(ast.right, typeMap, dynamicMap, env);
+          default:
+            bug(`unimplemented ${(ast as any).operator}`);
+        }
       }
-    }
-
-    case 'BinaryExpression': {
-      const lv = evaluateExpression(ast.left, typeMap, dynamicMap, env);
-      const rv = evaluateExpression(ast.right, typeMap, dynamicMap, env);
-      const leftType = typeMap.get(ast.left) ?? bug(`expected type`);
-      const rightType = typeMap.get(ast.right) ?? bug(`expected type`);
-
-      switch (ast.operator) {
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '%':
-          if (leftType.kind === 'Error') return rv;
-          else if (rightType.kind === 'Error') return lv;
-          else {
-            const lvn = lv as number;
-            const rvn = rv as number;
-            switch (ast.operator) {
-              case '+': return lvn + rvn;
-              case '-': return lvn - rvn;
-              case '*': return lvn * rvn;
-              case '/': return lvn / rvn;
-              case '%': return lvn % rvn;
-              default: bug(`unexpected ast.operator ${ast.operator}`);
-            }
-          }
-
-        case '===':
-          if (leftType.kind === 'Error' || rightType.kind === 'Error')
-            return false;
-          else
-            return lv === rv;
-
-        case '!==':
-          if (leftType.kind === 'Error' || rightType.kind === 'Error')
-            return true;
-          else
-            return lv !== rv;
-
-        default:
-          throw new Error(`unexpected binary operator ${ast.operator}`)
-      }
-    }
-
-    case 'SequenceExpression': {
-      const values = ast.expressions.map(e =>
-        evaluateExpression(e, typeMap, dynamicMap, env)
-      );
-      return values[values.length - 1];
-    }
-
-    case 'MemberExpression': {
-      const object = evaluateExpression(ast.object, typeMap, dynamicMap, env) as object;
-      if (ast.computed) {
-        const property = evaluateExpression(ast.property, typeMap, dynamicMap, env) as (string | number);
-        return object[property];
+      const left = evaluateExpression(ast.left, typeMap, dynamicMap, env);
+      if (leftDynamic && rightDynamic) {
+        return (left as Signal<unknown>).flatMap(fn as (left: unknown) => Signal<unknown>);
+      } else if (leftDynamic) {
+        return (left as Signal<unknown>).map(fn);
       } else {
-        if (ast.property.type !== 'Identifier')
-          throw new Error('expected identifier on non-computed property');
-        return object[ast.property.name];
+        return fn(left);
       }
     }
+
+    case 'BinaryExpression':
+      return joinDynamicExpressions(
+        [ast.left, ast.right],
+        typeMap,
+        dynamicMap,
+        env,
+        ([lv, rv]) => {
+          const leftType = typeMap.get(ast.left) ?? bug(`expected type`);
+          const rightType = typeMap.get(ast.right) ?? bug(`expected type`);
+
+          switch (ast.operator) {
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+            case '%':
+              if (leftType.kind === 'Error') return rv;
+              else if (rightType.kind === 'Error') return lv;
+              else {
+                const lvn = lv as number;
+                const rvn = rv as number;
+                switch (ast.operator) {
+                  case '+': return lvn + rvn;
+                  case '-': return lvn - rvn;
+                  case '*': return lvn * rvn;
+                  case '/': return lvn / rvn;
+                  case '%': return lvn % rvn;
+                  default: bug(`unexpected ast.operator ${ast.operator}`);
+                }
+              }
+
+            case '===':
+              if (leftType.kind === 'Error' || rightType.kind === 'Error')
+                return false;
+              else
+                return lv === rv;
+
+            case '!==':
+              if (leftType.kind === 'Error' || rightType.kind === 'Error')
+                return true;
+              else
+                return lv !== rv;
+
+            default:
+              throw new Error(`unexpected binary operator ${ast.operator}`)
+          }
+        }
+      );
+
+    case 'SequenceExpression':
+      return joinDynamicExpressions(
+        ast.expressions,
+        typeMap,
+        dynamicMap,
+        env,
+        values => values[values.length - 1]
+      );
+
+    case 'MemberExpression':
+      if (ast.computed) {
+        return joinDynamicExpressions(
+          [ast.object, ast.property],
+          typeMap,
+          dynamicMap,
+          env,
+          ([object, property]) => (object as object)[property as (string | number)]
+        );
+      } else {
+        if (ast.property.type !== 'Identifier') bug(`expected Identifier`);
+        const name = ast.property.name;
+        return joinDynamicExpressions(
+          [ast.object],
+          typeMap,
+          dynamicMap,
+          env,
+          ([object]) => (object as object)[name]
+        );
+      }
 
     case 'CallExpression': {
-      const args = ast.arguments.map(arg => evaluateExpression(arg, typeMap, dynamicMap, env));
+      const exprs: ESTree.Expression[] = [];
+      exprs.push(...ast.arguments);
       if (ast.callee.type === 'MemberExpression') {
-        const object = evaluateExpression(ast.callee.object, typeMap, dynamicMap, env) as object;
+        exprs.push(ast.callee.object);
         if (ast.callee.computed) {
-          const method = evaluateExpression(ast.callee.property, typeMap, dynamicMap, env) as any;
-          return method.apply(object, args);
-        } else {
-          if (ast.callee.property.type !== 'Identifier')
-            bug('expected identifier on non-computed property');
-          const method = object[ast.callee.property.name];
-          return method.apply(object, args);
+          exprs.push(ast.callee.property);
         }
       } else {
-        const callee = evaluateExpression(ast.callee, typeMap, dynamicMap, env) as any;
-        return callee(...args);
+        exprs.push(ast.callee);
       }
+
+      return joinDynamicExpressions(
+        exprs,
+        typeMap,
+        dynamicMap,
+        env,
+        values => {
+          const args = ast.arguments.map(arg => values.shift());
+          if (ast.callee.type === 'MemberExpression') {
+            const object = values.shift() as object;
+            if (ast.callee.computed) {
+              const property = values.shift() as (string | number);
+              const method = object[property];
+              return method.apply(object, args);
+            } else {
+              if (ast.callee.property.type !== 'Identifier') bug(`expected Identifier`);
+              const method = object[ast.callee.property.name];
+              return method.apply(object, args);
+            }
+          } else {
+            const callee = values.shift() as any;
+            return callee(...args);
+          }
+        }
+      );
     }
 
-    case 'ObjectExpression': {
-      const properties = ast.properties.map(prop => {
-        const value = evaluateExpression(prop.value, typeMap, dynamicMap, env);
-        return { ...prop, value };
-      });
-      return Object.assign({}, ...properties.map(prop => {
-        let name: string;
-        switch (prop.key.type) {
-          case 'Identifier': name = prop.key.name; break;
-          case 'Literal': name = prop.key.value; break;
-          default: throw new Error('expected Identifier or Literal prop key name');
+    case 'ObjectExpression':
+      return joinDynamicExpressions(
+        ast.properties,
+        typeMap,
+        dynamicMap,
+        env,
+        values => {
+          const properties = ast.properties.map(prop => {
+            const value = values.shift();
+            return { ...prop, value };
+          });
+          return Object.assign({}, ...properties.map(prop => {
+            let name: string;
+            switch (prop.key.type) {
+              case 'Identifier': name = prop.key.name; break;
+              case 'Literal': name = prop.key.value; break;
+              default: throw new Error('expected Identifier or Literal prop key name');
+            }
+            return { [name]: prop.value }
+          }));
         }
-        return { [name]: prop.value }
-      }));
-    }
+      );
 
     case 'ArrayExpression':
-      return ast.elements.map(e => evaluateExpression(e, typeMap, dynamicMap, env));
+      return joinDynamicExpressions(
+        ast.elements,
+        typeMap,
+        dynamicMap,
+        env,
+        values => values
+      );
 
     case 'ArrowFunctionExpression': {
       const body = ast.body;
+      let fn;
       if (body.type === 'BlockStatement') {
-        return (...args: Array<any>) => {
+        fn = (...args: Array<any>) => {
           ast.params.forEach((pat, i) => {
             env = patValueEnv(pat, args[i], env);
           });
@@ -277,12 +373,38 @@ export function evaluateExpression(
         }
 
       } else {
-        return (...args: Array<any>) => {
-            ast.params.forEach((pat, i) => {
-              env = patValueEnv(pat, args[i], env);
-            });
-            return evaluateExpression(body, typeMap, dynamicMap, env);
-          };
+        fn = (...args: Array<any>) => {
+          ast.params.forEach((pat, i) => {
+            env = patValueEnv(pat, args[i], env);
+          });
+          return evaluateExpression(body, typeMap, dynamicMap, env);
+        };
+      }
+
+      // if the function depends on dynamic values return a dynamic function value
+      // the function itself doesn't change, but a fresh instance is created
+      // in order to cause React reconciliation etc.
+      // inside the function, we get() the function value
+      // to cause Signal reconciliation and produce a non-Signal value
+      const dynamic = dynamicMap.get(ast) ?? bug(`expected dynamic`);
+      const idents = ESTree.freeIdentifiers(ast).filter(ident => {
+        // happens when an unbound identifier is used
+        if (!dynamicMap.has(ident)) return false;
+        // happens when an identifier is used in its own definition
+        if (!env.has(ident.name)) return false;
+        // TODO(jaked) check for these cases explicitly
+        // so we don't hit them for an actual bug
+        return dynamicMap.get(ident) ?? bug(`expected dynamic`);
+      });
+      const signals = idents.map(ident =>
+       (env.get(ident.name) as Signal<unknown>) ?? bug(`expected signal`)
+      );
+      if (dynamic) {
+        return Signal.join(...signals).map(() =>
+          (...args: Array<any>) => fn(args).get()
+        );
+      } else {
+        return fn;
       }
     }
 
@@ -300,52 +422,6 @@ export function evaluateExpression(
 
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
-  }
-}
-
-export function evaluateDynamicExpression(
-  ast: ESTree.Expression,
-  typeMap: TypeMap,
-  dynamicMap: DynamicMap,
-  dynamicEnv: Dyncheck.Env,
-  valueEnv: Env,
-): { value: unknown, dynamic: boolean } {
-  const type = typeMap.get(ast) ?? bug(`expected type`);
-  if (type.kind === 'Error') return { value: undefined, dynamic: false };
-  const idents = ESTree.freeIdentifiers(ast).filter(ident => {
-    // happens when an unbound identifier is used
-    if (!dynamicEnv.has(ident)) return false;
-    // happens when an identifier is used in its own definition
-    if (!valueEnv.has(ident)) return false;
-    // TODO(jaked) check for these cases explicitly
-    // so we don't hit them for an actual bug
-    return dynamicEnv.get(ident) ?? bug(`expected dynamic`);
-  });
-  const signals = idents.map(id =>
-    (valueEnv.get(id) as Signal<unknown>) ?? bug(`expected signal`)
-  );
-  switch (signals.length) {
-    case 0:
-      return {
-        value: evaluateExpression(ast, typeMap, dynamicMap, valueEnv),
-        dynamic: false
-      };
-    case 1:
-      return {
-        value: signals[0].map(value => {
-          const valueEnv2 = valueEnv.set(idents[0], value);
-          return evaluateExpression(ast, typeMap, dynamicMap, valueEnv2);
-        }),
-        dynamic: true
-      };
-    default:
-      return {
-        value: Signal.join(...signals).map(values => {
-          const valueEnv2 = valueEnv.concat(Immutable.Map(idents.map((id, i) => [id, values[i]])));
-          return evaluateExpression(ast, typeMap, dynamicMap, valueEnv2);
-        }),
-        dynamic: true
-      };
   }
 }
 
@@ -417,7 +493,6 @@ function evalVariableDecl(
   decl: ESTree.VariableDeclaration,
   typeMap: TypeMap,
   dynamicMap: DynamicMap,
-  dynamicEnv: Dyncheck.Env,
   valueEnv: Env,
 ): Env {
   switch (decl.kind) {
@@ -425,7 +500,7 @@ function evalVariableDecl(
       decl.declarations.forEach(declarator => {
         if (!declarator.init) return;
         const name = declarator.id.name;
-        const { value } = evaluateDynamicExpression(declarator.init, typeMap, dynamicMap, dynamicEnv, valueEnv);
+        const value = evaluateExpression(declarator.init, typeMap, dynamicMap, valueEnv);
         valueEnv = valueEnv.set(name, value);
       });
     }
@@ -489,7 +564,6 @@ export function evaluateCodeNode(
   dynamicMap: DynamicMap,
   moduleDynamicEnv: Map<string, Map<string, boolean>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
-  dynamicEnv: Dyncheck.Env,
   valueEnv: Env,
 ): Env {
   const code = Parse.parseCodeNode(node);
@@ -501,17 +575,17 @@ export function evaluateCodeNode(
           break;
 
         case 'ExportNamedDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl.declaration, typeMap, dynamicMap, dynamicEnv, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl.declaration, typeMap, dynamicMap, valueEnv);
           break;
 
         case 'ExportDefaultDeclaration': {
-          const { value } = evaluateDynamicExpression(decl.declaration, typeMap, dynamicMap, dynamicEnv, valueEnv);
+          const value = evaluateExpression(decl.declaration, typeMap, dynamicMap, valueEnv);
           valueEnv = valueEnv.set('default', value);
         }
         break;
 
         case 'VariableDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl, typeMap, dynamicMap, dynamicEnv, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl, typeMap, dynamicMap, valueEnv);
           break;
       }
     }

@@ -64,7 +64,38 @@ function arrowFunction(
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return false;
+  env = env.withMutations(env => {
+    ast.params.forEach(pat => {
+      switch (pat.type) {
+        case 'Identifier':
+          env.set(pat.name, false);
+          break;
+
+        case 'ObjectPattern':
+          pat.properties.forEach(pat => {
+            if (pat.key.type === 'Identifier') {
+              env.set(pat.key.name, false);
+            } else {
+              throw new Error ('expected Identifier');
+            }
+          });
+          break;
+
+        default: bug(`unimplemented ${(pat as ESTree.Pattern).type}`);
+      }
+    });
+  });
+
+  if (ast.body.type === 'BlockStatement') {
+    return ast.body.body.map(stmt => {
+      switch (stmt.type) {
+        case 'ExpressionStatement':
+          return expression(stmt.expression, typeMap, env, dynamicMap)
+      }
+    }).some(dynamic => dynamic);
+  } else {
+    return expression(ast.body, typeMap, env, dynamicMap);
+  }
 }
 
 function unary(
@@ -297,17 +328,17 @@ function variableDecl(
 
 function importDecl(
   decl: ESTree.ImportDeclaration,
+  typeMap: TypeMap,
   moduleEnv: Map<string, Map<string, boolean>>,
-  typeEnv: Typecheck.Env,
   dynamicEnv: Env,
-  dynamicMap: DynamicMap,
 ): Env {
-  const module = moduleEnv.get(decl.source.value);
-  if (!module) {
+  const type = typeMap.get(decl.source);
+  if (type && type.kind === 'Error') {
     decl.specifiers.forEach(spec => {
       dynamicEnv = dynamicEnv.set(spec.local.name, false);
     });
   } else {
+    const module = moduleEnv.get(decl.source.value) ?? bug(`expected module`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -326,7 +357,7 @@ function importDecl(
 
         case 'ImportSpecifier': {
           const dynamic = module.get(spec.imported.name) ?? false;
-          dynamicEnv = dynamicEnv.set(spec.imported.name, dynamic);
+          dynamicEnv = dynamicEnv.set(spec.local.name, dynamic);
         }
       }
     });
@@ -353,7 +384,7 @@ export function program(
         break;
 
       case 'ImportDeclaration':
-        dynamicEnv = importDecl(node, moduleEnv, typeEnv, dynamicEnv, dynamicMap);
+        dynamicEnv = importDecl(node, typeMap, moduleEnv, dynamicEnv);
         break;
 
       case 'VariableDeclaration':

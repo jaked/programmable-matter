@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
@@ -36,7 +37,6 @@ export function renderNode(
   node: PMAST.Node,
   typeMap: TypeMap,
   dynamicMap: DynamicMap,
-  dynamicEnv: Dyncheck.Env,
   valueEnv: Evaluate.Env,
   nextRootId: [ number ],
   Link: React.FunctionComponent<{ href: string }> = () => null,
@@ -63,8 +63,8 @@ export function renderNode(
       const rendered: React.ReactNode[] = [];
       for (const node of (code.ok as ESTree.Program).body) {
         if (node.type === 'ExpressionStatement') {
-          const { value, dynamic } =
-            Evaluate.evaluateDynamicExpression(node.expression, typeMap, dynamicMap, dynamicEnv, valueEnv);
+          const dynamic = dynamicMap.get(node.expression) ?? bug(`expected dynamic`);
+          const value = Evaluate.evaluateExpression(node.expression, typeMap, dynamicMap, valueEnv);
           if (dynamic) {
             rendered.push(<div id={`__root${nextRootId[0]}`}>{
               Signal.node(value as Signal<React.ReactNode>)
@@ -81,8 +81,8 @@ export function renderNode(
       const code = Parse.parseInlineCodeNode(node);
       if (code.type !== 'ok') return null;
       const expr = code.ok as ESTree.Expression;
-      const { value, dynamic } =
-        Evaluate.evaluateDynamicExpression(expr, typeMap, dynamicMap, dynamicEnv, valueEnv);
+      const dynamic = dynamicMap.get(expr) ?? bug(`expected dynamic`);
+      const value = Evaluate.evaluateExpression(expr, typeMap, dynamicMap, valueEnv);
       if (dynamic) {
         const elem = <span id={`__root${nextRootId[0]}`}>
           {Signal.node(value as Signal<React.ReactNode>)}
@@ -94,7 +94,7 @@ export function renderNode(
       }
 
     } else {
-      const children = node.children.map(child => renderNode(child, typeMap, dynamicMap, dynamicEnv, valueEnv, nextRootId, Link));
+      const children = node.children.map(child => renderNode(child, typeMap, dynamicMap, valueEnv, nextRootId, Link));
       let rendered;
       if (node.type === 'a') {
         rendered = React.createElement(Link, { key, href: node.href }, ...children);

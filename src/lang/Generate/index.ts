@@ -230,7 +230,7 @@ function genDynamicExpr(
 ): JS.Expression {
   const type = typeMap(ast);
   if (type.kind === 'Error') return JS.identifier('undefined');
-  const idents = ESTree.freeIdentifiers(ast).filter(ident => {
+  const idents = ESTree.freeIdentifiers(ast).map(ident => ident.name).filter(ident => {
     return dynamicEnv.get(ident) ?? false;
   });
   const signals = idents.map(ident => valueEnv.get(ident) ?? JS.identifier(ident));
@@ -286,7 +286,7 @@ function isDynamic(
   ast: ESTree.Expression,
   dynamicEnv: Dyncheck.Env
 ): boolean {
-  return ESTree.freeIdentifiers(ast).some(ident => {
+  return ESTree.freeIdentifiers(ast).map(ident => ident.name).some(ident => {
     const dynamic = dynamicEnv.get(ident) ?? bug(`expected dynamic`);
     return dynamic
   });
