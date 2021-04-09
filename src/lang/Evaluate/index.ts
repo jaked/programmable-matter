@@ -322,7 +322,7 @@ export function evaluateExpression(
 
     case 'ObjectExpression':
       return joinDynamicExpressions(
-        ast.properties,
+        ast.properties.map(prop => prop.value),
         typeMap,
         dynamicMap,
         env,

@@ -12,6 +12,8 @@ describe('visit', () => {
 describe('freeIdentifiers', () => {
   it('BlockStatement', () => {
     const code = `() => { x }`
-    expect(ESTree.freeIdentifiers(Parse.parseExpression(code))).toEqual(['x']);
+    expect(
+      ESTree.freeIdentifiers(Parse.parseExpression(code)).map(ident => ident.name)
+    ).toEqual(['x']);
   });
 });

@@ -313,9 +313,8 @@ export default function compileFilePm(
   const rendered = Signal.join(
     nodes,
     compile,
-    typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, { valueEnv }, { dynamicMap }, { typeMap }]) => {
+  ).map(([nodes, { valueEnv }, { typeMap, dynamicMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
     return nodes.map(node => Render.renderNode(node, typeMap, dynamicMap, valueEnv, nextRootId, Link));
   });
