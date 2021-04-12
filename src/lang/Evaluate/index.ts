@@ -59,20 +59,35 @@ function joinDynamicExpressions(
 ): unknown {
   const values = exprs.map(expr => evaluateExpression(expr, typeMap, dynamicMap, env));
   const dynamics = exprs.map(expr => dynamicMap.get(expr) ?? bug(`expected dynamic`));
-  if (dynamics.some(dynamic => dynamic)) {
-    const signals = values.filter((value, i) => dynamics[i]) as Signal<unknown>[];
-    return Signal.join(...signals).map(signalValues => {
-      const allValues = dynamics.map((dynamic, i) => {
-        if (dynamic) {
-          return signalValues.shift();
-        } else {
-          return values[i];
-        }
+  const signals = values.filter((value, i) => dynamics[i]) as Signal<unknown>[];
+  switch (signals.length) {
+    case 0:
+      return fn(values);
+
+    case 1:
+      return signals[0].map(signalValue => {
+        const allValues = dynamics.map((dynamic, i) => {
+          if (dynamic) {
+            return signalValue;
+          } else {
+            return values[i];
+          }
+        });
+        return fn(allValues);
       });
-      return fn(allValues);
-    });
-  } else {
-    return fn(values);
+
+    default: {
+      return Signal.join(...signals).map(signalValues => {
+        const allValues = dynamics.map((dynamic, i) => {
+          if (dynamic) {
+            return signalValues.shift();
+          } else {
+            return values[i];
+          }
+        });
+        return fn(allValues);
+      });
+    }
   }
 }
 
@@ -302,6 +317,8 @@ export function evaluateExpression(
         values => {
           const args = ast.arguments.map(arg => values.shift());
           if (ast.callee.type === 'MemberExpression') {
+            // need to uncover the object on which we're calling the method
+            // in order to pass it as the `this` param to `apply`
             const object = values.shift() as object;
             if (ast.callee.computed) {
               const property = values.shift() as (string | number);
@@ -336,7 +353,7 @@ export function evaluateExpression(
             switch (prop.key.type) {
               case 'Identifier': name = prop.key.name; break;
               case 'Literal': name = prop.key.value; break;
-              default: throw new Error('expected Identifier or Literal prop key name');
+              default: bug('expected Identifier or Literal');
             }
             return { [name]: prop.value }
           }));
@@ -387,19 +404,19 @@ export function evaluateExpression(
       // inside the function, we get() the function value
       // to cause Signal reconciliation and produce a non-Signal value
       const dynamic = dynamicMap.get(ast) ?? bug(`expected dynamic`);
-      const idents = ESTree.freeIdentifiers(ast).filter(ident => {
-        // happens when an unbound identifier is used
-        if (!dynamicMap.has(ident)) return false;
-        // happens when an identifier is used in its own definition
-        if (!env.has(ident.name)) return false;
-        // TODO(jaked) check for these cases explicitly
-        // so we don't hit them for an actual bug
-        return dynamicMap.get(ident) ?? bug(`expected dynamic`);
-      });
-      const signals = idents.map(ident =>
-       (env.get(ident.name) as Signal<unknown>) ?? bug(`expected signal`)
-      );
       if (dynamic) {
+        const idents = ESTree.freeIdentifiers(ast).filter(ident => {
+          // happens when an unbound identifier is used
+          if (!dynamicMap.has(ident)) return false;
+          // happens when an identifier is used in its own definition
+          if (!env.has(ident.name)) return false;
+          // TODO(jaked) check for these cases explicitly
+          // so we don't hit them for an actual bug
+          return dynamicMap.get(ident) ?? bug(`expected dynamic`);
+        });
+        const signals = idents.map(ident =>
+          evaluateExpression(ident, typeMap, dynamicMap, env) as Signal<unknown>
+        );
         return Signal.join(...signals).map(() =>
           (...args: Array<any>) => fn(args).get()
         );
@@ -409,10 +426,26 @@ export function evaluateExpression(
     }
 
     case 'ConditionalExpression': {
-      if (evaluateExpression(ast.test, typeMap, dynamicMap, env)) {
-        return evaluateExpression(ast.consequent, typeMap, dynamicMap, env);
+      const testDynamic = dynamicMap.get(ast.test) ?? bug(`expected dynamic`);
+      const consequentDynamic = dynamicMap.get(ast.consequent) ?? bug(`expected dynamic`);
+      const alternateDynamic = dynamicMap.get(ast.alternate) ?? bug(`expected dynamic`);
+
+      const fn = (test : unknown) => {
+        if (test) {
+          const consequent = evaluateExpression(ast.consequent, typeMap, dynamicMap, env);
+          return (alternateDynamic && !consequentDynamic) ? Signal.ok(consequent) : consequent;
+        } else {
+          const alternate = evaluateExpression(ast.alternate, typeMap, dynamicMap, env)
+          return (consequentDynamic && !alternateDynamic) ? Signal.ok(alternate) : alternate;
+        }
+      };
+      const test = evaluateExpression(ast.test, typeMap, dynamicMap, env);
+      if (testDynamic && (consequentDynamic || alternateDynamic)) {
+        return (test as Signal<unknown>).flatMap(fn as (test: unknown) => Signal<unknown>);
+      } else if (testDynamic) {
+        return (test as Signal<unknown>).map(fn);
       } else {
-        return evaluateExpression(ast.alternate, typeMap, dynamicMap, env)
+        return fn(test);
       }
     }
 

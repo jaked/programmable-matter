@@ -402,13 +402,12 @@ ${html}
 
   const js = Signal.join(
     nodes,
-    typecheckedCode,
     typecheckedInlineCode,
-  ).map(([nodes, { dynamicEnv }, { typeMap }]) => {
+  ).map(([nodes, { typeMap, dynamicMap }]) => {
     return Generate.generatePm(
       nodes,
       expr => typeMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
-      dynamicEnv,
+      expr => dynamicMap.get(expr) ?? bug(`expected dynamic for ${JSON.stringify(expr)}`),
     );
   });
 

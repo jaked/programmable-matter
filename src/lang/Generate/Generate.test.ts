@@ -12,7 +12,7 @@ import * as Generate from './index';
 // duplicates some of compileFilePm but without Signals
 function typecheckNodes(
   nodes: PMAST.Node[],
-): { typeMap: TypeMap, dynamicEnv: Dyncheck.Env } {
+) {
   const codeNodes: PMAST.Code[] = [];
   const inlineCodeNodes: PMAST.InlineCode[] = [];
   function walkNodes(node: PMAST.Node) {
@@ -58,22 +58,28 @@ function typecheckNodes(
         Type.reactNodeType,
         typeMap
       );
+      Dyncheck.expression(
+        code,
+        typeMap,
+        dynamicEnv,
+        dynamicMap
+      );
     })
   });
 
-  return { typeMap, dynamicEnv };
+  return { typeMap, dynamicMap };
 }
 
 function expectGenerate(
   nodes: PMAST.Node[],
   expected: string
 ) {
-  const { typeMap, dynamicEnv } = typecheckNodes(nodes);
+  const { typeMap, dynamicMap } = typecheckNodes(nodes);
   const js =
     Generate.generatePm(
       nodes,
       (e: ESTree.Expression) => typeMap.get(e) ?? bug(`expected type`),
-      dynamicEnv,
+      (e: ESTree.Expression) => dynamicMap.get(e) ?? bug(`expected dynamic`),
       false
     );
   expect(js.trim()).toBe(expected.trim());
@@ -99,6 +105,6 @@ it('generates React hydrate for doc with dynamic node', () => {
   ];
   expectGenerate(
     nodes,
-    `ReactDOM.hydrate(Signal.node(Runtime.now.map(now => now)), document.getElementById("__root0"));`
+    `ReactDOM.hydrate(Signal.node(Runtime.now), document.getElementById("__root0"));`
   );
 });

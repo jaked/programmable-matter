@@ -1,10 +1,8 @@
-import * as Immer from 'immer';
 import { bug } from '../../util/bug';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import * as Parse from '../Parse';
-import * as Dyncheck from '../Dyncheck';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
@@ -39,17 +37,86 @@ function genParam(
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/
 
+const maybeSignal = (test: boolean, expr: JS.Expression) =>
+  test ?
+    JS.callExpression(JS.memberExpression(JS.identifier('Signal'), JS.identifier('ok')), [expr]) :
+    expr;
+
+function joinDynamicExpressions(
+  exprs: ESTree.Expression[],
+  typeMap: (e: ESTree.Expression) => Type,
+  dynamicMap: (e: ESTree.Expression) => boolean,
+  env: Map<string, JS.Expression>,
+  fn: (exprs: JS.Expression[]) => JS.Expression
+): JS.Expression {
+  const jsExprs = exprs.map(expr => genExpr(expr, typeMap, dynamicMap, env));
+  const dynamics = exprs.map(expr => dynamicMap(expr));
+  const signals = jsExprs.filter((value, i) => dynamics[i]);
+  const vIdent = JS.identifier('__v');
+  switch (signals.length) {
+    case 0:
+      return fn(jsExprs);
+
+    case 1: {
+      // signal.map(__v =>
+      //   fn([jsExprs[0], __v, jsExprs[2], jsExprs[3]]); // depending on dynamics
+      // );
+      return JS.callExpression(
+        JS.memberExpression(signals[0], JS.identifier('map')),
+        [JS.arrowFunctionExpression(
+          [vIdent],
+          fn(dynamics.map((dynamic, i) =>
+            dynamic ? vIdent : jsExprs[i]
+          ))
+        )]
+      );
+    }
+
+    default: {
+      let signalIndex = 0;
+      // Signal.join(signals).map(__v =>
+      //   fn([jsExprs[0], __v[0], jsExprs[2], jsExprs[3], __v[1]]); // depending on dynamics
+      // );
+      return JS.callExpression(
+        JS.memberExpression(
+          JS.callExpression(
+            JS.memberExpression(JS.identifier('Signal'), JS.identifier('join')),
+            signals
+          ),
+          JS.identifier('map')
+        ),
+        [JS.arrowFunctionExpression(
+          [vIdent],
+          fn(dynamics.map((dynamic, i) => {
+            if (dynamic) {
+              return JS.memberExpression(
+                vIdent,
+                JS.numericLiteral(signalIndex++),
+                true // computed
+              );
+            } else {
+              return jsExprs[i];
+            }
+          }))
+        )]
+      );
+    }
+  }
+}
+
 function genExpr(
   ast: ESTree.Expression,
   typeMap: (e: ESTree.Expression) => Type,
+  dynamicMap: (e: ESTree.Expression) => boolean,
   env: Map<string, JS.Expression>,
 ): JS.Expression {
   const type = typeMap(ast);
   if (type.kind === 'Error')
     return JS.identifier('undefined');
 
-    switch (ast.type) {
+  switch (ast.type) {
     case 'Identifier':
+    case 'JSXIdentifier':
       return env.get(ast.name) ?? JS.identifier(ast.name);
 
     case 'Literal':
@@ -61,7 +128,7 @@ function genExpr(
       }
 
     case 'JSXExpressionContainer':
-      return genExpr(ast.expression, typeMap, env);
+      return genExpr(ast.expression, typeMap, dynamicMap, env);
 
     case 'JSXEmptyExpression':
       return JS.identifier('undefined');
@@ -78,224 +145,305 @@ function genExpr(
     }
 
     case 'JSXElement': {
-      const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
-        if (!value) return { [name.name]: true }
-        else return { [name.name]: genExpr(value, typeMap, env) };
-      });
-      const attrs = Object.assign({}, ...attrObjs);
+      const exprs: ESTree.Expression[] = [];
+      ast.openingElement.attributes.forEach(({ value }) => { if (value) exprs.push(value) });
+      if (STARTS_WITH_CAPITAL_LETTER.test(ast.openingElement.name.name))
+        exprs.push(ast.openingElement.name);
+      exprs.push(...ast.children);
 
-      const name = ast.openingElement.name.name;
-      return e(
-        STARTS_WITH_CAPITAL_LETTER.test(name) ?  JS.identifier(name) : JS.stringLiteral(name),
-        attrs,
-        ...ast.children.map(child => genExpr(child, typeMap, env))
+      return joinDynamicExpressions(
+        exprs,
+        typeMap,
+        dynamicMap,
+        env,
+        jsExprs => {
+          const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
+            if (!value) return { [name.name]: true }
+            else return { [name.name]: jsExprs.shift() ?? bug(`expected jsExpr`) };
+          });
+          const attrs = Object.assign({}, ...attrObjs);
+
+          const elemName = ast.openingElement.name.name;
+          const elem = STARTS_WITH_CAPITAL_LETTER.test(elemName) ?
+            jsExprs.shift() ?? bug(`expected jsExpr`) :
+            JS.stringLiteral(elemName)
+
+          const children = ast.children.map(child => jsExprs.shift() ?? bug(`expected jsExpr`));
+
+          return e(elem, attrs, ...children);
+        }
       );
     }
 
     case 'JSXFragment':
-      return e(
-        reactFragment,
-        {},
-        ...ast.children.map(child => genExpr(child, typeMap, env))
+      return joinDynamicExpressions(
+        ast.children,
+        typeMap,
+        dynamicMap,
+        env,
+        jsExprs => e(reactFragment, {}, ...jsExprs)
       );
 
-    case 'UnaryExpression': {
-      const argType = typeMap(ast.argument);
-      const v = genExpr(ast.argument, typeMap, env);
-      switch (ast.operator) {
-        case '+':
-        case '-':
-        case '!':
-          return JS.unaryExpression(ast.operator, v);
-        case 'typeof':
-          if (argType.kind === 'Error')
-            return JS.stringLiteral('error');
-          else
-            return JS.unaryExpression('typeof', v);
-        default: bug(`unimplemented ${(ast as ESTree.UnaryExpression).operator}`);
-      }
-    }
+    case 'UnaryExpression':
+      return joinDynamicExpressions(
+        [ast.argument],
+        typeMap,
+        dynamicMap,
+        env,
+        ([v]) => {
+          const argType = typeMap(ast.argument);
+          switch (ast.operator) {
+            case '+':
+            case '-':
+            case '!':
+              return JS.unaryExpression(ast.operator, v);
+            case 'typeof':
+              if (argType.kind === 'Error')
+                return JS.stringLiteral('error');
+              else
+                return JS.unaryExpression('typeof', v);
+            default: bug(`unimplemented ${(ast as ESTree.UnaryExpression).operator}`);
+          }
+        }
+      );
 
     case 'LogicalExpression': {
-      return JS.logicalExpression(
-        ast.operator,
-        genExpr(ast.left, typeMap, env),
-        genExpr(ast.right, typeMap, env),
-      );
-    }
-
-    case 'BinaryExpression': {
-      const left = genExpr(ast.left, typeMap, env);
-      const right = genExpr(ast.right, typeMap, env);
-      const leftType = typeMap(ast.left);
-      const rightType = typeMap(ast.right);
-
-      switch (ast.operator) {
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '%':
-          if (leftType.kind === 'Error') return right;
-          else if (rightType.kind === 'Error') return left;
-          else return JS.binaryExpression(ast.operator, left, right);
-
-        case '===':
-          if (leftType.kind === 'Error' || rightType.kind === 'Error')
-            return JS.booleanLiteral(false);
-          else
-            return JS.binaryExpression('===', left, right);
-
-        case '!==':
-          if (leftType.kind === 'Error' || rightType.kind === 'Error')
-            return JS.booleanLiteral(true);
-          else
-            return JS.binaryExpression('!==', left, right);
-
-        default:
-          bug(`unimplemented ${ast.operator}`);
+      // when either left or right is dynamic the whole expression is dynamic
+      // but only evaluate right if needed
+      const leftExpr = genExpr(ast.left, typeMap, dynamicMap, env);
+      const rightExpr = genExpr(ast.right, typeMap, dynamicMap, env);
+      const leftDynamic = dynamicMap(ast.left);
+      const rightDynamic = dynamicMap(ast.right);
+      const fn = (leftExpr: JS.Expression) =>
+        JS.conditionalExpression(
+          (
+            ast.operator === '||' ? leftExpr :
+            ast.operator === '&&' ? JS.unaryExpression('!', leftExpr) :
+            bug(`unimplemented ${(ast as any).operator}`)
+          ),
+          maybeSignal(rightDynamic, leftExpr),
+          rightExpr
+        );
+      const leftIdent = JS.identifier('__left');
+      if (leftDynamic && rightDynamic) {
+        return JS.callExpression(
+          JS.memberExpression(leftExpr, JS.identifier('flatMap')),
+          [JS.arrowFunctionExpression([leftIdent], fn(leftIdent))]
+        );
+      } else if (leftDynamic) {
+        return JS.callExpression(
+          JS.memberExpression(leftExpr, JS.identifier('map')),
+          [JS.arrowFunctionExpression([leftIdent], fn(leftIdent))]
+        );
+      } else {
+        return fn(leftExpr);
       }
     }
+
+    case 'BinaryExpression':
+      return joinDynamicExpressions(
+        [ast.left, ast.right],
+        typeMap,
+        dynamicMap,
+        env,
+        ([left, right]) => {
+          const leftType = typeMap(ast.left);
+          const rightType = typeMap(ast.right);
+
+          switch (ast.operator) {
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+            case '%':
+              if (leftType.kind === 'Error') return right;
+              else if (rightType.kind === 'Error') return left;
+              else return JS.binaryExpression(ast.operator, left, right);
+
+            case '===':
+              if (leftType.kind === 'Error' || rightType.kind === 'Error')
+                return JS.booleanLiteral(false);
+              else
+                return JS.binaryExpression('===', left, right);
+
+            case '!==':
+              if (leftType.kind === 'Error' || rightType.kind === 'Error')
+                return JS.booleanLiteral(true);
+              else
+                return JS.binaryExpression('!==', left, right);
+
+            default:
+              bug(`unimplemented ${ast.operator}`);
+          }
+        }
+      );
 
     case 'SequenceExpression':
-      return JS.sequenceExpression(ast.expressions.map(expr => genExpr(expr, typeMap, env)));
+      return joinDynamicExpressions(
+        ast.expressions,
+        typeMap,
+        dynamicMap,
+        env,
+        jsExprs => JS.sequenceExpression(jsExprs)
+      );
 
-    case 'MemberExpression': {
-      let property;
+    case 'MemberExpression':
       if (ast.computed) {
-        property = genExpr(ast.property, typeMap, env);
-      } else if (ast.property.type === 'Identifier') {
-        property = JS.identifier(ast.property.name);
+        return joinDynamicExpressions(
+          [ast.object, ast.property],
+          typeMap,
+          dynamicMap,
+          env,
+          ([object, property]) => JS.memberExpression(object, property)
+        );
       } else {
-        bug (`expected identifier ${JSON.stringify(ast.property)}`);
+        if (ast.property.type !== 'Identifier') bug(`expected Identifier`);
+        const name = ast.property.name;
+        return joinDynamicExpressions(
+          [ast.object],
+          typeMap,
+          dynamicMap,
+          env,
+          ([object]) => JS.memberExpression(object, JS.identifier(name))
+        );
       }
-      return JS.memberExpression(genExpr(ast.object, typeMap, env), property);
-    }
 
     case 'CallExpression':
-      return JS.callExpression(
-        genExpr(ast.callee, typeMap, env),
-        ast.arguments.map(arg => genExpr(arg, typeMap, env))
+      return joinDynamicExpressions(
+        [ast.callee, ...ast.arguments],
+        typeMap,
+        dynamicMap,
+        env,
+        ([callee, ...args]) => JS.callExpression(callee, args)
       );
 
     case 'ObjectExpression':
-      return JS.objectExpression(ast.properties.map(prop => {
-        let key;
-        if (prop.computed) {
-          key = genExpr(prop.key, typeMap, env);
-        } else if (prop.key.type === 'Identifier') {
-          key = JS.identifier(prop.key.name);
-        } else {
-          bug (`expected identifier ${JSON.stringify(prop.key)}`);
-        }
-        return JS.objectProperty(key, genExpr(prop.value, typeMap, env));
-      }));
+      return joinDynamicExpressions(
+        ast.properties.map(prop => prop.value),
+        typeMap,
+        dynamicMap,
+        env,
+        jsExprs => JS.objectExpression(ast.properties.map((prop, i) => {
+          let name: JS.Identifier | JS.StringLiteral;
+          switch (prop.key.type) {
+            case 'Identifier': name = JS.identifier(prop.key.name); break;
+            case 'Literal': name = JS.stringLiteral(prop.key.value); break;
+            default: bug(`expected Identifier or Literal`);
+          }
+          return JS.objectProperty(name, jsExprs[i]);
+        }))
+      );
 
     case 'ArrayExpression':
-      return JS.arrayExpression(ast.elements.map(e => genExpr(e, typeMap, env)));
+      return joinDynamicExpressions(
+        ast.elements,
+        typeMap,
+        dynamicMap,
+        env,
+        jsExprs => JS.arrayExpression(jsExprs)
+      );
 
     case 'ArrowFunctionExpression': {
-      if (ast.body.type === 'BlockStatement') {
-        const stmts = ast.body.body.map(stmt => {
+      let jsBody;
+      const body = ast.body;
+      if (body.type === 'BlockStatement') {
+        jsBody = JS.blockStatement(body.body.map((stmt, i) => {
           switch (stmt.type) {
             case 'ExpressionStatement':
-              return JS.expressionStatement(genExpr(stmt.expression, typeMap, env));
+              const jsExpr = genExpr(stmt.expression, typeMap, dynamicMap, env);
+              if (i === body.body.length - 1)
+                return JS.returnStatement(jsExpr);
+              else
+                return JS.expressionStatement(jsExpr);
             default:
               bug(`unimplemented ${stmt.type}`);
           }
-        });
-        return JS.arrowFunctionExpression(ast.params.map(genParam), JS.blockStatement(stmts));
+        }));
       } else {
-        return JS.arrowFunctionExpression(ast.params.map(genParam), genExpr(ast.body, typeMap, env));
+        jsBody = genExpr(body, typeMap, dynamicMap, env);
+      }
+
+      // if the function depends on dynamic values return a dynamic function value
+      // the function itself doesn't change, but a fresh instance is created
+      // in order to cause React reconciliation etc.
+      // inside the function, we get() the function value
+      // to cause Signal reconciliation and produce a non-Signal value
+      const dynamic = dynamicMap(ast);
+      if (dynamic) {
+        const idents = ESTree.freeIdentifiers(ast).filter(ident => {
+          // happens when an unbound identifier is used
+          try { dynamicMap(ident) } catch (e) { return false; }
+          // happens when an identifier is used in its own definition
+          if (!env.has(ident.name)) return false;
+          // TODO(jaked) check for these cases explicitly
+          // so we don't hit them for an actual bug
+          return dynamicMap(ident);
+        });
+        const signals = idents.map(ident =>
+          genExpr(ident, typeMap, dynamicMap, env)
+        );
+        return JS.callExpression(
+          JS.memberExpression(
+            JS.callExpression(
+              JS.memberExpression(JS.identifier(`Signal`), JS.identifier('join')),
+              signals
+            ),
+            JS.identifier('map')
+          ),
+          [
+            JS.arrowFunctionExpression(
+              ast.params.map(genParam),
+              // TODO(jaked) fix for BlockStatement body
+              JS.callExpression(
+                JS.memberExpression(jsBody, JS.identifier('get')),
+                []
+              )
+            )
+          ]
+        );
+      } else {
+        return JS.arrowFunctionExpression(ast.params.map(genParam), jsBody);
       }
     }
 
-    case 'ConditionalExpression':
-      return JS.conditionalExpression(
-        genExpr(ast.test, typeMap, env),
-        genExpr(ast.consequent, typeMap, env),
-        genExpr(ast.alternate, typeMap, env),
-      );
+    case 'ConditionalExpression': {
+      const testExpr = genExpr(ast.test, typeMap, dynamicMap, env);
+      const consequentExpr = genExpr(ast.consequent, typeMap, dynamicMap, env);
+      const alternateExpr = genExpr(ast.alternate, typeMap, dynamicMap, env);
+      const testDynamic = dynamicMap(ast.test);
+      const consequentDynamic = dynamicMap(ast.consequent);
+      const alternateDynamic = dynamicMap(ast.alternate);
+      const fn = (testExpr: JS.Expression) =>
+        JS.conditionalExpression(
+          testExpr,
+          maybeSignal(alternateDynamic && !consequentDynamic, consequentExpr),
+          maybeSignal(consequentDynamic && !alternateDynamic, alternateExpr)
+        );
+      const testIdent = JS.identifier('__test');
+      if (testDynamic && (consequentDynamic || alternateDynamic)) {
+        return JS.callExpression(
+          JS.memberExpression(testExpr, JS.identifier('flatMap')),
+          [JS.arrowFunctionExpression([testIdent], fn(testIdent))]
+        );
+      } else if (testDynamic) {
+        return JS.callExpression(
+          JS.memberExpression(testExpr, JS.identifier('map')),
+          [JS.arrowFunctionExpression([testIdent], fn(testIdent))]
+        );
+      } else {
+        return fn(testExpr);
+      }
+    }
 
     default:
       bug(`unimplemented ${ast.type}`);
   }
 }
 
-function genDynamicExpr(
-  ast: ESTree.Expression,
-  typeMap: (e: ESTree.Expression) => Type,
-  dynamicEnv: Dyncheck.Env,
-  valueEnv: Map<string, JS.Expression>,
-): JS.Expression {
-  const type = typeMap(ast);
-  if (type.kind === 'Error') return JS.identifier('undefined');
-  const idents = ESTree.freeIdentifiers(ast).map(ident => ident.name).filter(ident => {
-    return dynamicEnv.get(ident) ?? false;
-  });
-  const signals = idents.map(ident => valueEnv.get(ident) ?? JS.identifier(ident));
-  // shadow the bindings of things in the global environment
-  const env2 = Immer.produce(valueEnv, env => {
-    idents.forEach(ident => {
-      (env as Map<string, JS.Expression>).set(ident, JS.identifier(ident));
-    });
-  });
-  const expr = genExpr(ast, typeMap, env2);
-
-  switch (idents.length) {
-    case 0:
-      return expr;
-
-    case 1:
-      // ${signal}.map({$ident} => expr)
-      return (
-        JS.callExpression(
-          JS.memberExpression(signals[0], JS.identifier('map')),
-          [
-            JS.arrowFunctionExpression(
-              [ JS.identifier(idents[0]) ],
-              expr
-            )
-          ]
-        )
-      );
-
-    default:
-      // Signal.join(...${signals}).map(([...${idents}]) => ${expr})
-      return (
-        JS.callExpression(
-          JS.memberExpression(
-            JS.callExpression(
-              JS.memberExpression(JS.identifier('Signal'), JS.identifier('join')),
-              signals
-            ),
-            JS.identifier('map'),
-          ),
-          [
-            JS.arrowFunctionExpression(
-              [ JS.arrayPattern(idents.map(ident => JS.identifier(ident))) ],
-              expr,
-            )
-          ]
-        )
-      );
-  }
-}
-
-function isDynamic(
-  ast: ESTree.Expression,
-  dynamicEnv: Dyncheck.Env
-): boolean {
-  return ESTree.freeIdentifiers(ast).map(ident => ident.name).some(ident => {
-    const dynamic = dynamicEnv.get(ident) ?? bug(`expected dynamic`);
-    return dynamic
-  });
-}
-
 function genNode(
   node: PMAST.Node,
   typeMap: (e: ESTree.Expression) => Type,
-  dynamicEnv: Dyncheck.Env,
+  dynamicMap: (e: ESTree.Expression) => boolean,
   valueEnv: Map<string, JS.Expression>,
   decls: JS.Statement[],
   hydrates: JS.Statement[],
@@ -309,7 +457,7 @@ function genNode(
           [
             JS.callExpression(
               JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
-              [ genDynamicExpr(e, typeMap, dynamicEnv, valueEnv) ]
+              [ genExpr(e, typeMap, dynamicMap, valueEnv) ]
             ),
             JS.callExpression(
               JS.memberExpression(JS.identifier('document'), JS.identifier('getElementById')),
@@ -328,7 +476,8 @@ function genNode(
         switch (node.type) {
           case 'ExpressionStatement': {
             const type = typeMap(node.expression);
-            if (type.kind !== 'Error' && isDynamic(node.expression, dynamicEnv)) {
+            const dynamic = dynamicMap(node.expression);
+            if (type.kind !== 'Error' && dynamic) {
               hydrate(node.expression);
             }
           }
@@ -341,8 +490,7 @@ function genNode(
                 for (const declarator of node.declarations) {
                   if (!declarator.init) return;
                   const name = declarator.id.name;
-                  const init =
-                    genDynamicExpr(declarator.init, typeMap, dynamicEnv, valueEnv);
+                  const init = genExpr(declarator.init, typeMap, dynamicMap, valueEnv);
                   decls.push(JS.variableDeclaration('const', [
                     JS.variableDeclarator(JS.identifier(name), init)
                   ]));
@@ -358,8 +506,7 @@ function genNode(
                 for (const declarator of node.declaration.declarations) {
                   if (!declarator.init) return;
                   const name = declarator.id.name;
-                  const init =
-                    genDynamicExpr(declarator.init, typeMap, dynamicEnv, valueEnv);
+                  const init = genExpr(declarator.init, typeMap, dynamicMap, valueEnv);
                   decls.push(JS.exportNamedDeclaration(JS.variableDeclaration('const', [
                     JS.variableDeclarator(JS.identifier(name), init)
                   ])));
@@ -384,20 +531,21 @@ function genNode(
     if (ast.type === 'ok') {
       const expr = ast.ok as ESTree.Expression;
       const type = typeMap(expr);
-      if (type.kind !== 'Error' && isDynamic(expr, dynamicEnv)) {
+      const dynamic = dynamicMap(expr);
+      if (type.kind !== 'Error' && dynamic) {
         hydrate(expr);
       }
     }
 
   } else if (PMAST.isElement(node)) {
-    node.children.forEach(child => genNode(child, typeMap, dynamicEnv, valueEnv, decls, hydrates));
+    node.children.forEach(child => genNode(child, typeMap, dynamicMap, valueEnv, decls, hydrates));
   }
 }
 
 export function generatePm(
   nodes: PMAST.Node[],
   typeMap: (e: ESTree.Expression) => Type,
-  dynamicEnv: Dyncheck.Env,
+  dynamicMap: (e: ESTree.Expression) => boolean,
   header: boolean = true,
 ) {
   const decls: JS.Statement[] = [];
@@ -408,7 +556,7 @@ export function generatePm(
     ['window', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('window'))],
     ['Math', JS.identifier('Math')]
   ]);
-  nodes.forEach(node => genNode(node, typeMap, dynamicEnv, valueEnv, decls, hydrates));
+  nodes.forEach(node => genNode(node, typeMap, dynamicMap, valueEnv, decls, hydrates));
 
   const hasHydrates = hydrates.length > 0;
   const hasExports = decls.some(decl =>
