@@ -90,7 +90,7 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
       className: Type.undefinedOrString,
       onClick: Type.undefinedOr(Type.functionType(
         [Type.unknown],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
     }),
     value: 'a',
@@ -117,7 +117,7 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
       className: Type.undefinedOrString,
       onClick: Type.undefinedOr(Type.functionType(
         [Type.unknown],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
     }),
     value: 'button',
@@ -231,21 +231,21 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
         [Type.object({
           currentTarget: Type.object({ value: Type.string })
         })],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
       onInput: Type.undefinedOr(Type.functionType(
         [Type.object({
           currentTarget: Type.object({ value: Type.string })
         })],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
       onKeyUp: Type.undefinedOr(Type.functionType(
         [Type.object({ keyCode: Type.number })],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
       onClick: Type.undefinedOr(Type.functionType(
         [Type.unknown],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
       placeholder: Type.undefinedOrString,
       bind: Type.undefinedOr(Type.intersection(
@@ -262,11 +262,11 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
       for: Type.undefinedOrString,
       onClick: Type.undefinedOr(Type.functionType(
         [Type.unknown],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
       onDoubleClick: Type.undefinedOr(Type.functionType(
         [Type.unknown],
-        Type.undefined // TODO(jaked) Type.void?
+        Type.unknown
       )),
     }),
     value: 'label',

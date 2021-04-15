@@ -228,8 +228,14 @@ function synthMember(
   env: Env,
   typeMap: TypeMap,
 ): Type {
-  return synthAndThen(ast.object, env, typeMap, (objType, typeMap) => {
+  const fn = (objType: Type, typeMap: TypeMap) => {
     if (objType.kind === 'Error') return objType;
+
+    if (objType.kind === 'Abstract' && (objType.label === 'Code' || objType.label === 'Session')) {
+      const param = objType.params.get(0) ?? bug(`expected param`);
+      const type = fn(param, typeMap);
+      return type.kind === 'Error' ? type : Type.abstract(objType.label, type);
+    }
 
     if (ast.computed)
       return synthAndThen(ast.property, env, typeMap, (prop, typeMap) => {
@@ -367,7 +373,9 @@ function synthMember(
       }
       return Error.unknownField(ast.property, name, typeMap);
     }
-  });
+  }
+
+  return synthAndThen(ast.object, env, typeMap, fn, /* preserveCell = */ true);
 }
 
 function synthCall(
@@ -670,6 +678,21 @@ function synthJSXEmptyExpression(
   return Type.undefined;
 }
 
+function synthAssignment(
+  ast: ESTree.AssignmentExpression,
+  env: Env,
+  typeMap: TypeMap,
+): Type {
+  return synthAndThen(ast.left, env, typeMap, (left, typeMap) => {
+    if (left.kind === 'Abstract' && (left.label === 'Code' || left.label === 'Session')) {
+      const param = left.params.get(0) ?? bug(`expected param`);
+      return check(ast.right, env, param, typeMap);
+    } else {
+      return Error.expectedType(ast.left, 'Code<T> or Session<T>', left, typeMap);
+    }
+  }, /* preserveCell */ true);
+}
+
 function synthHelper(
   ast: ESTree.Node,
   env: Env,
@@ -696,6 +719,7 @@ function synthHelper(
     case 'JSXExpressionContainer':  return synthJSXExpressionContainer(ast, env, typeMap);
     case 'JSXText':                 return synthJSXText(ast, env, typeMap);
     case 'JSXEmptyExpression':      return synthJSXEmptyExpression(ast, env, typeMap);
+    case 'AssignmentExpression':    return synthAssignment(ast, env, typeMap);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);
@@ -712,8 +736,19 @@ export function synth(
   return type;
 }
 
-function andThen(type: Type, fn: (t: Type, typeMap: TypeMap) => Type, typeMap: TypeMap): Type {
+function andThen(
+  type: Type,
+  fn: (t: Type, typeMap: TypeMap) => Type,
+  typeMap: TypeMap,
+  preserveCell: boolean = false
+): Type {
   type = Type.expand(type);
+
+  // TODO(jaked) this is pretty ad-hoc
+  if (!preserveCell && type.kind === 'Abstract' && (type.label === 'Code' || type.label === 'Session')) {
+    const param = type.params.get(0) ?? bug(`expected param`);
+    type = param;
+  }
 
   switch (type.kind) {
     case 'Union':
@@ -757,9 +792,10 @@ export function synthAndThen(
   ast: ESTree.Expression,
   env: Env,
   typeMap: TypeMap,
-  fn: (t: Type, typeMap: TypeMap) => Type
+  fn: (t: Type, typeMap: TypeMap) => Type,
+  preserveCell: boolean = false
 ): Type {
-  return andThen(synth(ast, env, typeMap), fn, typeMap);
+  return andThen(synth(ast, env, typeMap), fn, typeMap, preserveCell);
 }
 
 function importDecl(
@@ -816,29 +852,42 @@ function synthVariableDecl(
   typeMap: TypeMap,
 ): Env {
   decl.declarations.forEach(declarator => {
-    let type: Type;
-    const typeAnnotation = declarator.id.typeAnnotation ?
-      Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, typeMap) :
-      undefined;
-    if (declarator.init) {
-      const initEnv = decl.kind === 'let' ? Immutable.Map({ undefined: Type.undefined }) : env;
-      if (typeAnnotation) {
-        type = check(declarator.init, initEnv, typeAnnotation, typeMap);
+    let declType: Type;
+
+    if (!declarator.init) {
+      declType = Error.withLocation(declarator.id, `expected initializer`, typeMap);
+
+    } else if (decl.kind === 'const') {
+      if (declarator.id.typeAnnotation) {
+        const ann = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, typeMap);
+        const type = check(declarator.init, env, ann, typeMap);
+        declType = type.kind === 'Error' ? type : ann;
+
       } else {
-        type = synth(declarator.init, initEnv, typeMap);
+        declType = synth(declarator.init, env, typeMap);
       }
-    } else {
-      type = Error.withLocation(declarator.id, `expected initializer`, typeMap);
+
+    } else if (decl.kind === 'let') {
+      if (!declarator.id.typeAnnotation) {
+        declType = Error.withLocation(declarator.id, `expected type annotation`, typeMap);
+      } else {
+        const ann =
+          Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, typeMap);
+        if (ann.kind !== 'Abstract' || (ann.label !== 'Code' && ann.label !== 'Session')) {
+          declType = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, typeMap);
+        } else {
+          const param = ann.params.get(0) ?? bug(`expected param`);
+          // TODO(jaked) could relax this and allow referring to static variables
+          const initEnv = Immutable.Map({ undefined: Type.undefined });
+          const type = check(declarator.init, initEnv, param, typeMap);
+          declType = type.kind === 'Error' ? type : ann;
+        }
+      }
     }
-    let declType =
-      type.kind === 'Error' ? type :
-      typeAnnotation ? typeAnnotation :
-      type;
 
-    if (decl.kind === 'let' && type.kind !== 'Error')
-      declType = Type.abstract('lensType', declType);
+    else bug(`unexpected ${decl.kind}`);
 
-    if (typeMap) typeMap.set(declarator.id, declType);
+    typeMap.set(declarator.id, declType);
     env = env.set(declarator.id.name, declType);
   });
   return env;

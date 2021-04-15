@@ -9,7 +9,6 @@ import Signal from '../../util/Signal';
 import * as MapFuncs from '../../util/MapFuncs';
 import { DynamicMap, TypeMap } from '../../model';
 import * as Parse from '../Parse';
-import lensValue from '../Compile/lensValue';
 
 export type Env = Immutable.Map<string, any>;
 
@@ -418,7 +417,7 @@ export function evaluateExpression(
           evaluateExpression(ident, typeMap, dynamicMap, env) as Signal<unknown>
         );
         return Signal.join(...signals).map(() =>
-          (...args: Array<any>) => fn(args).get()
+          (...args: Array<any>) => fn(...args).get()
         );
       } else {
         return fn;
@@ -452,6 +451,29 @@ export function evaluateExpression(
     case 'TemplateLiteral':
       // TODO(jaked) handle interpolations
       return ast.quasis.map(elem => elem.value.raw).join('');
+
+    case 'AssignmentExpression': {
+      const leftType = typeMap.get(ast.left) ?? bug(`expected type`);
+      const rightType = typeMap.get(ast.right) ?? bug(`expected type`);
+      if (leftType.kind === 'Error' || rightType.kind === 'Error') {
+        // TODO(jaked) we should return rhs when it's OK I think
+        return undefined;
+      } else {
+        if (ast.left.type === 'MemberExpression') {
+          bug(`unimplemented`);
+        } else {
+          return joinDynamicExpressions(
+            [ast.left, ast.right],
+            typeMap,
+            dynamicMap,
+            env,
+            ([left, right]) => {
+              (left as Signal.Writable<unknown>).setOk(right);
+              return right;
+            });
+        }
+      }
+    }
 
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
@@ -542,45 +564,50 @@ function evalVariableDecl(
     case 'let': {
       decl.declarations.forEach(declarator => {
         let name = declarator.id.name;
-        const lensType = typeMap.get(declarator.id) ?? bug(`expected type`);
-        if (lensType.kind === 'Error') return valueEnv;
-        else if (lensType.kind !== 'Abstract' || lensType.params.size !== 1) bug(`expected lensType`);
-        const type = lensType.params.get(0) ?? bug(`expected param`);
+        const cellType = typeMap.get(declarator.id) ?? bug(`expected type`);
+        if (cellType.kind === 'Error') return valueEnv;
+        else if (cellType.kind !== 'Abstract' || cellType.params.size !== 1) bug(`expected Code<T> or Session<T>`);
         const init = declarator.init;
         const value = evaluateExpression(init, typeMap, dynamicMap, Immutable.Map({ undefined: undefined }));
-        const setValue = (v) => {
-          nodes.produce(nodes => {
-            function walk(nodes: PMAST.Node[]): boolean {
-              for (let i = 0; i < nodes.length; i++) {
-                const oldNode = nodes[i];
-                if (Immer.original(oldNode) === node) {
-                  const code =
-                    (node.children[0] && PMAST.isText(node.children[0]) && node.children[0].text) ||
-                    bug(`expected text child`);
-                  const newNode: PMAST.Node = { type: 'code', children: [{ text:
-                    code.substr(0, init.start) + JSON5.stringify(v) + code.substr(init.end)
-                  }]};
-                  nodes[i] = newNode;
-                  return true;
-                } else if (PMAST.isElement(oldNode)) {
-                  if (walk(oldNode.children)) {
+        if (cellType.label === 'Code') {
+          // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
+          valueEnv = valueEnv.set(name, nodes.mapWritable(
+            _ => value,
+            v => Immer.produce(nodes.get(), nodes => {
+              function walk(nodes: PMAST.Node[]): boolean {
+                for (let i = 0; i < nodes.length; i++) {
+                  const oldNode = nodes[i];
+                  if (Immer.original(oldNode) === node) {
+                    const code =
+                      (node.children[0] && PMAST.isText(node.children[0]) && node.children[0].text) ||
+                      bug(`expected text child`);
+                    const newNode: PMAST.Node = { type: 'code', children: [{ text:
+                      code.substr(0, init.start) + JSON5.stringify(v) + code.substr(init.end)
+                    }]};
+                    nodes[i] = newNode;
                     return true;
+                  } else if (PMAST.isElement(oldNode)) {
+                    if (walk(oldNode.children)) {
+                      return true;
+                    }
                   }
                 }
+                return false;
               }
-              return false;
-            }
 
-            if (!walk(nodes)) bug(`expected node`);
-          });
-          // TODO(jaked)
-          // what if changing node invalidates selection?
-          // how can we avoid recompiling the note / dependents?
-          //   put a cell in the environment so we can update it
-          //   Signal.Writable that writes back to node?
-        }
-        const lens = lensValue(value, setValue, type);
-        valueEnv = valueEnv.set(name, lens);
+              if (!walk(nodes)) bug(`expected node`);
+              // TODO(jaked)
+              // what if changing node invalidates selection?
+              // how can we avoid recompiling the note / dependents?
+              //   put a cell in the environment so we can update it
+              //   Signal.Writable that writes back to node?
+            })
+          ));
+
+        } else if (cellType.label === 'Session') {
+          valueEnv = valueEnv.set(name, Signal.cellOk(value));
+
+        } else bug(`unexpected ${cellType.label}`);
       });
     }
     break;

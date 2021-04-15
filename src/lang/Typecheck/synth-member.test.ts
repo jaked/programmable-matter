@@ -11,6 +11,7 @@ const env = Typecheck.env({
   numberUnion: '0 | 1',
   stringUnion: `'foo' | 'bar'`,
   objInt: '(() => boolean) & { bar: number }',
+  objectCell: 'Code<{ foo: boolean, bar: number }>',
 });
 
 it('property names', () => {
@@ -119,5 +120,29 @@ it('intersections', () => {
     env,
     type: 'number',
     error: false,
+  });
+});
+
+it('member inside cell', () => {
+  expectSynth({
+    expr: 'objectCell.foo',
+    env,
+    type: 'Code<boolean>',
+  });
+});
+
+it('computed member inside cell', () => {
+  expectSynth({
+    expr: `objectCell['foo']`,
+    env,
+    type: 'Code<boolean>',
+  });
+});
+
+it('consume value of member inside cell', () => {
+  expectSynth({
+    expr: 'objectCell.bar + 1',
+    env,
+    type: 'number',
   });
 });

@@ -181,6 +181,13 @@ export interface TSAsExpression extends NodeImpl {
   typeAnnotation: TypeAnnotation;
 }
 
+
+export interface AssignmentExpression extends NodeImpl {
+  type: "AssignmentExpression";
+  left: Expression;
+  right: Expression;
+}
+
 export type Expression =
   Literal |
   Identifier |
@@ -206,7 +213,8 @@ export type Expression =
   ConditionalExpression |
   TemplateLiteral |
   TemplateElement |
-  TSAsExpression;
+  TSAsExpression |
+  AssignmentExpression;
 
 export interface TSNeverKeyword extends NodeImpl {
   type: 'TSNeverKeyword';
@@ -497,6 +505,10 @@ export function visit(
 
     case 'TemplateLiteral':
       return visit(ast.quasis, fn);
+
+    case 'AssignmentExpression':
+      visit(ast.left, fn);
+      return visit(ast.right, fn);
 
     case 'ObjectPattern':
       visit(ast.properties, fn);

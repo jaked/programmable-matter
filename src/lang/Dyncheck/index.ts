@@ -73,11 +73,8 @@ function arrowFunction(
 
         case 'ObjectPattern':
           pat.properties.forEach(pat => {
-            if (pat.key.type === 'Identifier') {
-              env.set(pat.key.name, false);
-            } else {
-              throw new Error ('expected Identifier');
-            }
+            if (pat.key.type !== 'Identifier') bug('expected Identifier');
+            env.set(pat.key.name, false);
           });
           break;
 
@@ -253,7 +250,17 @@ function jSXEmpty(
   return false;
 }
 
-function dynamicHelper(
+function assignment(
+  ast: ESTree.AssignmentExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  dynamicMap.set(ast.left, false);
+  return expression(ast.right, typeMap, env, dynamicMap);
+}
+
+function expressionHelper(
   ast: ESTree.Expression,
   typeMap: TypeMap,
   env: Env,
@@ -282,6 +289,7 @@ function dynamicHelper(
     case 'JSXExpressionContainer':  return jSXExpressionContainer(ast, typeMap, env, dynamicMap);
     case 'JSXText':                 return jSXText(ast, typeMap, env, dynamicMap);
     case 'JSXEmptyExpression':      return jSXEmpty(ast, typeMap, env, dynamicMap);
+    case 'AssignmentExpression':    return assignment(ast, typeMap, env, dynamicMap);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);
@@ -294,7 +302,7 @@ export function expression(
   dynamicEnv: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const dynamic = dynamicHelper(ast, typeMap, dynamicEnv, dynamicMap);
+  const dynamic = expressionHelper(ast, typeMap, dynamicEnv, dynamicMap);
   dynamicMap.set(ast, dynamic);
   return dynamic;
 }
@@ -308,18 +316,36 @@ function variableDecl(
 ): Env {
   decl.declarations.forEach(declarator => {
     let dynamic: boolean;
-    if (decl.kind === 'let') {
-      // updates to let-variables are compile-time changes
-      // and initializers are checked to be static in typechecking
+    const type = typeEnv.get(declarator.id.name) ?? bug(`expected type`);
+    if (type.kind === 'Error') {
       dynamic = false;
-    } else {
-      const type = typeEnv.get(declarator.id.name) ?? bug(`expected type`);
-      if (type.kind === 'Error')
+
+    } else if (decl.kind === 'let') {
+
+      if (type.kind !== 'Abstract') bug(`expected Abstract`);
+
+/*
+      if (type.label === 'Code')
         dynamic = false;
-      else {
-        if (!declarator.init) bug(`expected initializer`);
-        dynamic = expression(declarator.init, typeMap, dynamicEnv, dynamicMap);
-      }
+
+      else if (type.label === 'Session')
+        dynamic = true;
+      else bug(`expected Code or Session`);
+*/
+      // TODO(jaked)
+      // code cells are not actually dynamic
+      // and we don't want to generate dynamic JS for them
+      // but they are Signals
+      // so must be marked dynamic so evaluation dereferences them
+      // maybe we need another state to indicate that they are dynamic at edit time?
+      dynamic = true;
+
+      // let initializers are always static but we need to fill in dynamicMap
+      if (!declarator.init) bug(`expected initializer`);
+      expression(declarator.init, typeMap, dynamicEnv, dynamicMap);
+    } else {
+      if (!declarator.init) bug(`expected initializer`);
+      dynamic = expression(declarator.init, typeMap, dynamicEnv, dynamicMap);
     }
     dynamicEnv = dynamicEnv.set(declarator.id.name, dynamic);
   });

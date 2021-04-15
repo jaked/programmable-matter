@@ -139,6 +139,7 @@ abstract class WritableImpl<T> extends SignalImpl<T> {
   abstract set(t: Try<T>): void;
   setOk(t: T) { this.set(Try.ok(t)); }
   setErr(err: Error) { this.set(Try.err(err)); }
+  // TODO(jaked) handle errors from fn
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
   produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
   mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }

@@ -46,7 +46,12 @@ function checkSubtype(
     }
 
     default:
-      const actual = synth(ast, env, typeMap);
+      let actual = synth(ast, env, typeMap);
+      // TODO(jaked) this should go somewhere else
+      if (actual.kind === 'Abstract' && (actual.label === 'Code' || actual.label === 'Session')) {
+        const param = actual.params.get(0) ?? bug(`expected param`);
+        actual = param;
+      }
       if (Type.isSubtype(actual, type))
         return actual;
       else if (actual.kind === 'Error')
