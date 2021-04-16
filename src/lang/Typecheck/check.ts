@@ -370,6 +370,16 @@ function checkAbstract(
   return check(ast, env, Type.expand(type), typeMap);
 }
 
+function checkError(
+  ast: ESTree.Expression,
+  env: Env,
+  type: Type.ErrorType,
+  typeMap: TypeMap,
+): Type {
+  synth(ast, env, typeMap);
+  return type;
+}
+
 function checkHelper(
   ast: ESTree.Expression,
   env: Env,
@@ -387,6 +397,8 @@ function checkHelper(
     case 'Intersection':  return checkIntersection(ast, env, type, typeMap);
     case 'Singleton':     return checkSingleton(ast, env, type, typeMap);
     case 'Abstract':      return checkAbstract(ast, env, type, typeMap);
+
+    case 'Error':         return checkError(ast, env, type, typeMap);
 
     default:              return checkSubtype(ast, env, type, typeMap);
   }

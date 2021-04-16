@@ -871,25 +871,32 @@ function synthVariableDecl(
     } else if (decl.kind === 'const') {
       if (declarator.id.typeAnnotation) {
         const ann = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, typeMap);
-        const type = check(declarator.init, env, ann, typeMap);
-        declType = type.kind === 'Error' ? type : ann;
-
+        if (ann.kind === 'Error') {
+          declType = synth(declarator.init, env, typeMap);
+        } else {
+          const type = check(declarator.init, env, ann, typeMap);
+          declType = type.kind === 'Error' ? type : ann;
+        }
       } else {
         declType = synth(declarator.init, env, typeMap);
       }
 
     } else if (decl.kind === 'let') {
+      // TODO(jaked) could relax this and allow referring to static variables
+      const initEnv = Immutable.Map({ undefined: Type.undefined });
       if (!declarator.id.typeAnnotation) {
+        synth(declarator.init, initEnv, typeMap);
         declType = Error.withLocation(declarator.id, `expected type annotation`, typeMap);
       } else {
-        const ann =
-          Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, typeMap);
-        if (ann.kind !== 'Abstract' || (ann.label !== 'Code' && ann.label !== 'Session')) {
+        const ann = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, typeMap);
+        if (ann.kind === 'Error') {
+          synth(declarator.init, initEnv, typeMap);
+          declType = ann;
+        } if (ann.kind !== 'Abstract' || (ann.label !== 'Code' && ann.label !== 'Session')) {
+          synth(declarator.init, initEnv, typeMap);
           declType = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, typeMap);
         } else {
           const param = ann.params.get(0) ?? bug(`expected param`);
-          // TODO(jaked) could relax this and allow referring to static variables
-          const initEnv = Immutable.Map({ undefined: Type.undefined });
           const type = check(declarator.init, initEnv, param, typeMap);
           declType = type.kind === 'Error' ? type : ann;
         }

@@ -50,6 +50,13 @@ describe('abstract', () => {
       Type.abstract('React.FC', Type.object({ foo: Type.string })),
     )
   });
+
+  it('unknown abstract type', () => {
+    expectOfTSType(
+      'foo',
+      Type.error(new Error(`unknown abstract type 'foo'`))
+    )
+  });
 });
 
 it('union', () => {

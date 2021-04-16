@@ -52,55 +52,65 @@ function renderSpans(text: string, spans: Span[]) {
   }
   return nodes;
 }
+function expectHighlightExpr(
+  expr: string,
+  expected: React.ReactNode,
+) {
+  // TODO(jaked) this is a lot of setup
+  const ast = Parse.parseExpression(expr);
+  const typeEnv = Immutable.Map<string, Type>();
+  const typeMap = new Map<ESTree.Node, Type>();
+  Typecheck.synth(ast, typeEnv, typeMap);
 
-describe('highlight', () => {
-  function expectHighlightExpr(
-    expr: string,
-    expected: React.ReactNode,
-  ) {
-    // TODO(jaked) this is a lot of setup
-    const ast = Parse.parseExpression(expr);
-    const typeEnv = Immutable.Map<string, Type>();
-    const typeMap = new Map<ESTree.Node, Type>();
-    Typecheck.synth(ast, typeEnv, typeMap);
+  const spans: Span[] = [];
+  computeJsSpans(ast, typeMap, spans);
+  const rendered = renderSpans(expr, spans);
+  expect(rendered).toEqual(expected);
+}
 
-    const spans: Span[] = [];
-    computeJsSpans(ast, typeMap, spans);
-    const rendered = renderSpans(expr, spans);
-    expect(rendered).toEqual(expected);
-  }
+describe('objects', () => {
+  it('highlights duplicate property name', () => {
+    expectHighlightExpr(
+      `{ foo: 7, foo: 9 }`,
+      [
+        <H.default>{'{'}</H.default>,
+        ' ',
+        <H.definition>foo</H.definition>,
+        ': ',
+        <H.number>7</H.number>,
+        ', ',
+        <H.definition status="duplicate property name 'foo'">foo</H.definition>,
+        ': ',
+        <H.number>9</H.number>,
+        ' ',
+        <H.default>{'}'}</H.default>
+      ]
+    );
+  });
 
-  describe('objects', () => {
-    it('highlights duplicate property name', () => {
-      expectHighlightExpr(
-        `{ foo: 7, foo: 9 }`,
-        [
-          <H.default>{'{'}</H.default>,
-          ' ',
-          <H.definition>foo</H.definition>,
-          ': ',
-          <H.number>7</H.number>,
-          ', ',
-          <H.definition status="duplicate property name 'foo'">foo</H.definition>,
-          ': ',
-          <H.number>9</H.number>,
-          ' ',
-          <H.default>{'}'}</H.default>
-        ]
-      );
-    });
+  it('highlights shorthand property on error', () => {
+    expectHighlightExpr(
+      `{ foo }`,
+      [
+        <H.default>{'{'}</H.default>,
+        ' ',
+        <H.definition status="unbound identifier 'foo'">foo</H.definition>,
+        ' ',
+        <H.default>{'}'}</H.default>,
+      ]
+    );
+  });
+});
 
-    it('highlights shorthand property on error', () => {
-      expectHighlightExpr(
-        `{ foo }`,
-        [
-          <H.default>{'{'}</H.default>,
-          ' ',
-          <H.definition status="unbound identifier 'foo'">foo</H.definition>,
-          ' ',
-          <H.default>{'}'}</H.default>,
-        ]
-      );
-    });
+describe('types', () => {
+  it('highlights unknown types', () => {
+    expectHighlightExpr(
+      `x as foo`,
+      [
+        <H.variable status="unknown abstract type 'foo'">x</H.variable>,
+        ' as ',
+        <H.variable status="unknown abstract type 'foo'">foo</H.variable>
+      ]
+    );
   });
 });

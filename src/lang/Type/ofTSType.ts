@@ -5,6 +5,7 @@ import * as Type from './constructors';
 import { union } from './union';
 import { intersection } from './intersection';
 import * as model from '../../model';
+import * as Error from '../Typecheck/error';
 
 function stringOfQualifiedIdentifier(
   ident: ESTree.QualifiedIdentifier
@@ -20,6 +21,11 @@ function stringOfQualifiedIdentifier(
     }
   }
 }
+
+const okLabels = [
+  'React.ReactNode', 'React.Component', 'React.FC', 'React.FunctionComponent', 'lensType',
+  'Code', 'Session'
+]
 
 export default function ofTSType(
   tsType: ESTree.TypeAnnotation,
@@ -82,9 +88,13 @@ export default function ofTSType(
 
     case 'TSTypeReference': {
       const label = stringOfQualifiedIdentifier(tsType.typeName);
-      const tsParams = tsType.typeParameters?.params ?? [];
-      const params= tsParams.map(t => ofTSType(t, typeMap));
-      return Type.abstract(label, ...params);
+      if (okLabels.includes(label)) {
+        const tsParams = tsType.typeParameters?.params ?? [];
+        const params = tsParams.map(t => ofTSType(t, typeMap));
+        return Type.abstract(label, ...params);
+      } else {
+        return Error.withLocation(tsType.typeName, `unknown abstract type '${label}'`, typeMap)
+      }
     }
 
     default: bug(`unimplemented ${(tsType as ESTree.TypeAnnotation).type}`);
