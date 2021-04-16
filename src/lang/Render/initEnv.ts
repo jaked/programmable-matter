@@ -19,7 +19,7 @@ import Signal from '../../util/Signal';
 
 // TODO(jaked) clean these up somewhere
 const now = Signal.cellOk(Date.now());
-setInterval(() => { now.setOk(Date.now()) }, 100);
+setInterval(() => { now.setOk(Date.now()) }, 50);
 
 // updated by onmousemove handler in DisplayPane
 // TODO(jaked) should go elsewhere
@@ -66,6 +66,7 @@ const styleType = Type.undefinedOr(Type.object({
   left: Type.undefinedOr(Type.union(Type.string, Type.number)),
   bottom: Type.undefinedOr(Type.union(Type.string, Type.number)),
   right: Type.undefinedOr(Type.union(Type.string, Type.number)),
+  userSelect: Type.undefinedOr(Type.enumerate('all', 'auto', 'contain', 'inherit', 'initial', 'none', 'text', 'unset')),
   width: Type.undefinedOrString,
   zIndex: Type.undefinedOrString,
 }));
@@ -301,7 +302,11 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
   'span': {
     type: componentType({
       className: Type.undefinedOrString,
-      style: styleType
+      style: styleType,
+      onClick: Type.undefinedOr(Type.functionType(
+        [Type.unknown],
+        Type.unknown
+      )),
     }),
     value: 'span',
     dynamic: false
