@@ -260,6 +260,15 @@ function assignment(
   return expression(ast.right, typeMap, env, dynamicMap);
 }
 
+function tSAs(
+  ast: ESTree.TSAsExpression,
+  typeMap: TypeMap,
+  env: Env,
+  dynamicMap: DynamicMap,
+): boolean {
+  return expression(ast.expression, typeMap, env, dynamicMap);
+}
+
 function expressionHelper(
   ast: ESTree.Expression,
   typeMap: TypeMap,
@@ -290,6 +299,7 @@ function expressionHelper(
     case 'JSXText':                 return jSXText(ast, typeMap, env, dynamicMap);
     case 'JSXEmptyExpression':      return jSXEmpty(ast, typeMap, env, dynamicMap);
     case 'AssignmentExpression':    return assignment(ast, typeMap, env, dynamicMap);
+    case 'TSAsExpression':          return tSAs(ast, typeMap, env, dynamicMap);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);

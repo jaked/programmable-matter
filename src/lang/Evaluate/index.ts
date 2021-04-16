@@ -475,6 +475,9 @@ export function evaluateExpression(
       }
     }
 
+    case 'TSAsExpression':
+      return evaluateExpression(ast.expression, typeMap, dynamicMap, env);
+
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
   }

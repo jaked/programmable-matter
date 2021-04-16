@@ -510,6 +510,10 @@ export function visit(
       visit(ast.left, fn);
       return visit(ast.right, fn);
 
+    case 'TSAsExpression':
+      visit(ast.expression, fn);
+      return visit(ast.typeAnnotation, fn);
+
     case 'ObjectPattern':
       visit(ast.properties, fn);
       if (ast.typeAnnotation) return visit(ast.typeAnnotation, fn);

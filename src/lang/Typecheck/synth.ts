@@ -693,6 +693,16 @@ function synthAssignment(
   }, /* preserveCell */ true);
 }
 
+function synthTSAs(
+  ast: ESTree.TSAsExpression,
+  env: Env,
+  typeMap: TypeMap,
+): Type {
+  const type = Type.ofTSType(ast.typeAnnotation, typeMap);
+  const checked = check(ast.expression, env, type, typeMap);
+  return checked.kind === 'Error' ? checked : type;
+}
+
 function synthHelper(
   ast: ESTree.Node,
   env: Env,
@@ -720,6 +730,7 @@ function synthHelper(
     case 'JSXText':                 return synthJSXText(ast, env, typeMap);
     case 'JSXEmptyExpression':      return synthJSXEmptyExpression(ast, env, typeMap);
     case 'AssignmentExpression':    return synthAssignment(ast, env, typeMap);
+    case 'TSAsExpression':          return synthTSAs(ast, env, typeMap);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);
