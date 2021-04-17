@@ -256,8 +256,17 @@ function assignment(
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  dynamicMap.set(ast.left, false);
-  return expression(ast.right, typeMap, env, dynamicMap);
+  let dynamic = false;
+  let object = ast.left;
+  while (object.type === 'MemberExpression') {
+    dynamicMap.set(object, false);
+    if (object.computed)
+      dynamic = dynamic || expression(object.property, typeMap, env, dynamicMap);
+    object = object.object;
+  }
+  dynamicMap.set(object, false);
+  dynamic = dynamic || expression(ast.right, typeMap, env, dynamicMap);
+  return dynamic;
 }
 
 function tSAs(

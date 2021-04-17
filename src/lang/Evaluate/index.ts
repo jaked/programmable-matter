@@ -459,19 +459,43 @@ export function evaluateExpression(
         // TODO(jaked) we should return rhs when it's OK I think
         return undefined;
       } else {
-        if (ast.left.type === 'MemberExpression') {
-          bug(`unimplemented`);
-        } else {
-          return joinDynamicExpressions(
-            [ast.left, ast.right],
-            typeMap,
-            dynamicMap,
-            env,
-            ([left, right]) => {
-              (left as Signal.Writable<unknown>).setOk(right);
-              return right;
-            });
+        const props: (string | null)[] = [];
+        const exprs: ESTree.Expression[] = [ast.right];
+        let object = ast.left;
+        while (object.type === 'MemberExpression') {
+          if (object.computed) {
+            props.unshift(null);
+            exprs.unshift(object.property);
+          } else {
+            if (object.property.type !== 'Identifier') bug(`expected Identifier`);
+            props.unshift(object.property.name);
+          }
+          object = object.object;
         }
+        exprs.unshift(object);
+        return joinDynamicExpressions(
+          exprs,
+          typeMap,
+          dynamicMap,
+          env,
+          values => {
+            const object = values.shift();
+            const right = values.pop();
+            if (props.length === 0) {
+              (object as Signal.Writable<unknown>).setOk(right);
+            } else {
+              (object as Signal.Writable<object>).produce(object => {
+                while (props.length > 1) {
+                  let prop = props.shift() || values.shift() as string;
+                  object = object[prop];
+                }
+                let prop = props.shift() || values.shift() as string;
+                object[prop] = right;
+              });
+            }
+            return right;
+          }
+        )
       }
     }
 
@@ -585,7 +609,7 @@ function evalVariableDecl(
                       (node.children[0] && PMAST.isText(node.children[0]) && node.children[0].text) ||
                       bug(`expected text child`);
                     const newNode: PMAST.Node = { type: 'code', children: [{ text:
-                      code.substr(0, init.start) + JSON5.stringify(v) + code.substr(init.end)
+                      code.substr(0, init.start) + JSON5.stringify(v, undefined, 2) + code.substr(init.end)
                     }]};
                     nodes[i] = newNode;
                     return true;
