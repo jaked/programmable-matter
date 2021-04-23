@@ -62,15 +62,29 @@ function joinDynamicExpressions(
       return fn(jsExprs);
 
     case 1: {
+      let signal = signals[0];
+      let arg: JS.Expression = vIdent;
+      // collapse adjacent maps
+      if (
+        signal.type === 'CallExpression' &&
+        signal.callee.type === 'MemberExpression' &&
+        signal.callee.property.type === 'Identifier' &&
+        signal.callee.property.name === 'map' &&
+        signal.arguments[0].type === 'ArrowFunctionExpression' &&
+        signal.arguments[0].body.type !== 'BlockStatement'
+      ) {
+        arg = signal.arguments[0].body;
+        signal = signal.callee.object;
+      }
       // signal.map(__v =>
       //   fn([jsExprs[0], __v, jsExprs[2], jsExprs[3]]); // depending on dynamics
       // );
       return JS.callExpression(
-        JS.memberExpression(signals[0], JS.identifier('map')),
+        JS.memberExpression(signal, JS.identifier('map')),
         [JS.arrowFunctionExpression(
           [vIdent],
           fn(dynamics.map((dynamic, i) =>
-            dynamic ? vIdent : jsExprs[i]
+            dynamic ? arg : jsExprs[i]
           ))
         )]
       );
@@ -363,7 +377,7 @@ function member(
       typeMap,
       dynamicMap,
       env,
-      ([object, property]) => JS.memberExpression(object, property)
+      ([object, property]) => JS.memberExpression(object, property, /* computed */ true)
     );
   } else {
     if (ast.property.type !== 'Identifier') bug(`expected Identifier`);
@@ -461,6 +475,9 @@ function arrowFunction(
   // in order to cause React reconciliation etc.
   // inside the function, we get() the function value
   // to cause Signal reconciliation and produce a non-Signal value
+  // TODO(jaked)
+  // do we actually need to join on dynamic deps?
+  // or just let them be reconciled when the function runs
   const dynamic = dynamicMap(ast);
   if (dynamic) {
     const idents = ESTree.freeIdentifiers(ast).filter(ident => {
@@ -485,11 +502,14 @@ function arrowFunction(
       ),
       [
         JS.arrowFunctionExpression(
-          ast.params.map(genParam),
-          // TODO(jaked) fix for BlockStatement body
-          JS.callExpression(
-            JS.memberExpression(jsBody, JS.identifier('get')),
-            []
+          [],
+          JS.arrowFunctionExpression(
+            ast.params.map(genParam),
+            // TODO(jaked) fix for BlockStatement body
+            JS.callExpression(
+              JS.memberExpression(jsBody, JS.identifier('get')),
+              []
+            )
           )
         )
       ]
@@ -517,19 +537,103 @@ function conditional(
       maybeSignal(alternateDynamic && !consequentDynamic, consequentExpr),
       maybeSignal(consequentDynamic && !alternateDynamic, alternateExpr)
     );
-  const testIdent = JS.identifier('__test');
+  const vIdent = JS.identifier('__v');
   if (testDynamic && (consequentDynamic || alternateDynamic)) {
     return JS.callExpression(
       JS.memberExpression(testExpr, JS.identifier('flatMap')),
-      [JS.arrowFunctionExpression([testIdent], fn(testIdent))]
+      [JS.arrowFunctionExpression([vIdent], fn(vIdent))]
     );
   } else if (testDynamic) {
     return JS.callExpression(
       JS.memberExpression(testExpr, JS.identifier('map')),
-      [JS.arrowFunctionExpression([testIdent], fn(testIdent))]
+      [JS.arrowFunctionExpression([vIdent], fn(vIdent))]
     );
   } else {
     return fn(testExpr);
+  }
+}
+
+function templateLiteral(
+  ast: ESTree.TemplateLiteral,
+  typeMap: TypeMap,
+  dynamicMap: DynamicMap,
+  env: Env,
+): JS.Expression {
+  // TODO(jaked) handle interpolations
+  return JS.stringLiteral(
+    ast.quasis.map(elem => elem.value.raw).join('')
+  );
+}
+
+function assignment(
+  ast: ESTree.AssignmentExpression,
+  typeMap: TypeMap,
+  dynamicMap: DynamicMap,
+  env: Env,
+): JS.Expression {
+  const leftType = typeMap(ast.left);
+  const rightType = typeMap(ast.right);
+  if (leftType.kind === 'Error' || rightType.kind === 'Error') {
+    // TODO(jaked) we should return rhs when it's OK I think
+    return JS.identifier('undefined');
+  } else {
+    const props: (JS.Expression | null)[] = [];
+    const exprs: ESTree.Expression[] = [ast.right];
+    let object = ast.left;
+    while (object.type === 'MemberExpression') {
+      if (object.computed) {
+        props.unshift(null);
+        exprs.unshift(object.property);
+      } else {
+        if (object.property.type !== 'Identifier') bug(`expected Identifier`);
+        props.unshift(JS.identifier(object.property.name));
+      }
+      object = object.object;
+    }
+    exprs.unshift(object);
+    return joinDynamicExpressions(
+      exprs,
+      typeMap,
+      dynamicMap,
+      env,
+      jsExprs => {
+        const object = jsExprs.shift() ?? bug(`expected jsExpr`);
+        const right = jsExprs.pop() ?? bug(`expected jsExpr`);
+        if (props.length === 0) {
+          return JS.sequenceExpression([
+            JS.callExpression(
+              JS.memberExpression(object, JS.identifier('setOk')),
+              [right]
+            ),
+            right,
+          ]);
+        } else {
+          const __object = JS.identifier('__object');
+          let left: JS.Expression = __object;
+          while (props.length > 0) {
+            const prop = props.shift();
+            if (prop) {
+              left = JS.memberExpression(left, prop);
+            } else {
+              const jsExpr = jsExprs.shift() ?? bug(`expected jsExpr`);
+              left = JS.memberExpression(left, jsExpr, /* computed */ true);
+            }
+          }
+          return JS.sequenceExpression([
+            JS.callExpression(
+              JS.memberExpression(object, JS.identifier('produce')),
+              [JS.arrowFunctionExpression(
+                [__object],
+                JS.blockStatement([
+                  JS.expressionStatement(JS.assignmentExpression('=', left, right))
+                ])
+              )]
+            ),
+            right
+          ]);
+        }
+      }
+    )
   }
 }
 
@@ -562,8 +666,69 @@ function expression(
     case 'ArrayExpression':         return array(ast, typeMap, dynamicMap, env);
     case 'ArrowFunctionExpression': return arrowFunction(ast, typeMap, dynamicMap, env);
     case 'ConditionalExpression':   return conditional(ast, typeMap, dynamicMap, env);
+    case 'TemplateLiteral':         return templateLiteral(ast, typeMap, dynamicMap, env);
+    case 'AssignmentExpression':    return assignment(ast, typeMap, dynamicMap, env);
 
     default:                         bug(`unimplemented ${ast.type}`);
+  }
+}
+
+function variableDecl(
+  ast: ESTree.VariableDeclaration,
+  typeMap: TypeMap,
+  dynamicMap: DynamicMap,
+  env: Env,
+  decls: JS.Statement[],
+) {
+  switch (ast.kind) {
+    case 'const': {
+      for (const declarator of ast.declarations) {
+        if (!declarator.init) return;
+        const name = declarator.id.name;
+        const init = expression(declarator.init, typeMap, dynamicMap, env);
+        decls.push(JS.variableDeclaration('const', [
+          JS.variableDeclarator(JS.identifier(name), init)
+        ]));
+      }
+    }
+    break;
+
+    case 'let': {
+      for (const declarator of ast.declarations) {
+        if (!declarator.init) return;
+        const name = declarator.id.name;
+        const init = JS.callExpression(
+          JS.memberExpression(JS.identifier('Signal'), JS.identifier('cellOk')),
+          [expression(declarator.init, typeMap, dynamicMap, env)]
+        );
+
+        decls.push(JS.variableDeclaration('let', [
+          JS.variableDeclarator(JS.identifier(name), init)
+        ]));
+      }
+    }
+    break;
+  }
+}
+
+function exportNamedDecl(
+  ast: ESTree.ExportNamedDeclaration,
+  typeMap: TypeMap,
+  dynamicMap: DynamicMap,
+  env: Env,
+  decls: JS.Statement[],
+) {
+  switch (ast.declaration.kind) {
+    case 'const': {
+      for (const declarator of ast.declaration.declarations) {
+        if (!declarator.init) return;
+        const name = declarator.id.name;
+        const init = expression(declarator.init, typeMap, dynamicMap, env);
+        decls.push(JS.exportNamedDeclaration(JS.variableDeclaration('const', [
+          JS.variableDeclarator(JS.identifier(name), init)
+        ])));
+      }
+    }
   }
 }
 
@@ -571,7 +736,7 @@ function genNode(
   node: PMAST.Node,
   typeMap: TypeMap,
   dynamicMap: DynamicMap,
-  valueEnv: Env,
+  env: Env,
   decls: JS.Statement[],
   hydrates: JS.Statement[],
 ): void {
@@ -584,7 +749,7 @@ function genNode(
           [
             JS.callExpression(
               JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
-              [ expression(e, typeMap, dynamicMap, valueEnv) ]
+              [ expression(e, typeMap, dynamicMap, env) ]
             ),
             JS.callExpression(
               JS.memberExpression(JS.identifier('document'), JS.identifier('getElementById')),
@@ -611,37 +776,25 @@ function genNode(
           break;
 
           // TODO(jaked) do this as a separate pass maybe
-          case 'VariableDeclaration': {
-            switch (node.kind) {
-              case 'const': {
-                for (const declarator of node.declarations) {
-                  if (!declarator.init) return;
-                  const name = declarator.id.name;
-                  const init = expression(declarator.init, typeMap, dynamicMap, valueEnv);
-                  decls.push(JS.variableDeclaration('const', [
-                    JS.variableDeclarator(JS.identifier(name), init)
-                  ]));
-                }
-              }
-            }
-          }
-          break;
+          case 'VariableDeclaration':
+            variableDecl(
+              node,
+              typeMap,
+              dynamicMap,
+              env,
+              decls
+            );
+            break;
 
-          case 'ExportNamedDeclaration': {
-            switch (node.declaration.kind) {
-              case 'const': {
-                for (const declarator of node.declaration.declarations) {
-                  if (!declarator.init) return;
-                  const name = declarator.id.name;
-                  const init = expression(declarator.init, typeMap, dynamicMap, valueEnv);
-                  decls.push(JS.exportNamedDeclaration(JS.variableDeclaration('const', [
-                    JS.variableDeclarator(JS.identifier(name), init)
-                  ])));
-                }
-              }
-            }
-          }
-          break;
+          case 'ExportNamedDeclaration':
+            exportNamedDecl(
+              node,
+              typeMap,
+              dynamicMap,
+              env,
+              decls
+            );
+            break;
 
           case 'ImportDeclaration':
             // TODO(jaked)
@@ -665,7 +818,7 @@ function genNode(
     }
 
   } else if (PMAST.isElement(node)) {
-    node.children.forEach(child => genNode(child, typeMap, dynamicMap, valueEnv, decls, hydrates));
+    node.children.forEach(child => genNode(child, typeMap, dynamicMap, env, decls, hydrates));
   }
 }
 
