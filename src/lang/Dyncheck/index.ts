@@ -2,13 +2,13 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
 import Typecheck from '../Typecheck';
-import { DynamicMap, TypeMap } from '../../model';
+import { DynamicMap, InterfaceMap } from '../../model';
 
 export type Env = Immutable.Map<string, boolean>;
 
 function identifier(
   ast: ESTree.Identifier,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -20,7 +20,7 @@ function identifier(
 
 function literal(
   ast: ESTree.Literal,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -29,16 +29,16 @@ function literal(
 
 function array(
   ast: ESTree.ArrayExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return ast.elements.map(ast => expression(ast, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+  return ast.elements.map(ast => expression(ast, interfaceMap, env, dynamicMap)).some(dynamic => dynamic);
 }
 
 function object(
   ast: ESTree.ObjectExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -53,14 +53,14 @@ function object(
     if (seen.has(name)) return false;
     else {
       seen.add(name);
-      return expression(prop.value, typeMap, env, dynamicMap);
+      return expression(prop.value, interfaceMap, env, dynamicMap);
     }
   }).some(dynamic => dynamic);
 }
 
 function arrowFunction(
   ast: ESTree.ArrowFunctionExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -87,63 +87,63 @@ function arrowFunction(
     return ast.body.body.map(stmt => {
       switch (stmt.type) {
         case 'ExpressionStatement':
-          return expression(stmt.expression, typeMap, env, dynamicMap)
+          return expression(stmt.expression, interfaceMap, env, dynamicMap)
       }
     }).some(dynamic => dynamic);
   } else {
-    return expression(ast.body, typeMap, env, dynamicMap);
+    return expression(ast.body, interfaceMap, env, dynamicMap);
   }
 }
 
 function unary(
   ast: ESTree.UnaryExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return expression(ast.argument, typeMap, env, dynamicMap);
+  return expression(ast.argument, interfaceMap, env, dynamicMap);
 }
 
 function logical(
   ast: ESTree.LogicalExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const left = expression(ast.left, typeMap, env, dynamicMap);
-  const right = expression(ast.right, typeMap, env, dynamicMap);
+  const left = expression(ast.left, interfaceMap, env, dynamicMap);
+  const right = expression(ast.right, interfaceMap, env, dynamicMap);
   return left || right;
 }
 
 function binary(
   ast: ESTree.BinaryExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const left = expression(ast.left, typeMap, env, dynamicMap);
-  const right = expression(ast.right, typeMap, env, dynamicMap);
+  const left = expression(ast.left, interfaceMap, env, dynamicMap);
+  const right = expression(ast.right, interfaceMap, env, dynamicMap);
   return left || right;
 }
 
 function sequence(
   ast: ESTree.SequenceExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return ast.expressions.map(ast => expression(ast, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+  return ast.expressions.map(ast => expression(ast, interfaceMap, env, dynamicMap)).some(dynamic => dynamic);
 }
 
 function member(
   ast: ESTree.MemberExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const object = expression(ast.object, typeMap, env, dynamicMap);
+  const object = expression(ast.object, interfaceMap, env, dynamicMap);
   if (ast.computed) {
-    const property = expression(ast.property, typeMap, env, dynamicMap);
+    const property = expression(ast.property, interfaceMap, env, dynamicMap);
     return object || property;
   } else {
     return object;
@@ -152,30 +152,30 @@ function member(
 
 function call(
   ast: ESTree.CallExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const callee = expression(ast.callee, typeMap, env, dynamicMap);
-  const args = ast.arguments.map(ast => expression(ast, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+  const callee = expression(ast.callee, interfaceMap, env, dynamicMap);
+  const args = ast.arguments.map(ast => expression(ast, interfaceMap, env, dynamicMap)).some(dynamic => dynamic);
   return callee || args;
 }
 
 function conditional(
   ast: ESTree.ConditionalExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const test = expression(ast.test, typeMap, env, dynamicMap);
-  const consequent = expression(ast.consequent, typeMap, env, dynamicMap);
-  const alternate = expression(ast.alternate, typeMap, env, dynamicMap);
+  const test = expression(ast.test, interfaceMap, env, dynamicMap);
+  const consequent = expression(ast.consequent, interfaceMap, env, dynamicMap);
+  const alternate = expression(ast.alternate, interfaceMap, env, dynamicMap);
   return test || consequent || alternate;
 }
 
 function templateLiteral(
   ast: ESTree.TemplateLiteral,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -185,7 +185,7 @@ function templateLiteral(
 
 function jSXIdentifier(
   ast: ESTree.JSXIdentifier,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -197,44 +197,44 @@ function jSXIdentifier(
 
 function jSXElement(
   ast: ESTree.JSXElement,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const elem = expression(ast.openingElement.name, typeMap, env, dynamicMap);
+  const elem = expression(ast.openingElement.name, interfaceMap, env, dynamicMap);
   const attrs = ast.openingElement.attributes.map(attr => {
     if (attr.value)
-      return expression(attr.value, typeMap, env, dynamicMap);
+      return expression(attr.value, interfaceMap, env, dynamicMap);
     else
       return false;
   }).some(dynamic => dynamic);
   const children = ast.children.map(child =>
-    expression(child, typeMap, env, dynamicMap)
+    expression(child, interfaceMap, env, dynamicMap)
   ).some(dynamic => dynamic);
   return elem || attrs || children;
 }
 
 function jSXFragment(
   ast: ESTree.JSXFragment,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return ast.children.map(child => expression(child, typeMap, env, dynamicMap)).some(dynamic => dynamic);
+  return ast.children.map(child => expression(child, interfaceMap, env, dynamicMap)).some(dynamic => dynamic);
 }
 
 function jSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return expression(ast.expression, typeMap, env, dynamicMap);
+  return expression(ast.expression, interfaceMap, env, dynamicMap);
 }
 
 function jSXText(
   ast: ESTree.JSXText,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -243,7 +243,7 @@ function jSXText(
 
 function jSXEmpty(
   ast: ESTree.JSXEmptyExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -252,7 +252,7 @@ function jSXEmpty(
 
 function assignment(
   ast: ESTree.AssignmentExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
@@ -261,54 +261,54 @@ function assignment(
   while (object.type === 'MemberExpression') {
     dynamicMap.set(object, false);
     if (object.computed)
-      dynamic = dynamic || expression(object.property, typeMap, env, dynamicMap);
+      dynamic = dynamic || expression(object.property, interfaceMap, env, dynamicMap);
     object = object.object;
   }
   dynamicMap.set(object, false);
-  dynamic = dynamic || expression(ast.right, typeMap, env, dynamicMap);
+  dynamic = dynamic || expression(ast.right, interfaceMap, env, dynamicMap);
   return dynamic;
 }
 
 function tSAs(
   ast: ESTree.TSAsExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  return expression(ast.expression, typeMap, env, dynamicMap);
+  return expression(ast.expression, interfaceMap, env, dynamicMap);
 }
 
 function expressionHelper(
   ast: ESTree.Expression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const type = typeMap.get(ast);
+  const type = interfaceMap.get(ast);
   if (type && type.kind === 'Error') return false;
 
   switch (ast.type) {
-    case 'Identifier':              return identifier(ast, typeMap, env, dynamicMap);
-    case 'Literal':                 return literal(ast, typeMap, env, dynamicMap);
-    case 'ArrayExpression':         return array(ast, typeMap, env, dynamicMap);
-    case 'ObjectExpression':        return object(ast, typeMap, env, dynamicMap);
-    case 'ArrowFunctionExpression': return arrowFunction(ast, typeMap, env, dynamicMap);
-    case 'UnaryExpression':         return unary(ast, typeMap, env, dynamicMap);
-    case 'LogicalExpression':       return logical(ast, typeMap, env, dynamicMap);
-    case 'BinaryExpression':        return binary(ast, typeMap, env, dynamicMap);
-    case 'SequenceExpression':      return sequence(ast, typeMap, env, dynamicMap);
-    case 'MemberExpression':        return member(ast, typeMap, env, dynamicMap);
-    case 'CallExpression':          return call(ast, typeMap, env, dynamicMap);
-    case 'ConditionalExpression':   return conditional(ast, typeMap, env, dynamicMap);
-    case 'TemplateLiteral':         return templateLiteral(ast, typeMap, env, dynamicMap);
-    case 'JSXIdentifier':           return jSXIdentifier(ast, typeMap, env, dynamicMap);
-    case 'JSXElement':              return jSXElement(ast, typeMap, env, dynamicMap);
-    case 'JSXFragment':             return jSXFragment(ast, typeMap, env, dynamicMap);
-    case 'JSXExpressionContainer':  return jSXExpressionContainer(ast, typeMap, env, dynamicMap);
-    case 'JSXText':                 return jSXText(ast, typeMap, env, dynamicMap);
-    case 'JSXEmptyExpression':      return jSXEmpty(ast, typeMap, env, dynamicMap);
-    case 'AssignmentExpression':    return assignment(ast, typeMap, env, dynamicMap);
-    case 'TSAsExpression':          return tSAs(ast, typeMap, env, dynamicMap);
+    case 'Identifier':              return identifier(ast, interfaceMap, env, dynamicMap);
+    case 'Literal':                 return literal(ast, interfaceMap, env, dynamicMap);
+    case 'ArrayExpression':         return array(ast, interfaceMap, env, dynamicMap);
+    case 'ObjectExpression':        return object(ast, interfaceMap, env, dynamicMap);
+    case 'ArrowFunctionExpression': return arrowFunction(ast, interfaceMap, env, dynamicMap);
+    case 'UnaryExpression':         return unary(ast, interfaceMap, env, dynamicMap);
+    case 'LogicalExpression':       return logical(ast, interfaceMap, env, dynamicMap);
+    case 'BinaryExpression':        return binary(ast, interfaceMap, env, dynamicMap);
+    case 'SequenceExpression':      return sequence(ast, interfaceMap, env, dynamicMap);
+    case 'MemberExpression':        return member(ast, interfaceMap, env, dynamicMap);
+    case 'CallExpression':          return call(ast, interfaceMap, env, dynamicMap);
+    case 'ConditionalExpression':   return conditional(ast, interfaceMap, env, dynamicMap);
+    case 'TemplateLiteral':         return templateLiteral(ast, interfaceMap, env, dynamicMap);
+    case 'JSXIdentifier':           return jSXIdentifier(ast, interfaceMap, env, dynamicMap);
+    case 'JSXElement':              return jSXElement(ast, interfaceMap, env, dynamicMap);
+    case 'JSXFragment':             return jSXFragment(ast, interfaceMap, env, dynamicMap);
+    case 'JSXExpressionContainer':  return jSXExpressionContainer(ast, interfaceMap, env, dynamicMap);
+    case 'JSXText':                 return jSXText(ast, interfaceMap, env, dynamicMap);
+    case 'JSXEmptyExpression':      return jSXEmpty(ast, interfaceMap, env, dynamicMap);
+    case 'AssignmentExpression':    return assignment(ast, interfaceMap, env, dynamicMap);
+    case 'TSAsExpression':          return tSAs(ast, interfaceMap, env, dynamicMap);
 
     default:
       return bug(`unimplemented AST ${ast.type}`);
@@ -317,11 +317,11 @@ function expressionHelper(
 
 export function expression(
   ast: ESTree.Expression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicEnv: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const dynamic = expressionHelper(ast, typeMap, dynamicEnv, dynamicMap);
+  const dynamic = expressionHelper(ast, interfaceMap, dynamicEnv, dynamicMap);
   dynamicMap.set(ast, dynamic);
   return dynamic;
 }
@@ -329,7 +329,7 @@ export function expression(
 function variableDecl(
   decl: ESTree.VariableDeclaration,
   typeEnv: Typecheck.Env,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicEnv: Env,
   dynamicMap: DynamicMap,
 ): Env {
@@ -361,10 +361,10 @@ function variableDecl(
 
       // let initializers are always static but we need to fill in dynamicMap
       if (!declarator.init) bug(`expected initializer`);
-      expression(declarator.init, typeMap, dynamicEnv, dynamicMap);
+      expression(declarator.init, interfaceMap, dynamicEnv, dynamicMap);
     } else {
       if (!declarator.init) bug(`expected initializer`);
-      dynamic = expression(declarator.init, typeMap, dynamicEnv, dynamicMap);
+      dynamic = expression(declarator.init, interfaceMap, dynamicEnv, dynamicMap);
     }
     dynamicEnv = dynamicEnv.set(declarator.id.name, dynamic);
   });
@@ -373,11 +373,11 @@ function variableDecl(
 
 function importDecl(
   decl: ESTree.ImportDeclaration,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   moduleEnv: Map<string, Map<string, boolean>>,
   dynamicEnv: Env,
 ): Env {
-  const type = typeMap.get(decl.source);
+  const type = interfaceMap.get(decl.source);
   if (type && type.kind === 'Error') {
     decl.specifiers.forEach(spec => {
       dynamicEnv = dynamicEnv.set(spec.local.name, false);
@@ -414,30 +414,30 @@ export function program(
   moduleEnv: Map<string, Map<string, boolean>>,
   program: ESTree.Program,
   typeEnv: Typecheck.Env,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicEnv: Env,
   dynamicMap: DynamicMap,
 ): Env {
   program.body.forEach(node => {
     switch (node.type) {
       case 'ExportDefaultDeclaration':
-        dynamicEnv = dynamicEnv.set('default', expression(node.declaration, typeMap, dynamicEnv, dynamicMap));
+        dynamicEnv = dynamicEnv.set('default', expression(node.declaration, interfaceMap, dynamicEnv, dynamicMap));
         break;
 
       case 'ExportNamedDeclaration':
-        dynamicEnv = variableDecl(node.declaration, typeEnv, typeMap, dynamicEnv, dynamicMap);
+        dynamicEnv = variableDecl(node.declaration, typeEnv, interfaceMap, dynamicEnv, dynamicMap);
         break;
 
       case 'ImportDeclaration':
-        dynamicEnv = importDecl(node, typeMap, moduleEnv, dynamicEnv);
+        dynamicEnv = importDecl(node, interfaceMap, moduleEnv, dynamicEnv);
         break;
 
       case 'VariableDeclaration':
-        dynamicEnv = variableDecl(node, typeEnv, typeMap, dynamicEnv, dynamicMap);
+        dynamicEnv = variableDecl(node, typeEnv, interfaceMap, dynamicEnv, dynamicMap);
         break;
 
       case 'ExpressionStatement':
-        expression(node.expression, typeMap, dynamicEnv, dynamicMap);
+        expression(node.expression, interfaceMap, dynamicEnv, dynamicMap);
         break;
     }
   });

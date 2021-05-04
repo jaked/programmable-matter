@@ -25,7 +25,7 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type TypeMap = Map<ESTree.Node, Type>;
+export type InterfaceMap = Map<ESTree.Node, Type>;
 export type DynamicMap = Map<ESTree.Node, boolean>;
 
 export type NoteFiles = {
@@ -57,7 +57,7 @@ export type Table = {
 
 export interface CompiledFile {
   ast: Signal<unknown>;
-  typeMap?: Signal<TypeMap>;
+  interfaceMap?: Signal<InterfaceMap>;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
 

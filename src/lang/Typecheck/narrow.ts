@@ -3,7 +3,7 @@ import { Tuple2 } from '../../util/Tuple';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { TypeMap } from '../../model';
+import { InterfaceMap } from '../../model';
 import { Env } from './env';
 import { synth } from './synth';
 
@@ -142,13 +142,13 @@ export function narrowEnvironment(
   env: Env,
   ast: ESTree.Expression,
   assume: boolean,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
 ): Env {
   switch (ast.type) {
     case 'UnaryExpression':
       switch (ast.operator) {
         case '!':
-          return narrowEnvironment(env, ast.argument, !assume, typeMap);
+          return narrowEnvironment(env, ast.argument, !assume, interfaceMap);
         case 'typeof':
           // typeof always returns a truthy value
           return env;
@@ -160,21 +160,21 @@ export function narrowEnvironment(
       switch (ast.operator) {
         case '&&':
           if (assume) {
-            env = narrowEnvironment(env, ast.left, true, typeMap);
-            return narrowEnvironment(env, ast.right, true, typeMap);
+            env = narrowEnvironment(env, ast.left, true, interfaceMap);
+            return narrowEnvironment(env, ast.right, true, interfaceMap);
           } else return env;
         case '||':
           if (!assume) {
-            env = narrowEnvironment(env, ast.left, false, typeMap);
-            return narrowEnvironment(env, ast.right, false, typeMap);
+            env = narrowEnvironment(env, ast.left, false, interfaceMap);
+            return narrowEnvironment(env, ast.right, false, interfaceMap);
           } else return env;
         default:
           return bug(`unexpected AST ${(ast as any).operator}`);
       }
 
     case 'BinaryExpression':
-      const left = synth(ast.left, env, typeMap);
-      const right = synth(ast.right, env, typeMap);
+      const left = synth(ast.left, env, interfaceMap);
+      const right = synth(ast.right, env, interfaceMap);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
         env = narrowExpression(env, ast.left, right);
         return narrowExpression(env, ast.right, left);

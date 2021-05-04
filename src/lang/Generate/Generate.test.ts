@@ -1,7 +1,7 @@
 import { bug } from '../../util/bug';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import { DynamicMap, TypeMap } from '../../model';
+import { DynamicMap, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
@@ -26,7 +26,7 @@ function typecheckNodes(
   const moduleDynamicEnv: Map<string, Map<string, boolean>> = new Map();
   let typeEnv = Render.initTypeEnv;
   let dynamicEnv = Render.initDynamicEnv;
-  const typeMap: TypeMap = new Map();
+  const interfaceMap: InterfaceMap = new Map();
   const dynamicMap: DynamicMap = new Map();
 
   codeNodes.forEach(node => {
@@ -36,13 +36,13 @@ function typecheckNodes(
         moduleTypeEnv,
         code,
         typeEnv,
-        typeMap
+        interfaceMap
       );
       dynamicEnv = Dyncheck.program(
         moduleDynamicEnv,
         code,
         typeEnv,
-        typeMap,
+        interfaceMap,
         dynamicEnv,
         dynamicMap,
       )
@@ -56,29 +56,29 @@ function typecheckNodes(
         code,
         typeEnv,
         Type.reactNodeType,
-        typeMap
+        interfaceMap
       );
       Dyncheck.expression(
         code,
-        typeMap,
+        interfaceMap,
         dynamicEnv,
         dynamicMap
       );
     })
   });
 
-  return { typeMap, dynamicMap };
+  return { interfaceMap, dynamicMap };
 }
 
 function expectGenerate(
   nodes: PMAST.Node[],
   expected: string
 ) {
-  const { typeMap, dynamicMap } = typecheckNodes(nodes);
+  const { interfaceMap, dynamicMap } = typecheckNodes(nodes);
   const js =
     Generate.generatePm(
       nodes,
-      (e: ESTree.Expression) => typeMap.get(e) ?? bug(`expected type`),
+      (e: ESTree.Expression) => interfaceMap.get(e) ?? bug(`expected type`),
       (e: ESTree.Expression) => dynamicMap.get(e) ?? bug(`expected dynamic`),
       false
     );

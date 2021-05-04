@@ -140,7 +140,7 @@ type Range = {
   link?: string;
 }
 
-export const makeDecorate = (typeMap?: model.TypeMap) =>
+export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations
     const ranges: Range[] = [];
@@ -151,7 +151,7 @@ export const makeDecorate = (typeMap?: model.TypeMap) =>
     if (code) {
       code.forEach(code => {
         const spans: Highlight.Span[] = [];
-        Highlight.computeJsSpans(code, typeMap, spans);
+        Highlight.computeJsSpans(code, interfaceMap, spans);
         for (const span of spans) {
           ranges.push({
             anchor: { path, offset: span.start },
@@ -267,11 +267,11 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
   }), [editor]);
 
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
-  // TODO(jaked) can we use typeMap conditionally? breaks the rules of hooks but does it matter?
-  const typeMap = Signal.useSignal(props.compiledFile.typeMap ?? Signal.ok(undefined));
+  // TODO(jaked) can we use interfaceMap conditionally? breaks the rules of hooks but does it matter?
+  const interfaceMap = Signal.useSignal(props.compiledFile.interfaceMap ?? Signal.ok(undefined));
   const decorate = React.useMemo(
-    () => makeDecorate(typeMap),
-    [typeMap],
+    () => makeDecorate(interfaceMap),
+    [interfaceMap],
   );
 
   const renderLeaf = React.useMemo(

@@ -6,7 +6,7 @@ import * as Parse from '../Parse';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
-type TypeMap = (e: ESTree.Expression) => Type;
+type InterfaceMap = (e: ESTree.Expression) => Type;
 type DynamicMap = (e: ESTree.Expression) => boolean;
 type Env = Map<string, JS.Expression>;
 
@@ -48,12 +48,12 @@ const maybeSignal = (test: boolean, expr: JS.Expression) =>
 
 function joinDynamicExpressions(
   exprs: ESTree.Expression[],
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
   fn: (exprs: JS.Expression[]) => JS.Expression
 ): JS.Expression {
-  const jsExprs = exprs.map(expr => expression(expr, typeMap, dynamicMap, env));
+  const jsExprs = exprs.map(expr => expression(expr, interfaceMap, dynamicMap, env));
   const dynamics = exprs.map(expr => dynamicMap(expr));
   const signals = jsExprs.filter((value, i) => dynamics[i]);
   const vIdent = JS.identifier('__v');
@@ -124,7 +124,7 @@ function joinDynamicExpressions(
 
 function identifier(
   ast: ESTree.Identifier,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -133,7 +133,7 @@ function identifier(
 
 function jSXIdentifier(
   ast: ESTree.JSXIdentifier,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -142,7 +142,7 @@ function jSXIdentifier(
 
 function literal(
   ast: ESTree.Literal,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -156,16 +156,16 @@ function literal(
 
 function jSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
-  return expression(ast.expression, typeMap, dynamicMap, env);
+  return expression(ast.expression, interfaceMap, dynamicMap, env);
 }
 
 function jSXEmpty(
   ast: ESTree.JSXEmptyExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -174,7 +174,7 @@ function jSXEmpty(
 
 function jSXText(
   ast: ESTree.JSXText,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -190,7 +190,7 @@ function jSXText(
 
 function jSXElement(
   ast: ESTree.JSXElement,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -202,7 +202,7 @@ function jSXElement(
 
   return joinDynamicExpressions(
     exprs,
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     jsExprs => {
@@ -226,13 +226,13 @@ function jSXElement(
 
 function jSXFragment(
   ast: ESTree.JSXFragment,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     ast.children,
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     jsExprs => e(reactFragment, {}, ...jsExprs)
@@ -241,17 +241,17 @@ function jSXFragment(
 
 function unary(
   ast: ESTree.UnaryExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     [ast.argument],
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     ([v]) => {
-      const argType = typeMap(ast.argument);
+      const argType = interfaceMap(ast.argument);
       switch (ast.operator) {
         case '+':
         case '-':
@@ -270,14 +270,14 @@ function unary(
 
 function logical(
   ast: ESTree.LogicalExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   // when either left or right is dynamic the whole expression is dynamic
   // but only evaluate right if needed
-  const leftExpr = expression(ast.left, typeMap, dynamicMap, env);
-  const rightExpr = expression(ast.right, typeMap, dynamicMap, env);
+  const leftExpr = expression(ast.left, interfaceMap, dynamicMap, env);
+  const rightExpr = expression(ast.right, interfaceMap, dynamicMap, env);
   const leftDynamic = dynamicMap(ast.left);
   const rightDynamic = dynamicMap(ast.right);
   const fn = (leftExpr: JS.Expression) =>
@@ -308,18 +308,18 @@ function logical(
 
 function binary(
   ast: ESTree.BinaryExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     [ast.left, ast.right],
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     ([left, right]) => {
-      const leftType = typeMap(ast.left);
-      const rightType = typeMap(ast.right);
+      const leftType = interfaceMap(ast.left);
+      const rightType = interfaceMap(ast.right);
 
       switch (ast.operator) {
         case '+':
@@ -352,13 +352,13 @@ function binary(
 
 function sequence(
   ast: ESTree.SequenceExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     ast.expressions,
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     jsExprs => JS.sequenceExpression(jsExprs)
@@ -367,14 +367,14 @@ function sequence(
 
 function member(
   ast: ESTree.MemberExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   if (ast.computed) {
     return joinDynamicExpressions(
       [ast.object, ast.property],
-      typeMap,
+      interfaceMap,
       dynamicMap,
       env,
       ([object, property]) => JS.memberExpression(object, property, /* computed */ true)
@@ -384,7 +384,7 @@ function member(
     const name = ast.property.name;
     return joinDynamicExpressions(
       [ast.object],
-      typeMap,
+      interfaceMap,
       dynamicMap,
       env,
       ([object]) => JS.memberExpression(object, JS.identifier(name))
@@ -394,13 +394,13 @@ function member(
 
 function call(
   ast: ESTree.CallExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     [ast.callee, ...ast.arguments],
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     ([callee, ...args]) => JS.callExpression(callee, args)
@@ -409,13 +409,13 @@ function call(
 
 function object(
   ast: ESTree.ObjectExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     ast.properties.map(prop => prop.value),
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     jsExprs => JS.objectExpression(ast.properties.map((prop, i) => {
@@ -432,13 +432,13 @@ function object(
 
 function array(
   ast: ESTree.ArrayExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
   return joinDynamicExpressions(
     ast.elements,
-    typeMap,
+    interfaceMap,
     dynamicMap,
     env,
     jsExprs => JS.arrayExpression(jsExprs)
@@ -447,7 +447,7 @@ function array(
 
 function arrowFunction(
   ast: ESTree.ArrowFunctionExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -457,7 +457,7 @@ function arrowFunction(
     jsBody = JS.blockStatement(body.body.map((stmt, i) => {
       switch (stmt.type) {
         case 'ExpressionStatement':
-          const jsExpr = expression(stmt.expression, typeMap, dynamicMap, env);
+          const jsExpr = expression(stmt.expression, interfaceMap, dynamicMap, env);
           if (i === body.body.length - 1)
             return JS.returnStatement(jsExpr);
           else
@@ -467,7 +467,7 @@ function arrowFunction(
       }
     }));
   } else {
-    jsBody = expression(body, typeMap, dynamicMap, env);
+    jsBody = expression(body, interfaceMap, dynamicMap, env);
   }
 
   // if the function depends on dynamic values return a dynamic function value
@@ -490,7 +490,7 @@ function arrowFunction(
       return dynamicMap(ident);
     });
     const signals = idents.map(ident =>
-      expression(ident, typeMap, dynamicMap, env)
+      expression(ident, interfaceMap, dynamicMap, env)
     );
     return JS.callExpression(
       JS.memberExpression(
@@ -521,13 +521,13 @@ function arrowFunction(
 
 function conditional(
   ast: ESTree.ConditionalExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
-  const testExpr = expression(ast.test, typeMap, dynamicMap, env);
-  const consequentExpr = expression(ast.consequent, typeMap, dynamicMap, env);
-  const alternateExpr = expression(ast.alternate, typeMap, dynamicMap, env);
+  const testExpr = expression(ast.test, interfaceMap, dynamicMap, env);
+  const consequentExpr = expression(ast.consequent, interfaceMap, dynamicMap, env);
+  const alternateExpr = expression(ast.alternate, interfaceMap, dynamicMap, env);
   const testDynamic = dynamicMap(ast.test);
   const consequentDynamic = dynamicMap(ast.consequent);
   const alternateDynamic = dynamicMap(ast.alternate);
@@ -555,7 +555,7 @@ function conditional(
 
 function templateLiteral(
   ast: ESTree.TemplateLiteral,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
@@ -567,12 +567,12 @@ function templateLiteral(
 
 function assignment(
   ast: ESTree.AssignmentExpression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
-  const leftType = typeMap(ast.left);
-  const rightType = typeMap(ast.right);
+  const leftType = interfaceMap(ast.left);
+  const rightType = interfaceMap(ast.right);
   if (leftType.kind === 'Error' || rightType.kind === 'Error') {
     // TODO(jaked) we should return rhs when it's OK I think
     return JS.identifier('undefined');
@@ -593,7 +593,7 @@ function assignment(
     exprs.unshift(object);
     return joinDynamicExpressions(
       exprs,
-      typeMap,
+      interfaceMap,
       dynamicMap,
       env,
       jsExprs => {
@@ -639,35 +639,35 @@ function assignment(
 
 function expression(
   ast: ESTree.Expression,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
-  const type = typeMap(ast);
+  const type = interfaceMap(ast);
   if (type.kind === 'Error')
     return JS.identifier('undefined');
 
   switch (ast.type) {
-    case 'Identifier':              return identifier(ast, typeMap, dynamicMap, env);
-    case 'JSXIdentifier':           return jSXIdentifier(ast, typeMap, dynamicMap, env);
-    case 'Literal':                 return literal(ast, typeMap, dynamicMap, env);
-    case 'JSXExpressionContainer':  return jSXExpressionContainer(ast, typeMap, dynamicMap, env);
-    case 'JSXEmptyExpression':      return jSXEmpty(ast, typeMap, dynamicMap, env);
-    case 'JSXText':                 return jSXText(ast, typeMap, dynamicMap, env);
-    case 'JSXElement':              return jSXElement(ast, typeMap, dynamicMap, env);
-    case 'JSXFragment':             return jSXFragment(ast, typeMap, dynamicMap, env);
-    case 'UnaryExpression':         return unary(ast, typeMap, dynamicMap, env);
-    case 'LogicalExpression':       return logical(ast, typeMap, dynamicMap, env);
-    case 'BinaryExpression':        return binary(ast, typeMap, dynamicMap, env);
-    case 'SequenceExpression':      return sequence(ast, typeMap, dynamicMap, env);
-    case 'MemberExpression':        return member(ast, typeMap, dynamicMap, env);
-    case 'CallExpression':          return call(ast, typeMap, dynamicMap, env);
-    case 'ObjectExpression':        return object(ast, typeMap, dynamicMap, env);
-    case 'ArrayExpression':         return array(ast, typeMap, dynamicMap, env);
-    case 'ArrowFunctionExpression': return arrowFunction(ast, typeMap, dynamicMap, env);
-    case 'ConditionalExpression':   return conditional(ast, typeMap, dynamicMap, env);
-    case 'TemplateLiteral':         return templateLiteral(ast, typeMap, dynamicMap, env);
-    case 'AssignmentExpression':    return assignment(ast, typeMap, dynamicMap, env);
+    case 'Identifier':              return identifier(ast, interfaceMap, dynamicMap, env);
+    case 'JSXIdentifier':           return jSXIdentifier(ast, interfaceMap, dynamicMap, env);
+    case 'Literal':                 return literal(ast, interfaceMap, dynamicMap, env);
+    case 'JSXExpressionContainer':  return jSXExpressionContainer(ast, interfaceMap, dynamicMap, env);
+    case 'JSXEmptyExpression':      return jSXEmpty(ast, interfaceMap, dynamicMap, env);
+    case 'JSXText':                 return jSXText(ast, interfaceMap, dynamicMap, env);
+    case 'JSXElement':              return jSXElement(ast, interfaceMap, dynamicMap, env);
+    case 'JSXFragment':             return jSXFragment(ast, interfaceMap, dynamicMap, env);
+    case 'UnaryExpression':         return unary(ast, interfaceMap, dynamicMap, env);
+    case 'LogicalExpression':       return logical(ast, interfaceMap, dynamicMap, env);
+    case 'BinaryExpression':        return binary(ast, interfaceMap, dynamicMap, env);
+    case 'SequenceExpression':      return sequence(ast, interfaceMap, dynamicMap, env);
+    case 'MemberExpression':        return member(ast, interfaceMap, dynamicMap, env);
+    case 'CallExpression':          return call(ast, interfaceMap, dynamicMap, env);
+    case 'ObjectExpression':        return object(ast, interfaceMap, dynamicMap, env);
+    case 'ArrayExpression':         return array(ast, interfaceMap, dynamicMap, env);
+    case 'ArrowFunctionExpression': return arrowFunction(ast, interfaceMap, dynamicMap, env);
+    case 'ConditionalExpression':   return conditional(ast, interfaceMap, dynamicMap, env);
+    case 'TemplateLiteral':         return templateLiteral(ast, interfaceMap, dynamicMap, env);
+    case 'AssignmentExpression':    return assignment(ast, interfaceMap, dynamicMap, env);
 
     default:                         bug(`unimplemented ${ast.type}`);
   }
@@ -675,7 +675,7 @@ function expression(
 
 function variableDecl(
   ast: ESTree.VariableDeclaration,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
   decls: JS.Statement[],
@@ -685,7 +685,7 @@ function variableDecl(
       for (const declarator of ast.declarations) {
         if (!declarator.init) return;
         const name = declarator.id.name;
-        const init = expression(declarator.init, typeMap, dynamicMap, env);
+        const init = expression(declarator.init, interfaceMap, dynamicMap, env);
         decls.push(JS.variableDeclaration('const', [
           JS.variableDeclarator(JS.identifier(name), init)
         ]));
@@ -699,7 +699,7 @@ function variableDecl(
         const name = declarator.id.name;
         const init = JS.callExpression(
           JS.memberExpression(JS.identifier('Signal'), JS.identifier('cellOk')),
-          [expression(declarator.init, typeMap, dynamicMap, env)]
+          [expression(declarator.init, interfaceMap, dynamicMap, env)]
         );
 
         decls.push(JS.variableDeclaration('let', [
@@ -713,7 +713,7 @@ function variableDecl(
 
 function exportNamedDecl(
   ast: ESTree.ExportNamedDeclaration,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
   decls: JS.Statement[],
@@ -723,7 +723,7 @@ function exportNamedDecl(
       for (const declarator of ast.declaration.declarations) {
         if (!declarator.init) return;
         const name = declarator.id.name;
-        const init = expression(declarator.init, typeMap, dynamicMap, env);
+        const init = expression(declarator.init, interfaceMap, dynamicMap, env);
         decls.push(JS.exportNamedDeclaration(JS.variableDeclaration('const', [
           JS.variableDeclarator(JS.identifier(name), init)
         ])));
@@ -734,7 +734,7 @@ function exportNamedDecl(
 
 function genNode(
   node: PMAST.Node,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   env: Env,
   decls: JS.Statement[],
@@ -749,7 +749,7 @@ function genNode(
           [
             JS.callExpression(
               JS.memberExpression(JS.identifier('Signal'), JS.identifier('node')),
-              [ expression(e, typeMap, dynamicMap, env) ]
+              [ expression(e, interfaceMap, dynamicMap, env) ]
             ),
             JS.callExpression(
               JS.memberExpression(JS.identifier('document'), JS.identifier('getElementById')),
@@ -767,7 +767,7 @@ function genNode(
       for (const node of ast.ok.body) {
         switch (node.type) {
           case 'ExpressionStatement': {
-            const type = typeMap(node.expression);
+            const type = interfaceMap(node.expression);
             const dynamic = dynamicMap(node.expression);
             if (type.kind !== 'Error' && dynamic) {
               hydrate(node.expression);
@@ -779,7 +779,7 @@ function genNode(
           case 'VariableDeclaration':
             variableDecl(
               node,
-              typeMap,
+              interfaceMap,
               dynamicMap,
               env,
               decls
@@ -789,7 +789,7 @@ function genNode(
           case 'ExportNamedDeclaration':
             exportNamedDecl(
               node,
-              typeMap,
+              interfaceMap,
               dynamicMap,
               env,
               decls
@@ -810,7 +810,7 @@ function genNode(
     const ast = Parse.parseInlineCodeNode(node);
     if (ast.type === 'ok') {
       const expr = ast.ok as ESTree.Expression;
-      const type = typeMap(expr);
+      const type = interfaceMap(expr);
       const dynamic = dynamicMap(expr);
       if (type.kind !== 'Error' && dynamic) {
         hydrate(expr);
@@ -818,13 +818,13 @@ function genNode(
     }
 
   } else if (PMAST.isElement(node)) {
-    node.children.forEach(child => genNode(child, typeMap, dynamicMap, env, decls, hydrates));
+    node.children.forEach(child => genNode(child, interfaceMap, dynamicMap, env, decls, hydrates));
   }
 }
 
 export function generatePm(
   nodes: PMAST.Node[],
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicMap: DynamicMap,
   header: boolean = true,
 ) {
@@ -836,7 +836,7 @@ export function generatePm(
     ['window', JS.memberExpression(JS.identifier('Runtime'), JS.identifier('window'))],
     ['Math', JS.identifier('Math')]
   ]);
-  nodes.forEach(node => genNode(node, typeMap, dynamicMap, valueEnv, decls, hydrates));
+  nodes.forEach(node => genNode(node, interfaceMap, dynamicMap, valueEnv, decls, hydrates));
 
   const hasHydrates = hydrates.length > 0;
   const hasExports = decls.some(decl =>

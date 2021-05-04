@@ -29,11 +29,11 @@ const okLabels = [
 
 export default function ofTSType(
   tsType: ESTree.TypeAnnotation,
-  typeMap?: model.TypeMap,
+  interfaceMap?: model.InterfaceMap,
 ): Types.Type {
   switch (tsType.type) {
     case 'TSParenthesizedType':
-      return ofTSType(tsType.typeAnnotation, typeMap);
+      return ofTSType(tsType.typeAnnotation, interfaceMap);
 
     case 'TSNeverKeyword': return Type.never;
     case 'TSUnknownKeyword': return Type.unknown;
@@ -50,7 +50,7 @@ export default function ofTSType(
             if (mem.type !== 'TSPropertySignature') bug(`unimplemented ${mem.type}`);
             if (mem.key.type !== 'Identifier') bug(`unimplemented ${mem.key.type}`);
             if (!mem.typeAnnotation) bug(`expected type for ${mem.key.name}`);
-            const type = ofTSType(mem.typeAnnotation.typeAnnotation, typeMap);
+            const type = ofTSType(mem.typeAnnotation.typeAnnotation, interfaceMap);
             return Object.assign(obj, { [mem.key.name]: type });
           },
           { }
@@ -59,10 +59,10 @@ export default function ofTSType(
     }
 
     case 'TSTupleType':
-      return Type.tuple(...tsType.elementTypes.map(t => ofTSType(t, typeMap)));
+      return Type.tuple(...tsType.elementTypes.map(t => ofTSType(t, interfaceMap)));
 
     case 'TSArrayType':
-      return Type.array(ofTSType(tsType.elementType, typeMap));
+      return Type.array(ofTSType(tsType.elementType, interfaceMap));
 
     case 'TSFunctionType': {
       const args =
@@ -70,10 +70,10 @@ export default function ofTSType(
           if (param.type !== 'Identifier') bug(`unimplemented ${param.type}`);
           if (!param.typeAnnotation) bug(`expected type for ${param.name}`);
           if (param.typeAnnotation.type !== 'TSTypeAnnotation') bug(`unimplemented ${param.typeAnnotation.type}`);
-          return ofTSType(param.typeAnnotation.typeAnnotation, typeMap);
+          return ofTSType(param.typeAnnotation.typeAnnotation, interfaceMap);
         });
       if (!tsType.typeAnnotation) bug(`expected return type`);
-      const ret = ofTSType(tsType.typeAnnotation.typeAnnotation, typeMap);
+      const ret = ofTSType(tsType.typeAnnotation.typeAnnotation, interfaceMap);
       return Type.functionType(args, ret);
     }
 
@@ -81,19 +81,19 @@ export default function ofTSType(
       return Type.singleton(tsType.literal.value);
 
     case 'TSUnionType':
-      return union(...tsType.types.map(t => ofTSType(t, typeMap)));
+      return union(...tsType.types.map(t => ofTSType(t, interfaceMap)));
 
     case 'TSIntersectionType':
-      return intersection(...tsType.types.map(t => ofTSType(t, typeMap)));
+      return intersection(...tsType.types.map(t => ofTSType(t, interfaceMap)));
 
     case 'TSTypeReference': {
       const label = stringOfQualifiedIdentifier(tsType.typeName);
       if (okLabels.includes(label)) {
         const tsParams = tsType.typeParameters?.params ?? [];
-        const params = tsParams.map(t => ofTSType(t, typeMap));
+        const params = tsParams.map(t => ofTSType(t, interfaceMap));
         return Type.abstract(label, ...params);
       } else {
-        return Error.withLocation(tsType.typeName, `unknown abstract type '${label}'`, typeMap)
+        return Error.withLocation(tsType.typeName, `unknown abstract type '${label}'`, interfaceMap)
       }
     }
 

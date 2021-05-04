@@ -42,14 +42,14 @@ export default function expectEval({ expr, tenv, denv, venv, value } : {
       venv :
       (Immutable.Map(venv))) :
     (Immutable.Map());
-  const typeMap = new Map<ESTree.Node, Type>();
-  Typecheck.synth(expr, tenv, typeMap);
+  const interfaceMap = new Map<ESTree.Node, Type>();
+  Typecheck.synth(expr, tenv, interfaceMap);
   const dynamicMap = new Map<ESTree.Node, boolean>();
-  Dyncheck.expression(expr, typeMap, denv, dynamicMap);
+  Dyncheck.expression(expr, interfaceMap, denv, dynamicMap);
 
   // TODO(jaked) not sure why this is necessary
   // maybe because Immutable.Map construction doesn't constrain types?
   if (!isVEnv(venv)) bug(`expected VEnv`);
 
-  expect(Evaluate.evaluateExpression(expr, typeMap, dynamicMap, venv)).toEqual(value)
+  expect(Evaluate.evaluateExpression(expr, interfaceMap, dynamicMap, venv)).toEqual(value)
 }

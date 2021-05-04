@@ -11,11 +11,11 @@ it('evals', () => {
   const code = `() => { 1; 2; 3 }`;
   const expr = Parse.parseExpression(code);
   const tenv = Typecheck.env();
-  const typeMap = new Map<ESTree.Node, Type>();
-  Typecheck.synth(expr, tenv, typeMap);
+  const interfaceMap = new Map<ESTree.Node, Type>();
+  Typecheck.synth(expr, tenv, interfaceMap);
   const denv: Dyncheck.Env = Immutable.Map();
   const dynamicMap = new Map<ESTree.Node, boolean>();
-  Dyncheck.expression(expr, typeMap, denv, dynamicMap)
+  Dyncheck.expression(expr, interfaceMap, denv, dynamicMap)
   const venv: Evaluate.Env = Immutable.Map();
-  expect((Evaluate.evaluateExpression(expr, typeMap, dynamicMap, venv) as any)()).toEqual(3);
+  expect((Evaluate.evaluateExpression(expr, interfaceMap, dynamicMap, venv) as any)()).toEqual(3);
 });

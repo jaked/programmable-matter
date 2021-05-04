@@ -95,12 +95,12 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
   }
 
   const highlighted = props.compiledFile.flatMap(compiledFile =>
-    Signal.join(compiledFile.ast, compiledFile.typeMap ?? Signal.ok(undefined)).map(([ast, typeMap]) =>
+    Signal.join(compiledFile.ast, compiledFile.interfaceMap ?? Signal.ok(undefined)).map(([ast, interfaceMap]) =>
       highlight(
         props.type,
         props.content,
         ast,
-        typeMap,
+        interfaceMap,
         okComponents,
         errComponents
       )

@@ -368,12 +368,12 @@ describe('synthProgram', () => {
       const x = 7
     `);
     const env = Typecheck.env();
-    const typeMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Type>();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
       env,
-      typeMap
+      interfaceMap
     );
     const x = env2.get('x');
 
@@ -386,12 +386,12 @@ describe('synthProgram', () => {
       const x: number = 7
     `);
     const env = Typecheck.env();
-    const typeMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Type>();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
       env,
-      typeMap
+      interfaceMap
     );
     const x = env2.get('x');
 

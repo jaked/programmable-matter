@@ -95,14 +95,14 @@ export default function compileFileJson(
   const meta = metaForPath(file.path, compiledFiles);
 
   const compiled = Signal.join(ast, meta).map(([ast, meta]) => {
-    const typeMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Type>();
     let type =
       meta.dataType ?
-        Typecheck.check(ast, Typecheck.env(), meta.dataType, typeMap) :
-        Typecheck.synth(ast, Typecheck.env(), typeMap);
+        Typecheck.check(ast, Typecheck.env(), meta.dataType, interfaceMap) :
+        Typecheck.synth(ast, Typecheck.env(), interfaceMap);
     const dynamicMap = new Map<ESTree.Node, boolean>();
-    Dyncheck.expression(ast, typeMap, Immutable.Map(), dynamicMap);
-    const problems = [...typeMap.values()].some(t => t.kind === 'Error');
+    Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
+    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
 
     if (type.kind === 'Error') {
       // TODO(jaked) these should be Signal.err
@@ -119,7 +119,7 @@ export default function compileFileJson(
         exportType,
         exportValue,
         rendered,
-        typeMap,
+        interfaceMap,
         problems,
       }
     } else {
@@ -133,7 +133,7 @@ export default function compileFileJson(
         default: type,
         mutable: lensType(type),
       });
-      const value = Evaluate.evaluateExpression(ast, typeMap, dynamicMap, Immutable.Map());
+      const value = Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
       const exportValue = new Map([
@@ -157,7 +157,7 @@ export default function compileFileJson(
         exportType,
         exportValue,
         rendered,
-        typeMap,
+        interfaceMap,
         problems: false,
       };
     }
@@ -166,7 +166,7 @@ export default function compileFileJson(
   return {
     ast,
     exportType: compiled.map(({ exportType }) => exportType),
-    typeMap: compiled.map(({ typeMap }) => typeMap),
+    interfaceMap: compiled.map(({ interfaceMap }) => interfaceMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

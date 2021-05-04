@@ -18,18 +18,18 @@ export default function compileFileMeta(
 ): CompiledFile {
   const compiled = file.content.map(content => {
     const ast = Parse.parseExpression(content as string);
-    const typeMap = new Map<ESTree.Node, Type>();
-    const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, typeMap);
+    const interfaceMap = new Map<ESTree.Node, Type>();
+    const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, interfaceMap);
     const dynamicMap = new Map<ESTree.Node, boolean>();
-    Dyncheck.expression(ast, typeMap, Immutable.Map(), dynamicMap);
-    const problems = [...typeMap.values()].some(t => t.kind === 'Error');
+    Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
+    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
     const value = error.kind === 'Error' ?
       error.err :
-      Meta.validate(Evaluate.evaluateExpression(ast, typeMap, dynamicMap, Immutable.Map()));
+      Meta.validate(Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map()));
     const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,
-      typeMap,
+      interfaceMap,
       problems,
       exportValue,
     }
@@ -37,7 +37,7 @@ export default function compileFileMeta(
   return {
     ast: compiled.map(({ ast }) => ast),
     exportType,
-    typeMap: compiled.map(({ typeMap }) => typeMap),
+    interfaceMap: compiled.map(({ interfaceMap }) => interfaceMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

@@ -59,11 +59,11 @@ function expectHighlightExpr(
   // TODO(jaked) this is a lot of setup
   const ast = Parse.parseExpression(expr);
   const typeEnv = Immutable.Map<string, Type>();
-  const typeMap = new Map<ESTree.Node, Type>();
-  Typecheck.synth(ast, typeEnv, typeMap);
+  const interfaceMap = new Map<ESTree.Node, Type>();
+  Typecheck.synth(ast, typeEnv, interfaceMap);
 
   const spans: Span[] = [];
-  computeJsSpans(ast, typeMap, spans);
+  computeJsSpans(ast, interfaceMap, spans);
   const rendered = renderSpans(expr, spans);
   expect(rendered).toEqual(expected);
 }

@@ -23,9 +23,9 @@ export default function expectSynth({ expr, env, type, error } : {
       Typecheck.env(env as any)) :
     Typecheck.env();
   type = (typeof type === 'string') ? Parse.parseType(type) : type;
-  const typeMap = new Map<ESTree.Node, Type>();
-  const typeValue = Typecheck.synth(expr, env, typeMap);
-  const errorValue = [...typeMap.values()].some(t => t.kind === 'Error');
+  const interfaceMap = new Map<ESTree.Node, Type>();
+  const typeValue = Typecheck.synth(expr, env, interfaceMap);
+  const errorValue = [...interfaceMap.values()].some(t => t.kind === 'Error');
   if (error !== undefined) expect(errorValue).toBe(error);
   if (type) expect(typeValue).toEqual(type);
 }

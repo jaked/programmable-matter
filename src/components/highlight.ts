@@ -22,7 +22,7 @@ export default function computeHighlight(
   view: model.Types,
   content: string,
   ast: unknown,
-  typeMap: model.TypeMap | undefined,
+  interfaceMap: model.InterfaceMap | undefined,
   okComps: components,
   errComps: components,
 ) {
@@ -37,7 +37,7 @@ export default function computeHighlight(
     case 'json':
     case 'table':
     case 'meta': {
-      Highlight.computeJsSpans(ast as ESTree.Node, typeMap, spans);
+      Highlight.computeJsSpans(ast as ESTree.Node, interfaceMap, spans);
     }
     break;
   }

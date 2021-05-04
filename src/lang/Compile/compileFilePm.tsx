@@ -7,7 +7,7 @@ import { bug } from '../../util/bug';
 import * as model from '../../model';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
-import { TypeMap, DynamicMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
+import { InterfaceMap, DynamicMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -24,7 +24,7 @@ function typecheckCode(
   node: PMAST.Code,
   moduleEnv: Map<string, Type.ModuleType>,
   typeEnv: Typecheck.Env,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
 ): Typecheck.Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
@@ -32,7 +32,7 @@ function typecheckCode(
       moduleEnv,
       code,
       typeEnv,
-      typeMap
+      interfaceMap
     );
   });
   return typeEnv;
@@ -42,7 +42,7 @@ function dyncheckCode(
   node: PMAST.Code,
   moduleEnv: Map<string, Map<string, boolean>>,
   typeEnv: Typecheck.Env,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicEnv: Dyncheck.Env,
   dynamicMap: DynamicMap,
 ): Dyncheck.Env {
@@ -52,7 +52,7 @@ function dyncheckCode(
       moduleEnv,
       code,
       typeEnv,
-      typeMap,
+      interfaceMap,
       dynamicEnv,
       dynamicMap,
     );
@@ -63,23 +63,23 @@ function dyncheckCode(
 function typecheckInlineCode(
   node: PMAST.InlineCode,
   env: Typecheck.Env,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
 ) {
   const code = Parse.parseInlineCodeNode(node);
   code.forEach(code => {
-    Typecheck.check(code, env, Type.reactNodeType, typeMap);
+    Typecheck.check(code, env, Type.reactNodeType, interfaceMap);
   });
 }
 
 function dyncheckInlineCode(
   node: PMAST.InlineCode,
-  typeMap: TypeMap,
+  interfaceMap: InterfaceMap,
   dynamicEnv: Dyncheck.Env,
   dynamicMap: DynamicMap,
 ) {
   const code = Parse.parseInlineCodeNode(node);
   code.forEach(code => {
-    Dyncheck.expression(code, typeMap, dynamicEnv, dynamicMap);
+    Dyncheck.expression(code, interfaceMap, dynamicEnv, dynamicMap);
   });
 }
 
@@ -225,25 +225,25 @@ export default function compileFilePm(
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
-    const typeMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Type>();
     const dynamicMap = new Map<ESTree.Node, boolean>();
     codeNodes.forEach(node => {
       typeEnv = typecheckCode(
         node,
         moduleTypeEnv,
         typeEnv,
-        typeMap
+        interfaceMap
       );
       dynamicEnv = dyncheckCode(
         node,
         moduleDynamicEnv,
         typeEnv,
-        typeMap,
+        interfaceMap,
         dynamicEnv,
         dynamicMap,
       );
     });
-    return { typeEnv, typeMap, dynamicEnv, dynamicMap }
+    return { typeEnv, interfaceMap, dynamicEnv, dynamicMap }
   });
 
   // TODO(jaked)
@@ -252,26 +252,26 @@ export default function compileFilePm(
   const typecheckedInlineCode = Signal.join(
     typecheckedCode,
     inlineCodeNodes,
-  ).map(([{ typeEnv, typeMap, dynamicEnv, dynamicMap }, inlineCodeNodes]) => {
+  ).map(([{ typeEnv, interfaceMap, dynamicEnv, dynamicMap }, inlineCodeNodes]) => {
     // clone to avoid polluting annotations between versions
     // TODO(jaked) works fine but not very clear
-    typeMap = new Map(typeMap);
+    interfaceMap = new Map(interfaceMap);
     dynamicMap = new Map(dynamicMap);
 
     inlineCodeNodes.forEach(node => {
-      typecheckInlineCode(node, typeEnv, typeMap);
-      dyncheckInlineCode(node, typeMap, dynamicEnv, dynamicMap);
+      typecheckInlineCode(node, typeEnv, interfaceMap);
+      dyncheckInlineCode(node, interfaceMap, dynamicEnv, dynamicMap);
     });
-    const problems = [...typeMap.values()].some(t => t.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
     if (problems && debug) {
       const errorAnnotations = new Map<unknown, Type>();
-      typeMap.forEach((v, k) => {
+      interfaceMap.forEach((v, k) => {
         if (v.kind === 'Error')
           errorAnnotations.set(k, v);
       });
       console.log(errorAnnotations);
     }
-    return { typeMap, dynamicMap, problems }
+    return { interfaceMap, dynamicMap, problems }
   });
 
   // TODO(jaked)
@@ -283,7 +283,7 @@ export default function compileFilePm(
     tableValue,
     moduleDynamicEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { typeMap, dynamicMap }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { interfaceMap, dynamicMap }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -295,7 +295,7 @@ export default function compileFilePm(
       valueEnv = Evaluate.evaluateCodeNode(
         nodes,
         node,
-        typeMap,
+        interfaceMap,
         dynamicMap,
         moduleDynamicEnv,
         moduleValueEnv,
@@ -314,9 +314,9 @@ export default function compileFilePm(
     nodes,
     compile,
     typecheckedInlineCode,
-  ).map(([nodes, { valueEnv }, { typeMap, dynamicMap }]) => {
+  ).map(([nodes, { valueEnv }, { interfaceMap, dynamicMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
-    return nodes.map(node => Render.renderNode(node, typeMap, dynamicMap, valueEnv, nextRootId, Link));
+    return nodes.map(node => Render.renderNode(node, interfaceMap, dynamicMap, valueEnv, nextRootId, Link));
   });
 
   const debug = false;
@@ -403,10 +403,10 @@ ${html}
   const js = Signal.join(
     nodes,
     typecheckedInlineCode,
-  ).map(([nodes, { typeMap, dynamicMap }]) => {
+  ).map(([nodes, { interfaceMap, dynamicMap }]) => {
     return Generate.generatePm(
       nodes,
-      expr => typeMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
+      expr => interfaceMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
       expr => dynamicMap.get(expr) ?? bug(`expected dynamic for ${JSON.stringify(expr)}`),
     );
   });
@@ -460,7 +460,7 @@ ${html}
 
   return {
     ast: Signal.ok(null),
-    typeMap: typecheckedInlineCode.map(({ typeMap }) => typeMap),
+    interfaceMap: typecheckedInlineCode.map(({ interfaceMap }) => interfaceMap),
     problems: typecheckedInlineCode.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
