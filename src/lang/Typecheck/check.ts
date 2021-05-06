@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { InterfaceMap } from '../../model';
+import { Interface, InterfaceMap } from '../../model';
 import { Env } from './env';
 import * as Error from './error';
 import { synth, synthAndThen } from './synth';
@@ -13,7 +13,7 @@ function checkSubtype(
   env: Env,
   type: Type,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     case 'JSXExpressionContainer':
       return check(ast.expression, env, type, interfaceMap);
@@ -23,16 +23,16 @@ function checkSubtype(
       const envAlternate = narrowEnvironment(env, ast.test, false, interfaceMap);
 
       return synthAndThen(ast.test, env, interfaceMap, test => {
-        if (Type.isTruthy(test)) {
+        if (Type.isTruthy(test.type)) {
           synth(ast.alternate, envAlternate, interfaceMap);
           return check(ast.consequent, envConsequent, type, interfaceMap)
-        } else if (Type.isFalsy(test)) {
+        } else if (Type.isFalsy(test.type)) {
           synth(ast.consequent, envConsequent, interfaceMap);
           return check(ast.alternate, envAlternate, type, interfaceMap);
         } else {
           const consequent = check(ast.consequent, envConsequent, type, interfaceMap);
           const alternate = check(ast.alternate, envAlternate, type, interfaceMap);
-          return Type.union(consequent, alternate);
+          return { type: Type.union(consequent.type, alternate.type) };
         }
       });
     }
@@ -46,16 +46,17 @@ function checkSubtype(
     }
 
     default:
-      let actual = synth(ast, env, interfaceMap);
+      const intf = synth(ast, env, interfaceMap);
+      let actual = intf.type;
       // TODO(jaked) this should go somewhere else
       if (actual.kind === 'Abstract' && (actual.label === 'Code' || actual.label === 'Session')) {
         const param = actual.params.get(0) ?? bug(`expected param`);
         actual = param;
       }
       if (Type.isSubtype(actual, type))
-        return actual;
+        return { type: actual };
       else if (actual.kind === 'Error')
-        return actual;
+        return { type: actual };
       else
         return Error.expectedType(ast, type, actual, interfaceMap);
   }
@@ -66,22 +67,22 @@ function checkTuple(
   env: Env,
   type: Type.TupleType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     case 'ArrayExpression': {
       const types = type.elems.map((expectedType, i) => {
         if (i < ast.elements.length) {
-          const type = check(ast.elements[i], env, expectedType, interfaceMap);
-          if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-            return Type.undefined;
+          const intf = check(ast.elements[i], env, expectedType, interfaceMap);
+          if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+            return { type: Type.undefined };
           else
-            return type;
+            return intf;
         } else if (Type.isSubtype(Type.undefined, expectedType)) {
-          return Type.undefined;
+          return { type: Type.undefined };
         } else
           return Error.withLocation(ast, 'expected ${type.elems.size} elements');
       });
-      return types.find(type => type.kind === 'Error') ?? type;
+      return types.find(intf => intf.type.kind === 'Error') ?? { type };
     }
 
     default:
@@ -94,31 +95,31 @@ function checkArray(
   env: Env,
   type: Type.ArrayType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     // never called since we check against `reactNodeType`, see comment on checkUnion
     case 'JSXFragment': {
       const expectedType = type.elem;
-      const types = ast.children.map(child => {
-        const type = check(child, env, expectedType, interfaceMap);
-        if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-          return Type.undefined;
+      const intfs = ast.children.map(child => {
+        const intf = check(child, env, expectedType, interfaceMap);
+        if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+          return { type: Type.undefined };
         else
-          return type;
+          return intf;
       });
-      return types.find(type => type.kind === 'Error') ?? type;
+      return intfs.find(intf => intf.type.kind === 'Error') ?? { type };
     }
 
     case 'ArrayExpression': {
       const expectedType = type.elem;
-      const types = ast.elements.map(child => {
-        const type = check(child, env, expectedType, interfaceMap);
-        if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-          return Type.undefined;
+      const intfs = ast.elements.map(child => {
+        const intf = check(child, env, expectedType, interfaceMap);
+        if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+          return { type: Type.undefined };
         else
-          return type;
+          return intf;
       });
-      return types.find(type => type.kind === 'Error') ?? type;
+      return intfs.find(intf => intf.type.kind === 'Error') ?? { type };
     }
 
     default:
@@ -131,7 +132,7 @@ function checkSet(
   env: Env,
   type: Type.SetType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     // TODO(jaked) Set literals?
 
@@ -145,7 +146,7 @@ function checkMap(
   env: Env,
   type: Type.MapType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     // TODO(jaked) Map literals?
 
@@ -164,7 +165,7 @@ function patTypeEnvIdentifier(
     Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, interfaceMap);
     return env;
   } else {
-    return env.set(ast.name, type);
+    return env.set(ast.name, { type });
   }
 }
 
@@ -208,7 +209,7 @@ function checkFunction(
   env: Env,
   type: Type.FunctionType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
       if (ast.params.length > type.args.size)
@@ -233,7 +234,7 @@ function checkFunction(
         if (body.body.length === 0) {
           const actual = Type.undefined;
           if (Type.isSubtype(actual, type))
-            return actual;
+            return { type: actual };
           else
             return Error.expectedType(ast, type, actual, interfaceMap);
 
@@ -241,9 +242,9 @@ function checkFunction(
           const stmt = body.body[body.body.length - 1];
           switch (stmt.type) {
             case 'ExpressionStatement': {
-              const retType = check(stmt.expression, env, type.ret, interfaceMap);
-              if (retType.kind === 'Error') return retType;
-              else return Type.functionType(type.args.toArray(), retType);
+              const intf = check(stmt.expression, env, type.ret, interfaceMap);
+              if (intf.type.kind === 'Error') return intf;
+              else return { type: Type.functionType(type.args.toArray(), intf.type) };
             }
             default:
               bug(`unimplemented ${stmt.type}`);
@@ -251,9 +252,9 @@ function checkFunction(
         }
 
       } else {
-        const retType = check(body, env, type.ret, interfaceMap);
-        if (retType.kind === 'Error') return retType;
-        else return Type.functionType(type.args.toArray(), retType);
+        const intf = check(body, env, type.ret, interfaceMap);
+        if (intf.type.kind === 'Error') return intf;
+        else return { type: Type.functionType(type.args.toArray(), intf.type) };
       }
 
     default:
@@ -266,7 +267,7 @@ function checkUnion(
   env: Env,
   type: Type.UnionType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   // to get a more localized error message we'd like to decompose the type and expression
   // as far as possible, but for unions we don't know which arm to break down.
   // if the outermost AST node corresponds to exactly one arm we'll try that one.
@@ -288,12 +289,12 @@ function checkIntersection(
   env: Env,
   type: Type.IntersectionType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   // TODO(jaked)
   // how should we return / display errors here?
   // we don't have a way to show alternatives in editor
-  const types = type.types.map(type => check(ast, env, type, interfaceMap));
-  return types.find(type => type.kind === 'Error') ?? type;
+  const intfs = type.types.map(type => check(ast, env, type, interfaceMap));
+  return intfs.find(intf => intf.type.kind === 'Error') ?? { type };
 }
 
 function checkSingleton(
@@ -301,7 +302,7 @@ function checkSingleton(
   env: Env,
   type: Type.SingletonType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   return checkSubtype(ast, env, type, interfaceMap);
 }
 
@@ -310,10 +311,10 @@ function checkObject(
   env: Env,
   type: Type.ObjectType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   if (ast.type === 'ObjectExpression') {
     const seen = new Set();
-    const types = ast.properties.map(prop => {
+    const intfs = ast.properties.map(prop => {
       let name: string;
       switch (prop.key.type) {
         case 'Identifier': name = prop.key.name; break;
@@ -324,7 +325,7 @@ function checkObject(
         synth(prop.value, env, interfaceMap);
         // TODO(jaked) this highlights the error but we also need to skip evaluation
         Error.withLocation(prop.key, `duplicate property name '${name}'`, interfaceMap);
-        return Type.undefined;
+        return { type: Type.undefined };
       } else {
         seen.add(name);
         const fieldType = type.getFieldType(name);
@@ -333,7 +334,7 @@ function checkObject(
           // TODO(jaked) this highlights the error but we also need to skip evaluation
           Error.extraField(prop.key, name, interfaceMap);
           synth(prop.value, env, interfaceMap);
-          return Type.undefined;
+          return { type: Type.undefined };
         }
       }
     });
@@ -347,7 +348,7 @@ function checkObject(
       }
       return name;
     }));
-    let missingField: undefined | Type.ErrorType = undefined;
+    let missingField: undefined | Interface = undefined;
     type.fields.forEach(({ _1: name, _2: type }) => {
       if (!propNames.has(name) && !Type.isSubtype(Type.undefined, type))
         // TODO(jaked) stop after first one? aggregate all?
@@ -355,7 +356,7 @@ function checkObject(
     });
 
     if (missingField) return missingField;
-    return types.find(type => type.kind === 'Error') ?? type;
+    return intfs.find(intf => intf.type.kind === 'Error') ?? { type };
   }
 
   else return checkSubtype(ast, env, type, interfaceMap);
@@ -366,7 +367,7 @@ function checkAbstract(
   env: Env,
   type: Type.AbstractType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   return check(ast, env, Type.expand(type), interfaceMap);
 }
 
@@ -375,9 +376,9 @@ function checkError(
   env: Env,
   type: Type.ErrorType,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   synth(ast, env, interfaceMap);
-  return type;
+  return { type };
 }
 
 function checkHelper(
@@ -385,7 +386,7 @@ function checkHelper(
   env: Env,
   type: Type,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (type.kind) {
     case 'Tuple':         return checkTuple(ast, env, type, interfaceMap);
     case 'Array':         return checkArray(ast, env, type, interfaceMap);
@@ -409,7 +410,7 @@ export function check(
   env: Env,
   type: Type,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   const actualType = checkHelper(ast, env, type, interfaceMap);
   if (interfaceMap) interfaceMap.set(ast, actualType);
   return actualType;

@@ -11,7 +11,7 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
-import { Content, CompiledFile } from '../../model';
+import { Interface, Content, CompiledFile } from '../../model';
 import { Record } from '../../components/Record';
 import lensType from './lensType';
 import lensValue from './lensValue';
@@ -95,14 +95,15 @@ export default function compileFileJson(
   const meta = metaForPath(file.path, compiledFiles);
 
   const compiled = Signal.join(ast, meta).map(([ast, meta]) => {
-    const interfaceMap = new Map<ESTree.Node, Type>();
-    let type =
+    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const intf =
       meta.dataType ?
         Typecheck.check(ast, Typecheck.env(), meta.dataType, interfaceMap) :
         Typecheck.synth(ast, Typecheck.env(), interfaceMap);
+    let type = intf.type;
     const dynamicMap = new Map<ESTree.Node, boolean>();
     Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
-    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
 
     if (type.kind === 'Error') {
       // TODO(jaked) these should be Signal.err

@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import { Interface } from '../../model';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import * as Parse from '../Parse';
@@ -42,7 +43,7 @@ export default function expectEval({ expr, tenv, denv, venv, value } : {
       venv :
       (Immutable.Map(venv))) :
     (Immutable.Map());
-  const interfaceMap = new Map<ESTree.Node, Type>();
+  const interfaceMap = new Map<ESTree.Node, Interface>();
   Typecheck.synth(expr, tenv, interfaceMap);
   const dynamicMap = new Map<ESTree.Node, boolean>();
   Dyncheck.expression(expr, interfaceMap, denv, dynamicMap);

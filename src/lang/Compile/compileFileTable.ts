@@ -15,7 +15,7 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
-import { DynamicMap, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
+import { DynamicMap, Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
 import * as model from '../../model';
 import { Table } from '../../components/Table';
 import lensType from './lensType';
@@ -240,17 +240,17 @@ export default function compileFileTable(
   );
 
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
-    const interfaceMap = new Map<ESTree.Node, Type>();
-    const error = Typecheck.check(ast, Typecheck.env(), tableType, interfaceMap);
+    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const intf = Typecheck.check(ast, Typecheck.env(), tableType, interfaceMap);
     const dynamicMap = new Map<ESTree.Node, boolean>();
     Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
-    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
 
-    if (error.kind === 'Error') {
+    if (intf.type.kind === 'Error') {
       return {
         // TODO(jaked) these should be Signal.err
-        exportType: Type.module({ default: error }),
-        exportValue: Signal.ok(new Map([[ 'default', error.err ]])),
+        exportType: Type.module({ default: intf.type }),
+        exportValue: Signal.ok(new Map([[ 'default', intf.type.err ]])),
         rendered: Signal.ok(null),
         interfaceMap,
         problems,

@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import { Interface } from '../../model';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
@@ -23,9 +24,12 @@ export default function expectSynth({ expr, env, type, error } : {
       Typecheck.env(env as any)) :
     Typecheck.env();
   type = (typeof type === 'string') ? Parse.parseType(type) : type;
-  const interfaceMap = new Map<ESTree.Node, Type>();
-  const typeValue = Typecheck.synth(expr, env, interfaceMap);
-  const errorValue = [...interfaceMap.values()].some(t => t.kind === 'Error');
+  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const intf = Typecheck.synth(expr, env, interfaceMap);
+  const errorValue = [...interfaceMap.values()].some(intf => {
+    if (!intf.type) console.log(intf);
+    return intf.type.kind === 'Error'
+  });
   if (error !== undefined) expect(errorValue).toBe(error);
-  if (type) expect(typeValue).toEqual(type);
+  if (type) expect(intf.type).toEqual(type);
 }

@@ -6,7 +6,7 @@ import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
-import { Content, CompiledFile } from '../../model';
+import { Interface, Content, CompiledFile } from '../../model';
 import * as Meta from '../../model/Meta';
 
 const exportType = Signal.ok(Type.module({ default: Type.metaType }));
@@ -18,13 +18,13 @@ export default function compileFileMeta(
 ): CompiledFile {
   const compiled = file.content.map(content => {
     const ast = Parse.parseExpression(content as string);
-    const interfaceMap = new Map<ESTree.Node, Type>();
-    const error = Typecheck.check(ast, Typecheck.env(), Type.metaType, interfaceMap);
+    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const intf = Typecheck.check(ast, Typecheck.env(), Type.metaType, interfaceMap);
     const dynamicMap = new Map<ESTree.Node, boolean>();
     Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
-    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
-    const value = error.kind === 'Error' ?
-      error.err :
+    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
+    const value = intf.type.kind === 'Error' ?
+      intf.type.err :
       Meta.validate(Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map()));
     const exportValue = new Map([[ 'default', value ]]);
     return {

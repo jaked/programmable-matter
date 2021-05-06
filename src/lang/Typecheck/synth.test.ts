@@ -1,3 +1,5 @@
+import { bug } from '../../util/bug';
+import { Interface } from '../../model';
 import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
@@ -368,16 +370,16 @@ describe('synthProgram', () => {
       const x = 7
     `);
     const env = Typecheck.env();
-    const interfaceMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Interface>();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
       env,
       interfaceMap
     );
-    const x = env2.get('x');
+    const x = env2.get('x') ?? bug(`expected x`);
 
-    expect(x).toEqual(Type.singleton(7));
+    expect(x.type).toEqual(Type.singleton(7));
   });
 
   it('binding gets ascribed type', () => {
@@ -386,15 +388,15 @@ describe('synthProgram', () => {
       const x: number = 7
     `);
     const env = Typecheck.env();
-    const interfaceMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Interface>();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
       env,
       interfaceMap
     );
-    const x = env2.get('x');
+    const x = env2.get('x') ?? bug(`expected x`);
 
-    expect(x).toEqual(Type.number);
+    expect(x.type).toEqual(Type.number);
   });
 });

@@ -1,5 +1,5 @@
 import * as Immutable from 'immutable';
-import Type from '../Type';
+import { Interface } from '../../model';
 import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Typecheck from '../Typecheck';
@@ -11,7 +11,7 @@ it('evals', () => {
   const code = `() => { 1; 2; 3 }`;
   const expr = Parse.parseExpression(code);
   const tenv = Typecheck.env();
-  const interfaceMap = new Map<ESTree.Node, Type>();
+  const interfaceMap = new Map<ESTree.Node, Interface>();
   Typecheck.synth(expr, tenv, interfaceMap);
   const denv: Dyncheck.Env = Immutable.Map();
   const dynamicMap = new Map<ESTree.Node, boolean>();

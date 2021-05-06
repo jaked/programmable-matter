@@ -284,8 +284,8 @@ function expressionHelper(
   env: Env,
   dynamicMap: DynamicMap,
 ): boolean {
-  const type = interfaceMap.get(ast);
-  if (type && type.kind === 'Error') return false;
+  const intf = interfaceMap.get(ast);
+  if (intf && intf.type.kind === 'Error') return false;
 
   switch (ast.type) {
     case 'Identifier':              return identifier(ast, interfaceMap, env, dynamicMap);
@@ -335,13 +335,13 @@ function variableDecl(
 ): Env {
   decl.declarations.forEach(declarator => {
     let dynamic: boolean;
-    const type = typeEnv.get(declarator.id.name) ?? bug(`expected type`);
-    if (type.kind === 'Error') {
+    const intf = typeEnv.get(declarator.id.name) ?? bug(`expected type`);
+    if (intf.type.kind === 'Error') {
       dynamic = false;
 
     } else if (decl.kind === 'let') {
 
-      if (type.kind !== 'Abstract') bug(`expected Abstract`);
+      if (intf.type.kind !== 'Abstract') bug(`expected Abstract`);
 
 /*
       if (type.label === 'Code')
@@ -377,8 +377,8 @@ function importDecl(
   moduleEnv: Map<string, Map<string, boolean>>,
   dynamicEnv: Env,
 ): Env {
-  const type = interfaceMap.get(decl.source);
-  if (type && type.kind === 'Error') {
+  const intf = interfaceMap.get(decl.source);
+  if (intf && intf.type.kind === 'Error') {
     decl.specifiers.forEach(spec => {
       dynamicEnv = dynamicEnv.set(spec.local.name, false);
     });

@@ -68,10 +68,10 @@ function narrowExpression(
 ): Env {
   switch (ast.type) {
     case 'Identifier': {
-      const identType = env.get(ast.name);
-      if (identType) {
-        const type = narrowType(identType, otherType);
-        return env.set(ast.name, type);
+      const intf = env.get(ast.name);
+      if (intf) {
+        const type = narrowType(intf.type, otherType);
+        return env.set(ast.name, { ...intf, type });
       }
       else return env;
     }
@@ -176,11 +176,11 @@ export function narrowEnvironment(
       const left = synth(ast.left, env, interfaceMap);
       const right = synth(ast.right, env, interfaceMap);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
-        env = narrowExpression(env, ast.left, right);
-        return narrowExpression(env, ast.right, left);
+        env = narrowExpression(env, ast.left, right.type);
+        return narrowExpression(env, ast.right, left.type);
       } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
-        env = narrowExpression(env, ast.left, Type.not(right));
-        return narrowExpression(env, ast.right, Type.not(left));
+        env = narrowExpression(env, ast.left, Type.not(right.type));
+        return narrowExpression(env, ast.right, Type.not(left.type));
       } else {
         return bug('unimplemented BinaryExpression');
       }

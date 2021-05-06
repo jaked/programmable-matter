@@ -25,7 +25,8 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type InterfaceMap = Map<ESTree.Node, Type>;
+export type Interface = { type: Type };
+export type InterfaceMap = Map<ESTree.Node, Interface>;
 export type DynamicMap = Map<ESTree.Node, boolean>;
 
 export type NoteFiles = {

@@ -7,7 +7,7 @@ import { bug } from '../../util/bug';
 import * as model from '../../model';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
-import { InterfaceMap, DynamicMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
+import { Interface, InterfaceMap, DynamicMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -217,15 +217,15 @@ export default function compileFilePm(
     let dynamicEnv = Render.initDynamicEnv;
 
     if (jsonType) {
-      typeEnv = typeEnv.set('data', jsonType);
+      typeEnv = typeEnv.set('data', { type: jsonType });
       dynamicEnv = dynamicEnv.set('data', false);
     }
     if (tableType) {
-      typeEnv = typeEnv.set('table', tableType);
+      typeEnv = typeEnv.set('table', { type: tableType });
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
-    const interfaceMap = new Map<ESTree.Node, Type>();
+    const interfaceMap = new Map<ESTree.Node, Interface>();
     const dynamicMap = new Map<ESTree.Node, boolean>();
     codeNodes.forEach(node => {
       typeEnv = typecheckCode(
@@ -262,12 +262,12 @@ export default function compileFilePm(
       typecheckInlineCode(node, typeEnv, interfaceMap);
       dyncheckInlineCode(node, interfaceMap, dynamicEnv, dynamicMap);
     });
-    const problems = [...interfaceMap.values()].some(t => t.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
     if (problems && debug) {
-      const errorAnnotations = new Map<unknown, Type>();
-      interfaceMap.forEach((v, k) => {
-        if (v.kind === 'Error')
-          errorAnnotations.set(k, v);
+      const errorAnnotations = new Map<unknown, Interface>();
+      interfaceMap.forEach((intf, node) => {
+        if (intf.type.kind === 'Error')
+          errorAnnotations.set(node, intf);
       });
       console.log(errorAnnotations);
     }
@@ -437,7 +437,7 @@ ${html}
   const exportType = Signal.join(exports, typecheckedCode).map(([exportNames, { typeEnv }]) => {
     const exportTypes: { [s: string]: Type.Type } = {};
     exportNames.forEach(name => {
-      exportTypes[name] = typeEnv.get(name) ?? bug(`expected type`);
+      exportTypes[name] = (typeEnv.get(name) ?? bug(`expected type`)).type;
     });
     return Type.module(exportTypes);
   });

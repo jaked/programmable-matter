@@ -26,9 +26,9 @@ export function computeJsSpans(
     start?: number,
     end?: number,
   ) {
-    const type = interfaceMap && interfaceMap.get(ast);
-    if (type && type.kind === 'Error') {
-      status = type.err.message;
+    const intf = interfaceMap && interfaceMap.get(ast);
+    if (intf && intf.type.kind === 'Error') {
+      status = intf.type.err.message;
     }
     start = start || ast.start;
     end = end || ast.end;
@@ -56,9 +56,9 @@ export function computeJsSpans(
       {
         let status: string | undefined = undefined;
           if (ast.shorthand) {
-            let type = interfaceMap && interfaceMap.get(ast.value);
-            if (type && type.kind === 'Error') {
-              status = type.err.message;
+            let intf = interfaceMap && interfaceMap.get(ast.value);
+            if (intf && intf.type.kind === 'Error') {
+              status = intf.type.err.message;
             }
           }
           span(ast.key, 'definition', status);
@@ -128,9 +128,9 @@ export function computeJsSpans(
         // TODO(jaked) handle `as`
         {
           let status: string | undefined = undefined;
-          let type = interfaceMap && interfaceMap.get(ast.imported);
-          if (type && type.kind === 'Error') {
-            status = type.err.message;
+          let intf = interfaceMap && interfaceMap.get(ast.imported);
+          if (intf && intf.type.kind === 'Error') {
+            status = intf.type.err.message;
           }
           span(ast.local, 'definition', status);
         }

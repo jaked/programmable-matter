@@ -95,7 +95,7 @@ export function object(
     { [f: string]: Types.Type } |
     Array<Tuple2<string, Types.Type>> |
     Immutable.List<Tuple2<string, Types.Type>>
-) {
+): Types.ObjectType {
   if (Immutable.List.isList(fields)) {
     return new ObjectType({ fields });
   } else if (Array.isArray(fields)) {

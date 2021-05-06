@@ -1,4 +1,5 @@
 import { bug } from '../../util/bug';
+import { Interface } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
@@ -6,7 +7,7 @@ import * as Parse from '../Parse';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
-type InterfaceMap = (e: ESTree.Expression) => Type;
+type InterfaceMap = (e: ESTree.Expression) => Interface;
 type DynamicMap = (e: ESTree.Expression) => boolean;
 type Env = Map<string, JS.Expression>;
 
@@ -251,14 +252,14 @@ function unary(
     dynamicMap,
     env,
     ([v]) => {
-      const argType = interfaceMap(ast.argument);
+      const argIntf = interfaceMap(ast.argument);
       switch (ast.operator) {
         case '+':
         case '-':
         case '!':
           return JS.unaryExpression(ast.operator, v);
         case 'typeof':
-          if (argType.kind === 'Error')
+          if (argIntf.type.kind === 'Error')
             return JS.stringLiteral('error');
           else
             return JS.unaryExpression('typeof', v);
@@ -318,8 +319,8 @@ function binary(
     dynamicMap,
     env,
     ([left, right]) => {
-      const leftType = interfaceMap(ast.left);
-      const rightType = interfaceMap(ast.right);
+      const leftIntf = interfaceMap(ast.left);
+      const rightIntf = interfaceMap(ast.right);
 
       switch (ast.operator) {
         case '+':
@@ -327,18 +328,18 @@ function binary(
         case '*':
         case '/':
         case '%':
-          if (leftType.kind === 'Error') return right;
-          else if (rightType.kind === 'Error') return left;
+          if (leftIntf.type.kind === 'Error') return right;
+          else if (rightIntf.type.kind === 'Error') return left;
           else return JS.binaryExpression(ast.operator, left, right);
 
         case '===':
-          if (leftType.kind === 'Error' || rightType.kind === 'Error')
+          if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
             return JS.booleanLiteral(false);
           else
             return JS.binaryExpression('===', left, right);
 
         case '!==':
-          if (leftType.kind === 'Error' || rightType.kind === 'Error')
+          if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
             return JS.booleanLiteral(true);
           else
             return JS.binaryExpression('!==', left, right);
@@ -571,9 +572,9 @@ function assignment(
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
-  const leftType = interfaceMap(ast.left);
-  const rightType = interfaceMap(ast.right);
-  if (leftType.kind === 'Error' || rightType.kind === 'Error') {
+  const leftIntf = interfaceMap(ast.left);
+  const rightIntf = interfaceMap(ast.right);
+  if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error') {
     // TODO(jaked) we should return rhs when it's OK I think
     return JS.identifier('undefined');
   } else {
@@ -643,8 +644,8 @@ function expression(
   dynamicMap: DynamicMap,
   env: Env,
 ): JS.Expression {
-  const type = interfaceMap(ast);
-  if (type.kind === 'Error')
+  const intf = interfaceMap(ast);
+  if (intf.type.kind === 'Error')
     return JS.identifier('undefined');
 
   switch (ast.type) {
@@ -767,9 +768,9 @@ function genNode(
       for (const node of ast.ok.body) {
         switch (node.type) {
           case 'ExpressionStatement': {
-            const type = interfaceMap(node.expression);
+            const intf = interfaceMap(node.expression);
             const dynamic = dynamicMap(node.expression);
-            if (type.kind !== 'Error' && dynamic) {
+            if (intf.type.kind !== 'Error' && dynamic) {
               hydrate(node.expression);
             }
           }
@@ -810,9 +811,9 @@ function genNode(
     const ast = Parse.parseInlineCodeNode(node);
     if (ast.type === 'ok') {
       const expr = ast.ok as ESTree.Expression;
-      const type = interfaceMap(expr);
+      const intf = interfaceMap(expr);
       const dynamic = dynamicMap(expr);
-      if (type.kind !== 'Error' && dynamic) {
+      if (intf.type.kind !== 'Error' && dynamic) {
         hydrate(expr);
       }
     }

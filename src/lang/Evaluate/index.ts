@@ -96,8 +96,8 @@ export function evaluateExpression(
   dynamicMap: DynamicMap,
   env: Env,
 ): unknown {
-  const type = interfaceMap.get(ast) ?? bug(`expected type`);
-  if (type.kind === 'Error')
+  const intf = interfaceMap.get(ast) ?? bug(`expected type`);
+  if (intf.type.kind === 'Error')
     return undefined;
 
   switch (ast.type) {
@@ -179,12 +179,12 @@ export function evaluateExpression(
         dynamicMap,
         env,
         ([v]) => {
-          const argType = interfaceMap.get(ast.argument) ?? bug(`expected type`);
+          const argIntf = interfaceMap.get(ast.argument) ?? bug(`expected type`);
           switch (ast.operator) {
             case '+': return v;
             case '-': return -(v as number);
             case '!': return !v;
-            case 'typeof': return (argType.kind === 'Error') ? 'error' : typeof v;
+            case 'typeof': return (argIntf.type.kind === 'Error') ? 'error' : typeof v;
             default: throw new Error(`unhandled ast ${(ast as any).operator}`);
           }
         }
@@ -224,8 +224,8 @@ export function evaluateExpression(
         dynamicMap,
         env,
         ([lv, rv]) => {
-          const leftType = interfaceMap.get(ast.left) ?? bug(`expected type`);
-          const rightType = interfaceMap.get(ast.right) ?? bug(`expected type`);
+          const leftIntf = interfaceMap.get(ast.left) ?? bug(`expected type`);
+          const rightIntf = interfaceMap.get(ast.right) ?? bug(`expected type`);
 
           switch (ast.operator) {
             case '+':
@@ -233,8 +233,8 @@ export function evaluateExpression(
             case '*':
             case '/':
             case '%':
-              if (leftType.kind === 'Error') return rv;
-              else if (rightType.kind === 'Error') return lv;
+              if (leftIntf.type.kind === 'Error') return rv;
+              else if (rightIntf.type.kind === 'Error') return lv;
               else {
                 const lvn = lv as number;
                 const rvn = rv as number;
@@ -249,13 +249,13 @@ export function evaluateExpression(
               }
 
             case '===':
-              if (leftType.kind === 'Error' || rightType.kind === 'Error')
+              if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
                 return false;
               else
                 return lv === rv;
 
             case '!==':
-              if (leftType.kind === 'Error' || rightType.kind === 'Error')
+              if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
                 return true;
               else
                 return lv !== rv;
@@ -453,9 +453,9 @@ export function evaluateExpression(
       return ast.quasis.map(elem => elem.value.raw).join('');
 
     case 'AssignmentExpression': {
-      const leftType = interfaceMap.get(ast.left) ?? bug(`expected type`);
-      const rightType = interfaceMap.get(ast.right) ?? bug(`expected type`);
-      if (leftType.kind === 'Error' || rightType.kind === 'Error') {
+      const leftIntf = interfaceMap.get(ast.left) ?? bug(`expected type`);
+      const rightIntf = interfaceMap.get(ast.right) ?? bug(`expected type`);
+      if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error') {
         // TODO(jaked) we should return rhs when it's OK I think
         return undefined;
       } else {
@@ -516,10 +516,11 @@ function importDecl(
 ): Env {
   // TODO(jaked) finding errors in the AST is delicate.
   // need to separate error semantics from error highlighting.
-  const type = interfaceMap.get(decl.source);
-  if (type && type.kind === 'Error') {
+  const intf = interfaceMap.get(decl.source);
+  if (intf && intf.type.kind === 'Error') {
+    const err = intf.type.err;
     decl.specifiers.forEach(spec => {
-      valueEnv = valueEnv.set(spec.local.name, type.err);
+      valueEnv = valueEnv.set(spec.local.name, err);
     });
   } else {
     const moduleValue = moduleValueEnv.get(decl.source.value) ?? bug(`expected moduleValue`);
@@ -547,8 +548,8 @@ function importDecl(
         }
 
         case 'ImportDefaultSpecifier': {
-          const type = interfaceMap.get(spec.local);
-          if (!type || type.kind !== 'Error') {
+          const intf = interfaceMap.get(spec.local);
+          if (!intf || intf.type.kind !== 'Error') {
             const defaultField = moduleValue.get('default') ?? bug(`expected default`);
             valueEnv = valueEnv.set(spec.local.name, defaultField);
           }
@@ -556,8 +557,8 @@ function importDecl(
         break;
 
         case 'ImportSpecifier': {
-          const type = interfaceMap.get(spec.imported);
-          if (!type || type.kind !== 'Error') {
+          const intf = interfaceMap.get(spec.imported);
+          if (!intf || intf.type.kind !== 'Error') {
             const importedField = moduleValue.get(spec.imported.name) ?? bug(`expected ${spec.imported.name}`);
             valueEnv = valueEnv.set(spec.local.name, importedField);
           }
@@ -591,12 +592,12 @@ function evalVariableDecl(
     case 'let': {
       decl.declarations.forEach(declarator => {
         let name = declarator.id.name;
-        const cellType = interfaceMap.get(declarator.id) ?? bug(`expected type`);
-        if (cellType.kind === 'Error') return valueEnv;
-        else if (cellType.kind !== 'Abstract' || cellType.params.size !== 1) bug(`expected Code<T> or Session<T>`);
+        const cellIntf = interfaceMap.get(declarator.id) ?? bug(`expected type`);
+        if (cellIntf.type.kind === 'Error') return valueEnv;
+        else if (cellIntf.type.kind !== 'Abstract' || cellIntf.type.params.size !== 1) bug(`expected Code<T> or Session<T>`);
         const init = declarator.init;
         const value = evaluateExpression(init, interfaceMap, dynamicMap, Immutable.Map({ undefined: undefined }));
-        if (cellType.label === 'Code') {
+        if (cellIntf.type.label === 'Code') {
           // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
           valueEnv = valueEnv.set(name, nodes.mapWritable(
             _ => value,
@@ -631,10 +632,10 @@ function evalVariableDecl(
             })
           ));
 
-        } else if (cellType.label === 'Session') {
+        } else if (cellIntf.type.label === 'Session') {
           valueEnv = valueEnv.set(name, Signal.cellOk(value));
 
-        } else bug(`unexpected ${cellType.label}`);
+        } else bug(`unexpected ${cellIntf.type.label}`);
       });
     }
     break;

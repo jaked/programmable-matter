@@ -5,8 +5,8 @@ import { InterfaceMap } from '../../model';
 export function withLocation(ast: ESTree.Node, err: string | Error, interfaceMap?: InterfaceMap) {
   if (typeof err === 'string') err = new Error(err);
   const type = Type.error(err);
-  if (interfaceMap) interfaceMap.set(ast, type);
-  return type;
+  if (interfaceMap) interfaceMap.set(ast, { type });
+  return { type };
 }
 
 export function expectedType(

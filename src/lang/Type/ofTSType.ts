@@ -93,7 +93,7 @@ export default function ofTSType(
         const params = tsParams.map(t => ofTSType(t, interfaceMap));
         return Type.abstract(label, ...params);
       } else {
-        return Error.withLocation(tsType.typeName, `unknown abstract type '${label}'`, interfaceMap)
+        return Error.withLocation(tsType.typeName, `unknown abstract type '${label}'`, interfaceMap).type;
       }
     }
 

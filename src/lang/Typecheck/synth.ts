@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { InterfaceMap } from '../../model';
+import { Interface, InterfaceMap } from '../../model';
 import { Env } from './env';
 import * as Error from './error';
 import { check } from './check';
@@ -12,10 +12,10 @@ function synthIdentifier(
   ast: ESTree.Identifier,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const type = env.get(ast.name);
-  if (type) return type;
-  else if (ast.name === 'undefined') return Type.undefined;
+): Interface {
+  const intf = env.get(ast.name);
+  if (intf) return intf;
+  else if (ast.name === 'undefined') return { type: Type.undefined };
   else return Error.withLocation(ast, `unbound identifier '${ast.name}'`, interfaceMap);
 }
 
@@ -23,27 +23,27 @@ function synthLiteral(
   ast: ESTree.Literal,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  return Type.singleton(ast.value);
+): Interface {
+  return { type: Type.singleton(ast.value) };
 }
 
 function synthArray(
   ast: ESTree.ArrayExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const types = ast.elements.map(e => synth(e, env, interfaceMap));
-  const elem = Type.union(...types);
-  return Type.array(elem);
+): Interface {
+  const intfs = ast.elements.map(e => synth(e, env, interfaceMap));
+  const elem = Type.union(...intfs.map(intf => intf.type));
+  return { type: Type.array(elem) };
 }
 
 function synthObject(
   ast: ESTree.ObjectExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   const seen = new Set();
-  const fieldTypes = ast.properties.map(prop => {
+  const fieldIntfs = ast.properties.map(prop => {
     let name: string;
     switch (prop.key.type) {
       case 'Identifier': name = prop.key.name; break;
@@ -57,19 +57,19 @@ function synthObject(
       return undefined;
     } else {
       seen.add(name);
-      return { name, type: synth(prop.value, env, interfaceMap) };
+      return { name, intf: synth(prop.value, env, interfaceMap) };
     }
   });
 
-  const fieldTypesObj = fieldTypes.reduce<{ [n: string]: Type }>(
-    (obj, nameType) => {
-      if (!nameType) return obj;
-      const { name, type } = nameType;
-      return { ...obj, [name]: type };
+  const fieldTypesObj = fieldIntfs.reduce<{ [n: string]: Type }>(
+    (obj, fieldInterface) => {
+      if (!fieldInterface) return obj;
+      const { name, intf } = fieldInterface;
+      return { ...obj, [name]: intf.type };
     },
     {}
   );
-  return Type.object(fieldTypesObj);
+  return { type: Type.object(fieldTypesObj) };
 }
 
 const typeofType =
@@ -79,34 +79,34 @@ function synthUnary(
   ast: ESTree.UnaryExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  return synthAndThen(ast.argument, env, interfaceMap, (type, interfaceMap) => {
-    if (type.kind === 'Error') switch (ast.operator) {
+): Interface {
+  return synthAndThen(ast.argument, env, interfaceMap, (intf, interfaceMap) => {
+    if (intf.type.kind === 'Error') switch (ast.operator) {
       // TODO(jaked) does this make sense?
-      case '+':      return Type.singleton(0);
-      case '-':      return Type.singleton(0);
-      case '!':      return Type.singleton(true);
-      case 'typeof': return Type.singleton('error');
+      case '+':      return { type: Type.singleton(0) };
+      case '-':      return { type: Type.singleton(0) };
+      case '!':      return { type: Type.singleton(true) };
+      case 'typeof': return { type: Type.singleton('error') };
     }
-    if (type.kind === 'Singleton') {
-      const value = type.value;
+    if (intf.type.kind === 'Singleton') {
+      const value = intf.type.value;
       switch (ast.operator) {
-        case '!':      return Type.singleton(!value);
-        case 'typeof': return Type.singleton(typeof value);
+        case '!':      return { type: Type.singleton(!value) };
+        case 'typeof': return { type: Type.singleton(typeof value) };
         default:
-          if (type.base.kind === 'number') switch (ast.operator) {
-            case '+': return Type.singleton(value);
-            case '-': return Type.singleton(-value);
+          if (intf.type.base.kind === 'number') switch (ast.operator) {
+            case '+': return { type: Type.singleton(value) };
+            case '-': return { type: Type.singleton(-value) };
           }
       }
     }
     switch (ast.operator) {
-      case '!':      return Type.boolean;
-      case 'typeof': return typeofType;
+      case '!':      return { type: Type.boolean };
+      case 'typeof': return { type: typeofType };
       default:
-        if (type.kind === 'number') switch (ast.operator) {
-          case '+': return Type.number;
-          case '-': return Type.number;
+        if (intf.type.kind === 'number') switch (ast.operator) {
+          case '+': return { type: Type.number };
+          case '-': return { type: Type.number };
         }
     }
     return Error.withLocation(ast, 'incompatible operand to ${ast.operator}', interfaceMap);
@@ -117,26 +117,26 @@ function synthLogical(
   ast: ESTree.LogicalExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   const rightEnv = narrowEnvironment(env, ast.left, ast.operator === '&&', interfaceMap);
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
     return synthAndThen(ast.right, rightEnv, interfaceMap, (right, interfaceMap) => {
       switch (ast.operator) {
         case '&&': {
-          switch (left.kind) {
+          switch (left.type.kind) {
             case 'Error':     return left;
-            case 'Singleton': return left.value ? right : left;
-            default:          return Type.union(narrowType(left, Type.falsy), right);
+            case 'Singleton': return left.type.value ? right : left;
+            default:          return { type: Type.union(narrowType(left.type, Type.falsy), right.type) };
           }
         }
 
         case '||': {
-          switch (left.kind) {
+          switch (left.type.kind) {
             case 'Error':     return right;
-            case 'Singleton': return left.value ? left : right;
+            case 'Singleton': return left.type.value ? left : right;
 
-            // TODO(jaked) Type.union(Type.intersection(left, Type.notFalsy), right) ?
-            default:          return Type.union(left, right);
+            // TODO(jaked) Type.union(Type.intersection(left.type, Type.notFalsy), right.type) ?
+            default:          return { type: Type.union(left.type, right.type) };
           }
         }
 
@@ -151,63 +151,63 @@ function synthBinary(
   ast: ESTree.BinaryExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   // TODO(jaked) handle other operators
 
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
     return synthAndThen(ast.right, env, interfaceMap, (right, interfaceMap) => {
 
-      if (left.kind === 'Error') switch (ast.operator) {
-        case '===': return Type.singleton(false);
-        case '!==': return Type.singleton(true);
+      if (left.type.kind === 'Error') switch (ast.operator) {
+        case '===': return { type: Type.singleton(false) };
+        case '!==': return { type: Type.singleton(true) };
         default:    return right;
       }
-      if (right.kind === 'Error') switch (ast.operator) {
-        case '===': return Type.singleton(false);
-        case '!==': return Type.singleton(true);
+      if (right.type.kind === 'Error') switch (ast.operator) {
+        case '===': return { type: Type.singleton(false) };
+        case '!==': return { type: Type.singleton(true) };
         default:    return left;
       }
-      if (left.kind === 'Singleton' && right.kind === 'Singleton') {
-        const lvalue = left.value;
-        const rvalue = right.value;
+      if (left.type.kind === 'Singleton' && right.type.kind === 'Singleton') {
+        const lvalue = left.type.value;
+        const rvalue = right.type.value;
         switch (ast.operator) {
-          case '===': return Type.singleton(lvalue === right.value);
-          case '!==': return Type.singleton(lvalue !== right.value);
+          case '===': return { type: Type.singleton(lvalue === right.type.value) };
+          case '!==': return { type: Type.singleton(lvalue !== right.type.value) };
           default:
-            if (left.base.kind === 'number' && right.base.kind === 'number') switch (ast.operator) {
-              case '-': return Type.singleton(lvalue - rvalue);
-              case '*': return Type.singleton(lvalue * rvalue);
-              case '+': return Type.singleton(lvalue + rvalue);
-              case '/': return Type.singleton(lvalue / rvalue);
-              case '%': return Type.singleton(lvalue % rvalue);
+            if (left.type.base.kind === 'number' && right.type.base.kind === 'number') switch (ast.operator) {
+              case '-': return { type: Type.singleton(lvalue - rvalue) };
+              case '*': return { type: Type.singleton(lvalue * rvalue) };
+              case '+': return { type: Type.singleton(lvalue + rvalue) };
+              case '/': return { type: Type.singleton(lvalue / rvalue) };
+              case '%': return { type: Type.singleton(lvalue % rvalue) };
             }
-            if (left.base.kind === 'string' && right.base.kind === 'string') switch (ast.operator) {
-              case '+': return Type.singleton(lvalue + rvalue);
+            if (left.type.base.kind === 'string' && right.type.base.kind === 'string') switch (ast.operator) {
+              case '+': return { type: Type.singleton(lvalue + rvalue) };
             }
         }
       }
-      if ((left.kind === 'number' || (left.kind === 'Singleton' && left.base.kind === 'number')) &&
-          (right.kind === 'number' || (right.kind === 'Singleton' && right.base.kind === 'number'))) {
+      if ((left.type.kind === 'number' || (left.type.kind === 'Singleton' && left.type.base.kind === 'number')) &&
+          (right.type.kind === 'number' || (right.type.kind === 'Singleton' && right.type.base.kind === 'number'))) {
         switch (ast.operator) {
           case '+':
           case '-':
           case '*':
           case '/':
           case '%':
-            return Type.number;
+            return { type: Type.number };
         }
       }
-      if ((left.kind === 'string' || (left.kind === 'Singleton' && left.base.kind === 'string')) &&
-          (right.kind === 'string' || (right.kind === 'Singleton' && right.base.kind === 'string'))) {
+      if ((left.type.kind === 'string' || (left.type.kind === 'Singleton' && left.type.base.kind === 'string')) &&
+          (right.type.kind === 'string' || (right.type.kind === 'Singleton' && right.type.base.kind === 'string'))) {
         switch (ast.operator) {
           case '+':
-            return Type.string;
+            return { type: Type.string };
         }
       }
       switch (ast.operator) {
         case '===':
         case '!==':
-          return Type.boolean;
+          return { type: Type.boolean };
       }
       return Error.withLocation(ast, `incompatible operands to ${ast.operator}`, interfaceMap);
     });
@@ -218,57 +218,57 @@ function synthSequence(
   ast: ESTree.SequenceExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const types = ast.expressions.map(e => synth(e, env, interfaceMap));
-  return types[types.length - 1];
+): Interface {
+  const intfs = ast.expressions.map(e => synth(e, env, interfaceMap));
+  return intfs[intfs.length - 1];
 }
 
 function synthMember(
   ast: ESTree.MemberExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const fn = (objType: Type, interfaceMap: InterfaceMap) => {
-    if (objType.kind === 'Error') return objType;
+): Interface {
+  const fn = (object: Interface, interfaceMap: InterfaceMap) => {
+    if (object.type.kind === 'Error') return object;
 
-    if (objType.kind === 'Abstract' && (objType.label === 'Code' || objType.label === 'Session')) {
-      const param = objType.params.get(0) ?? bug(`expected param`);
-      const type = fn(param, interfaceMap);
-      return type.kind === 'Error' ? type : Type.abstract(objType.label, type);
+    if (object.type.kind === 'Abstract' && (object.type.label === 'Code' || object.type.label === 'Session')) {
+      const param = object.type.params.get(0) ?? bug(`expected param`);
+      const intf = fn({ type: param }, interfaceMap);
+      return intf.type.kind === 'Error' ? intf : { type: Type.abstract(object.type.label, intf.type) };
     }
 
     if (ast.computed)
       return synthAndThen(ast.property, env, interfaceMap, (prop, interfaceMap) => {
 
-        switch (objType.kind) {
+        switch (object.type.kind) {
           case 'Array':
-            if (prop.kind === 'Error') return Type.undefined;
-            if (prop.kind === 'number' ||
-                (prop.kind === 'Singleton' && prop.base.kind === 'number')) {
-              return Type.undefinedOr(objType.elem);
+            if (prop.type.kind === 'Error') return { type: Type.undefined };
+            if (prop.type.kind === 'number' ||
+                (prop.type.kind === 'Singleton' && prop.type.base.kind === 'number')) {
+              return { type: Type.undefinedOr(object.type.elem) };
             }
-            return Error.expectedType(ast, Type.number, prop, interfaceMap);
+            return Error.expectedType(ast, Type.number, prop.type, interfaceMap);
 
           case 'Tuple':
-            if (prop.kind === 'Error') return prop;
-            if (prop.kind === 'Singleton' && prop.base.kind === 'number') {
-              if (prop.value < objType.elems.size)
-                return objType.elems.get(prop.value) ?? bug(`expected elem`);
-              return Error.noElementAtIndex(ast, prop.value, interfaceMap);
+            if (prop.type.kind === 'Error') return prop;
+            if (prop.type.kind === 'Singleton' && prop.type.base.kind === 'number') {
+              if (prop.type.value < object.type.elems.size)
+                return { type: object.type.elems.get(prop.type.value) ?? bug(`expected elem`) };
+              return Error.noElementAtIndex(ast, prop.type.value, interfaceMap);
             }
-            return Error.expectedType(ast, Type.number, prop, interfaceMap);
+            return Error.expectedType(ast, Type.number, prop.type, interfaceMap);
 
           case 'Object':
-            if (prop.kind === 'Error') return prop;
-            if (prop.kind === 'Singleton' && prop.base.kind === 'string') {
-              const type = objType.getFieldType(prop.value);
-              if (type) return type;
-              else return Error.unknownField(ast, prop.value, interfaceMap);
+            if (prop.type.kind === 'Error') return prop;
+            if (prop.type.kind === 'Singleton' && prop.type.base.kind === 'string') {
+              const type = object.type.getFieldType(prop.type.value);
+              if (type) return { type };
+              else return Error.unknownField(ast, prop.type.value, interfaceMap);
             }
-            return Error.expectedType(ast, Type.string, prop, interfaceMap);
+            return Error.expectedType(ast, Type.string, prop.type, interfaceMap);
 
           default:
-            return Error.expectedType(ast, 'Array or Tuple', objType, interfaceMap);
+            return Error.expectedType(ast, 'Array or Tuple', object.type, interfaceMap);
         }
       });
 
@@ -277,97 +277,97 @@ function synthMember(
         bug(`expected identifier on non-computed property`);
 
       const name = ast.property.name;
-      switch (objType.kind) {
+      switch (object.type.kind) {
         case 'string':
           switch (name) {
             case 'startsWith':
-              return Type.functionType([Type.string], Type.boolean);
+              return { type: Type.functionType([Type.string], Type.boolean) };
           }
           break;
 
         case 'number':
           switch (name) {
             case 'toString':
-              return Type.functionType([], Type.string);
+              return { type: Type.functionType([], Type.string) };
           }
           break;
 
         case 'Array':
           switch (name) {
-            case 'size': return Type.number;
+            case 'size': return { type: Type.number };
 
             case 'some':
             case 'every':
-              return Type.functionType(
-                [ Type.functionType([ objType.elem, Type.number, objType ], Type.boolean) ],
+              return { type: Type.functionType(
+                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.boolean) ],
                 Type.boolean,
-              );
+              ) };
 
             case 'filter':
-              return Type.functionType(
-                [ Type.functionType([ objType.elem, Type.number, objType ], Type.boolean) ],
-                objType,
-              );
+              return { type: Type.functionType(
+                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.boolean) ],
+                object.type,
+              ) };
 
             case 'forEach':
-              return Type.functionType(
-                [ Type.functionType([ objType.elem, Type.number, objType ], Type.undefined) ],
+              return { type: Type.functionType(
+                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.undefined) ],
                 Type.undefined,
-              );
+              ) };
 
             case 'map':
-              return Type.functionType(
-                [ Type.functionType([ objType.elem, Type.number, objType ], Type.reactNodeType) ], // TODO(jaked) temporary
+              return { type: Type.functionType(
+                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.reactNodeType) ], // TODO(jaked) temporary
                 Type.array(Type.reactNodeType),
-              );
+              ) };
           }
           break;
 
         case 'Map':
           switch (name) {
-            case 'size': return Type.number;
+            case 'size': return { type: Type.number };
 
             case 'set':
-              return Type.functionType([ objType.key, objType.value ], objType);
+              return { type: Type.functionType([ object.type.key, object.type.value ], object.type) };
 
             case 'delete':
-              return Type.functionType([ objType.key ], objType,);
+              return { type: Type.functionType([ object.type.key ], object.type,) };
 
             case 'clear':
-              return Type.functionType([], objType);
+              return { type: Type.functionType([], object.type) };
 
             case 'filter':
-              return Type.functionType(
-                [ Type.functionType([ objType.value, objType.key, objType ], Type.boolean) ],
-                objType,
-              );
+              return { type: Type.functionType(
+                [ Type.functionType([ object.type.value, object.type.key, object.type ], Type.boolean) ],
+                object.type,
+              ) };
 
             case 'toList':
-              return Type.functionType([], Type.array(objType.value));
+              return { type: Type.functionType([], Type.array(object.type.value)) };
 
             case 'update':
-              return Type.functionType(
-                [ objType.key, Type.functionType([ objType.value ], objType.value) ],
-                objType
-              )
+              return { type: Type.functionType(
+                [ object.type.key, Type.functionType([ object.type.value ], object.type.value) ],
+                object.type
+              ) };
 
             case 'get':
-              return Type.functionType(
-                [ objType.key ],
-                Type.undefinedOr(objType.value),
-              );
+              return { type: Type.functionType(
+                [ object.type.key ],
+                Type.undefinedOr(object.type.value),
+              ) };
           }
           break;
 
         case 'Object': {
-          const type = objType.getFieldType(name);
-          if (type) return type;
+          const type = object.type.getFieldType(name);
+          if (type) return { type };
           break;
         }
 
         case 'Module': {
-          const type = objType.getFieldType(name);
-          if (type) return type;
+          const type = object.type.getFieldType(name);
+          if (type) return { type };
           break;
         }
       }
@@ -382,31 +382,32 @@ function synthCall(
   ast: ESTree.CallExpression,
   env:Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   return synthAndThen(ast.callee, env, interfaceMap, (callee, interfaceMap) => {
-    if (callee.kind !== 'Function')
-      return Error.expectedType(ast.callee, 'function', callee, interfaceMap);
+    if (callee.type.kind !== 'Function')
+      return Error.expectedType(ast.callee, 'function', callee.type, interfaceMap);
 
     // TODO(jaked) tolerate extra arguments
-    else if (ast.arguments.length > callee.args.size)
-      return Error.wrongArgsLength(ast, callee.args.size, ast.arguments.length, interfaceMap);
+    else if (ast.arguments.length > callee.type.args.size)
+      return Error.wrongArgsLength(ast, callee.type.args.size, ast.arguments.length, interfaceMap);
     else {
-      const types = callee.args.map((expectedType, i) => {
+      const args = callee.type.args;
+      const intfs = args.map((expectedType, i) => {
         if (i < ast.arguments.length) {
-          const type = check(ast.arguments[i], env, expectedType, interfaceMap);
+          const intf = check(ast.arguments[i], env, expectedType, interfaceMap);
           // it's OK for an argument to be Error if the function accepts undefined
-          if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-            return Type.undefined;
+          if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+            return { type: Type.undefined };
           else
-            return type;
+            return intf;
         } else if (Type.isSubtype(Type.undefined, expectedType)) {
           // it's OK for an argument to be missing if the function accepts undefined
-          return Type.undefined;
+          return { type: Type.undefined };
         } else
-          return Error.wrongArgsLength(ast, callee.args.size, ast.arguments.length, interfaceMap);
+          return Error.wrongArgsLength(ast, args.size, ast.arguments.length, interfaceMap);
       });
       // if there aren't enough arguments or a required argument is Error then the call is Error
-      return types.find(type => type.kind === 'Error') ?? callee.ret;
+      return intfs.find(intf => intf.type.kind === 'Error') ?? { type: callee.type.ret };
     }
   });
 }
@@ -421,7 +422,7 @@ function patTypeEnvIdentifier(
     Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, interfaceMap);
     return env;
   } else {
-    return env.set(ast.name, type);
+    return env.set(ast.name, { type });
   }
 }
 
@@ -443,6 +444,9 @@ function patTypeEnvObjectPattern(
   return env;
 }
 
+// given a pattern and a type
+// destructure the pattern and type together
+// to produce an environment mapping leaf identifiers to types
 function patTypeEnv(
   ast: ESTree.Pattern,
   t: Type,
@@ -459,6 +463,9 @@ function patTypeEnv(
   }
 }
 
+// given a pattern and a type
+// generate a type satisfying the pattern
+// where pattern identifiers have the given type
 function genPatType(
   ast: ESTree.Pattern,
   t: Type,
@@ -481,11 +488,11 @@ function synthArrowFunction(
   ast: ESTree.ArrowFunctionExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   let patEnv: Env = Immutable.Map();
-  const paramTypes = ast.params.map(param => {
+  const params = ast.params.map(param => {
     if (!param.typeAnnotation) {
-      const t = Error.withLocation(param, `function parameter must have a type`, interfaceMap);
+      const t = Error.withLocation(param, `function parameter must have a type`, interfaceMap).type;
       patEnv = patTypeEnv(param, genPatType(param, t), patEnv, interfaceMap);
       return genPatType(param, Type.unknown);
     }
@@ -494,17 +501,17 @@ function synthArrowFunction(
     return t;
   });
   env = env.concat(patEnv);
-  const type = synth(ast.body, env, interfaceMap);
+  const body = synth(ast.body, env, interfaceMap);
   // TODO(jaked) doesn't handle parameters of union type
-  return Type.functionType(paramTypes, type);
+  return { type: Type.functionType(params, body.type) };
 }
 
 function synthBlockStatement(
   ast: ESTree.BlockStatement,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const types = ast.body.map(stmt => {
+): Interface {
+  const intfs = ast.body.map(stmt => {
     switch (stmt.type) {
       case 'ExpressionStatement':
         return synth(stmt.expression, env, interfaceMap);
@@ -512,29 +519,29 @@ function synthBlockStatement(
         bug(`unimplemented ${stmt.type}`);
     }
   });
-  if (types.length === 0)
-    return Type.undefined;
+  if (intfs.length === 0)
+    return { type: Type.undefined };
   else
-    return types[types.length - 1];
+    return intfs[intfs.length - 1];
 }
 
 function synthConditional(
   ast: ESTree.ConditionalExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   const envConsequent = narrowEnvironment(env, ast.test, true, interfaceMap);
   const envAlternate = narrowEnvironment(env, ast.test, false, interfaceMap);
   const consequent = synth(ast.consequent, envConsequent, interfaceMap);
   const alternate = synth(ast.alternate, envAlternate, interfaceMap);
 
   return synthAndThen(ast.test, env, interfaceMap, (test, interfaceMap) => {
-    if (Type.isTruthy(test))
+    if (Type.isTruthy(test.type))
       return consequent;
-    else if (Type.isFalsy(test))
+    else if (Type.isFalsy(test.type))
       return alternate;
     else
-      return Type.union(consequent, alternate);
+      return { type: Type.union(consequent.type, alternate.type) };
   });
 }
 
@@ -542,18 +549,18 @@ function synthTemplateLiteral(
   ast: ESTree.TemplateLiteral,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   // TODO(jaked) handle interpolations
-  return Type.string;
+  return { type: Type.string };
 }
 
 function synthJSXIdentifier(
   ast: ESTree.JSXIdentifier,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const type = env.get(ast.name);
-  if (type) return type;
+): Interface {
+  const intf = env.get(ast.name);
+  if (intf) return intf;
   else return Error.withLocation(ast, `unbound identifier '${ast.name}'`, interfaceMap);
 }
 
@@ -561,23 +568,23 @@ function synthJSXElement(
   ast: ESTree.JSXElement,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  return synthAndThen(ast.openingElement.name, env, interfaceMap, (type, interfaceMap) => {
+): Interface {
+  return synthAndThen(ast.openingElement.name, env, interfaceMap, (element, interfaceMap) => {
     const { props, ret } = (() => {
-      switch (type.kind) {
+      switch (element.type.kind) {
         case 'Error':
-          return { props: Type.object({}), ret: type }
+          return { props: Type.object({}), ret: element.type }
 
         case 'Function':
-          if (type.args.size === 0) {
-            return { props: Type.object({}), ret: type.ret };
+          if (element.type.args.size === 0) {
+            return { props: Type.object({}), ret: element.type.ret };
 
-          } else if (type.args.size === 1) {
-            const argType = type.args.get(0) ?? bug();
+          } else if (element.type.args.size === 1) {
+            const argType = element.type.args.get(0) ?? bug();
             if (argType.kind === 'Object') {
               const childrenField = argType.fields.find(field => field._1 === 'children');
               if (!childrenField || Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
-                return { props: argType, ret: type.ret };
+                return { props: argType, ret: element.type.ret };
             }
           }
           // TODO(jaked)
@@ -586,23 +593,26 @@ function synthJSXElement(
       }
       // TODO(jaked) it would be better to mark the whole JSXElement as having an error
       // but for now this get us the right error highlighting in Editor
-      return { props: Type.object({}), ret: Error.expectedType(ast.openingElement.name, 'component type', type, interfaceMap) };
+      return {
+        props: Type.object({}),
+        ret: Error.expectedType(ast.openingElement.name, 'component type', element.type, interfaceMap).type
+      };
     })();
 
-    const attrTypes = ast.openingElement.attributes.map(attr => {
+    const attrIntfs = ast.openingElement.attributes.map(attr => {
       const expectedType = props.getFieldType(attr.name.name);
       if (expectedType) {
         if (attr.value) {
-          const type = check(attr.value, env, expectedType, interfaceMap);
+          const intf = check(attr.value, env, expectedType, interfaceMap);
           // it's OK for an argument to be Error if the function accepts undefined
-          if (type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-            return Type.undefined;
+          if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
+            return { type: Type.undefined };
           else
-            return type;
+            return intf;
         } else {
           const actual = Type.singleton(true);
           if (Type.isSubtype(actual, expectedType))
-            return actual;
+            return { type: actual };
           else
             return Error.expectedType(attr.name, expectedType, actual, interfaceMap);
         }
@@ -614,7 +624,7 @@ function synthJSXElement(
           // TODO(jaked) an error in an extra attribute should not fail whole tag
           return synth(attr.value, env, interfaceMap);
         } else {
-          return Type.singleton(true);
+          return { type: Type.singleton(true) };
         }
       }
     });
@@ -626,7 +636,7 @@ function synthJSXElement(
 
     const attrNames =
       new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
-    let missingField: undefined | Type.ErrorType = undefined;
+    let missingField: undefined | Interface = undefined;
     props.fields.forEach(({ _1: name, _2: type }) => {
       if (name !== 'children' &&
           !attrNames.has(name) &&
@@ -638,7 +648,7 @@ function synthJSXElement(
     });
     if (missingField) return missingField;
 
-    return attrTypes.find(type => type.kind === 'Error') ?? ret;
+    return attrIntfs.find(intf => intf.type.kind === 'Error') ?? { type: ret };
   });
 }
 
@@ -646,19 +656,19 @@ function synthJSXFragment(
   ast: ESTree.JSXFragment,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   ast.children.forEach(child =>
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
     check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), interfaceMap)
   );
-  return Type.reactNodeType;
+  return { type: Type.reactNodeType };
 }
 
 function synthJSXExpressionContainer(
   ast: ESTree.JSXExpressionContainer,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   return synth(ast.expression, env, interfaceMap);
 }
 
@@ -666,29 +676,29 @@ function synthJSXText(
   ast: ESTree.JSXText,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  return Type.string;
+): Interface {
+  return { type: Type.string };
 }
 
 function synthJSXEmptyExpression(
   ast: ESTree.JSXEmptyExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  return Type.undefined;
+): Interface {
+  return { type: Type.undefined };
 }
 
 function synthAssignment(
   ast: ESTree.AssignmentExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
-    if (left.kind === 'Abstract' && (left.label === 'Code' || left.label === 'Session')) {
-      const param = left.params.get(0) ?? bug(`expected param`);
+    if (left.type.kind === 'Abstract' && (left.type.label === 'Code' || left.type.label === 'Session')) {
+      const param = left.type.params.get(0) ?? bug(`expected param`);
       return check(ast.right, env, param, interfaceMap);
     } else {
-      return Error.expectedType(ast.left, 'Code<T> or Session<T>', left, interfaceMap);
+      return Error.expectedType(ast.left, 'Code<T> or Session<T>', left.type, interfaceMap);
     }
   }, /* preserveCell */ true);
 }
@@ -697,17 +707,17 @@ function synthTSAs(
   ast: ESTree.TSAsExpression,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   const type = Type.ofTSType(ast.typeAnnotation, interfaceMap);
   const checked = check(ast.expression, env, type, interfaceMap);
-  return checked.kind === 'Error' ? checked : type;
+  return checked.type.kind === 'Error' ? checked : { type };
 }
 
 function synthHelper(
   ast: ESTree.Node,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
+): Interface {
   switch (ast.type) {
     case 'Identifier':              return synthIdentifier(ast, env, interfaceMap);
     case 'Literal':                 return synthLiteral(ast, env, interfaceMap);
@@ -741,19 +751,19 @@ export function synth(
   ast: ESTree.Node,
   env: Env,
   interfaceMap: InterfaceMap,
-): Type {
-  const type = synthHelper(ast, env, interfaceMap);
-  interfaceMap.set(ast, type);
-  return type;
+): Interface {
+  const intf = synthHelper(ast, env, interfaceMap);
+  interfaceMap.set(ast, intf);
+  return intf;
 }
 
 function andThen(
-  type: Type,
-  fn: (t: Type, interfaceMap: InterfaceMap) => Type,
+  intf: Interface,
+  fn: (t: Interface, interfaceMap: InterfaceMap) => Interface,
   interfaceMap: InterfaceMap,
   preserveCell: boolean = false
-): Type {
-  type = Type.expand(type);
+): Interface {
+  let type = Type.expand(intf.type);
 
   // TODO(jaked) this is pretty ad-hoc
   if (!preserveCell && type.kind === 'Abstract' && (type.label === 'Code' || type.label === 'Session')) {
@@ -763,7 +773,9 @@ function andThen(
 
   switch (type.kind) {
     case 'Union':
-      return Type.union(...type.types.map(type => fn(type, interfaceMap)));
+      return { type: Type.union(...type.types.map(type =>
+        fn({ type }, interfaceMap).type))
+      };
 
     case 'Intersection': {
       // an intersection type describes several interfaces to an object.
@@ -782,20 +794,20 @@ function andThen(
       // by treating some intersections as a single type
       // (e.g. {foo:boolean}&{bar:number}) rather than handling arms separately
       const noInterfaceMap: InterfaceMap = new Map();
-      const types = type.types.map(type => fn(type, noInterfaceMap));
+      const types = type.types.map(type => fn({ type }, noInterfaceMap).type);
       const okIndex = types.findIndex(type => type.kind !== 'Error')
       if (okIndex === -1) {
         const type = types.get(types.size - 1) ?? bug(`expected type`);
-        return fn(type, interfaceMap);
+        return fn({ type }, interfaceMap);
       } else {
         const okType = type.types.get(okIndex) ?? bug(`expected type`);
-        fn(okType, interfaceMap);
-        return Type.intersection(...types.filter(type => type.kind !== 'Error'));
+        fn({ type: okType }, interfaceMap);
+        return { type: Type.intersection(...types.filter(type => type.kind !== 'Error')) };
       }
     }
 
     default:
-      return fn(type, interfaceMap);
+      return fn({ type }, interfaceMap);
   }
 }
 
@@ -803,9 +815,9 @@ export function synthAndThen(
   ast: ESTree.Expression,
   env: Env,
   interfaceMap: InterfaceMap,
-  fn: (t: Type, interfaceMap: InterfaceMap) => Type,
+  fn: (t: Interface, interfaceMap: InterfaceMap) => Interface,
   preserveCell: boolean = false
-): Type {
+): Interface {
   return andThen(synth(ast, env, interfaceMap), fn, interfaceMap, preserveCell);
 }
 
@@ -825,14 +837,14 @@ function importDecl(
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
-          env = env.set(spec.local.name, module);
+          env = env.set(spec.local.name, { type: module });
         }
         break;
 
         case 'ImportDefaultSpecifier': {
           const defaultField = module.fields.find(ft => ft._1 === 'default');
           if (defaultField) {
-            env = env.set(spec.local.name, defaultField._2);
+            env = env.set(spec.local.name, { type: defaultField._2 });
           } else {
             const error = Error.withLocation(spec.local, `no default export on '${decl.source.value}'`, interfaceMap);
             env = env.set(spec.local.name, error);
@@ -843,7 +855,7 @@ function importDecl(
         case 'ImportSpecifier': {
           const importedField = module.fields.find(ft => ft._1 === spec.imported.name)
           if (importedField) {
-            env = env.set(spec.local.name, importedField._2);
+            env = env.set(spec.local.name, { type: importedField._2 });
           } else {
             const error = Error.withLocation(spec.imported, `no exported member '${spec.imported.name}' on '${decl.source.value}'`, interfaceMap);
             interfaceMap.set(spec.local, error);
@@ -863,50 +875,50 @@ function synthVariableDecl(
   interfaceMap: InterfaceMap,
 ): Env {
   decl.declarations.forEach(declarator => {
-    let declType: Type;
+    let declIntf: Interface;
 
     if (!declarator.init) {
-      declType = Error.withLocation(declarator.id, `expected initializer`, interfaceMap);
+      declIntf = Error.withLocation(declarator.id, `expected initializer`, interfaceMap);
 
     } else if (decl.kind === 'const') {
       if (declarator.id.typeAnnotation) {
         const ann = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, interfaceMap);
         if (ann.kind === 'Error') {
-          declType = synth(declarator.init, env, interfaceMap);
+          declIntf = synth(declarator.init, env, interfaceMap);
         } else {
-          const type = check(declarator.init, env, ann, interfaceMap);
-          declType = type.kind === 'Error' ? type : ann;
+          const intf = check(declarator.init, env, ann, interfaceMap);
+          declIntf = intf.type.kind === 'Error' ? intf : { type: ann };
         }
       } else {
-        declType = synth(declarator.init, env, interfaceMap);
+        declIntf = synth(declarator.init, env, interfaceMap);
       }
 
     } else if (decl.kind === 'let') {
       // TODO(jaked) could relax this and allow referring to static variables
-      const initEnv = Immutable.Map({ undefined: Type.undefined });
+      const initEnv = Immutable.Map({ undefined: { type: Type.undefined } });
       if (!declarator.id.typeAnnotation) {
         synth(declarator.init, initEnv, interfaceMap);
-        declType = Error.withLocation(declarator.id, `expected type annotation`, interfaceMap);
+        declIntf = Error.withLocation(declarator.id, `expected type annotation`, interfaceMap);
       } else {
         const ann = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, interfaceMap);
         if (ann.kind === 'Error') {
           synth(declarator.init, initEnv, interfaceMap);
-          declType = ann;
+          declIntf = { type: ann };
         } if (ann.kind !== 'Abstract' || (ann.label !== 'Code' && ann.label !== 'Session')) {
           synth(declarator.init, initEnv, interfaceMap);
-          declType = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, interfaceMap);
+          declIntf = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, interfaceMap);
         } else {
           const param = ann.params.get(0) ?? bug(`expected param`);
-          const type = check(declarator.init, initEnv, param, interfaceMap);
-          declType = type.kind === 'Error' ? type : ann;
+          const intf = check(declarator.init, initEnv, param, interfaceMap);
+          declIntf = intf.type.kind === 'Error' ? intf : { type: ann };
         }
       }
     }
 
     else bug(`unexpected ${decl.kind}`);
 
-    interfaceMap.set(declarator.id, declType);
-    env = env.set(declarator.id.name, declType);
+    interfaceMap.set(declarator.id, declIntf);
+    env = env.set(declarator.id.name, declIntf);
   });
   return env;
 }
