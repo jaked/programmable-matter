@@ -78,7 +78,7 @@ it('compiles exports', () => {
     }),
   });
   expect(compiled.problems.get()).toBeFalsy();
-  expect(compiled.exportType.get().getFieldType('foo')).toEqual(Type.singleton(7));
+  expect(compiled.exportInterface.get().get('foo')?.type).toEqual(Type.singleton(7));
   expect(compiled.exportValue.get().get('foo')).toEqual(7);
 });
 
@@ -279,7 +279,7 @@ it('compiles with import', () => {
         files: {},
         problems: Signal.err(new Error('problems')),
         rendered: Signal.err(new Error('rendered')),
-        exportType: Signal.ok(Type.module({ bar: Type.number })),
+        exportInterface: Signal.ok(new Map([[ 'bar', { type: Type.number} ]])),
         exportValue: Signal.ok(new Map([[ 'bar', 9 ]])),
         exportDynamic: Signal.ok(new Map([[ 'bar', false ]])),
       },
@@ -314,7 +314,7 @@ it('compiles referencing data / table', () => {
     },
     Signal.ok(new Map([
       ['/foo.json', {
-        exportType: Signal.ok(Type.module({ mutable: Type.object({ bar: Type.string }) })),
+        exportInterface: Signal.ok(new Map([[ 'mutable', { type: Type.object({ bar: Type.string }) } ]])),
         exportValue: Signal.ok(new Map([[ 'mutable', { bar: 'bar' } ]])),
         exportDynamic: Signal.ok(new Map([[ 'mutable', false ]])),
         rendered: Signal.ok(null),
@@ -322,7 +322,7 @@ it('compiles referencing data / table', () => {
         ast: Signal.err(new Error(`unimplemented`))
       }],
       ['/foo.table', {
-        exportType: Signal.ok(Type.module({ default: Type.object({ baz: Type.number }) })),
+        exportInterface: Signal.ok(new Map([[ 'default', { type: Type.object({ baz: Type.number }) } ]])),
         exportValue: Signal.ok(new Map([[ 'default', { baz: 7 } ]])),
         exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
@@ -362,9 +362,9 @@ it('compiles with layout', () => {
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
-        exportType: Signal.ok(Type.module({
-          default: Type.layoutFunctionType,
-        })),
+        exportInterface: Signal.ok(new Map([[
+          'default', { type: Type.layoutFunctionType },
+        ]])),
         exportValue: Signal.ok(new Map([[
           'default', (props: { children: React.ReactNode, meta: {} }) =>
             React.createElement('div', {}, props.children)
@@ -416,9 +416,9 @@ it('identifier uses itself in initializer with dynamic value', () => {
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
-        exportType: Signal.ok(Type.module({
-          bar: Type.number,
-        })),
+        exportInterface: Signal.ok(new Map([[
+          'bar', { type: Type.number },
+        ]])),
         exportValue: Signal.ok(new Map([[
           'bar', Signal.ok(7)
         ]])),

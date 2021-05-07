@@ -65,12 +65,12 @@ export default function compileFileJpeg(
     });
 
     // TODO(jaked) parse JPEG file and return metadata
-    const exportType = Type.module({
-      buffer: Type.abstract('Buffer'),
-      objectUrl: Type.string,
-      img: imgType,
-      default: imgType,
-    });
+    const exportInterface = new Map([
+      [ 'buffer', { type: Type.abstract('Buffer') } ],
+      [ 'objectUrl', { type: Type.string } ],
+      [ 'img', { type: imgType } ],
+      [ 'default', { type: imgType } ],
+    ]);
     const exportValue = new Map<string, unknown>([
       [ 'buffer', buffer ],
       [ 'objectUrl', objectUrl ],
@@ -87,7 +87,7 @@ export default function compileFileJpeg(
       });
 
     return {
-      exportType,
+      exportType: exportInterface,
       exportValue,
       rendered,
       problems: false,
@@ -97,7 +97,7 @@ export default function compileFileJpeg(
 
   return {
     ast: Signal.ok(null),
-    exportType: compiled.map(({ exportType }) => exportType),
+    exportInterface: compiled.map(({ exportType }) => exportType),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

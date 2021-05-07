@@ -823,7 +823,7 @@ export function synthAndThen(
 
 function importDecl(
   decl: ESTree.ImportDeclaration,
-  moduleEnv: Map<string, Type.ModuleType>,
+  moduleEnv: Map<string, Map<string, Interface>>,
   env: Env,
   interfaceMap: InterfaceMap,
 ): Env {
@@ -837,14 +837,21 @@ function importDecl(
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
-          env = env.set(spec.local.name, { type: module });
+          // TODO(jaked)
+          // module types should map names to interfaces
+          // so we can undo some hacks
+          const moduleObj: { [f: string]: Type } = {};
+          for (const [name, intf] of module.entries()) {
+            moduleObj[name] = intf.type;
+          }
+          env = env.set(spec.local.name, { type: Type.module(moduleObj) });
         }
         break;
 
         case 'ImportDefaultSpecifier': {
-          const defaultField = module.fields.find(ft => ft._1 === 'default');
-          if (defaultField) {
-            env = env.set(spec.local.name, { type: defaultField._2 });
+          const defaultIntf = module.get('default');
+          if (defaultIntf) {
+            env = env.set(spec.local.name, defaultIntf);
           } else {
             const error = Error.withLocation(spec.local, `no default export on '${decl.source.value}'`, interfaceMap);
             env = env.set(spec.local.name, error);
@@ -853,9 +860,9 @@ function importDecl(
         break;
 
         case 'ImportSpecifier': {
-          const importedField = module.fields.find(ft => ft._1 === spec.imported.name)
-          if (importedField) {
-            env = env.set(spec.local.name, { type: importedField._2 });
+          const importedIntf = module.get(spec.imported.name);
+          if (importedIntf) {
+            env = env.set(spec.local.name, importedIntf);
           } else {
             const error = Error.withLocation(spec.imported, `no exported member '${spec.imported.name}' on '${decl.source.value}'`, interfaceMap);
             interfaceMap.set(spec.local, error);
@@ -924,7 +931,7 @@ function synthVariableDecl(
 }
 
 export function synthProgram(
-  moduleEnv: Map<string, Type.ModuleType>,
+  moduleEnv: Map<string, Map<string, Interface>>,
   program: ESTree.Program,
   env: Env,
   interfaceMap: InterfaceMap,

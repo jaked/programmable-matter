@@ -1,5 +1,4 @@
 import Signal from '../../util/Signal';
-import Type from '../Type';
 
 import compileFileTable from './compileFileTable';
 
@@ -80,7 +79,7 @@ it('non-data note in table dir', () => {
         files: {},
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
-        exportType: Signal.ok(Type.module({})),
+        exportInterface: Signal.ok(new Map()),
         exportValue: Signal.ok(new Map()),
         exportDynamic: Signal.ok(new Map()),
       }

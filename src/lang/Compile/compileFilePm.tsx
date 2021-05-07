@@ -22,7 +22,7 @@ import makeLink from '../../components/makeLink';
 
 function typecheckCode(
   node: PMAST.Code,
-  moduleEnv: Map<string, Type.ModuleType>,
+  moduleEnv: Map<string, Map<string, Interface>>,
   typeEnv: Typecheck.Env,
   interfaceMap: InterfaceMap,
 ): Typecheck.Env {
@@ -156,7 +156,7 @@ export default function compileFilePm(
       return noteEnv;
     });
   const moduleTypeEnv =
-    Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportType));
+    Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportInterface));
   const moduleDynamicEnv =
     Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportDynamic));
   const moduleValueEnv =
@@ -166,11 +166,11 @@ export default function compileFilePm(
   const jsonPath = Path.format({ ...pathParsed, base: undefined, ext: '.json' });
   const tablePath = Path.format({ ...pathParsed, base: undefined, ext: '.table' });
 
-  const jsonType = compiledFiles.flatMap(compiledFiles => {
+  const jsonIntf = compiledFiles.flatMap(compiledFiles => {
     const json = compiledFiles.get(jsonPath);
     if (json)
-      return json.exportType.map(exportType =>
-        exportType.getFieldType('mutable')
+      return json.exportInterface.map(exportInterface =>
+        exportInterface.get('mutable')
       );
     else
       return Signal.ok(undefined);
@@ -184,11 +184,11 @@ export default function compileFilePm(
     else
       return Signal.ok(undefined);
   });
-  const tableType = compiledFiles.flatMap(compiledFiles => {
+  const tableIntf = compiledFiles.flatMap(compiledFiles => {
     const table = compiledFiles.get(tablePath);
     if (table)
-      return table.exportType.map(exportType =>
-        exportType.getFieldType('default')
+      return table.exportInterface.map(exportInterface =>
+        exportInterface.get('default')
       );
     else
       return Signal.ok(undefined);
@@ -207,21 +207,21 @@ export default function compileFilePm(
   // finer-grained deps so we don't rebuild all code e.g. when json changes
   const typecheckedCode = Signal.join(
     codeNodes,
-    jsonType,
-    tableType,
+    jsonIntf,
+    tableIntf,
     moduleTypeEnv,
     moduleDynamicEnv,
-  ).map(([codeNodes, jsonType, tableType, moduleTypeEnv, moduleDynamicEnv]) => {
+  ).map(([codeNodes, jsonIntf, tableIntf, moduleTypeEnv, moduleDynamicEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let typeEnv = Render.initTypeEnv;
     let dynamicEnv = Render.initDynamicEnv;
 
-    if (jsonType) {
-      typeEnv = typeEnv.set('data', { type: jsonType });
+    if (jsonIntf) {
+      typeEnv = typeEnv.set('data', { type: jsonIntf.type });
       dynamicEnv = dynamicEnv.set('data', false);
     }
-    if (tableType) {
-      typeEnv = typeEnv.set('table', { type: tableType });
+    if (tableIntf) {
+      typeEnv = typeEnv.set('table', { type: tableIntf.type });
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
@@ -331,14 +331,14 @@ export default function compileFilePm(
     if (layoutModule) {
       if (debug) console.log(`layoutModule`);
       return Signal.join(
-        layoutModule.exportType,
+        layoutModule.exportInterface,
         layoutModule.exportDynamic,
         layoutModule.exportValue,
-      ).map(([exportType, exportDynamic, exportValue]) => {
-        const defaultType = exportType.getFieldType('default');
-        if (defaultType) {
+      ).map(([exportInterface, exportDynamic, exportValue]) => {
+        const defaultIntf = exportInterface.get('default');
+        if (defaultIntf) {
           if (debug) console.log(`defaultType`);
-          if (Type.isSubtype(defaultType, Type.layoutFunctionType)) {
+          if (Type.isSubtype(defaultIntf.type, Type.layoutFunctionType)) {
             if (debug) console.log(`isSubtype`);
             const dynamic = exportDynamic.get('default') ?? bug(`expected default`);
             // TODO(jaked)
@@ -434,12 +434,12 @@ ${html}
     })
   );
 
-  const exportType = Signal.join(exports, typecheckedCode).map(([exportNames, { typeEnv }]) => {
-    const exportTypes: { [s: string]: Type.Type } = {};
+  const exportInterface = Signal.join(exports, typecheckedCode).map(([exportNames, { typeEnv }]) => {
+    const exportInterface: Map<string, Interface> = new Map();
     exportNames.forEach(name => {
-      exportTypes[name] = (typeEnv.get(name) ?? bug(`expected type`)).type;
+      exportInterface.set(name, typeEnv.get(name) ?? bug(`expected type`));
     });
-    return Type.module(exportTypes);
+    return exportInterface;
   });
 
   const exportDynamic = Signal.join(exports, typecheckedCode).map(([exportNames, { dynamicEnv }]) => {
@@ -466,7 +466,7 @@ ${html}
     ),
     rendered: renderedWithLayout,
 
-    exportType,
+    exportInterface,
     exportValue,
     exportDynamic,
 

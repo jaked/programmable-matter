@@ -3,24 +3,11 @@ import React from 'react';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
-import Type from '../Type';
 import * as model from '../../model';
 
 import compileFile from './compileFile';
 import groupFilesByName from './groupFilesByName';
 import metaForPath from './metaForPath';
-
-function mergeModuleType(
-  t1: Signal<Type.ModuleType>,
-  t2: Signal<Type.ModuleType>,
-): Signal<Type.ModuleType> {
-  return Signal.join(t1, t2).map(([t1, t2]) =>
-    Type.module({
-    ...t1.fields.reduce((obj, { _1: field, _2: type }) => ({ ...obj, [field]: type }), {}),
-    ...t2.fields.reduce((obj, { _1: field, _2: type }) => ({ ...obj, [field]: type }), {}),
-    })
-  );
-}
 
 function mergeModule<T>(
   v1: Signal<Map<string, T>>,
@@ -91,7 +78,7 @@ export function compileFiles(
         xmlCompiled ?? Signal.ok(undefined),
       ).map(([pm, table, json, jpeg, png, meta, xml]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
-        let exportType: Signal<Type.ModuleType> = Signal.ok(Type.module({ }));
+        let exportInterface: Signal<Map<string, model.Interface>> = Signal.ok(new Map());
         let exportValue: Signal<Map<string, unknown>> = Signal.ok(new Map());
         let exportDynamic: Signal<Map<string, boolean>> = Signal.ok(new Map());
         let html: Signal<string> | undefined;
@@ -99,37 +86,37 @@ export function compileFiles(
 
         if (meta) {
           rendered = meta.rendered;
-          exportType = mergeModuleType(exportType, meta.exportType);
+          exportInterface = mergeModule(exportInterface, meta.exportInterface);
           exportValue = mergeModule(exportValue, meta.exportValue);
           exportDynamic = mergeModule(exportDynamic, meta.exportDynamic);
         }
         if (table) {
           rendered = table.rendered;
-          exportType = mergeModuleType(exportType, table.exportType);
+          exportInterface = mergeModule(exportInterface, table.exportInterface);
           exportValue = mergeModule(exportValue, table.exportValue);
           exportDynamic = mergeModule(exportDynamic, table.exportDynamic);
         }
         if (json) {
           rendered = json.rendered;
-          exportType = mergeModuleType(exportType, json.exportType);
+          exportInterface = mergeModule(exportInterface, json.exportInterface);
           exportValue = mergeModule(exportValue, json.exportValue);
           exportDynamic = mergeModule(exportDynamic, json.exportDynamic);
         }
         if (jpeg) {
           rendered = jpeg.rendered;
-          exportType = mergeModuleType(exportType, jpeg.exportType);
+          exportInterface = mergeModule(exportInterface, jpeg.exportInterface);
           exportValue = mergeModule(exportValue, jpeg.exportValue);
           exportDynamic = mergeModule(exportDynamic, jpeg.exportDynamic);
         }
         if (png) {
           rendered = png.rendered;
-          exportType = mergeModuleType(exportType, png.exportType);
+          exportInterface = mergeModule(exportInterface, png.exportInterface);
           exportValue = mergeModule(exportValue, png.exportValue);
           exportDynamic = mergeModule(exportDynamic, png.exportDynamic);
         }
         if (pm) {
           rendered = pm.rendered;
-          exportType = mergeModuleType(exportType, pm.exportType);
+          exportInterface = mergeModule(exportInterface, pm.exportInterface);
           exportValue = mergeModule(exportValue, pm.exportValue);
           exportDynamic = mergeModule(exportDynamic, pm.exportDynamic);
           html = pm.html;
@@ -137,7 +124,7 @@ export function compileFiles(
         }
         if (xml) {
           rendered = xml.rendered;
-          exportType = mergeModuleType(exportType, xml.exportType);
+          exportInterface = mergeModule(exportInterface, xml.exportInterface);
           exportValue = mergeModule(exportValue, xml.exportValue);
           exportDynamic = mergeModule(exportDynamic, xml.exportDynamic);
         }
@@ -158,7 +145,7 @@ export function compileFiles(
         return {
           problems,
           rendered,
-          exportType,
+          exportInterface,
           exportValue,
           exportDynamic,
           html,
@@ -195,7 +182,7 @@ export function compileFiles(
         },
         problems: parts.flatMap(parts => parts.problems),
         rendered: parts.flatMap(parts => parts.rendered),
-        exportType: parts.flatMap(parts => parts.exportType),
+        exportInterface: parts.flatMap(parts => parts.exportInterface),
         exportValue: parts.flatMap(parts => parts.exportValue),
         exportDynamic: parts.flatMap(parts => parts.exportDynamic),
         html: type === 'pm' ? parts.flatMap(parts => parts.html ?? bug()) : undefined,

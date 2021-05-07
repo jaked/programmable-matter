@@ -2,7 +2,7 @@ import * as React from 'react';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import * as Render from '../Render';
-import { Content, CompiledFile } from '../../model';
+import { Content, CompiledFile, Interface } from '../../model';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
 
@@ -65,12 +65,12 @@ export default function compileFilePng(
     });
 
     // TODO(jaked) parse PNG file and return metadata
-    const exportType = Type.module({
-      buffer: Type.abstract('Buffer'),
-      objectUrl: Type.string,
-      img: imgType,
-      default: imgType,
-    });
+    const exportInterface = new Map<string, Interface>([
+      [ 'buffer', { type: Type.abstract('Buffer') } ],
+      [ 'objectUrl', { type: Type.string } ],
+      [ 'img', { type: imgType } ],
+      [ 'default', { type: imgType } ],
+    ]);
     const exportValue = new Map<string, unknown>([
       [ 'buffer', buffer ],
       [ 'objectUrl', objectUrl ],
@@ -87,7 +87,7 @@ export default function compileFilePng(
       });
 
     return {
-      exportType,
+      exportInterface,
       exportValue,
       rendered,
       problems: false,
@@ -97,7 +97,7 @@ export default function compileFilePng(
 
   return {
     ast: Signal.ok(null),
-    exportType: compiled.map(({ exportType }) => exportType),
+    exportInterface: compiled.map(({ exportInterface }) => exportInterface),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

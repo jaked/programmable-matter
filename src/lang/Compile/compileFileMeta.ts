@@ -9,7 +9,7 @@ import * as Evaluate from '../Evaluate';
 import { Interface, Content, CompiledFile } from '../../model';
 import * as Meta from '../../model/Meta';
 
-const exportType = Signal.ok(Type.module({ default: Type.metaType }));
+const exportInterface = Signal.ok(new Map([[ 'default', { type: Type.metaType } ]]));
 const exportDynamic = Signal.ok(new Map([[ 'default', false ]]));
 const rendered = Signal.ok(null);
 
@@ -36,7 +36,7 @@ export default function compileFileMeta(
   });
   return {
     ast: compiled.map(({ ast }) => ast),
-    exportType,
+    exportInterface,
     interfaceMap: compiled.map(({ interfaceMap }) => interfaceMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true

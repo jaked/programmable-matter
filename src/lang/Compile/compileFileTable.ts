@@ -116,14 +116,14 @@ function computeTable(
           ),
         );
 
-        const value = note.exportType.flatMap(exportType => {
-          const defaultType = exportType.getFieldType('default');
+        const value = note.exportInterface.flatMap(exportInterface => {
+          const defaultIntf = exportInterface.get('default');
           // TODO(jaked)
           // check data files directly against table config
           // instead of checking after the fact
           // that their types agree with the table config type
-          const mutableType = exportType.getFieldType('mutable');
-          if (!defaultType || !mutableType || !Type.isSubtype(defaultType, tableDataType))
+          const mutableIntf = exportInterface.get('mutable');
+          if (!defaultIntf || !mutableIntf || !Type.isSubtype(defaultIntf.type, tableDataType))
             // TODO(jaked) check `mutableType` too
             throw new Error('record data type must match table config type')
 
@@ -249,7 +249,7 @@ export default function compileFileTable(
     if (intf.type.kind === 'Error') {
       return {
         // TODO(jaked) these should be Signal.err
-        exportType: Type.module({ default: intf.type }),
+        exportInterface: new Map([[ 'default', intf ]]),
         exportValue: Signal.ok(new Map([[ 'default', intf.type.err ]])),
         rendered: Signal.ok(null),
         interfaceMap,
@@ -263,10 +263,9 @@ export default function compileFileTable(
 
     const fields = computeFields(tableConfig);
 
-    const exportType = Type.module({
-      // TODO(jaked) should include non-data table fields
-      default: lensType(Type.map(Type.string, tableDataType))
-    });
+    const exportInterface = new Map([
+      ['default', { type: lensType(Type.map(Type.string, tableDataType)) }]
+    ]);
     const exportValue = table.map(table => new Map([[ 'default', table ]]));
 
     const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
@@ -275,17 +274,17 @@ export default function compileFileTable(
       React.createElement(Table, { data: table(), fields, onSelect })
     );
     return {
-      exportType,
+      exportInterface,
       exportValue,
       rendered,
-      interfaceMap: interfaceMap,
+      interfaceMap,
       problems,
     };
   });
 
   return {
     ast,
-    exportType: compiled.map(({ exportType }) => exportType),
+    exportInterface: compiled.map(({ exportInterface }) => exportInterface),
     interfaceMap: compiled.map(({ interfaceMap }) => interfaceMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true

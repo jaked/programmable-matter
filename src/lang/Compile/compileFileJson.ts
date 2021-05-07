@@ -107,17 +107,17 @@ export default function compileFileJson(
 
     if (type.kind === 'Error') {
       // TODO(jaked) these should be Signal.err
-      const exportType = Type.module({
-        default: type,
-        mutable: type,
-      });
+      const exportInterface = new Map([
+        [ 'default', { type } ],
+        [ 'mutable', { type } ],
+      ]);
       const exportValue = new Map([
         [ 'default', type.err ],
         [ 'mutable', type.err ]
       ]);
       const rendered = Signal.ok(null);
       return {
-        exportType,
+        exportInterface,
         exportValue,
         rendered,
         interfaceMap,
@@ -130,10 +130,10 @@ export default function compileFileJson(
       if (type.kind !== 'Object') bug(`expected Object type`);
       const typeObject = type;
 
-      const exportType = Type.module({
-        default: type,
-        mutable: lensType(type),
-      });
+      const exportInterface = new Map([
+        [ 'default', { type } ],
+        [ 'mutable', { type: lensType(type) } ],
+      ]);
       const value = Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
@@ -155,7 +155,7 @@ export default function compileFileJson(
       }));
 
       return {
-        exportType,
+        exportInterface,
         exportValue,
         rendered,
         interfaceMap,
@@ -166,7 +166,7 @@ export default function compileFileJson(
 
   return {
     ast,
-    exportType: compiled.map(({ exportType }) => exportType),
+    exportInterface: compiled.map(({ exportInterface }) => exportInterface),
     interfaceMap: compiled.map(({ interfaceMap }) => interfaceMap),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true

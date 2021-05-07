@@ -1,7 +1,7 @@
 import { bug } from '../../util/bug';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import { DynamicMap, InterfaceMap } from '../../model';
+import { DynamicMap, Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
@@ -22,7 +22,7 @@ function typecheckNodes(
   }
   nodes.forEach(walkNodes);
 
-  const moduleTypeEnv: Map<string, Type.ModuleType> = new Map();
+  const moduleTypeEnv: Map<string, Map<string, Interface>> = new Map();
   const moduleDynamicEnv: Map<string, Map<string, boolean>> = new Map();
   let typeEnv = Render.initTypeEnv;
   let dynamicEnv = Render.initDynamicEnv;

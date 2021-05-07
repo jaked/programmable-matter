@@ -63,7 +63,7 @@ export interface CompiledFile {
   rendered: Signal<React.ReactNode>;
 
   // TODO(jaked) bundle these together?
-  exportType: Signal<Type.ModuleType>;
+  exportInterface: Signal<Map<string, Interface>>;
   exportDynamic: Signal<Map<string, boolean>>;
   exportValue: Signal<Map<string, unknown>>;
 
@@ -81,7 +81,7 @@ export type CompiledNote = {
   rendered: Signal<React.ReactNode>;
 
   // TODO(jaked) bundle these together?
-  exportType: Signal<Type.ModuleType>;
+  exportInterface: Signal<Map<string, Interface>>;
   exportDynamic: Signal<Map<string, boolean>>;
   exportValue: Signal<Map<string, unknown>>;
 

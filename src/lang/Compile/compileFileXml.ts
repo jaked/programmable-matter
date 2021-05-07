@@ -3,7 +3,6 @@ import { Feed } from 'feed';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import { WritableContent, CompiledFile, CompiledNotes } from '../../model';
-import Type from '../Type';
 
 const postRe = /^\/blog\/(\d\d\d\d-\d\d-\d\d)/;
 
@@ -51,7 +50,7 @@ export default function compileFileXml(
     ast: Signal.ok(undefined),
     interfaceMap: Signal.ok(new Map()),
     problems: Signal.ok(false),
-    exportType: Signal.ok(Type.module({})),
+    exportInterface: Signal.ok(new Map()),
     exportValue: Signal.ok(new Map()),
     exportDynamic: Signal.ok(new Map()),
     rendered

@@ -1,7 +1,6 @@
 import * as Path from 'path';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
-import Type from '../Type';
 import * as model from '../../model';
 
 function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
@@ -12,7 +11,7 @@ function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
 }
 
 const emptyMeta: model.CompiledFile = {
-  exportType: Signal.ok(Type.module({ })),
+  exportInterface: Signal.ok(new Map()),
   exportValue: Signal.ok(new Map([[ 'default', {} ]])),
   exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
   rendered: Signal.ok(null),
