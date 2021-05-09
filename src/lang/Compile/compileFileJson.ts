@@ -100,20 +100,19 @@ export default function compileFileJson(
       meta.dataType ?
         Typecheck.check(ast, Typecheck.env(), meta.dataType, interfaceMap) :
         Typecheck.synth(ast, Typecheck.env(), interfaceMap);
-    let type = intf.type;
     const dynamicMap = new Map<ESTree.Node, boolean>();
     Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
-    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
 
-    if (type.kind === 'Error') {
+    if (intf.type === 'err') {
       // TODO(jaked) these should be Signal.err
       const exportInterface = new Map([
-        [ 'default', { type } ],
-        [ 'mutable', { type } ],
+        [ 'default', intf ],
+        [ 'mutable', intf ],
       ]);
       const exportValue = new Map([
-        [ 'default', type.err ],
-        [ 'mutable', type.err ]
+        [ 'default', intf.err ],
+        [ 'mutable', intf.err ]
       ]);
       const rendered = Signal.ok(null);
       return {
@@ -124,15 +123,15 @@ export default function compileFileJson(
         problems,
       }
     } else {
-      type = meta.dataType ? meta.dataType : type;
+      const type = meta.dataType ? meta.dataType : intf.ok.type;
 
       // TODO(jaked) handle other JSON types
       if (type.kind !== 'Object') bug(`expected Object type`);
       const typeObject = type;
 
       const exportInterface = new Map([
-        [ 'default', { type } ],
-        [ 'mutable', { type: lensType(type) } ],
+        [ 'default', Try.ok({ type }) ],
+        [ 'mutable', Try.ok({ type: lensType(type) }) ],
       ]);
       const value = Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));

@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import Try from '../../util/Try';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
@@ -8,6 +9,9 @@ import * as Error from './error';
 import { check } from './check';
 import { narrowType, narrowEnvironment } from './narrow';
 
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
+
 function synthIdentifier(
   ast: ESTree.Identifier,
   env: Env,
@@ -15,7 +19,7 @@ function synthIdentifier(
 ): Interface {
   const intf = env.get(ast.name);
   if (intf) return intf;
-  else if (ast.name === 'undefined') return { type: Type.undefined };
+  else if (ast.name === 'undefined') return Try.ok({ type: Type.undefined });
   else return Error.withLocation(ast, `unbound identifier '${ast.name}'`, interfaceMap);
 }
 
@@ -24,7 +28,7 @@ function synthLiteral(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  return { type: Type.singleton(ast.value) };
+  return Try.ok({ type: Type.singleton(ast.value) });
 }
 
 function synthArray(
@@ -33,8 +37,8 @@ function synthArray(
   interfaceMap: InterfaceMap,
 ): Interface {
   const intfs = ast.elements.map(e => synth(e, env, interfaceMap));
-  const elem = Type.union(...intfs.map(intf => intf.type));
-  return { type: Type.array(elem) };
+  const elem = Type.union(...intfs.map(intfType));
+  return Try.ok({ type: Type.array(elem) });
 }
 
 function synthObject(
@@ -65,11 +69,11 @@ function synthObject(
     (obj, fieldInterface) => {
       if (!fieldInterface) return obj;
       const { name, intf } = fieldInterface;
-      return { ...obj, [name]: intf.type };
+      return { ...obj, [name]: intfType(intf) };
     },
     {}
   );
-  return { type: Type.object(fieldTypesObj) };
+  return Try.ok({ type: Type.object(fieldTypesObj) });
 }
 
 const typeofType =
@@ -81,35 +85,40 @@ function synthUnary(
   interfaceMap: InterfaceMap,
 ): Interface {
   return synthAndThen(ast.argument, env, interfaceMap, (intf, interfaceMap) => {
-    if (intf.type.kind === 'Error') switch (ast.operator) {
-      // TODO(jaked) does this make sense?
-      case '+':      return { type: Type.singleton(0) };
-      case '-':      return { type: Type.singleton(0) };
-      case '!':      return { type: Type.singleton(true) };
-      case 'typeof': return { type: Type.singleton('error') };
-    }
-    if (intf.type.kind === 'Singleton') {
-      const value = intf.type.value;
-      switch (ast.operator) {
-        case '!':      return { type: Type.singleton(!value) };
-        case 'typeof': return { type: Type.singleton(typeof value) };
-        default:
-          if (intf.type.base.kind === 'number') switch (ast.operator) {
-            case '+': return { type: Type.singleton(value) };
-            case '-': return { type: Type.singleton(-value) };
-          }
-      }
-    }
-    switch (ast.operator) {
-      case '!':      return { type: Type.boolean };
-      case 'typeof': return { type: typeofType };
-      default:
-        if (intf.type.kind === 'number') switch (ast.operator) {
-          case '+': return { type: Type.number };
-          case '-': return { type: Type.number };
+    return Try.apply(() => {
+      const type = ((type: Type) => {
+        if (type.kind === 'Error') switch (ast.operator) {
+          // TODO(jaked) does this make sense?
+          case '+':      return Type.singleton(0);
+          case '-':      return Type.singleton(0);
+          case '!':      return Type.singleton(true);
+          case 'typeof': return Type.singleton('error');
         }
-    }
-    return Error.withLocation(ast, 'incompatible operand to ${ast.operator}', interfaceMap);
+        if (type.kind === 'Singleton') {
+          const value = type.value;
+          switch (ast.operator) {
+            case '!':      return Type.singleton(!value);
+            case 'typeof': return Type.singleton(typeof value);
+            default:
+              if (type.base.kind === 'number') switch (ast.operator) {
+                case '+': return Type.singleton(value);
+                case '-': return Type.singleton(-value);
+              }
+          }
+        }
+        switch (ast.operator) {
+          case '!':      return Type.boolean;
+          case 'typeof': return typeofType;
+          default:
+            if (type.kind === 'number') switch (ast.operator) {
+              case '+': return Type.number;
+              case '-': return Type.number ;
+            }
+        }
+        return Error.withLocation(ast, 'incompatible operand to ${ast.operator}', interfaceMap).get();
+      })(intfType(intf));
+      return { type };
+    });
   });
 }
 
@@ -121,29 +130,32 @@ function synthLogical(
   const rightEnv = narrowEnvironment(env, ast.left, ast.operator === '&&', interfaceMap);
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
     return synthAndThen(ast.right, rightEnv, interfaceMap, (right, interfaceMap) => {
-      switch (ast.operator) {
-        case '&&': {
-          switch (left.type.kind) {
-            case 'Error':     return left;
-            case 'Singleton': return left.type.value ? right : left;
-            default:          return { type: Type.union(narrowType(left.type, Type.falsy), right.type) };
+      const type = ((left: Type, right: Type) => {
+        switch (ast.operator) {
+          case '&&': {
+            switch (left.kind) {
+              case 'Error':     return left;
+              case 'Singleton': return left.value ? right : left;
+              default:          return Type.union(narrowType(left, Type.falsy), right);
+            }
           }
-        }
 
-        case '||': {
-          switch (left.type.kind) {
-            case 'Error':     return right;
-            case 'Singleton': return left.type.value ? left : right;
+          case '||': {
+            switch (left.kind) {
+              case 'Error':     return right;
+              case 'Singleton': return left.value ? left : right;
 
-            // TODO(jaked) Type.union(Type.intersection(left.type, Type.notFalsy), right.type) ?
-            default:          return { type: Type.union(left.type, right.type) };
+              // TODO(jaked) Type.union(Type.intersection(left.type, Type.notFalsy), right.type) ?
+              default:          return Type.union(left, right);
+            }
           }
-        }
 
-        default:
-          bug(`unexpected operator ${ast.operator}`);
-      }
-    })
+          default:
+            bug(`unexpected operator ${ast.operator}`);
+        }
+      })(intfType(left), intfType(right));
+      return Try.ok({ type });
+    });
   });
 }
 
@@ -156,60 +168,64 @@ function synthBinary(
 
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
     return synthAndThen(ast.right, env, interfaceMap, (right, interfaceMap) => {
-
-      if (left.type.kind === 'Error') switch (ast.operator) {
-        case '===': return { type: Type.singleton(false) };
-        case '!==': return { type: Type.singleton(true) };
-        default:    return right;
-      }
-      if (right.type.kind === 'Error') switch (ast.operator) {
-        case '===': return { type: Type.singleton(false) };
-        case '!==': return { type: Type.singleton(true) };
-        default:    return left;
-      }
-      if (left.type.kind === 'Singleton' && right.type.kind === 'Singleton') {
-        const lvalue = left.type.value;
-        const rvalue = right.type.value;
-        switch (ast.operator) {
-          case '===': return { type: Type.singleton(lvalue === right.type.value) };
-          case '!==': return { type: Type.singleton(lvalue !== right.type.value) };
-          default:
-            if (left.type.base.kind === 'number' && right.type.base.kind === 'number') switch (ast.operator) {
-              case '-': return { type: Type.singleton(lvalue - rvalue) };
-              case '*': return { type: Type.singleton(lvalue * rvalue) };
-              case '+': return { type: Type.singleton(lvalue + rvalue) };
-              case '/': return { type: Type.singleton(lvalue / rvalue) };
-              case '%': return { type: Type.singleton(lvalue % rvalue) };
+      return Try.apply(() => {
+        const type = ((left: Type, right: Type) => {
+          if (left.kind === 'Error') switch (ast.operator) {
+            case '===': return Type.singleton(false);
+            case '!==': return Type.singleton(true);
+            default:    return right;
+          }
+          if (right.kind === 'Error') switch (ast.operator) {
+            case '===': return Type.singleton(false);
+            case '!==': return Type.singleton(true);
+            default:    return left;
+          }
+          if (left.kind === 'Singleton' && right.kind === 'Singleton') {
+            const lvalue = left.value;
+            const rvalue = right.value;
+            switch (ast.operator) {
+              case '===': return Type.singleton(lvalue === right.value);
+              case '!==': return Type.singleton(lvalue !== right.value);
+              default:
+                if (left.base.kind === 'number' && right.base.kind === 'number') switch (ast.operator) {
+                  case '-': return Type.singleton(lvalue - rvalue);
+                  case '*': return Type.singleton(lvalue * rvalue);
+                  case '+': return Type.singleton(lvalue + rvalue);
+                  case '/': return Type.singleton(lvalue / rvalue);
+                  case '%': return Type.singleton(lvalue % rvalue);
+                }
+                if (left.base.kind === 'string' && right.base.kind === 'string') switch (ast.operator) {
+                  case '+': return Type.singleton(lvalue + rvalue);
+                }
             }
-            if (left.type.base.kind === 'string' && right.type.base.kind === 'string') switch (ast.operator) {
-              case '+': return { type: Type.singleton(lvalue + rvalue) };
+          }
+          if ((left.kind === 'number' || (left.kind === 'Singleton' && left.base.kind === 'number')) &&
+              (right.kind === 'number' || (right.kind === 'Singleton' && right.base.kind === 'number'))) {
+            switch (ast.operator) {
+              case '+':
+              case '-':
+              case '*':
+              case '/':
+              case '%':
+                return Type.number;
             }
-        }
-      }
-      if ((left.type.kind === 'number' || (left.type.kind === 'Singleton' && left.type.base.kind === 'number')) &&
-          (right.type.kind === 'number' || (right.type.kind === 'Singleton' && right.type.base.kind === 'number'))) {
-        switch (ast.operator) {
-          case '+':
-          case '-':
-          case '*':
-          case '/':
-          case '%':
-            return { type: Type.number };
-        }
-      }
-      if ((left.type.kind === 'string' || (left.type.kind === 'Singleton' && left.type.base.kind === 'string')) &&
-          (right.type.kind === 'string' || (right.type.kind === 'Singleton' && right.type.base.kind === 'string'))) {
-        switch (ast.operator) {
-          case '+':
-            return { type: Type.string };
-        }
-      }
-      switch (ast.operator) {
-        case '===':
-        case '!==':
-          return { type: Type.boolean };
-      }
-      return Error.withLocation(ast, `incompatible operands to ${ast.operator}`, interfaceMap);
+          }
+          if ((left.kind === 'string' || (left.kind === 'Singleton' && left.base.kind === 'string')) &&
+              (right.kind === 'string' || (right.kind === 'Singleton' && right.base.kind === 'string'))) {
+            switch (ast.operator) {
+              case '+':
+                return Type.string;
+            }
+          }
+          switch (ast.operator) {
+            case '===':
+            case '!==':
+              return Type.boolean;
+          }
+          return Error.withLocation(ast, `incompatible operands to ${ast.operator} (${Type.toString(left)}, ${Type.toString(right)})`, interfaceMap).get();
+        })(intfType(left), intfType(right));
+        return { type };
+      });
     });
   });
 }
@@ -228,154 +244,172 @@ function synthMember(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  const fn = (object: Interface, interfaceMap: InterfaceMap) => {
-    if (object.type.kind === 'Error') return object;
-
-    if (object.type.kind === 'Abstract' && (object.type.label === 'Code' || object.type.label === 'Session')) {
-      const param = object.type.params.get(0) ?? bug(`expected param`);
-      const intf = fn({ type: param }, interfaceMap);
-      return intf.type.kind === 'Error' ? intf : { type: Type.abstract(object.type.label, intf.type) };
-    }
-
-    if (ast.computed)
+  return synthAndThen(ast.object, env, interfaceMap, (object: Interface, interfaceMap: InterfaceMap) => {
+    if (ast.computed) {
       return synthAndThen(ast.property, env, interfaceMap, (prop, interfaceMap) => {
+        if (object.type === 'err') return object;
 
-        switch (object.type.kind) {
-          case 'Array':
-            if (prop.type.kind === 'Error') return { type: Type.undefined };
-            if (prop.type.kind === 'number' ||
-                (prop.type.kind === 'Singleton' && prop.type.base.kind === 'number')) {
-              return { type: Type.undefinedOr(object.type.elem) };
+        return Try.apply(() => {
+          const origObjectType = intfType(object);
+          let objectType = origObjectType;
+          if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
+            objectType = origObjectType.params.get(0) ?? bug(`expected param`);
+          }
+          let type = ((object: Type, prop: Type) => {
+            switch (object.kind) {
+              case 'Array':
+                if (prop.kind === 'Error') return Type.undefined;
+                if (prop.kind === 'number' ||
+                    (prop.kind === 'Singleton' && prop.base.kind === 'number')) {
+                  return Type.undefinedOr(object.elem);
+                }
+                return Error.expectedType(ast, Type.number, prop, interfaceMap).get();
+
+              case 'Tuple':
+                if (prop.kind === 'Error') return prop;
+                if (prop.kind === 'Singleton' && prop.base.kind === 'number') {
+                  if (prop.value < object.elems.size)
+                    return object.elems.get(prop.value) ?? bug(`expected elem`);
+                  return Error.noElementAtIndex(ast, prop.value, interfaceMap).get();
+                }
+                return Error.expectedType(ast, Type.number, prop, interfaceMap).get();
+
+              case 'Object':
+                if (prop.kind === 'Error') return prop;
+                if (prop.kind === 'Singleton' && prop.base.kind === 'string') {
+                  const type = object.getFieldType(prop.value);
+                  if (type) return type;
+                  else return Error.unknownField(ast, prop.value, interfaceMap).get();
+                }
+                return Error.expectedType(ast, Type.string, prop, interfaceMap).get();
+
+              default:
+                return Error.expectedType(ast, 'Array or Tuple', object, interfaceMap).get();
             }
-            return Error.expectedType(ast, Type.number, prop.type, interfaceMap);
-
-          case 'Tuple':
-            if (prop.type.kind === 'Error') return prop;
-            if (prop.type.kind === 'Singleton' && prop.type.base.kind === 'number') {
-              if (prop.type.value < object.type.elems.size)
-                return { type: object.type.elems.get(prop.type.value) ?? bug(`expected elem`) };
-              return Error.noElementAtIndex(ast, prop.type.value, interfaceMap);
-            }
-            return Error.expectedType(ast, Type.number, prop.type, interfaceMap);
-
-          case 'Object':
-            if (prop.type.kind === 'Error') return prop;
-            if (prop.type.kind === 'Singleton' && prop.type.base.kind === 'string') {
-              const type = object.type.getFieldType(prop.type.value);
-              if (type) return { type };
-              else return Error.unknownField(ast, prop.type.value, interfaceMap);
-            }
-            return Error.expectedType(ast, Type.string, prop.type, interfaceMap);
-
-          default:
-            return Error.expectedType(ast, 'Array or Tuple', object.type, interfaceMap);
-        }
+          })(objectType, intfType(prop));
+          if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
+            type = Type.abstract(origObjectType.label, type);
+          }
+          return { type };
+        });
       });
 
-    else {
-      if (ast.property.type !== 'Identifier')
-        bug(`expected identifier on non-computed property`);
-
+    } else {
+      if (ast.property.type !== 'Identifier') bug(`expected identifier on non-computed property`);
       const name = ast.property.name;
-      switch (object.type.kind) {
-        case 'string':
-          switch (name) {
-            case 'startsWith':
-              return { type: Type.functionType([Type.string], Type.boolean) };
-          }
-          break;
 
-        case 'number':
-          switch (name) {
-            case 'toString':
-              return { type: Type.functionType([], Type.string) };
-          }
-          break;
+      if (object.type === 'err') return object;
 
-        case 'Array':
-          switch (name) {
-            case 'size': return { type: Type.number };
-
-            case 'some':
-            case 'every':
-              return { type: Type.functionType(
-                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.boolean) ],
-                Type.boolean,
-              ) };
-
-            case 'filter':
-              return { type: Type.functionType(
-                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.boolean) ],
-                object.type,
-              ) };
-
-            case 'forEach':
-              return { type: Type.functionType(
-                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.undefined) ],
-                Type.undefined,
-              ) };
-
-            case 'map':
-              return { type: Type.functionType(
-                [ Type.functionType([ object.type.elem, Type.number, object.type ], Type.reactNodeType) ], // TODO(jaked) temporary
-                Type.array(Type.reactNodeType),
-              ) };
-          }
-          break;
-
-        case 'Map':
-          switch (name) {
-            case 'size': return { type: Type.number };
-
-            case 'set':
-              return { type: Type.functionType([ object.type.key, object.type.value ], object.type) };
-
-            case 'delete':
-              return { type: Type.functionType([ object.type.key ], object.type,) };
-
-            case 'clear':
-              return { type: Type.functionType([], object.type) };
-
-            case 'filter':
-              return { type: Type.functionType(
-                [ Type.functionType([ object.type.value, object.type.key, object.type ], Type.boolean) ],
-                object.type,
-              ) };
-
-            case 'toList':
-              return { type: Type.functionType([], Type.array(object.type.value)) };
-
-            case 'update':
-              return { type: Type.functionType(
-                [ object.type.key, Type.functionType([ object.type.value ], object.type.value) ],
-                object.type
-              ) };
-
-            case 'get':
-              return { type: Type.functionType(
-                [ object.type.key ],
-                Type.undefinedOr(object.type.value),
-              ) };
-          }
-          break;
-
-        case 'Object': {
-          const type = object.type.getFieldType(name);
-          if (type) return { type };
-          break;
+      return Try.apply(() => {
+        const origObjectType = intfType(object);
+        let objectType = origObjectType;
+        if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
+          objectType = origObjectType.params.get(0) ?? bug(`expected param`);
         }
+        let type = ((object: Type) => {
+          switch (object.kind) {
+            case 'string':
+              switch (name) {
+                case 'startsWith':
+                  return Type.functionType([Type.string], Type.boolean);
+              }
+              break;
 
-        case 'Module': {
-          const type = object.type.getFieldType(name);
-          if (type) return { type };
-          break;
+            case 'number':
+              switch (name) {
+                case 'toString':
+                  return Type.functionType([], Type.string);
+              }
+              break;
+
+            case 'Array':
+              switch (name) {
+                case 'size': return Type.number;
+
+                case 'some':
+                case 'every':
+                  return Type.functionType(
+                    [ Type.functionType([ object.elem, Type.number, object ], Type.boolean) ],
+                    Type.boolean,
+                  );
+
+                case 'filter':
+                  return Type.functionType(
+                    [ Type.functionType([ object.elem, Type.number, object ], Type.boolean) ],
+                    object,
+                  );
+
+                case 'forEach':
+                  return Type.functionType(
+                    [ Type.functionType([ object.elem, Type.number, object ], Type.undefined) ],
+                    Type.undefined,
+                  );
+
+                case 'map':
+                  return Type.functionType(
+                    [ Type.functionType([ object.elem, Type.number, object ], Type.reactNodeType) ], // TODO(jaked) temporary
+                    Type.array(Type.reactNodeType),
+                  );
+              }
+              break;
+
+            case 'Map':
+              switch (name) {
+                case 'size': return Type.number;
+
+                case 'set':
+                  return Type.functionType([ object.key, object.value ], object);
+
+                case 'delete':
+                  return Type.functionType([ object.key ], object);
+
+                case 'clear':
+                  return Type.functionType([], object);
+
+                case 'filter':
+                  return Type.functionType(
+                    [ Type.functionType([ object.value, object.key, object ], Type.boolean) ],
+                    object,
+                  );
+
+                case 'toList':
+                  return Type.functionType([], Type.array(object.value));
+
+                case 'update':
+                  return Type.functionType(
+                    [ object.key, Type.functionType([ object.value ], object.value) ],
+                    object
+                  );
+
+                case 'get':
+                  return Type.functionType(
+                    [ object.key ],
+                    Type.undefinedOr(object.value),
+                  );
+              }
+              break;
+
+            case 'Object': {
+              const type = object.getFieldType(name);
+              if (type) return type;
+              break;
+            }
+
+            case 'Module': {
+              const type = object.getFieldType(name);
+              if (type) return type;
+              break;
+            }
+          }
+          return Error.unknownField(ast.property, name, interfaceMap).get();
+        })(objectType);
+        if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
+          type = Type.abstract(origObjectType.label, type);
         }
-      }
-      return Error.unknownField(ast.property, name, interfaceMap);
+        return { type };
+      });
     }
-  }
-
-  return synthAndThen(ast.object, env, interfaceMap, fn, /* preserveCell = */ true);
+  }, /* preserveCell = */ true);
 }
 
 function synthCall(
@@ -384,31 +418,39 @@ function synthCall(
   interfaceMap: InterfaceMap,
 ): Interface {
   return synthAndThen(ast.callee, env, interfaceMap, (callee, interfaceMap) => {
-    if (callee.type.kind !== 'Function')
-      return Error.expectedType(ast.callee, 'function', callee.type, interfaceMap);
-
-    // TODO(jaked) tolerate extra arguments
-    else if (ast.arguments.length > callee.type.args.size)
-      return Error.wrongArgsLength(ast, callee.type.args.size, ast.arguments.length, interfaceMap);
-    else {
-      const args = callee.type.args;
-      const intfs = args.map((expectedType, i) => {
-        if (i < ast.arguments.length) {
-          const intf = check(ast.arguments[i], env, expectedType, interfaceMap);
-          // it's OK for an argument to be Error if the function accepts undefined
-          if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-            return { type: Type.undefined };
-          else
-            return intf;
-        } else if (Type.isSubtype(Type.undefined, expectedType)) {
-          // it's OK for an argument to be missing if the function accepts undefined
-          return { type: Type.undefined };
-        } else
-          return Error.wrongArgsLength(ast, args.size, ast.arguments.length, interfaceMap);
-      });
-      // if there aren't enough arguments or a required argument is Error then the call is Error
-      return intfs.find(intf => intf.type.kind === 'Error') ?? { type: callee.type.ret };
+    if (callee.type == 'err') {
+      ast.arguments.forEach(arg => synth(arg, env, interfaceMap))
+      return callee;
     }
+
+    if (callee.ok.type.kind !== 'Function') {
+      ast.arguments.forEach(arg => synth(arg, env, interfaceMap));
+      return Error.expectedType(ast.callee, 'function', callee.ok.type, interfaceMap);
+    }
+
+    const args = callee.ok.type.args;
+    const intfs = args.map((expectedType, i) => {
+      if (i < ast.arguments.length) {
+        const intf = check(ast.arguments[i], env, expectedType, interfaceMap);
+        // it's OK for an argument to be Error if the function accepts undefined
+        if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
+          return Try.ok({ type: Type.undefined });
+        else
+          return intf;
+      } else if (Type.isSubtype(Type.undefined, expectedType)) {
+        // it's OK for an argument to be missing if the function accepts undefined
+        return Try.ok({ type: Type.undefined });
+      } else
+        return Error.wrongArgsLength(ast, args.size, ast.arguments.length, interfaceMap);
+    });
+    ast.arguments.forEach((arg, i) => {
+      if (i >= args.size) {
+        synth(arg, env, interfaceMap);
+        Error.wrongArgsLength(arg, args.size, ast.arguments.length, interfaceMap);
+      }
+    });
+    // if there aren't enough arguments or a required argument is err then the call is err
+    return intfs.find(intf => intf.type === 'err') ?? Try.ok({ type: callee.ok.type.ret });
   });
 }
 
@@ -422,7 +464,7 @@ function patTypeEnvIdentifier(
     Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, interfaceMap);
     return env;
   } else {
-    return env.set(ast.name, { type });
+    return env.set(ast.name, Try.ok({ type }));
   }
 }
 
@@ -492,7 +534,7 @@ function synthArrowFunction(
   let patEnv: Env = Immutable.Map();
   const params = ast.params.map(param => {
     if (!param.typeAnnotation) {
-      const t = Error.withLocation(param, `function parameter must have a type`, interfaceMap).type;
+      const t = Type.error(Error.withLocation(param, `function parameter must have a type`, interfaceMap).err);
       patEnv = patTypeEnv(param, genPatType(param, t), patEnv, interfaceMap);
       return genPatType(param, Type.unknown);
     }
@@ -503,7 +545,7 @@ function synthArrowFunction(
   env = env.concat(patEnv);
   const body = synth(ast.body, env, interfaceMap);
   // TODO(jaked) doesn't handle parameters of union type
-  return { type: Type.functionType(params, body.type) };
+  return Try.ok({ type: Type.functionType(params, intfType(body)) });
 }
 
 function synthBlockStatement(
@@ -520,7 +562,7 @@ function synthBlockStatement(
     }
   });
   if (intfs.length === 0)
-    return { type: Type.undefined };
+    return Try.ok({ type: Type.undefined });
   else
     return intfs[intfs.length - 1];
 }
@@ -536,12 +578,12 @@ function synthConditional(
   const alternate = synth(ast.alternate, envAlternate, interfaceMap);
 
   return synthAndThen(ast.test, env, interfaceMap, (test, interfaceMap) => {
-    if (Type.isTruthy(test.type))
+    if (Type.isTruthy(intfType(test)))
       return consequent;
-    else if (Type.isFalsy(test.type))
+    else if (Type.isFalsy(intfType(test)))
       return alternate;
     else
-      return { type: Type.union(consequent.type, alternate.type) };
+      return Try.ok({ type: Type.union(intfType(consequent), intfType(alternate)) });
   });
 }
 
@@ -551,7 +593,7 @@ function synthTemplateLiteral(
   interfaceMap: InterfaceMap,
 ): Interface {
   // TODO(jaked) handle interpolations
-  return { type: Type.string };
+  return Try.ok({ type: Type.string });
 }
 
 function synthJSXIdentifier(
@@ -570,21 +612,21 @@ function synthJSXElement(
   interfaceMap: InterfaceMap,
 ): Interface {
   return synthAndThen(ast.openingElement.name, env, interfaceMap, (element, interfaceMap) => {
-    const { props, ret } = (() => {
-      switch (element.type.kind) {
+    const { props, ret } = ((element: Type) => {
+      switch (element.kind) {
         case 'Error':
-          return { props: Type.object({}), ret: element.type }
+          return { props: Type.object({}), ret: element }
 
         case 'Function':
-          if (element.type.args.size === 0) {
-            return { props: Type.object({}), ret: element.type.ret };
+          if (element.args.size === 0) {
+            return { props: Type.object({}), ret: element.ret };
 
-          } else if (element.type.args.size === 1) {
-            const argType = element.type.args.get(0) ?? bug();
+          } else if (element.args.size === 1) {
+            const argType = element.args.get(0) ?? bug();
             if (argType.kind === 'Object') {
               const childrenField = argType.fields.find(field => field._1 === 'children');
               if (!childrenField || Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
-                return { props: argType, ret: element.type.ret };
+                return { props: argType, ret: element.ret };
             }
           }
           // TODO(jaked)
@@ -595,9 +637,9 @@ function synthJSXElement(
       // but for now this get us the right error highlighting in Editor
       return {
         props: Type.object({}),
-        ret: Error.expectedType(ast.openingElement.name, 'component type', element.type, interfaceMap).type
+        ret: Type.error(Error.expectedType(ast.openingElement.name, 'component type', element, interfaceMap).err)
       };
-    })();
+    })(intfType(element));
 
     const attrIntfs = ast.openingElement.attributes.map(attr => {
       const expectedType = props.getFieldType(attr.name.name);
@@ -605,14 +647,14 @@ function synthJSXElement(
         if (attr.value) {
           const intf = check(attr.value, env, expectedType, interfaceMap);
           // it's OK for an argument to be Error if the function accepts undefined
-          if (intf.type.kind === 'Error' && Type.isSubtype(Type.undefined, expectedType))
-            return { type: Type.undefined };
+          if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
+            return Try.ok({ type: Type.undefined });
           else
             return intf;
         } else {
           const actual = Type.singleton(true);
           if (Type.isSubtype(actual, expectedType))
-            return { type: actual };
+            return Try.ok({ type: actual });
           else
             return Error.expectedType(attr.name, expectedType, actual, interfaceMap);
         }
@@ -624,7 +666,7 @@ function synthJSXElement(
           // TODO(jaked) an error in an extra attribute should not fail whole tag
           return synth(attr.value, env, interfaceMap);
         } else {
-          return { type: Type.singleton(true) };
+          return Try.ok({ type: Type.singleton(true) });
         }
       }
     });
@@ -648,7 +690,7 @@ function synthJSXElement(
     });
     if (missingField) return missingField;
 
-    return attrIntfs.find(intf => intf.type.kind === 'Error') ?? { type: ret };
+    return attrIntfs.find(intf => intf.type === 'err') ?? Try.ok({ type: ret });
   });
 }
 
@@ -661,7 +703,7 @@ function synthJSXFragment(
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
     check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), interfaceMap)
   );
-  return { type: Type.reactNodeType };
+  return Try.ok({ type: Type.reactNodeType });
 }
 
 function synthJSXExpressionContainer(
@@ -677,7 +719,7 @@ function synthJSXText(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  return { type: Type.string };
+  return Try.ok({ type: Type.string });
 }
 
 function synthJSXEmptyExpression(
@@ -685,7 +727,7 @@ function synthJSXEmptyExpression(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  return { type: Type.undefined };
+  return Try.ok({ type: Type.undefined });
 }
 
 function synthAssignment(
@@ -694,8 +736,14 @@ function synthAssignment(
   interfaceMap: InterfaceMap,
 ): Interface {
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
-    if (left.type.kind === 'Abstract' && (left.type.label === 'Code' || left.type.label === 'Session')) {
-      const param = left.type.params.get(0) ?? bug(`expected param`);
+    if (left.type === 'err') {
+      synth(ast.right, env, interfaceMap);
+      return left;
+    }
+
+    const leftType = left.ok.type;
+    if (leftType.kind === 'Abstract' && (leftType.label === 'Code' || leftType.label === 'Session')) {
+      const param = leftType.params.get(0) ?? bug(`expected param`);
       return check(ast.right, env, param, interfaceMap);
     } else {
       return Error.expectedType(ast.left, 'Code<T> or Session<T>', left.type, interfaceMap);
@@ -709,8 +757,8 @@ function synthTSAs(
   interfaceMap: InterfaceMap,
 ): Interface {
   const type = Type.ofTSType(ast.typeAnnotation, interfaceMap);
-  const checked = check(ast.expression, env, type, interfaceMap);
-  return checked.type.kind === 'Error' ? checked : { type };
+  const intf = check(ast.expression, env, type, interfaceMap);
+  return intf.type === 'err' ? intf : Try.ok({ type });
 }
 
 function synthHelper(
@@ -763,7 +811,12 @@ function andThen(
   interfaceMap: InterfaceMap,
   preserveCell: boolean = false
 ): Interface {
-  let type = Type.expand(intf.type);
+  if (intf.type === 'err')
+    return fn(intf, interfaceMap);
+  if (intf.ok.type.kind === 'Error')
+    return fn(Try.err(intf.ok.type.err), interfaceMap);
+
+  let type = Type.expand(intf.ok.type);
 
   // TODO(jaked) this is pretty ad-hoc
   if (!preserveCell && type.kind === 'Abstract' && (type.label === 'Code' || type.label === 'Session')) {
@@ -773,9 +826,11 @@ function andThen(
 
   switch (type.kind) {
     case 'Union':
-      return { type: Type.union(...type.types.map(type =>
-        fn({ type }, interfaceMap).type))
-      };
+      return Try.ok({
+        type: Type.union(...type.types.map(type =>
+          intfType(fn(Try.ok({ type }), interfaceMap))
+        ))
+      });
 
     case 'Intersection': {
       // an intersection type describes several interfaces to an object.
@@ -794,20 +849,22 @@ function andThen(
       // by treating some intersections as a single type
       // (e.g. {foo:boolean}&{bar:number}) rather than handling arms separately
       const noInterfaceMap: InterfaceMap = new Map();
-      const types = type.types.map(type => fn({ type }, noInterfaceMap).type);
-      const okIndex = types.findIndex(type => type.kind !== 'Error')
+      const intfs = type.types.map(type => fn(Try.ok({ type }), noInterfaceMap));
+      const okIndex = intfs.findIndex(intf => intf.type !== 'err')
       if (okIndex === -1) {
-        const type = types.get(types.size - 1) ?? bug(`expected type`);
-        return fn({ type }, interfaceMap);
+        const intf = intfs.get(intfs.size - 1) ?? bug(`expected type`);
+        return fn(intf, interfaceMap);
       } else {
         const okType = type.types.get(okIndex) ?? bug(`expected type`);
-        fn({ type: okType }, interfaceMap);
-        return { type: Type.intersection(...types.filter(type => type.kind !== 'Error')) };
+        fn(Try.ok({ type: okType }), interfaceMap);
+        return Try.ok({
+          type: Type.intersection(...intfs.filter(intf => intf.type !== 'err').map(intfType))
+        });
       }
     }
 
     default:
-      return fn({ type }, interfaceMap);
+      return fn(Try.ok({ type }), interfaceMap);
   }
 }
 
@@ -842,9 +899,9 @@ function importDecl(
           // so we can undo some hacks
           const moduleObj: { [f: string]: Type } = {};
           for (const [name, intf] of module.entries()) {
-            moduleObj[name] = intf.type;
+            moduleObj[name] = intfType(intf);
           }
-          env = env.set(spec.local.name, { type: Type.module(moduleObj) });
+          env = env.set(spec.local.name, Try.ok({ type: Type.module(moduleObj) }));
         }
         break;
 
@@ -894,7 +951,7 @@ function synthVariableDecl(
           declIntf = synth(declarator.init, env, interfaceMap);
         } else {
           const intf = check(declarator.init, env, ann, interfaceMap);
-          declIntf = intf.type.kind === 'Error' ? intf : { type: ann };
+          declIntf = intf.type === 'err' ? intf : Try.ok({ type: ann });
         }
       } else {
         declIntf = synth(declarator.init, env, interfaceMap);
@@ -902,7 +959,7 @@ function synthVariableDecl(
 
     } else if (decl.kind === 'let') {
       // TODO(jaked) could relax this and allow referring to static variables
-      const initEnv = Immutable.Map({ undefined: { type: Type.undefined } });
+      const initEnv = Immutable.Map({ undefined: Try.ok({ type: Type.undefined }) });
       if (!declarator.id.typeAnnotation) {
         synth(declarator.init, initEnv, interfaceMap);
         declIntf = Error.withLocation(declarator.id, `expected type annotation`, interfaceMap);
@@ -910,14 +967,14 @@ function synthVariableDecl(
         const ann = Type.ofTSType(declarator.id.typeAnnotation.typeAnnotation, interfaceMap);
         if (ann.kind === 'Error') {
           synth(declarator.init, initEnv, interfaceMap);
-          declIntf = { type: ann };
+          declIntf = Try.ok({ type: ann });
         } if (ann.kind !== 'Abstract' || (ann.label !== 'Code' && ann.label !== 'Session')) {
           synth(declarator.init, initEnv, interfaceMap);
           declIntf = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, interfaceMap);
         } else {
           const param = ann.params.get(0) ?? bug(`expected param`);
           const intf = check(declarator.init, initEnv, param, interfaceMap);
-          declIntf = intf.type.kind === 'Error' ? intf : { type: ann };
+          declIntf = intf.type === 'err' ? intf : Try.ok({ type: ann });
         }
       }
     }

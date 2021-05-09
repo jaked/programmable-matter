@@ -1,12 +1,13 @@
 import * as Immutable from 'immutable';
+import Try from '../../util/Try';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import expectEval from './expectEval';
 
 const error = new Error('error');
 const tenv = Typecheck.env({
-  error: Type.error(error),
-  bug: Type.functionType([], Type.never),
+  error: Try.err(error),
+  bug: Try.ok({ type: Type.functionType([], Type.never) }),
 });
 const denv = Immutable.Map({
   error: false,

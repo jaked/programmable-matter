@@ -259,7 +259,7 @@ function unary(
         case '!':
           return JS.unaryExpression(ast.operator, v);
         case 'typeof':
-          if (argIntf.type.kind === 'Error')
+          if (argIntf.type === 'err')
             return JS.stringLiteral('error');
           else
             return JS.unaryExpression('typeof', v);
@@ -328,18 +328,18 @@ function binary(
         case '*':
         case '/':
         case '%':
-          if (leftIntf.type.kind === 'Error') return right;
-          else if (rightIntf.type.kind === 'Error') return left;
+          if (leftIntf.type === 'err') return right;
+          else if (rightIntf.type === 'err') return left;
           else return JS.binaryExpression(ast.operator, left, right);
 
         case '===':
-          if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
+          if (leftIntf.type === 'err' || rightIntf.type === 'err')
             return JS.booleanLiteral(false);
           else
             return JS.binaryExpression('===', left, right);
 
         case '!==':
-          if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
+          if (leftIntf.type === 'err' || rightIntf.type === 'err')
             return JS.booleanLiteral(true);
           else
             return JS.binaryExpression('!==', left, right);
@@ -574,7 +574,7 @@ function assignment(
 ): JS.Expression {
   const leftIntf = interfaceMap(ast.left);
   const rightIntf = interfaceMap(ast.right);
-  if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error') {
+  if (leftIntf.type === 'err' || rightIntf.type === 'err') {
     // TODO(jaked) we should return rhs when it's OK I think
     return JS.identifier('undefined');
   } else {
@@ -645,7 +645,7 @@ function expression(
   env: Env,
 ): JS.Expression {
   const intf = interfaceMap(ast);
-  if (intf.type.kind === 'Error')
+  if (intf.type === 'err')
     return JS.identifier('undefined');
 
   switch (ast.type) {
@@ -770,7 +770,7 @@ function genNode(
           case 'ExpressionStatement': {
             const intf = interfaceMap(node.expression);
             const dynamic = dynamicMap(node.expression);
-            if (intf.type.kind !== 'Error' && dynamic) {
+            if (intf.type !== 'err' && dynamic) {
               hydrate(node.expression);
             }
           }
@@ -813,7 +813,7 @@ function genNode(
       const expr = ast.ok as ESTree.Expression;
       const intf = interfaceMap(expr);
       const dynamic = dynamicMap(expr);
-      if (intf.type.kind !== 'Error' && dynamic) {
+      if (intf.type !== 'err' && dynamic) {
         hydrate(expr);
       }
     }

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Signal from '../../util/Signal';
+import Try from '../../util/Try';
 import Type from '../Type';
 import * as Render from '../Render';
 import { Content, CompiledFile } from '../../model';
@@ -66,10 +67,10 @@ export default function compileFileJpeg(
 
     // TODO(jaked) parse JPEG file and return metadata
     const exportInterface = new Map([
-      [ 'buffer', { type: Type.abstract('Buffer') } ],
-      [ 'objectUrl', { type: Type.string } ],
-      [ 'img', { type: imgType } ],
-      [ 'default', { type: imgType } ],
+      [ 'buffer', Try.ok({ type: Type.abstract('Buffer') }) ],
+      [ 'objectUrl', Try.ok({ type: Type.string }) ],
+      [ 'img', Try.ok({ type: imgType }) ],
+      [ 'default', Try.ok({ type: imgType }) ],
     ]);
     const exportValue = new Map<string, unknown>([
       [ 'buffer', buffer ],

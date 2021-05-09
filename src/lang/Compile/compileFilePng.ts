@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import Type from '../Type';
 import * as Render from '../Render';
@@ -66,10 +67,10 @@ export default function compileFilePng(
 
     // TODO(jaked) parse PNG file and return metadata
     const exportInterface = new Map<string, Interface>([
-      [ 'buffer', { type: Type.abstract('Buffer') } ],
-      [ 'objectUrl', { type: Type.string } ],
-      [ 'img', { type: imgType } ],
-      [ 'default', { type: imgType } ],
+      [ 'buffer', Try.ok({ type: Type.abstract('Buffer') }) ],
+      [ 'objectUrl', Try.ok({ type: Type.string }) ],
+      [ 'img', Try.ok({ type: imgType }) ],
+      [ 'default', Try.ok({ type: imgType }) ],
     ]);
     const exportValue = new Map<string, unknown>([
       [ 'buffer', buffer ],

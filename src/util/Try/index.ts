@@ -3,7 +3,7 @@ import * as Immutable from 'immutable';
 // TODO(jaked) this must exist already
 // TODO(jaked) is there a way to get Scala-ish Try(() => ...) ?
 
-class Ok<T> {
+class OkImpl<T> {
   type = 'ok' as const;
 
   ok: T;
@@ -21,7 +21,7 @@ class Ok<T> {
   equals(other: any): boolean {
     return (
       this === other ||
-      other instanceof Ok && Immutable.is(this.ok, other.ok)
+      other instanceof OkImpl && Immutable.is(this.ok, other.ok)
     )
   }
 
@@ -30,7 +30,7 @@ class Ok<T> {
   }
 }
 
-class Err {
+class ErrImpl {
   type = 'err' as const;
 
   err: Error;
@@ -48,7 +48,7 @@ class Err {
   equals(other: any): boolean {
     return (
       this === other ||
-      other instanceof Err && Immutable.is(this.err, other.err)
+      other instanceof ErrImpl && Immutable.is(this.err, other.err)
     )
   }
 
@@ -57,16 +57,28 @@ class Err {
   }
 }
 
-type Try<T> = {
+type OkType<T> = {
   get: () => T;
   map<U>(f: (t: T) => U): Try<U>;
   flatMap<U>(f: (t: T) => Try<U>): Try<U>;
   forEach(f: (t: T) => void): void;
-} & ({ type: 'ok'; ok: T; } | { type: 'err'; err: Error; })
+} & ({ type: 'ok'; ok: T; })
+
+type ErrType<T> = {
+  get: () => never;
+  map<U>(f: (t: T) => U): Try<U>;
+  flatMap<U>(f: (t: T) => Try<U>): Try<U>;
+  forEach(f: (t: T) => void): void;
+} & ({ type: 'err'; err: Error; })
+
+type Try<T> = OkType<T> | ErrType<T>;
 
 module Try {
-  export function ok<T>(ok: T): Try<T> { return new Ok(ok); }
-  export function err(err: Error): Try<never> { return new Err(err); }
+  export type Ok<T> = OkType<T>;
+  export type Err<T> = ErrType<T>;
+
+  export function ok<T>(ok: T): Ok<T> { return new OkImpl(ok); }
+  export function err(err: Error): Err<never> { return new ErrImpl(err); }
 
   export function apply<T>(f: () => T) {
     try { return ok(f()); }

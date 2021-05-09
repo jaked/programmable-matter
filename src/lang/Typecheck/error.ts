@@ -1,12 +1,13 @@
+import Try from '../../util/Try';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
 import { InterfaceMap } from '../../model';
 
 export function withLocation(ast: ESTree.Node, err: string | Error, interfaceMap?: InterfaceMap) {
   if (typeof err === 'string') err = new Error(err);
-  const type = Type.error(err);
-  if (interfaceMap) interfaceMap.set(ast, { type });
-  return { type };
+  const intf = Try.err(err);
+  if (interfaceMap) interfaceMap.set(ast, intf);
+  return intf;
 }
 
 export function expectedType(

@@ -20,6 +20,9 @@ import * as model from '../../model';
 import { Table } from '../../components/Table';
 import lensType from './lensType';
 
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
+
 // see Typescript-level types in data.ts
 // TODO(jaked)
 // this way of writing the type produces obscure error messages, e.g.
@@ -123,7 +126,7 @@ function computeTable(
           // instead of checking after the fact
           // that their types agree with the table config type
           const mutableIntf = exportInterface.get('mutable');
-          if (!defaultIntf || !mutableIntf || !Type.isSubtype(defaultIntf.type, tableDataType))
+          if (!defaultIntf || !mutableIntf || !Type.isSubtype(intfType(defaultIntf), tableDataType))
             // TODO(jaked) check `mutableType` too
             throw new Error('record data type must match table config type')
 
@@ -244,13 +247,13 @@ export default function compileFileTable(
     const intf = Typecheck.check(ast, Typecheck.env(), tableType, interfaceMap);
     const dynamicMap = new Map<ESTree.Node, boolean>();
     Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
-    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
 
-    if (intf.type.kind === 'Error') {
+    if (intf.type === 'err') {
       return {
         // TODO(jaked) these should be Signal.err
         exportInterface: new Map([[ 'default', intf ]]),
-        exportValue: Signal.ok(new Map([[ 'default', intf.type.err ]])),
+        exportValue: Signal.ok(new Map([[ 'default', intf.err ]])),
         rendered: Signal.ok(null),
         interfaceMap,
         problems,
@@ -264,7 +267,7 @@ export default function compileFileTable(
     const fields = computeFields(tableConfig);
 
     const exportInterface = new Map([
-      ['default', { type: lensType(Type.map(Type.string, tableDataType)) }]
+      ['default', Try.ok({ type: lensType(Type.map(Type.string, tableDataType)) })]
     ]);
     const exportValue = table.map(table => new Map([[ 'default', table ]]));
 

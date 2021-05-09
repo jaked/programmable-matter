@@ -5,6 +5,9 @@ import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from './index';
 
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
+
 // TODO(jaked)
 // seems like TS should be able to figure it out from the instanceof
 function isEnv(env: any): env is Typecheck.Env {
@@ -28,7 +31,7 @@ export default function expectCheck({ expr, env, type, actualType, error }: {
   error = (error !== undefined) ? error : false;
   const interfaceMap = new Map<ESTree.Node, Interface>();
   const intf = Typecheck.check(expr, env, type, interfaceMap);
-  const errorValue = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
+  const errorValue = [...interfaceMap.values()].some(intf => intf.type === 'err');
   if (error !== undefined) expect(errorValue).toBe(error);
-  if (actualType) expect(intf.type).toEqual(actualType);
+  if (actualType) expect(intfType(intf)).toEqual(actualType);
 }

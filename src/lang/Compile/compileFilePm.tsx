@@ -20,6 +20,9 @@ import * as Dyncheck from '../Dyncheck';
 
 import makeLink from '../../components/makeLink';
 
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
+
 function typecheckCode(
   node: PMAST.Code,
   moduleEnv: Map<string, Map<string, Interface>>,
@@ -217,11 +220,11 @@ export default function compileFilePm(
     let dynamicEnv = Render.initDynamicEnv;
 
     if (jsonIntf) {
-      typeEnv = typeEnv.set('data', { type: jsonIntf.type });
+      typeEnv = typeEnv.set('data', jsonIntf);
       dynamicEnv = dynamicEnv.set('data', false);
     }
     if (tableIntf) {
-      typeEnv = typeEnv.set('table', { type: tableIntf.type });
+      typeEnv = typeEnv.set('table', tableIntf);
       dynamicEnv = dynamicEnv.set('table', false);
     }
 
@@ -262,11 +265,11 @@ export default function compileFilePm(
       typecheckInlineCode(node, typeEnv, interfaceMap);
       dyncheckInlineCode(node, interfaceMap, dynamicEnv, dynamicMap);
     });
-    const problems = [...interfaceMap.values()].some(intf => intf.type.kind === 'Error');
+    const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
     if (problems && debug) {
       const errorAnnotations = new Map<unknown, Interface>();
       interfaceMap.forEach((intf, node) => {
-        if (intf.type.kind === 'Error')
+        if (intf.type === 'err')
           errorAnnotations.set(node, intf);
       });
       console.log(errorAnnotations);
@@ -338,7 +341,7 @@ export default function compileFilePm(
         const defaultIntf = exportInterface.get('default');
         if (defaultIntf) {
           if (debug) console.log(`defaultType`);
-          if (Type.isSubtype(defaultIntf.type, Type.layoutFunctionType)) {
+          if (Type.isSubtype(intfType(defaultIntf), Type.layoutFunctionType)) {
             if (debug) console.log(`isSubtype`);
             const dynamic = exportDynamic.get('default') ?? bug(`expected default`);
             // TODO(jaked)

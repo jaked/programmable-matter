@@ -1,5 +1,6 @@
 import React from 'react';
 
+import Try from '../util/Try';
 import Signal from '../util/Signal';
 import Type from '../lang/Type';
 import * as PMAST from '../model/PMAST';
@@ -25,7 +26,7 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type Interface = { type: Type };
+export type Interface = Try<{ type: Type }>;
 export type InterfaceMap = Map<ESTree.Node, Interface>;
 export type DynamicMap = Map<ESTree.Node, boolean>;
 

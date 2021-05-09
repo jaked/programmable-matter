@@ -6,6 +6,9 @@ import Type from '../Type';
 import Typecheck from './index';
 import expectSynth from './expectSynth';
 
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
+
 describe('synth', () => {
   const error = new Error('error');
   const env = Typecheck.env({
@@ -379,7 +382,7 @@ describe('synthProgram', () => {
     );
     const x = env2.get('x') ?? bug(`expected x`);
 
-    expect(x.type).toEqual(Type.singleton(7));
+    expect(intfType(x)).toEqual(Type.singleton(7));
   });
 
   it('binding gets ascribed type', () => {
@@ -397,6 +400,6 @@ describe('synthProgram', () => {
     );
     const x = env2.get('x') ?? bug(`expected x`);
 
-    expect(x.type).toEqual(Type.number);
+    expect(intfType(x)).toEqual(Type.number);
   });
 });

@@ -97,7 +97,9 @@ export function evaluateExpression(
   env: Env,
 ): unknown {
   const intf = interfaceMap.get(ast) ?? bug(`expected type`);
-  if (intf.type.kind === 'Error')
+  if (intf.type === 'err')
+    return undefined;
+  if (intf.ok.type.kind === 'Error')
     return undefined;
 
   switch (ast.type) {
@@ -184,7 +186,7 @@ export function evaluateExpression(
             case '+': return v;
             case '-': return -(v as number);
             case '!': return !v;
-            case 'typeof': return (argIntf.type.kind === 'Error') ? 'error' : typeof v;
+            case 'typeof': return (argIntf.type === 'err') ? 'error' : typeof v;
             default: throw new Error(`unhandled ast ${(ast as any).operator}`);
           }
         }
@@ -233,8 +235,8 @@ export function evaluateExpression(
             case '*':
             case '/':
             case '%':
-              if (leftIntf.type.kind === 'Error') return rv;
-              else if (rightIntf.type.kind === 'Error') return lv;
+              if (leftIntf.type === 'err') return rv;
+              else if (rightIntf.type === 'err') return lv;
               else {
                 const lvn = lv as number;
                 const rvn = rv as number;
@@ -249,13 +251,13 @@ export function evaluateExpression(
               }
 
             case '===':
-              if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
+              if (leftIntf.type === 'err' || rightIntf.type === 'err')
                 return false;
               else
                 return lv === rv;
 
             case '!==':
-              if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error')
+              if (leftIntf.type === 'err' || rightIntf.type === 'err')
                 return true;
               else
                 return lv !== rv;
@@ -455,7 +457,7 @@ export function evaluateExpression(
     case 'AssignmentExpression': {
       const leftIntf = interfaceMap.get(ast.left) ?? bug(`expected type`);
       const rightIntf = interfaceMap.get(ast.right) ?? bug(`expected type`);
-      if (leftIntf.type.kind === 'Error' || rightIntf.type.kind === 'Error') {
+      if (leftIntf.type === 'err' || rightIntf.type === 'err') {
         // TODO(jaked) we should return rhs when it's OK I think
         return undefined;
       } else {
@@ -517,8 +519,8 @@ function importDecl(
   // TODO(jaked) finding errors in the AST is delicate.
   // need to separate error semantics from error highlighting.
   const intf = interfaceMap.get(decl.source);
-  if (intf && intf.type.kind === 'Error') {
-    const err = intf.type.err;
+  if (intf && intf.type === 'err') {
+    const err = intf.err;
     decl.specifiers.forEach(spec => {
       valueEnv = valueEnv.set(spec.local.name, err);
     });
@@ -549,7 +551,7 @@ function importDecl(
 
         case 'ImportDefaultSpecifier': {
           const intf = interfaceMap.get(spec.local);
-          if (!intf || intf.type.kind !== 'Error') {
+          if (!intf || intf.type !== 'err') {
             const defaultField = moduleValue.get('default') ?? bug(`expected default`);
             valueEnv = valueEnv.set(spec.local.name, defaultField);
           }
@@ -558,7 +560,7 @@ function importDecl(
 
         case 'ImportSpecifier': {
           const intf = interfaceMap.get(spec.imported);
-          if (!intf || intf.type.kind !== 'Error') {
+          if (!intf || intf.type !== 'err') {
             const importedField = moduleValue.get(spec.imported.name) ?? bug(`expected ${spec.imported.name}`);
             valueEnv = valueEnv.set(spec.local.name, importedField);
           }
@@ -593,11 +595,11 @@ function evalVariableDecl(
       decl.declarations.forEach(declarator => {
         let name = declarator.id.name;
         const cellIntf = interfaceMap.get(declarator.id) ?? bug(`expected type`);
-        if (cellIntf.type.kind === 'Error') return valueEnv;
-        else if (cellIntf.type.kind !== 'Abstract' || cellIntf.type.params.size !== 1) bug(`expected Code<T> or Session<T>`);
+        if (cellIntf.type === 'err') return valueEnv;
+        else if (cellIntf.ok.type.kind !== 'Abstract' || cellIntf.ok.type.params.size !== 1) bug(`expected Code<T> or Session<T>`);
         const init = declarator.init;
         const value = evaluateExpression(init, interfaceMap, dynamicMap, Immutable.Map({ undefined: undefined }));
-        if (cellIntf.type.label === 'Code') {
+        if (cellIntf.ok.type.label === 'Code') {
           // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
           valueEnv = valueEnv.set(name, nodes.mapWritable(
             _ => value,
@@ -632,10 +634,10 @@ function evalVariableDecl(
             })
           ));
 
-        } else if (cellIntf.type.label === 'Session') {
+        } else if (cellIntf.ok.type.label === 'Session') {
           valueEnv = valueEnv.set(name, Signal.cellOk(value));
 
-        } else bug(`unexpected ${cellIntf.type.label}`);
+        } else bug(`unexpected ${cellIntf.ok.type.label}`);
       });
     }
     break;

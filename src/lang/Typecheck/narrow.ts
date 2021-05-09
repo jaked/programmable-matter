@@ -1,11 +1,15 @@
 import * as Immutable from 'immutable';
+import Try from '../../util/Try';
 import { Tuple2 } from '../../util/Tuple';
 import { bug } from '../../util/bug';
 import Type from '../Type';
 import * as ESTree from '../ESTree';
-import { InterfaceMap } from '../../model';
+import { Interface, InterfaceMap } from '../../model';
 import { Env } from './env';
 import { synth } from './synth';
+
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
 // best-effort intersection of `a` and `b`
 // 'b' may contain Not-types
@@ -70,8 +74,8 @@ function narrowExpression(
     case 'Identifier': {
       const intf = env.get(ast.name);
       if (intf) {
-        const type = narrowType(intf.type, otherType);
-        return env.set(ast.name, { ...intf, type });
+        const type = narrowType(intfType(intf), otherType);
+        return env.set(ast.name, Try.ok({ type }));
       }
       else return env;
     }
@@ -176,11 +180,11 @@ export function narrowEnvironment(
       const left = synth(ast.left, env, interfaceMap);
       const right = synth(ast.right, env, interfaceMap);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
-        env = narrowExpression(env, ast.left, right.type);
-        return narrowExpression(env, ast.right, left.type);
+        env = narrowExpression(env, ast.left, intfType(right));
+        return narrowExpression(env, ast.right, intfType(left));
       } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
-        env = narrowExpression(env, ast.left, Type.not(right.type));
-        return narrowExpression(env, ast.right, Type.not(left.type));
+        env = narrowExpression(env, ast.left, Type.not(intfType(right)));
+        return narrowExpression(env, ast.right, Type.not(intfType(left)));
       } else {
         return bug('unimplemented BinaryExpression');
       }

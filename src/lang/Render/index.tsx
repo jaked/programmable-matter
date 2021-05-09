@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { bug } from '../../util/bug';
+import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
@@ -11,7 +12,7 @@ import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import initEnv from './initEnv';
 
-export const initTypeEnv: Typecheck.Env = initEnv.map(({ type }) => ({ type }));
+export const initTypeEnv: Typecheck.Env = initEnv.map(({ type }) => (Try.ok({ type })));
 export const initDynamicEnv: Dyncheck.Env = initEnv.map(({ dynamic }) => dynamic);
 export const initValueEnv: Evaluate.Env = initEnv.map(({ value }) => value);
 
