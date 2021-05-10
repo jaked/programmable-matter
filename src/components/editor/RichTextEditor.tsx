@@ -308,6 +308,7 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
         renderLeaf={renderLeaf}
         decorate={decorate}
         onKeyDown={onKeyDown}
+        spellCheck={false}
       />
     </Slate>
   );
