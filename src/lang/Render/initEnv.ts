@@ -12,6 +12,8 @@ import { VictoryBar, VictoryChart } from 'victory';
 import ReactTable from 'react-table';
 import Gist from 'react-gist';
 import { InlineMath, BlockMath } from 'react-katex';
+import * as Plot from '@observablehq/plot';
+import { PlotFigure } from 'plot-react';
 
 import HighlightedCode from '../HighlightedCode';
 
@@ -468,6 +470,29 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
       inline: Type.undefinedOr(Type.boolean),
     }),
     value: HighlightedCode,
+    dynamic: false
+  },
+
+  'Plot': {
+    type: Parse.parseType(`{
+      barX: (data: unknown, options: { x: string, y: string }) => unknown,
+      barY: (data: unknown, options: { x: string, y: string }) => unknown,
+    }`),
+    value: Plot,
+    dynamic: false
+  },
+
+  'PlotFigure': {
+    type: componentType({
+      options: Parse.parseType(`{
+        marks: unknown[],
+        height: number,
+        width: number,
+        marginTop: number,
+        marginBottom: number,
+      }`)
+    }),
+    value: PlotFigure,
     dynamic: false
   },
 
