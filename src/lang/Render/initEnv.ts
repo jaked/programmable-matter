@@ -137,6 +137,19 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     dynamic: false
   },
 
+  'circle': {
+    type: componentType({
+      fill: Type.undefinedOrString,
+      stroke: Type.undefinedOrString,
+      strokeWidth: Type.undefinedOr(Type.numberOrString),
+      cx: Type.numberOrString,
+      cy: Type.numberOrString,
+      r: Type.numberOrString,
+    }),
+    value: 'circle',
+    dynamic: false,
+  },
+
   'code': {
     type: componentType({
       style: styleType,
@@ -159,6 +172,7 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     type: componentType({
       fill: Type.undefinedOrString,
       stroke: Type.undefinedOrString,
+      strokeWidth: Type.undefinedOr(Type.numberOrString),
       cx: Type.numberOrString,
       cy: Type.numberOrString,
       rx: Type.numberOrString,
@@ -173,6 +187,14 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
       className: Type.undefinedOrString,
     }),
     value: 'footer',
+    dynamic: false
+  },
+
+  'g': {
+    type: componentType({
+      transform: Type.undefinedOrString,
+    }),
+    value: 'g',
     dynamic: false
   },
 
