@@ -11,6 +11,9 @@ import { synth } from './synth';
 const intfType = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
+const intfDynamic = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.dynamic : false;
+
 // best-effort intersection of `a` and `b`
 // 'b' may contain Not-types
 // the return type will not contain Not-types
@@ -75,7 +78,7 @@ function narrowExpression(
       const intf = env.get(ast.name);
       if (intf) {
         const type = narrowType(intfType(intf), otherType);
-        return env.set(ast.name, Try.ok({ type }));
+        return env.set(ast.name, Try.ok({ type, dynamic: intfDynamic(intf) }));
       }
       else return env;
     }

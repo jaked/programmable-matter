@@ -7,7 +7,7 @@ import expectEval from './expectEval';
 const error = new Error('error');
 const tenv = Typecheck.env({
   error: Try.err(error),
-  bug: Try.ok({ type: Type.functionType([], Type.never) }),
+  bug: Try.ok({ type: Type.functionType([], Type.never), dynamic: false }),
 });
 const denv = Immutable.Map({
   error: false,

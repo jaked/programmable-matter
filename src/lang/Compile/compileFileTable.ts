@@ -267,7 +267,7 @@ export default function compileFileTable(
     const fields = computeFields(tableConfig);
 
     const exportInterface = new Map([
-      ['default', Try.ok({ type: lensType(Type.map(Type.string, tableDataType)) })]
+      ['default', Try.ok({ type: lensType(Type.map(Type.string, tableDataType)), dynamic: false })]
     ]);
     const exportValue = table.map(table => new Map([[ 'default', table ]]));
 

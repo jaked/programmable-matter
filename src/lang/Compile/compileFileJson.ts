@@ -130,8 +130,8 @@ export default function compileFileJson(
       const typeObject = type;
 
       const exportInterface = new Map([
-        [ 'default', Try.ok({ type }) ],
-        [ 'mutable', Try.ok({ type: lensType(type) }) ],
+        [ 'default', Try.ok({ type, dynamic: false }) ],
+        [ 'mutable', Try.ok({ type: lensType(type), dynamic: false }) ],
       ]);
       const value = Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));

@@ -12,6 +12,11 @@ import { narrowEnvironment } from './narrow';
 const intfType = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
+const intfDynamic = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.dynamic : false;
+
+const undefinedIntf = Try.ok({ type: Type.undefined, dynamic: false });
+
 function checkSubtype(
   ast: ESTree.Expression,
   env: Env,
@@ -28,25 +33,38 @@ function checkSubtype(
 
       return synthAndThen(ast.test, env, interfaceMap, test => {
         if (Type.isTruthy(intfType(test))) {
+          const consequent = check(ast.consequent, envConsequent, type, interfaceMap);
           synth(ast.alternate, envAlternate, interfaceMap);
-          return check(ast.consequent, envConsequent, type, interfaceMap)
+          if (consequent.type === 'err') return consequent;
+          const dynamic = intfDynamic(test) || consequent.ok.dynamic;
+          return Try.ok({ type: consequent.ok.type, dynamic });
         } else if (Type.isFalsy(intfType(test))) {
-          synth(ast.consequent, envConsequent, interfaceMap);
-          return check(ast.alternate, envAlternate, type, interfaceMap);
+          const alternate = check(ast.alternate, envAlternate, type, interfaceMap);
+          if (alternate.type === 'err') return alternate;
+          const dynamic = intfDynamic(test) || alternate.ok.dynamic;
+          return Try.ok({ type: alternate.ok.type, dynamic });
         } else {
           const consequent = check(ast.consequent, envConsequent, type, interfaceMap);
           const alternate = check(ast.alternate, envAlternate, type, interfaceMap);
-          return Try.ok({ type: Type.union(intfType(consequent), intfType(alternate)) });
+          if (consequent.type === 'err') return consequent;
+          if (alternate.type === 'err') return alternate;
+          const unionType = Type.union(consequent.ok.type, alternate.ok.type);
+          const dynamic = intfDynamic(test) || consequent.ok.dynamic || alternate.ok.dynamic;
+          return Try.ok({ type: unionType, dynamic });
         }
       });
     }
 
     case 'SequenceExpression': {
-      ast.expressions.forEach((e, i) => {
+      const intfs = ast.expressions.map((e, i) => {
         if (i < ast.expressions.length - 1)
-          synth(e, env, interfaceMap);
+          return synth(e, env, interfaceMap);
+        else
+          return check(e, env, type, interfaceMap);
       });
-      return check(ast.expressions[ast.expressions.length - 1], env, type, interfaceMap);
+      const type = intfType(intfs[intfs.length - 1]);
+      const dynamic = intfs.some(intfDynamic);
+      return Try.ok({ type, dynamic });
     }
 
     default:
@@ -60,7 +78,7 @@ function checkSubtype(
         actual = param;
       }
       if (Type.isSubtype(actual, type))
-        return Try.ok({ type: actual });
+        return Try.ok({ type: actual, dynamic: intf.ok.dynamic });
       else if (actual.kind === 'Error')
         return Try.err(actual.err);
       else
@@ -76,19 +94,22 @@ function checkTuple(
 ): Interface {
   switch (ast.type) {
     case 'ArrayExpression': {
-      const types = type.elems.map((expectedType, i) => {
+      const intfs = type.elems.map((expectedType, i) => {
         if (i < ast.elements.length) {
           const intf = check(ast.elements[i], env, expectedType, interfaceMap);
           if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
-            return Try.ok({ type: Type.undefined });
+            return undefinedIntf;
           else
             return intf;
         } else if (Type.isSubtype(Type.undefined, expectedType)) {
-          return Try.ok({ type: Type.undefined });
+          return undefinedIntf;
         } else
           return Error.withLocation(ast, 'expected ${type.elems.size} elements');
       });
-      return types.find(intf => intf.type === 'err') ?? Try.ok({ type });
+      const error = intfs.find(intf => intf.type === 'err');
+      if (error) return error;
+      const dynamic = intfs.some(intfDynamic);
+      return Try.ok({ type, dynamic });
     }
 
     default:
@@ -109,11 +130,14 @@ function checkArray(
       const intfs = ast.children.map(child => {
         const intf = check(child, env, expectedType, interfaceMap);
         if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
-          return Try.ok({ type: Type.undefined });
+          return undefinedIntf;
         else
           return intf;
       });
-      return intfs.find(intf => intf.type === 'err') ?? Try.ok({ type });
+      const error = intfs.find(intf => intf.type === 'err');
+      if (error) return error;
+      const dynamic = intfs.some(intfDynamic);
+      return Try.ok({ type, dynamic });
     }
 
     case 'ArrayExpression': {
@@ -121,11 +145,14 @@ function checkArray(
       const intfs = ast.elements.map(child => {
         const intf = check(child, env, expectedType, interfaceMap);
         if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
-          return Try.ok({ type: Type.undefined });
+          return undefinedIntf;
         else
           return intf;
       });
-      return intfs.find(intf => intf.type === 'err') ?? Try.ok({ type });
+      const error = intfs.find(intf => intf.type === 'err');
+      if (error) return error;
+      const dynamic = intfs.some(intfDynamic);
+      return Try.ok({ type, dynamic });
     }
 
     default:
@@ -171,7 +198,8 @@ function patTypeEnvIdentifier(
     Error.withLocation(ast, `identifier ${ast.name} already bound in pattern`, interfaceMap);
     return env;
   } else {
-    return env.set(ast.name, Try.ok({ type }));
+    // local variables are always static
+    return env.set(ast.name, Try.ok({ type, dynamic: false }));
   }
 }
 
@@ -227,44 +255,34 @@ function checkFunction(
       env = env.merge(patEnv);
       const body = ast.body;
       if (body.type === 'BlockStatement') {
-        body.body.forEach((stmt, i) => {
-          if (i < body.body.length - 1) {
+        if (body.body.length === 0) {
+          if (Type.isSubtype(Type.undefined, type))
+            return undefinedIntf;
+          else
+            return Error.expectedType(ast, type, Type.undefined, interfaceMap);
+
+        } else {
+          const intfs = body.body.map((stmt, i) => {
             switch (stmt.type) {
               case 'ExpressionStatement':
-                return synth(stmt.expression, env, interfaceMap);
+                if (i < body.body.length - 1)
+                  return synth(stmt.expression, env, interfaceMap);
+                else
+                  return check(stmt.expression, env, type.ret, interfaceMap);
               default:
                 bug(`unimplemented ${stmt.type}`);
             }
-          }
-        });
-        if (body.body.length === 0) {
-          const actual = Type.undefined;
-          if (Type.isSubtype(actual, type))
-            return Try.ok({ type: actual });
-          else
-            return Error.expectedType(ast, type, actual, interfaceMap);
-
-        } else {
-          const stmt = body.body[body.body.length - 1];
-          switch (stmt.type) {
-            case 'ExpressionStatement': {
-              const intf = check(stmt.expression, env, type.ret, interfaceMap);
-              if (intf.type === 'err') return intf;
-              else return Try.ok({
-                type: Type.functionType(type.args.toArray(), intfType(intf))
-              });
-            }
-            default:
-              bug(`unimplemented ${stmt.type}`);
-          }
+          });
+          const dynamic = intfs.some(intfDynamic);
+          const lastIntf = intfs[intfs.length - 1];
+          if (lastIntf.type === 'err' && type.ret !== Type.undefined) return lastIntf;
+          return Try.ok({ type, dynamic });
         }
 
       } else {
         const intf = check(body, env, type.ret, interfaceMap);
-        if (intf.type === 'err') return intf;
-        else return Try.ok({ type:
-          Type.functionType(type.args.toArray(), intfType(intf))
-        });
+        if (intf.type === 'err' && type.ret !== Type.undefined) return intf;
+        else return Try.ok({ type, dynamic: intfDynamic(intf) });
       }
 
     default:
@@ -304,7 +322,15 @@ function checkIntersection(
   // how should we return / display errors here?
   // we don't have a way to show alternatives in editor
   const intfs = type.types.map(type => check(ast, env, type, interfaceMap));
-  return intfs.find(intf => intf.type === 'err') ?? Try.ok({ type });
+  const error = intfs.find(intf => intf.type === 'err');
+  if (error) return error;
+  let dynamic: boolean | undefined = undefined;
+  intfs.forEach(intf => {
+    if (dynamic === undefined) dynamic = intfDynamic(intf);
+    else if (intfDynamic(intf) !== dynamic) bug(`expected uniform dynamic`);
+  });
+  if (dynamic === undefined) bug(`expectd dynamic`);
+  return Try.ok({ type, dynamic });
 }
 
 function checkSingleton(
@@ -335,7 +361,7 @@ function checkObject(
         synth(prop.value, env, interfaceMap);
         // TODO(jaked) this highlights the error but we also need to skip evaluation
         Error.withLocation(prop.key, `duplicate property name '${name}'`, interfaceMap);
-        return Try.ok({ type: Type.undefined });
+        return undefinedIntf;
       } else {
         seen.add(name);
         const fieldType = type.getFieldType(name);
@@ -344,7 +370,7 @@ function checkObject(
           // TODO(jaked) this highlights the error but we also need to skip evaluation
           Error.extraField(prop.key, name, interfaceMap);
           synth(prop.value, env, interfaceMap);
-          return Try.ok({ type: Type.undefined });
+          return undefinedIntf;
         }
       }
     });
@@ -364,9 +390,12 @@ function checkObject(
         // TODO(jaked) stop after first one? aggregate all?
         missingField = Error.missingField(ast, name, interfaceMap);
     });
-
     if (missingField) return missingField;
-    return intfs.find(intf => intf.type === 'err') ?? Try.ok({ type });
+
+    const error = intfs.find(intf => intf.type === 'err');
+    if (error) return error;
+    const dynamic = intfs.some(intfDynamic);
+    return Try.ok({ type, dynamic })
   }
 
   else return checkSubtype(ast, env, type, interfaceMap);

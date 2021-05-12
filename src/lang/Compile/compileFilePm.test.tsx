@@ -285,7 +285,7 @@ it('compiles with import', () => {
         files: {},
         problems: Signal.err(new Error('problems')),
         rendered: Signal.err(new Error('rendered')),
-        exportInterface: Signal.ok(new Map([[ 'bar', Try.ok({ type: Type.number}) ]])),
+        exportInterface: Signal.ok(new Map([[ 'bar', Try.ok({ type: Type.number, dynamic: false }) ]])),
         exportValue: Signal.ok(new Map([[ 'bar', 9 ]])),
         exportDynamic: Signal.ok(new Map([[ 'bar', false ]])),
       },
@@ -320,7 +320,9 @@ it('compiles referencing data / table', () => {
     },
     Signal.ok(new Map([
       ['/foo.json', {
-        exportInterface: Signal.ok(new Map([[ 'mutable', Try.ok({ type: Type.object({ bar: Type.string }) }) ]])),
+        exportInterface: Signal.ok(new Map([[
+          'mutable', Try.ok({ type: Type.object({ bar: Type.string }), dynamic: false })
+        ]])),
         exportValue: Signal.ok(new Map([[ 'mutable', { bar: 'bar' } ]])),
         exportDynamic: Signal.ok(new Map([[ 'mutable', false ]])),
         rendered: Signal.ok(null),
@@ -328,7 +330,9 @@ it('compiles referencing data / table', () => {
         ast: Signal.err(new Error(`unimplemented`))
       }],
       ['/foo.table', {
-        exportInterface: Signal.ok(new Map([[ 'default', Try.ok({ type: Type.object({ baz: Type.number }) }) ]])),
+        exportInterface: Signal.ok(new Map([[
+          'default', Try.ok({ type: Type.object({ baz: Type.number }), dynamic: false })
+        ]])),
         exportValue: Signal.ok(new Map([[ 'default', { baz: 7 } ]])),
         exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
@@ -369,7 +373,7 @@ it('compiles with layout', () => {
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map([[
-          'default', Try.ok({ type: Type.layoutFunctionType }),
+          'default', Try.ok({ type: Type.layoutFunctionType, dynamic: false }),
         ]])),
         exportValue: Signal.ok(new Map([[
           'default', (props: { children: React.ReactNode, meta: {} }) =>
@@ -423,7 +427,7 @@ it('identifier uses itself in initializer with dynamic value', () => {
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map([[
-          'bar', Try.ok({ type: Type.number }),
+          'bar', Try.ok({ type: Type.number, dynamic: false }),
         ]])),
         exportValue: Signal.ok(new Map([[
           'bar', Signal.ok(7)

@@ -12,7 +12,7 @@ import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import initEnv from './initEnv';
 
-export const initTypeEnv: Typecheck.Env = initEnv.map(({ type }) => (Try.ok({ type })));
+export const initTypeEnv: Typecheck.Env = initEnv.map(({ type, dynamic }) => (Try.ok({ type, dynamic })));
 export const initDynamicEnv: Dyncheck.Env = initEnv.map(({ dynamic }) => dynamic);
 export const initValueEnv: Evaluate.Env = initEnv.map(({ value }) => value);
 

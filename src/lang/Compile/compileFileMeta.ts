@@ -10,7 +10,7 @@ import * as Evaluate from '../Evaluate';
 import { Interface, Content, CompiledFile } from '../../model';
 import * as Meta from '../../model/Meta';
 
-const exportInterface = Signal.ok(new Map([[ 'default', Try.ok({ type: Type.metaType }) ]]));
+const exportInterface = Signal.ok(new Map([[ 'default', Try.ok({ type: Type.metaType, dynamic: false }) ]]));
 const exportDynamic = Signal.ok(new Map([[ 'default', false ]]));
 const rendered = Signal.ok(null);
 

@@ -67,10 +67,10 @@ export default function compileFileJpeg(
 
     // TODO(jaked) parse JPEG file and return metadata
     const exportInterface = new Map([
-      [ 'buffer', Try.ok({ type: Type.abstract('Buffer') }) ],
-      [ 'objectUrl', Try.ok({ type: Type.string }) ],
-      [ 'img', Try.ok({ type: imgType }) ],
-      [ 'default', Try.ok({ type: imgType }) ],
+      [ 'buffer', Try.ok({ type: Type.abstract('Buffer'), dynamic: false }) ],
+      [ 'objectUrl', Try.ok({ type: Type.string, dynamic: false }) ],
+      [ 'img', Try.ok({ type: imgType, dynamic: false }) ],
+      [ 'default', Try.ok({ type: imgType, dynamic: false }) ],
     ]);
     const exportValue = new Map<string, unknown>([
       [ 'buffer', buffer ],

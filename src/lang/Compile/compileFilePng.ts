@@ -67,10 +67,10 @@ export default function compileFilePng(
 
     // TODO(jaked) parse PNG file and return metadata
     const exportInterface = new Map<string, Interface>([
-      [ 'buffer', Try.ok({ type: Type.abstract('Buffer') }) ],
-      [ 'objectUrl', Try.ok({ type: Type.string }) ],
-      [ 'img', Try.ok({ type: imgType }) ],
-      [ 'default', Try.ok({ type: imgType }) ],
+      [ 'buffer', Try.ok({ type: Type.abstract('Buffer'), dynamic: false }) ],
+      [ 'objectUrl', Try.ok({ type: Type.string, dynamic: false }) ],
+      [ 'img', Try.ok({ type: imgType, dynamic: false }) ],
+      [ 'default', Try.ok({ type: imgType, dynamic: false }) ],
     ]);
     const exportValue = new Map<string, unknown>([
       [ 'buffer', buffer ],
