@@ -28,7 +28,6 @@ export type Meta = {
 
 export type Interface = Try<{ type: Type, dynamic: boolean }>;
 export type InterfaceMap = Map<ESTree.Node, Interface>;
-export type DynamicMap = Map<ESTree.Node, boolean>;
 
 export type NoteFiles = {
   'meta'?: Content;
@@ -63,9 +62,7 @@ export interface CompiledFile {
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
 
-  // TODO(jaked) bundle these together?
   exportInterface: Signal<Map<string, Interface>>;
-  exportDynamic: Signal<Map<string, boolean>>;
   exportValue: Signal<Map<string, unknown>>;
 
   // filled in only for .pm files
@@ -81,9 +78,7 @@ export type CompiledNote = {
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
 
-  // TODO(jaked) bundle these together?
   exportInterface: Signal<Map<string, Interface>>;
-  exportDynamic: Signal<Map<string, boolean>>;
   exportValue: Signal<Map<string, unknown>>;
 
   // passed through from CompiledFile for .pm file

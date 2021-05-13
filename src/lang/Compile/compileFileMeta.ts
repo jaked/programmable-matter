@@ -5,13 +5,11 @@ import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import { Interface, Content, CompiledFile } from '../../model';
 import * as Meta from '../../model/Meta';
 
 const exportInterface = Signal.ok(new Map([[ 'default', Try.ok({ type: Type.metaType, dynamic: false }) ]]));
-const exportDynamic = Signal.ok(new Map([[ 'default', false ]]));
 const rendered = Signal.ok(null);
 
 export default function compileFileMeta(
@@ -21,12 +19,10 @@ export default function compileFileMeta(
     const ast = Parse.parseExpression(content as string);
     const interfaceMap = new Map<ESTree.Node, Interface>();
     const intf = Typecheck.check(ast, Typecheck.env(), Type.metaType, interfaceMap);
-    const dynamicMap = new Map<ESTree.Node, boolean>();
-    Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
     const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
     const value = intf.type === 'err' ?
       intf.err :
-      Meta.validate(Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map()));
+      Meta.validate(Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map()));
     const exportValue = new Map([[ 'default', value ]]);
     return {
       ast,
@@ -43,7 +39,6 @@ export default function compileFileMeta(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
-    exportDynamic,
     rendered
   };
 }

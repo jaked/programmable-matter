@@ -7,10 +7,13 @@ import * as PMAST from '../../model/PMAST';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as MapFuncs from '../../util/MapFuncs';
-import { DynamicMap, InterfaceMap } from '../../model';
+import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 
 export type Env = Immutable.Map<string, any>;
+
+const intfDynamic = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.dynamic : false;
 
 function patValueEnvIdentifier(ast: ESTree.Identifier, value: any, env: Env): Env {
   return env.set(ast.name, value);
@@ -52,12 +55,14 @@ const functionComponent = React.memo<{ component, props }>(({ component, props }
 function joinDynamicExpressions(
   exprs: ESTree.Expression[],
   interfaceMap: InterfaceMap,
-  dynamicMap: DynamicMap,
   env: Env,
   fn: (values: unknown[]) => unknown
 ): unknown {
-  const values = exprs.map(expr => evaluateExpression(expr, interfaceMap, dynamicMap, env));
-  const dynamics = exprs.map(expr => dynamicMap.get(expr) ?? bug(`expected dynamic`));
+  const values = exprs.map(expr => evaluateExpression(expr, interfaceMap, env));
+  const dynamics = exprs.map(expr => {
+    const intf = interfaceMap.get(expr) ?? bug(`expected interface`);
+    return intfDynamic(intf);
+  });
   const signals = values.filter((value, i) => dynamics[i]) as Signal<unknown>[];
   switch (signals.length) {
     case 0:
@@ -93,7 +98,6 @@ function joinDynamicExpressions(
 export function evaluateExpression(
   ast: ESTree.Expression,
   interfaceMap: InterfaceMap,
-  dynamicMap: DynamicMap,
   env: Env,
 ): unknown {
   const intf = interfaceMap.get(ast) ?? bug(`expected type`);
@@ -112,7 +116,7 @@ export function evaluateExpression(
       else bug(`expected value for ${ast.name}`);
 
     case 'JSXExpressionContainer':
-      return evaluateExpression(ast.expression, interfaceMap, dynamicMap, env);
+      return evaluateExpression(ast.expression, interfaceMap, env);
 
     case 'JSXEmptyExpression':
       return undefined;
@@ -137,7 +141,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         exprs,
         interfaceMap,
-        dynamicMap,
         env,
         values =>  {
           const attrObjs = ast.openingElement.attributes.map(({ name, value }) => {
@@ -169,7 +172,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         ast.children,
         interfaceMap,
-        dynamicMap,
         env,
         values => values
       );
@@ -178,7 +180,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         [ast.argument],
         interfaceMap,
-        dynamicMap,
         env,
         ([v]) => {
           const argIntf = interfaceMap.get(ast.argument) ?? bug(`expected type`);
@@ -195,21 +196,21 @@ export function evaluateExpression(
     case 'LogicalExpression': {
       // when either left or right is dynamic the whole expression is dynamic
       // but only evaluate right if needed
-      const leftDynamic = dynamicMap.get(ast.left) ?? bug(`expected dynamic`);
-      const rightDynamic = dynamicMap.get(ast.right) ?? bug(`expected dynamic`);
+      const leftDynamic = intfDynamic(interfaceMap.get(ast.left) ?? bug(`expected interface`));
+      const rightDynamic = intfDynamic(interfaceMap.get(ast.right) ?? bug(`expected interface`));
       const fn = (left: unknown) => {
         switch (ast.operator) {
           case '||':
             if (left) return rightDynamic ? Signal.ok(left) : left;
-            else return evaluateExpression(ast.right, interfaceMap, dynamicMap, env);
+            else return evaluateExpression(ast.right, interfaceMap, env);
           case '&&':
             if (!left) return rightDynamic ? Signal.ok(left) : left;
-            else return evaluateExpression(ast.right, interfaceMap, dynamicMap, env);
+            else return evaluateExpression(ast.right, interfaceMap, env);
           default:
             bug(`unimplemented ${(ast as any).operator}`);
         }
       }
-      const left = evaluateExpression(ast.left, interfaceMap, dynamicMap, env);
+      const left = evaluateExpression(ast.left, interfaceMap, env);
       if (leftDynamic && rightDynamic) {
         return (left as Signal<unknown>).flatMap(fn as (left: unknown) => Signal<unknown>);
       } else if (leftDynamic) {
@@ -223,7 +224,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         [ast.left, ast.right],
         interfaceMap,
-        dynamicMap,
         env,
         ([lv, rv]) => {
           const leftIntf = interfaceMap.get(ast.left) ?? bug(`expected type`);
@@ -272,7 +272,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         ast.expressions,
         interfaceMap,
-        dynamicMap,
         env,
         values => values[values.length - 1]
       );
@@ -282,7 +281,6 @@ export function evaluateExpression(
         return joinDynamicExpressions(
           [ast.object, ast.property],
           interfaceMap,
-          dynamicMap,
           env,
           ([object, property]) => (object as object)[property as (string | number)]
         );
@@ -292,7 +290,6 @@ export function evaluateExpression(
         return joinDynamicExpressions(
           [ast.object],
           interfaceMap,
-          dynamicMap,
           env,
           ([object]) => (object as object)[name]
         );
@@ -313,7 +310,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         exprs,
         interfaceMap,
-        dynamicMap,
         env,
         values => {
           const args = ast.arguments.map(arg => values.shift());
@@ -342,7 +338,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         ast.properties.map(prop => prop.value),
         interfaceMap,
-        dynamicMap,
         env,
         values => {
           const properties = ast.properties.map(prop => {
@@ -365,7 +360,6 @@ export function evaluateExpression(
       return joinDynamicExpressions(
         ast.elements,
         interfaceMap,
-        dynamicMap,
         env,
         values => values
       );
@@ -381,7 +375,7 @@ export function evaluateExpression(
           const values = body.body.map(stmt => {
             switch (stmt.type) {
               case 'ExpressionStatement':
-                return evaluateExpression(stmt.expression, interfaceMap, dynamicMap, env);
+                return evaluateExpression(stmt.expression, interfaceMap, env);
               default:
                 bug(`unimplemented ${stmt.type}`);
             }
@@ -395,7 +389,7 @@ export function evaluateExpression(
           ast.params.forEach((pat, i) => {
             env = patValueEnv(pat, args[i], env);
           });
-          return evaluateExpression(body, interfaceMap, dynamicMap, env);
+          return evaluateExpression(body, interfaceMap, env);
         };
       }
 
@@ -404,19 +398,20 @@ export function evaluateExpression(
       // in order to cause React reconciliation etc.
       // inside the function, we get() the function value
       // to cause Signal reconciliation and produce a non-Signal value
-      const dynamic = dynamicMap.get(ast) ?? bug(`expected dynamic`);
+      const dynamic = intfDynamic(interfaceMap.get(ast) ?? bug(`expected interface`));
       if (dynamic) {
         const idents = ESTree.freeIdentifiers(ast).filter(ident => {
           // happens when an unbound identifier is used
-          if (!dynamicMap.has(ident)) return false;
+          // TODO(jaked) is this still necessary?
+          if (!interfaceMap.has(ident)) return false;
           // happens when an identifier is used in its own definition
           if (!env.has(ident.name)) return false;
           // TODO(jaked) check for these cases explicitly
           // so we don't hit them for an actual bug
-          return dynamicMap.get(ident) ?? bug(`expected dynamic`);
+          return intfDynamic(interfaceMap.get(ident) ?? bug(`expected dynamic`));
         });
         const signals = idents.map(ident =>
-          evaluateExpression(ident, interfaceMap, dynamicMap, env) as Signal<unknown>
+          evaluateExpression(ident, interfaceMap, env) as Signal<unknown>
         );
         return Signal.join(...signals).map(() =>
           (...args: Array<any>) => fn(...args).get()
@@ -427,20 +422,20 @@ export function evaluateExpression(
     }
 
     case 'ConditionalExpression': {
-      const testDynamic = dynamicMap.get(ast.test) ?? bug(`expected dynamic`);
-      const consequentDynamic = dynamicMap.get(ast.consequent) ?? bug(`expected dynamic`);
-      const alternateDynamic = dynamicMap.get(ast.alternate) ?? bug(`expected dynamic`);
+      const testDynamic = intfDynamic(interfaceMap.get(ast.test) ?? bug(`expected dynamic`));
+      const consequentDynamic = intfDynamic(interfaceMap.get(ast.consequent) ?? bug(`expected dynamic`));
+      const alternateDynamic = intfDynamic(interfaceMap.get(ast.alternate) ?? bug(`expected dynamic`));
 
       const fn = (test : unknown) => {
         if (test) {
-          const consequent = evaluateExpression(ast.consequent, interfaceMap, dynamicMap, env);
+          const consequent = evaluateExpression(ast.consequent, interfaceMap, env);
           return (alternateDynamic && !consequentDynamic) ? Signal.ok(consequent) : consequent;
         } else {
-          const alternate = evaluateExpression(ast.alternate, interfaceMap, dynamicMap, env)
+          const alternate = evaluateExpression(ast.alternate, interfaceMap, env)
           return (consequentDynamic && !alternateDynamic) ? Signal.ok(alternate) : alternate;
         }
       };
-      const test = evaluateExpression(ast.test, interfaceMap, dynamicMap, env);
+      const test = evaluateExpression(ast.test, interfaceMap, env);
       if (testDynamic && (consequentDynamic || alternateDynamic)) {
         return (test as Signal<unknown>).flatMap(fn as (test: unknown) => Signal<unknown>);
       } else if (testDynamic) {
@@ -474,19 +469,18 @@ export function evaluateExpression(
           }
           object = object.object;
         }
-        exprs.unshift(object);
+        if (object.type !== 'Identifier') bug(`expected identifier`);
+        const objectSignal = env.get(object.name) ?? bug(`expected ${object.name}`);
         return joinDynamicExpressions(
           exprs,
           interfaceMap,
-          dynamicMap,
           env,
           values => {
-            const object = values.shift();
             const right = values.pop();
             if (props.length === 0) {
-              (object as Signal.Writable<unknown>).setOk(right);
+              (objectSignal as Signal.Writable<unknown>).setOk(right);
             } else {
-              (object as Signal.Writable<object>).produce(object => {
+              (objectSignal as Signal.Writable<object>).produce(object => {
                 while (props.length > 1) {
                   let prop = props.shift() || values.shift() as string;
                   object = object[prop];
@@ -502,7 +496,7 @@ export function evaluateExpression(
     }
 
     case 'TSAsExpression':
-      return evaluateExpression(ast.expression, interfaceMap, dynamicMap, env);
+      return evaluateExpression(ast.expression, interfaceMap, env);
 
     default:
       throw new Error('unexpected AST ' + (ast as any).type);
@@ -511,7 +505,7 @@ export function evaluateExpression(
 
 function importDecl(
   decl: ESTree.ImportDeclaration,
-  moduleDynamicEnv: Map<string, Map<string, boolean>>,
+  moduleInterfaceEnv: Map<string, Map<string, Interface>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   interfaceMap: InterfaceMap,
   valueEnv: Env,
@@ -526,7 +520,7 @@ function importDecl(
     });
   } else {
     const moduleValue = moduleValueEnv.get(decl.source.value) ?? bug(`expected moduleValue`);
-    const moduleDynamic = moduleDynamicEnv.get(decl.source.value) ?? bug(`expected moduleDynamic`);
+    const moduleInterface = moduleInterfaceEnv.get(decl.source.value) ?? bug(`expected moduleInterface`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
@@ -534,9 +528,9 @@ function importDecl(
           // so we can distinguish dynamic/static module members at the point of use
           // for now if any member is dynamic the whole module is dynamic, else static
           let value;
-          if ([...moduleDynamic.values()].some(dynamic => dynamic)) {
+          if ([...moduleInterface.values()].some(intfDynamic)) {
             value = Signal.joinMap(Signal.ok(MapFuncs.map(moduleValue, (v, k) => {
-              if (moduleDynamic.get(k) ?? bug(`expected dynamic`))
+              if (intfDynamic(moduleInterface.get(k) ?? bug(`expected dynamic`)))
                 return v as Signal<unknown>;
               else
                 return Signal.ok(v);
@@ -577,7 +571,6 @@ function evalVariableDecl(
   node: PMAST.Code,
   decl: ESTree.VariableDeclaration,
   interfaceMap: InterfaceMap,
-  dynamicMap: DynamicMap,
   valueEnv: Env,
 ): Env {
   switch (decl.kind) {
@@ -585,7 +578,7 @@ function evalVariableDecl(
       decl.declarations.forEach(declarator => {
         if (!declarator.init) return;
         const name = declarator.id.name;
-        const value = evaluateExpression(declarator.init, interfaceMap, dynamicMap, valueEnv);
+        const value = evaluateExpression(declarator.init, interfaceMap, valueEnv);
         valueEnv = valueEnv.set(name, value);
       });
     }
@@ -598,7 +591,7 @@ function evalVariableDecl(
         if (cellIntf.type === 'err') return valueEnv;
         else if (cellIntf.ok.type.kind !== 'Abstract' || cellIntf.ok.type.params.size !== 1) bug(`expected Code<T> or Session<T>`);
         const init = declarator.init;
-        const value = evaluateExpression(init, interfaceMap, dynamicMap, Immutable.Map({ undefined: undefined }));
+        const value = evaluateExpression(init, interfaceMap, Immutable.Map({ undefined: undefined }));
         if (cellIntf.ok.type.label === 'Code') {
           // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
           valueEnv = valueEnv.set(name, nodes.mapWritable(
@@ -651,8 +644,7 @@ export function evaluateCodeNode(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   interfaceMap: InterfaceMap,
-  dynamicMap: DynamicMap,
-  moduleDynamicEnv: Map<string, Map<string, boolean>>,
+  moduleInterfaceEnv: Map<string, Map<string, Interface>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   valueEnv: Env,
 ): Env {
@@ -661,21 +653,21 @@ export function evaluateCodeNode(
     for (const decl of code.body) {
       switch (decl.type) {
         case 'ImportDeclaration':
-          valueEnv = importDecl(decl, moduleDynamicEnv, moduleValueEnv, interfaceMap, valueEnv);
+          valueEnv = importDecl(decl, moduleInterfaceEnv, moduleValueEnv, interfaceMap, valueEnv);
           break;
 
         case 'ExportNamedDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl.declaration, interfaceMap, dynamicMap, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl.declaration, interfaceMap, valueEnv);
           break;
 
         case 'ExportDefaultDeclaration': {
-          const value = evaluateExpression(decl.declaration, interfaceMap, dynamicMap, valueEnv);
+          const value = evaluateExpression(decl.declaration, interfaceMap, valueEnv);
           valueEnv = valueEnv.set('default', value);
         }
         break;
 
         case 'VariableDeclaration':
-          valueEnv = evalVariableDecl(nodes, node, decl, interfaceMap, dynamicMap, valueEnv);
+          valueEnv = evalVariableDecl(nodes, node, decl, interfaceMap, valueEnv);
           break;
       }
     }

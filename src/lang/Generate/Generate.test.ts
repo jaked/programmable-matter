@@ -1,11 +1,10 @@
 import { bug } from '../../util/bug';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import { DynamicMap, Interface, InterfaceMap } from '../../model';
+import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Dyncheck from '../Dyncheck';
 import * as Render from '../Render';
 import * as Generate from './index';
 
@@ -24,28 +23,18 @@ function typecheckNodes(
 
   const moduleTypeEnv: Map<string, Map<string, Interface>> = new Map();
   const moduleDynamicEnv: Map<string, Map<string, boolean>> = new Map();
-  let typeEnv = Render.initTypeEnv;
-  let dynamicEnv = Render.initDynamicEnv;
+  let interfaceEnv = Render.initInterfaceEnv;
   const interfaceMap: InterfaceMap = new Map();
-  const dynamicMap: DynamicMap = new Map();
 
   codeNodes.forEach(node => {
     const code = Parse.parseCodeNode(node);
     code.forEach(code => {
-      typeEnv = Typecheck.synthProgram(
+      interfaceEnv = Typecheck.synthProgram(
         moduleTypeEnv,
         code,
-        typeEnv,
+        interfaceEnv,
         interfaceMap
       );
-      dynamicEnv = Dyncheck.program(
-        moduleDynamicEnv,
-        code,
-        typeEnv,
-        interfaceMap,
-        dynamicEnv,
-        dynamicMap,
-      )
     });
   });
 
@@ -54,32 +43,25 @@ function typecheckNodes(
     code.forEach(code => {
       Typecheck.check(
         code,
-        typeEnv,
+        interfaceEnv,
         Type.reactNodeType,
         interfaceMap
-      );
-      Dyncheck.expression(
-        code,
-        interfaceMap,
-        dynamicEnv,
-        dynamicMap
       );
     })
   });
 
-  return { interfaceMap, dynamicMap };
+  return { interfaceMap };
 }
 
 function expectGenerate(
   nodes: PMAST.Node[],
   expected: string
 ) {
-  const { interfaceMap, dynamicMap } = typecheckNodes(nodes);
+  const { interfaceMap } = typecheckNodes(nodes);
   const js =
     Generate.generatePm(
       nodes,
       (e: ESTree.Expression) => interfaceMap.get(e) ?? bug(`expected type`),
-      (e: ESTree.Expression) => dynamicMap.get(e) ?? bug(`expected dynamic`),
       false
     );
   expect(js.trim()).toBe(expected.trim());

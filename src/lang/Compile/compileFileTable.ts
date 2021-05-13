@@ -13,9 +13,8 @@ import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
-import { DynamicMap, Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
+import { Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
 import * as model from '../../model';
 import { Table } from '../../components/Table';
 import lensType from './lensType';
@@ -58,7 +57,6 @@ const tableType =
 function computeTableConfig(
   ast: ESTree.Expression,
   interfaceMap: InterfaceMap,
-  dynamicMap: DynamicMap,
 ): model.Table {
   // TODO(jaked)
   // blows up if a type string cannot be parsed
@@ -67,7 +65,7 @@ function computeTableConfig(
   // maybe we could evaluate with respect to a type
   // and do conversion internally to evaluation
   return {
-    fields: (Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map()) as any).fields.map(field => {
+    fields: (Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map()) as any).fields.map(field => {
       switch (field.kind) {
         case 'data':
           const type = Parse.parseType(field.type);
@@ -207,8 +205,6 @@ function computeFields(
   });
 }
 
-const exportDynamic = Signal.ok(new Map([[ 'default', false ]]));
-
 export default function compileFileTable(
   file: Content,
   compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
@@ -245,8 +241,6 @@ export default function compileFileTable(
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
     const interfaceMap = new Map<ESTree.Node, Interface>();
     const intf = Typecheck.check(ast, Typecheck.env(), tableType, interfaceMap);
-    const dynamicMap = new Map<ESTree.Node, boolean>();
-    Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
     const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
 
     if (intf.type === 'err') {
@@ -259,7 +253,7 @@ export default function compileFileTable(
         problems,
       }
     }
-    const tableConfig = computeTableConfig(ast, interfaceMap, dynamicMap);
+    const tableConfig = computeTableConfig(ast, interfaceMap);
     const tableDataType = computeTableDataType(tableConfig);
 
     const table = computeTable(tableConfig, tableDataType, tableName, noteEnv, updateFile, deleteFile);
@@ -293,7 +287,6 @@ export default function compileFileTable(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.flatMap(({ exportValue }) => exportValue),
-    exportDynamic,
     rendered: compiled.flatMap(({ rendered }) => rendered),
   };
 }

@@ -5,15 +5,16 @@ import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
-import { DynamicMap, InterfaceMap } from '../../model';
+import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 import Typecheck from '../Typecheck';
-import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import initEnv from './initEnv';
 
-export const initTypeEnv: Typecheck.Env = initEnv.map(({ type, dynamic }) => (Try.ok({ type, dynamic })));
-export const initDynamicEnv: Dyncheck.Env = initEnv.map(({ dynamic }) => dynamic);
+const intfDynamic = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.dynamic : false;
+
+export const initInterfaceEnv: Typecheck.Env = initEnv.map(({ type, dynamic }) => (Try.ok({ type, dynamic })));
 export const initValueEnv: Evaluate.Env = initEnv.map(({ value }) => value);
 
 export const context = React.createContext<'screen' | 'server'>('screen');
@@ -37,7 +38,6 @@ const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
 export function renderNode(
   node: PMAST.Node,
   interfaceMap: InterfaceMap,
-  dynamicMap: DynamicMap,
   valueEnv: Evaluate.Env,
   nextRootId: [ number ],
   Link: React.FunctionComponent<{ href: string }> = () => null,
@@ -64,8 +64,8 @@ export function renderNode(
       const rendered: React.ReactNode[] = [];
       for (const node of (code.ok as ESTree.Program).body) {
         if (node.type === 'ExpressionStatement') {
-          const dynamic = dynamicMap.get(node.expression) ?? bug(`expected dynamic`);
-          const value = Evaluate.evaluateExpression(node.expression, interfaceMap, dynamicMap, valueEnv);
+          const dynamic = intfDynamic(interfaceMap.get(node.expression) ?? bug(`expected dynamic`));
+          const value = Evaluate.evaluateExpression(node.expression, interfaceMap, valueEnv);
           if (dynamic) {
             rendered.push(<div id={`__root${nextRootId[0]}`}>{
               Signal.node(value as Signal<React.ReactNode>)
@@ -82,8 +82,8 @@ export function renderNode(
       const code = Parse.parseInlineCodeNode(node);
       if (code.type !== 'ok') return null;
       const expr = code.ok as ESTree.Expression;
-      const dynamic = dynamicMap.get(expr) ?? bug(`expected dynamic`);
-      const value = Evaluate.evaluateExpression(expr, interfaceMap, dynamicMap, valueEnv);
+      const dynamic = intfDynamic(interfaceMap.get(expr) ?? bug(`expected dynamic`));
+      const value = Evaluate.evaluateExpression(expr, interfaceMap, valueEnv);
       if (dynamic) {
         const elem = <span id={`__root${nextRootId[0]}`}>
           {Signal.node(value as Signal<React.ReactNode>)}
@@ -95,7 +95,7 @@ export function renderNode(
       }
 
     } else {
-      const children = node.children.map(child => renderNode(child, interfaceMap, dynamicMap, valueEnv, nextRootId, Link));
+      const children = node.children.map(child => renderNode(child, interfaceMap, valueEnv, nextRootId, Link));
       let rendered;
       if (node.type === 'a') {
         rendered = React.createElement(Link, { key, href: node.href }, ...children);

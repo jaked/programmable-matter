@@ -7,7 +7,7 @@ import { bug } from '../../util/bug';
 import * as model from '../../model';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
-import { Interface, InterfaceMap, DynamicMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
+import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
@@ -16,73 +16,41 @@ import * as Render from '../Render';
 import * as Generate from '../Generate';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Dyncheck from '../Dyncheck';
 
 import makeLink from '../../components/makeLink';
 
 const intfType = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
+const intfDynamic = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.dynamic : false;
+
 function typecheckCode(
   node: PMAST.Code,
-  moduleEnv: Map<string, Map<string, Interface>>,
-  typeEnv: Typecheck.Env,
+  moduleInterfaceEnv: Map<string, Map<string, Interface>>,
+  interfaceEnv: Typecheck.Env,
   interfaceMap: InterfaceMap,
 ): Typecheck.Env {
   const code = Parse.parseCodeNode(node);
   code.forEach(code => {
-    typeEnv = Typecheck.synthProgram(
-      moduleEnv,
+    interfaceEnv = Typecheck.synthProgram(
+      moduleInterfaceEnv,
       code,
-      typeEnv,
+      interfaceEnv,
       interfaceMap
     );
   });
-  return typeEnv;
-}
-
-function dyncheckCode(
-  node: PMAST.Code,
-  moduleEnv: Map<string, Map<string, boolean>>,
-  typeEnv: Typecheck.Env,
-  interfaceMap: InterfaceMap,
-  dynamicEnv: Dyncheck.Env,
-  dynamicMap: DynamicMap,
-): Dyncheck.Env {
-  const code = Parse.parseCodeNode(node);
-  code.forEach(code => {
-    dynamicEnv = Dyncheck.program(
-      moduleEnv,
-      code,
-      typeEnv,
-      interfaceMap,
-      dynamicEnv,
-      dynamicMap,
-    );
-  });
-  return dynamicEnv;
+  return interfaceEnv;
 }
 
 function typecheckInlineCode(
   node: PMAST.InlineCode,
-  env: Typecheck.Env,
+  interfaceEnv: Typecheck.Env,
   interfaceMap: InterfaceMap,
 ) {
   const code = Parse.parseInlineCodeNode(node);
   code.forEach(code => {
-    Typecheck.check(code, env, Type.reactNodeType, interfaceMap);
-  });
-}
-
-function dyncheckInlineCode(
-  node: PMAST.InlineCode,
-  interfaceMap: InterfaceMap,
-  dynamicEnv: Dyncheck.Env,
-  dynamicMap: DynamicMap,
-) {
-  const code = Parse.parseInlineCodeNode(node);
-  code.forEach(code => {
-    Dyncheck.expression(code, interfaceMap, dynamicEnv, dynamicMap);
+    Typecheck.check(code, interfaceEnv, Type.reactNodeType, interfaceMap);
   });
 }
 
@@ -158,10 +126,8 @@ export default function compileFilePm(
       });
       return noteEnv;
     });
-  const moduleTypeEnv =
+  const moduleInterfaceEnv =
     Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportInterface));
-  const moduleDynamicEnv =
-    Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportDynamic));
   const moduleValueEnv =
     Signal.joinMap(Signal.mapMap(noteEnv, note => note.exportValue));
 
@@ -212,41 +178,28 @@ export default function compileFilePm(
     codeNodes,
     jsonIntf,
     tableIntf,
-    moduleTypeEnv,
-    moduleDynamicEnv,
-  ).map(([codeNodes, jsonIntf, tableIntf, moduleTypeEnv, moduleDynamicEnv]) => {
+    moduleInterfaceEnv,
+  ).map(([codeNodes, jsonIntf, tableIntf, moduleInterfaceEnv]) => {
     // TODO(jaked) pass into compileFilePm
-    let typeEnv = Render.initTypeEnv;
-    let dynamicEnv = Render.initDynamicEnv;
+    let interfaceEnv = Render.initInterfaceEnv;
 
     if (jsonIntf) {
-      typeEnv = typeEnv.set('data', jsonIntf);
-      dynamicEnv = dynamicEnv.set('data', false);
+      interfaceEnv = interfaceEnv.set('data', jsonIntf);
     }
     if (tableIntf) {
-      typeEnv = typeEnv.set('table', tableIntf);
-      dynamicEnv = dynamicEnv.set('table', false);
+      interfaceEnv = interfaceEnv.set('table', tableIntf);
     }
 
     const interfaceMap = new Map<ESTree.Node, Interface>();
-    const dynamicMap = new Map<ESTree.Node, boolean>();
     codeNodes.forEach(node => {
-      typeEnv = typecheckCode(
+      interfaceEnv = typecheckCode(
         node,
-        moduleTypeEnv,
-        typeEnv,
+        moduleInterfaceEnv,
+        interfaceEnv,
         interfaceMap
       );
-      dynamicEnv = dyncheckCode(
-        node,
-        moduleDynamicEnv,
-        typeEnv,
-        interfaceMap,
-        dynamicEnv,
-        dynamicMap,
-      );
     });
-    return { typeEnv, interfaceMap, dynamicEnv, dynamicMap }
+    return { interfaceEnv, interfaceMap }
   });
 
   // TODO(jaked)
@@ -255,15 +208,13 @@ export default function compileFilePm(
   const typecheckedInlineCode = Signal.join(
     typecheckedCode,
     inlineCodeNodes,
-  ).map(([{ typeEnv, interfaceMap, dynamicEnv, dynamicMap }, inlineCodeNodes]) => {
+  ).map(([{ interfaceEnv, interfaceMap }, inlineCodeNodes]) => {
     // clone to avoid polluting annotations between versions
     // TODO(jaked) works fine but not very clear
     interfaceMap = new Map(interfaceMap);
-    dynamicMap = new Map(dynamicMap);
 
     inlineCodeNodes.forEach(node => {
-      typecheckInlineCode(node, typeEnv, interfaceMap);
-      dyncheckInlineCode(node, interfaceMap, dynamicEnv, dynamicMap);
+      typecheckInlineCode(node, interfaceEnv, interfaceMap);
     });
     const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
     if (problems && debug) {
@@ -274,7 +225,7 @@ export default function compileFilePm(
       });
       console.log(errorAnnotations);
     }
-    return { interfaceMap, dynamicMap, problems }
+    return { interfaceMap, problems }
   });
 
   // TODO(jaked)
@@ -284,9 +235,9 @@ export default function compileFilePm(
     typecheckedCode,
     jsonValue,
     tableValue,
-    moduleDynamicEnv,
+    moduleInterfaceEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { interfaceMap, dynamicMap }, jsonValue, tableValue, moduleDynamicEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { interfaceMap }, jsonValue, tableValue, moduleInterfaceEnv, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -299,8 +250,7 @@ export default function compileFilePm(
         nodes,
         node,
         interfaceMap,
-        dynamicMap,
-        moduleDynamicEnv,
+        moduleInterfaceEnv,
         moduleValueEnv,
         valueEnv
       )
@@ -317,9 +267,9 @@ export default function compileFilePm(
     nodes,
     compile,
     typecheckedInlineCode,
-  ).map(([nodes, { valueEnv }, { interfaceMap, dynamicMap }]) => {
+  ).map(([nodes, { valueEnv }, { interfaceMap }]) => {
     const nextRootId: [ number ] = [ 0 ];
-    return nodes.map(node => Render.renderNode(node, interfaceMap, dynamicMap, valueEnv, nextRootId, Link));
+    return nodes.map(node => Render.renderNode(node, interfaceMap, valueEnv, nextRootId, Link));
   });
 
   const debug = false;
@@ -335,15 +285,14 @@ export default function compileFilePm(
       if (debug) console.log(`layoutModule`);
       return Signal.join(
         layoutModule.exportInterface,
-        layoutModule.exportDynamic,
         layoutModule.exportValue,
-      ).map(([exportInterface, exportDynamic, exportValue]) => {
+      ).map(([exportInterface, exportValue]) => {
         const defaultIntf = exportInterface.get('default');
         if (defaultIntf) {
           if (debug) console.log(`defaultType`);
           if (Type.isSubtype(intfType(defaultIntf), Type.layoutFunctionType)) {
             if (debug) console.log(`isSubtype`);
-            const dynamic = exportDynamic.get('default') ?? bug(`expected default`);
+            const dynamic = intfDynamic(defaultIntf);
             // TODO(jaked)
             // a dynamic layout forces the whole page to be dynamic, would that be ok?
             // also a static layout should be able to contain dynamic elements
@@ -406,11 +355,10 @@ ${html}
   const js = Signal.join(
     nodes,
     typecheckedInlineCode,
-  ).map(([nodes, { interfaceMap, dynamicMap }]) => {
+  ).map(([nodes, { interfaceMap }]) => {
     return Generate.generatePm(
       nodes,
-      expr => interfaceMap.get(expr) ?? bug(`expected type for ${JSON.stringify(expr)}`),
-      expr => dynamicMap.get(expr) ?? bug(`expected dynamic for ${JSON.stringify(expr)}`),
+      expr => interfaceMap.get(expr) ?? bug(`expected interface for ${JSON.stringify(expr)}`)
     );
   });
 
@@ -437,20 +385,12 @@ ${html}
     })
   );
 
-  const exportInterface = Signal.join(exports, typecheckedCode).map(([exportNames, { typeEnv }]) => {
+  const exportInterface = Signal.join(exports, typecheckedCode).map(([exportNames, { interfaceEnv: typeEnv }]) => {
     const exportInterface: Map<string, Interface> = new Map();
     exportNames.forEach(name => {
       exportInterface.set(name, typeEnv.get(name) ?? bug(`expected type`));
     });
     return exportInterface;
-  });
-
-  const exportDynamic = Signal.join(exports, typecheckedCode).map(([exportNames, { dynamicEnv }]) => {
-    const exportDynamic: Map<string, boolean> = new Map();
-    exportNames.forEach(name => {
-      exportDynamic.set(name, dynamicEnv.get(name) ?? bug(`expected dynamic`));
-    });
-    return exportDynamic;
   });
 
   const exportValue = Signal.join(exports, compile).map(([exportNames, { valueEnv }]) => {
@@ -471,7 +411,6 @@ ${html}
 
     exportInterface,
     exportValue,
-    exportDynamic,
 
     html,
     js,

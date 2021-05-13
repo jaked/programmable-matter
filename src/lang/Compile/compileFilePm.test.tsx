@@ -287,7 +287,6 @@ it('compiles with import', () => {
         rendered: Signal.err(new Error('rendered')),
         exportInterface: Signal.ok(new Map([[ 'bar', Try.ok({ type: Type.number, dynamic: false }) ]])),
         exportValue: Signal.ok(new Map([[ 'bar', 9 ]])),
-        exportDynamic: Signal.ok(new Map([[ 'bar', false ]])),
       },
     ]])),
   );
@@ -324,7 +323,6 @@ it('compiles referencing data / table', () => {
           'mutable', Try.ok({ type: Type.object({ bar: Type.string }), dynamic: false })
         ]])),
         exportValue: Signal.ok(new Map([[ 'mutable', { bar: 'bar' } ]])),
-        exportDynamic: Signal.ok(new Map([[ 'mutable', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
@@ -334,7 +332,6 @@ it('compiles referencing data / table', () => {
           'default', Try.ok({ type: Type.object({ baz: Type.number }), dynamic: false })
         ]])),
         exportValue: Signal.ok(new Map([[ 'default', { baz: 7 } ]])),
-        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
         rendered: Signal.ok(null),
         problems: Signal.ok(false),
         ast: Signal.err(new Error(`unimplemented`))
@@ -379,7 +376,6 @@ it('compiles with layout', () => {
           'default', (props: { children: React.ReactNode, meta: {} }) =>
             React.createElement('div', {}, props.children)
         ]])),
-        exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
       }
     ]])),
   );
@@ -427,12 +423,11 @@ it('identifier uses itself in initializer with dynamic value', () => {
         problems: Signal.ok(false),
         rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map([[
-          'bar', Try.ok({ type: Type.number, dynamic: false }),
+          'bar', Try.ok({ type: Type.number, dynamic: true }),
         ]])),
         exportValue: Signal.ok(new Map([[
           'bar', Signal.ok(7)
         ]])),
-        exportDynamic: Signal.ok(new Map([[ 'bar', true ]])),
       }
     ]])),
   );

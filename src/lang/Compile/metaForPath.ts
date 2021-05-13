@@ -13,7 +13,6 @@ function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
 const emptyMeta: model.CompiledFile = {
   exportInterface: Signal.ok(new Map()),
   exportValue: Signal.ok(new Map([[ 'default', {} ]])),
-  exportDynamic: Signal.ok(new Map([[ 'default', false ]])),
   rendered: Signal.ok(null),
   problems: Signal.ok(false),
   ast: Signal.ok(null),

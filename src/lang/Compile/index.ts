@@ -80,7 +80,6 @@ export function compileFiles(
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
         let exportInterface: Signal<Map<string, model.Interface>> = Signal.ok(new Map());
         let exportValue: Signal<Map<string, unknown>> = Signal.ok(new Map());
-        let exportDynamic: Signal<Map<string, boolean>> = Signal.ok(new Map());
         let html: Signal<string> | undefined;
         let js: Signal<string> | undefined;
 
@@ -88,37 +87,31 @@ export function compileFiles(
           rendered = meta.rendered;
           exportInterface = mergeModule(exportInterface, meta.exportInterface);
           exportValue = mergeModule(exportValue, meta.exportValue);
-          exportDynamic = mergeModule(exportDynamic, meta.exportDynamic);
         }
         if (table) {
           rendered = table.rendered;
           exportInterface = mergeModule(exportInterface, table.exportInterface);
           exportValue = mergeModule(exportValue, table.exportValue);
-          exportDynamic = mergeModule(exportDynamic, table.exportDynamic);
         }
         if (json) {
           rendered = json.rendered;
           exportInterface = mergeModule(exportInterface, json.exportInterface);
           exportValue = mergeModule(exportValue, json.exportValue);
-          exportDynamic = mergeModule(exportDynamic, json.exportDynamic);
         }
         if (jpeg) {
           rendered = jpeg.rendered;
           exportInterface = mergeModule(exportInterface, jpeg.exportInterface);
           exportValue = mergeModule(exportValue, jpeg.exportValue);
-          exportDynamic = mergeModule(exportDynamic, jpeg.exportDynamic);
         }
         if (png) {
           rendered = png.rendered;
           exportInterface = mergeModule(exportInterface, png.exportInterface);
           exportValue = mergeModule(exportValue, png.exportValue);
-          exportDynamic = mergeModule(exportDynamic, png.exportDynamic);
         }
         if (pm) {
           rendered = pm.rendered;
           exportInterface = mergeModule(exportInterface, pm.exportInterface);
           exportValue = mergeModule(exportValue, pm.exportValue);
-          exportDynamic = mergeModule(exportDynamic, pm.exportDynamic);
           html = pm.html;
           js = pm.js;
         }
@@ -126,7 +119,6 @@ export function compileFiles(
           rendered = xml.rendered;
           exportInterface = mergeModule(exportInterface, xml.exportInterface);
           exportValue = mergeModule(exportValue, xml.exportValue);
-          exportDynamic = mergeModule(exportDynamic, xml.exportDynamic);
         }
 
         // TODO(jaked) ugh optional Signal-valued fields are a pain
@@ -147,7 +139,6 @@ export function compileFiles(
           rendered,
           exportInterface,
           exportValue,
-          exportDynamic,
           html,
           js,
         };
@@ -184,7 +175,6 @@ export function compileFiles(
         rendered: parts.flatMap(parts => parts.rendered),
         exportInterface: parts.flatMap(parts => parts.exportInterface),
         exportValue: parts.flatMap(parts => parts.exportValue),
-        exportDynamic: parts.flatMap(parts => parts.exportDynamic),
         html: type === 'pm' ? parts.flatMap(parts => parts.html ?? bug()) : undefined,
         js: type === 'pm' ? parts.flatMap(parts => parts.js ?? bug()) : undefined,
       };

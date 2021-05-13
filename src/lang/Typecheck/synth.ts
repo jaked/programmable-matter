@@ -574,7 +574,7 @@ function synthArrowFunction(
   // TODO(jaked) doesn't handle parameters of union type
   // TODO(jaked) track dynamic flag of body in function type
   const type = Type.functionType(params, intfType(body));
-  return Try.ok({ type, dynamic: false });
+  return Try.ok({ type, dynamic: intfDynamic(body) });
 }
 
 function synthBlockStatement(
@@ -788,14 +788,13 @@ function synthAssignment(
       return left;
     }
 
-    const leftType = left.ok.type;
-    if (leftType.kind === 'Abstract' && (leftType.label === 'Code' || leftType.label === 'Session')) {
-      const param = leftType.params.get(0) ?? bug(`expected param`);
-      // left-hand side of an assigment is never dynamic
-      // so we can just pass through the right-hand side
-      return check(ast.right, env, param, interfaceMap);
+    if (left.ok.type.kind === 'Abstract' && (left.ok.type.label === 'Code' || left.ok.type.label === 'Session')) {
+      const param = left.ok.type.params.get(0) ?? bug(`expected param`);
+      const right = check(ast.right, env, param, interfaceMap);
+      if (right.type === 'err') return right;
+      else return Try.ok({ type: right.ok.type, dynamic: left.ok.dynamic || right.ok.dynamic });
     } else {
-      return Error.expectedType(ast.left, 'Code<T> or Session<T>', left.type, interfaceMap);
+      return Error.expectedType(ast.left, 'Code<T> or Session<T>', left.ok.type, interfaceMap);
     }
   }, /* preserveCell */ true);
 }
@@ -1046,9 +1045,24 @@ function synthVariableDecl(
           synth(declarator.init, initEnv, interfaceMap);
           declIntf = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, interfaceMap);
         } else {
+          let dynamic;
+          if (ann.label === 'Code')
+            // TODO(jaked)
+            // code cells are not actually dynamic
+            // and we don't want to generate dynamic JS for them
+            // but they are Signals
+            // so must be marked dynamic so evaluation dereferences them
+            // maybe we need another state to indicate that they are dynamic at edit time?
+            // dynamic = false;
+            dynamic = true;
+
+          else if (ann.label === 'Session')
+            dynamic = true;
+          else bug(`expected Code or Session`);
+
           const param = ann.params.get(0) ?? bug(`expected param`);
           const intf = check(declarator.init, initEnv, param, interfaceMap);
-          declIntf = intf.type === 'err' ? intf : Try.ok({ type: ann, dynamic: intf.ok.dynamic });
+          declIntf = intf.type === 'err' ? intf : Try.ok({ type: ann, dynamic });
         }
       }
     }

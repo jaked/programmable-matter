@@ -9,7 +9,6 @@ import * as Parse from '../Parse';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
-import * as Dyncheck from '../Dyncheck';
 import * as Evaluate from '../Evaluate';
 import { Interface, Content, CompiledFile } from '../../model';
 import { Record } from '../../components/Record';
@@ -78,11 +77,6 @@ function fieldComponent(field: string, type: Type) {
   }
 }
 
-const exportDynamic = Signal.ok(new Map([
-  [ 'default', false ],
-  [ 'mutable', false ],
-]));
-
 export default function compileFileJson(
   file: Content,
   compiledFiles: Signal<Map<string, CompiledFile>> = Signal.ok(new Map()),
@@ -100,8 +94,6 @@ export default function compileFileJson(
       meta.dataType ?
         Typecheck.check(ast, Typecheck.env(), meta.dataType, interfaceMap) :
         Typecheck.synth(ast, Typecheck.env(), interfaceMap);
-    const dynamicMap = new Map<ESTree.Node, boolean>();
-    Dyncheck.expression(ast, interfaceMap, Immutable.Map(), dynamicMap);
     const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
 
     if (intf.type === 'err') {
@@ -133,7 +125,7 @@ export default function compileFileJson(
         [ 'default', Try.ok({ type, dynamic: false }) ],
         [ 'mutable', Try.ok({ type: lensType(type), dynamic: false }) ],
       ]);
-      const value = Evaluate.evaluateExpression(ast, interfaceMap, dynamicMap, Immutable.Map());
+      const value = Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map());
       const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
       const lens = lensValue(value, setValue, type);
       const exportValue = new Map([
@@ -171,7 +163,6 @@ export default function compileFileJson(
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
     exportValue: compiled.map(({ exportValue }) => exportValue),
-    exportDynamic,
     rendered: compiled.flatMap(({ rendered }) => rendered),
   };
 }

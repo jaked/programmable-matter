@@ -81,7 +81,6 @@ it('non-data note in table dir', () => {
         rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map()),
         exportValue: Signal.ok(new Map()),
-        exportDynamic: Signal.ok(new Map()),
       }
     ]])),
   );
