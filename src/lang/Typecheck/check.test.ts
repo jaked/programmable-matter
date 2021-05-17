@@ -1,4 +1,8 @@
+import { Interface } from '../../model';
+import * as Parse from '../Parse';
+import * as ESTree from '../ESTree';
 import Type from '../Type';
+import Typecheck from './index';
 import expectCheck from './expectCheck';
 
 describe('primitives', () => {
@@ -238,6 +242,14 @@ describe('intersections', () => {
 });
 
 describe('errors', () => {
+  it('error types becomes Try errors', () => {
+    const expr = Parse.parseExpression('error');
+    const env = Typecheck.env({ error: Type.error(new Error('error')) });
+    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const intf = Typecheck.check(expr, env, Type.number, interfaceMap);
+    expect(intf.type).toBe('err');
+  });
+
   it('checking an error returns that error, not subtype error', () => {
     const error = Type.error(new Error('error'));
     expectCheck({

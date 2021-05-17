@@ -451,7 +451,9 @@ export function check(
   type: Type,
   interfaceMap: InterfaceMap,
 ): Interface {
-  const actualType = checkHelper(ast, env, type, interfaceMap);
-  if (interfaceMap) interfaceMap.set(ast, actualType);
-  return actualType;
+  let intf = checkHelper(ast, env, type, interfaceMap);
+  if (intf.type === 'ok' && intf.ok.type.kind === 'Error')
+    intf = Try.err(intf.ok.type.err);
+  interfaceMap.set(ast, intf);
+  return intf;
 }

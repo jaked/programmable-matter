@@ -848,7 +848,9 @@ export function synth(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  const intf = synthHelper(ast, env, interfaceMap);
+  let intf = synthHelper(ast, env, interfaceMap);
+  if (intf.type === 'ok' && intf.ok.type.kind === 'Error')
+    intf = Try.err(intf.ok.type.err);
   interfaceMap.set(ast, intf);
   return intf;
 }
@@ -861,6 +863,7 @@ function andThen(
 ): Interface {
   if (intf.type === 'err')
     return fn(intf, interfaceMap);
+  // TODO(jaked) should understand better where Type-level errors are allowed
   if (intf.ok.type.kind === 'Error')
     return fn(Try.err(intf.ok.type.err), interfaceMap);
 

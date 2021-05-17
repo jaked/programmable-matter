@@ -32,6 +32,13 @@ describe('synth', () => {
         error: true,
       });
     });
+
+    it('error types becomes Try errors', () => {
+      const expr = Parse.parseExpression('error');
+      const interfaceMap = new Map<ESTree.Node, Interface>();
+      const intf = Typecheck.synth(expr, env, interfaceMap);
+      expect(intf.type).toBe('err');
+    });
   });
 
   describe('literals', () => {
