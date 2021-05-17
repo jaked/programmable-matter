@@ -1,3 +1,10 @@
+import { Interface } from '../../model';
+import * as ESTree from '../ESTree';
+import * as Parse from '../Parse';
+import Type from '../Type';
+import Typecheck from './index';
+import { bug } from '../../util/bug';
+
 import expectCheck from './expectCheck';
 
 it('ok', () => {
@@ -29,4 +36,15 @@ it('narrows type for equality tests', () => {
     env: { s: `'foo' | 'bar'` },
     type: `'foo'`,
   });
+});
+
+it('synths untaken branch when test is falsy', () => {
+  const expr = Parse.parseExpression(`false ? 1 : 2`);
+  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const env = Typecheck.env();
+  const type = Type.number;
+  Typecheck.check(expr, env, type, interfaceMap);
+  const consequent = expr.type === 'ConditionalExpression' ? expr.consequent : bug(`expected conditional`);
+  const intf = interfaceMap.get(consequent) ?? bug(`expected interface`);
+  expect(intf.type === 'ok' && intf.ok.dynamic == false).toBe(true);
 });

@@ -39,6 +39,7 @@ function checkSubtype(
           const dynamic = intfDynamic(test) || consequent.ok.dynamic;
           return Try.ok({ type: consequent.ok.type, dynamic });
         } else if (Type.isFalsy(intfType(test))) {
+          synth(ast.consequent, envConsequent, interfaceMap);
           const alternate = check(ast.alternate, envAlternate, type, interfaceMap);
           if (alternate.type === 'err') return alternate;
           const dynamic = intfDynamic(test) || alternate.ok.dynamic;
