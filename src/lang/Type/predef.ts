@@ -29,6 +29,9 @@ export const truthy =
 export const notTruthy =
   Type.not(Type.singleton(true));
 
+export const notUndefined =
+  Type.not(Type.undefined);
+
 export const reactElementType = Type.abstract('React.Element');
 // TODO(jaked)
 // fragments are also permitted here (see ReactNode in React typing)

@@ -273,6 +273,7 @@ function logical(
       (
         ast.operator === '||' ? leftExpr :
         ast.operator === '&&' ? JS.unaryExpression('!', leftExpr) :
+        ast.operator === '??' ? JS.binaryExpression('!==', leftExpr, JS.identifier('undefined')) :
         bug(`unimplemented ${(ast as any).operator}`)
       ),
       maybeSignal(rightDynamic, leftExpr),

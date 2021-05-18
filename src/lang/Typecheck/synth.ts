@@ -142,7 +142,22 @@ function synthLogical(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  const rightEnv = narrowEnvironment(env, ast.left, ast.operator === '&&', interfaceMap);
+  let rightEnv: Env;
+  switch (ast.operator) {
+    case '&&':
+      rightEnv = narrowEnvironment(env, ast.left, true, interfaceMap);
+      break;
+    case '||':
+      rightEnv = narrowEnvironment(env, ast.left, false, interfaceMap);
+      break;
+    case '??':
+      // TODO(jaked) narrow type (left hand side is not undefined)
+      rightEnv = env;
+      break;
+    default:
+      bug(`unexpected operator ${ast.operator}`);
+  }
+
   return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
     return synthAndThen(ast.right, rightEnv, interfaceMap, (right, interfaceMap) => {
       const type = ((left: Type, right: Type) => {
@@ -162,6 +177,16 @@ function synthLogical(
 
               // TODO(jaked) Type.union(Type.intersection(left.type, Type.notFalsy), right.type) ?
               default:          return Type.union(left, right);
+            }
+          }
+
+          case '??': {
+            switch (left.kind) {
+              case 'Error':     return right;
+              case 'undefined': return right;
+              case 'Singleton': return (left.value !== undefined) ? left : right;
+
+              default:          return Type.union(narrowType(left, Type.notUndefined), right);
             }
           }
 

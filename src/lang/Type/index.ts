@@ -76,6 +76,7 @@ module Type {
   export const notTruthy = Predef.notTruthy;
   export const falsy = Predef.falsy;
   export const notFalsy = Predef.notFalsy;
+  export const notUndefined = Predef.notUndefined;
 
   // TODO(jaked) reorganize
   export function isTruthy(type: Type) {

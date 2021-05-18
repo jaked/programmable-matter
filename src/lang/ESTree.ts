@@ -103,7 +103,7 @@ export interface BinaryExpression extends NodeImpl {
 export interface LogicalExpression extends NodeImpl {
   type: 'LogicalExpression';
   left: Expression;
-  operator: '||' | '&&';
+  operator: '||' | '&&' | '??';
   right: Expression;
 }
 

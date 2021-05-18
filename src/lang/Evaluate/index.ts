@@ -206,6 +206,9 @@ export function evaluateExpression(
           case '&&':
             if (!left) return rightDynamic ? Signal.ok(left) : left;
             else return evaluateExpression(ast.right, interfaceMap, env);
+          case '??':
+            if (left !== undefined) return rightDynamic ? Signal.ok(left) : left;
+            else return evaluateExpression(ast.right, interfaceMap, env);
           default:
             bug(`unimplemented ${(ast as any).operator}`);
         }

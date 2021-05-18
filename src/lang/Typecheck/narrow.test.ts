@@ -13,4 +13,9 @@ describe("narrowType", () => {
     const actual = narrowType(Type.undefinedOr(object), Type.notFalsy);
     expect(actual).toEqual(object);
   });
+
+  it('narrow to notUndefined rules out undefined', () => {
+    const actual = narrowType(Type.undefinedOrNumber, Type.notUndefined);
+    expect(actual).toEqual(Type.number);
+  });
 });
