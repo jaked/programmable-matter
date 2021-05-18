@@ -279,7 +279,10 @@ function logical(
       maybeSignal(rightDynamic, leftExpr),
       rightExpr
     );
-  const leftIdent = JS.identifier('__left');
+  // TODO(jaked)
+  // this needs to be __v so map fusion doesn't mess up names
+  // do something more robust here
+  const leftIdent = JS.identifier('__v');
   if (leftDynamic && rightDynamic) {
     return JS.callExpression(
       JS.memberExpression(leftExpr, JS.identifier('flatMap')),
@@ -455,16 +458,9 @@ function arrowFunction(
   // or just let them be reconciled when the function runs
   const dynamic = intfDynamic(interfaceMap(ast));
   if (dynamic) {
-    const idents = ESTree.freeIdentifiers(ast).filter(ident => {
-      // happens when an unbound identifier is used
-      // TODO(jaked) is this still needed?
-      try { interfaceMap(ident) } catch (e) { return false; }
-      // happens when an identifier is used in its own definition
-      if (!env.has(ident.name)) return false;
-      // TODO(jaked) check for these cases explicitly
-      // so we don't hit them for an actual bug
-      return intfDynamic(interfaceMap(ident));
-    });
+    const idents = ESTree.freeIdentifiers(ast).filter(ident =>
+      intfDynamic(interfaceMap(ident))
+    );
     const signals = idents.map(ident =>
       expression(ident, interfaceMap, env)
     );
@@ -563,18 +559,18 @@ function assignment(
       }
       object = object.object;
     }
-    exprs.unshift(object);
+    if (object.type !== 'Identifier') bug(`expected Identifier`);
+    const objectSignal = JS.identifier(object.name);
     return joinDynamicExpressions(
       exprs,
       interfaceMap,
       env,
       jsExprs => {
-        const object = jsExprs.shift() ?? bug(`expected jsExpr`);
         const right = jsExprs.pop() ?? bug(`expected jsExpr`);
         if (props.length === 0) {
           return JS.sequenceExpression([
             JS.callExpression(
-              JS.memberExpression(object, JS.identifier('setOk')),
+              JS.memberExpression(objectSignal, JS.identifier('setOk')),
               [right]
             ),
             right,
@@ -593,7 +589,7 @@ function assignment(
           }
           return JS.sequenceExpression([
             JS.callExpression(
-              JS.memberExpression(object, JS.identifier('produce')),
+              JS.memberExpression(objectSignal, JS.identifier('produce')),
               [JS.arrowFunctionExpression(
                 [__object],
                 JS.blockStatement([

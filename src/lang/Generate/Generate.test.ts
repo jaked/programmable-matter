@@ -22,7 +22,6 @@ function typecheckNodes(
   nodes.forEach(walkNodes);
 
   const moduleTypeEnv: Map<string, Map<string, Interface>> = new Map();
-  const moduleDynamicEnv: Map<string, Map<string, boolean>> = new Map();
   let interfaceEnv = Render.initInterfaceEnv;
   const interfaceMap: InterfaceMap = new Map();
 

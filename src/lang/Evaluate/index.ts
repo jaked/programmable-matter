@@ -403,16 +403,9 @@ export function evaluateExpression(
       // to cause Signal reconciliation and produce a non-Signal value
       const dynamic = intfDynamic(interfaceMap.get(ast) ?? bug(`expected interface`));
       if (dynamic) {
-        const idents = ESTree.freeIdentifiers(ast).filter(ident => {
-          // happens when an unbound identifier is used
-          // TODO(jaked) is this still necessary?
-          if (!interfaceMap.has(ident)) return false;
-          // happens when an identifier is used in its own definition
-          if (!env.has(ident.name)) return false;
-          // TODO(jaked) check for these cases explicitly
-          // so we don't hit them for an actual bug
-          return intfDynamic(interfaceMap.get(ident) ?? bug(`expected dynamic`));
-        });
+        const idents = ESTree.freeIdentifiers(ast).filter(ident =>
+          intfDynamic(interfaceMap.get(ident) ?? bug(`expected dynamic`))
+        );
         const signals = idents.map(ident =>
           evaluateExpression(ident, interfaceMap, env) as Signal<unknown>
         );
