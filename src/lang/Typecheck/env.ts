@@ -6,7 +6,7 @@ import { parseType } from '../Parse';
 
 export type Env = Immutable.Map<string, Interface>;
 
-export function env(bindings?: { [s: string]: string | Type | Try<{ type: Type, dynamic: boolean }> }): Env {
+export function env(bindings?: { [s: string]: string | Type | Interface }): Env {
   if (bindings)
     return Immutable.Map(bindings).map(type => {
       if (typeof type === 'string')

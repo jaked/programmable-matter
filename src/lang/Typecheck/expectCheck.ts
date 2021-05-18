@@ -16,7 +16,7 @@ function isEnv(env: any): env is Typecheck.Env {
 
 export default function expectCheck({ expr, env, type, actualType, error }: {
   expr: ESTree.Expression | string,
-  env?: Typecheck.Env | { [s: string]: string | Type },
+  env?: Typecheck.Env | { [s: string]: string | Type | Interface },
   type: Type | string,
   actualType?: Type,
   error?: boolean,

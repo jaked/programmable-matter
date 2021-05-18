@@ -19,7 +19,7 @@ function isVEnv(env: any): env is Evaluate.Env {
 export default function expectEval({ expr, tenv, venv, value } : {
   expr: ESTree.Expression | string,
   value: any,
-  tenv?: Typecheck.Env | { [s: string]: string | Type },
+  tenv?: Typecheck.Env | { [s: string]: string | Type | Interface },
   venv?: Evaluate.Env | { [s: string]: any },
 }) {
   expr = (typeof expr === 'string') ? Parse.parseExpression(expr) : expr;
@@ -35,7 +35,6 @@ export default function expectEval({ expr, tenv, venv, value } : {
     (Immutable.Map());
   const interfaceMap = new Map<ESTree.Node, Interface>();
   Typecheck.synth(expr, tenv, interfaceMap);
-  const dynamicMap = new Map<ESTree.Node, boolean>();
 
   // TODO(jaked) not sure why this is necessary
   // maybe because Immutable.Map construction doesn't constrain types?

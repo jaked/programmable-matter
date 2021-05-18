@@ -605,7 +605,7 @@ function assignment(
   }
 }
 
-function expression(
+export function expression(
   ast: ESTree.Expression,
   interfaceMap: InterfaceMap,
   env: Env,
