@@ -17,11 +17,12 @@ function isTEnv(env: any): env is Typecheck.Env {
   return env instanceof Immutable.Map;
 }
 
-export default function expectGenerate({ expr, tenv, venv, value } : {
+export default function expectGenerate({ expr, tenv, venv, value, logCode } : {
   expr: ESTree.Expression | string,
   value: any,
   tenv?: Typecheck.Env | { [s: string]: string | Type | Interface },
   venv?: Map<string, unknown> | { [s: string]: unknown },
+  logCode?: boolean,
 }) {
   expr = (typeof expr === 'string') ? Parse.parseExpression(expr) : expr;
   tenv = tenv ?
@@ -42,13 +43,15 @@ export default function expectGenerate({ expr, tenv, venv, value } : {
     expr => interfaceMap.get(expr) ?? bug(`expected interface for ${JSON.stringify(expr)}`),
     new Map()
   );
-  const fn = new Function(...venv.keys(), babelGenerator(
+  const code = babelGenerator(
     JS.program([
       JS.returnStatement(jsExpr)
     ])
-  ).code);
+  ).code;
+  if (logCode) console.log(code);
+  const fn = new Function('Signal', ...venv.keys(), code);
 
-  let actual = fn(...venv.values());
+  let actual = fn(Signal, ...venv.values());
   const intf = interfaceMap.get(expr) ?? bug(`expected interface`);
   if (intf.type === 'ok' && intf.ok.dynamic) {
     actual = (actual as Signal<unknown>).get();
