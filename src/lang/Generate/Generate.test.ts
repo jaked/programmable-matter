@@ -426,3 +426,9 @@ describe('assignment expressions', () => {
     expect(venv.array.get()[0]).toBe(11);
   });
 });
+
+describe('as expression', () => {
+  it('ok', () => {
+    expectGenerate({ expr: '7 as number', value: 7 });
+  });
+});

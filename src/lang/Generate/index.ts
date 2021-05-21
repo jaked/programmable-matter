@@ -626,6 +626,14 @@ function assignment(
   }
 }
 
+function tSAs(
+  ast: ESTree.TSAsExpression,
+  interfaceMap: InterfaceMap,
+  env: Env
+): JS.Expression {
+  return expression(ast.expression, interfaceMap, env);
+}
+
 export function expression(
   ast: ESTree.Expression,
   interfaceMap: InterfaceMap,
@@ -656,6 +664,7 @@ export function expression(
     case 'ConditionalExpression':   return conditional(ast, interfaceMap, env);
     case 'TemplateLiteral':         return templateLiteral(ast, interfaceMap, env);
     case 'AssignmentExpression':    return assignment(ast, interfaceMap, env);
+    case 'TSAsExpression':          return tSAs(ast, interfaceMap, env);
 
     default:                         bug(`unimplemented ${ast.type}`);
   }
