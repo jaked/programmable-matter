@@ -13,7 +13,7 @@ describe('+', () => {
   it('literal number + literal number', () => {
     expectSynth({
       expr: '1 + 2',
-      type: '3',
+      type: 'number',
     });
   });
 
@@ -34,7 +34,7 @@ describe('+', () => {
   it('literal string + literal string', () => {
     expectSynth({
       expr: '"foo" + "bar"',
-      type: `'foobar'`,
+      type: `string`,
     });
   });
 

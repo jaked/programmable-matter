@@ -225,19 +225,8 @@ function synthBinary(
             const lvalue = left.value;
             const rvalue = right.value;
             switch (ast.operator) {
-              case '===': return Type.singleton(lvalue === right.value);
-              case '!==': return Type.singleton(lvalue !== right.value);
-              default:
-                if (left.base.kind === 'number' && right.base.kind === 'number') switch (ast.operator) {
-                  case '-': return Type.singleton(lvalue - rvalue);
-                  case '*': return Type.singleton(lvalue * rvalue);
-                  case '+': return Type.singleton(lvalue + rvalue);
-                  case '/': return Type.singleton(lvalue / rvalue);
-                  case '%': return Type.singleton(lvalue % rvalue);
-                }
-                if (left.base.kind === 'string' && right.base.kind === 'string') switch (ast.operator) {
-                  case '+': return Type.singleton(lvalue + rvalue);
-                }
+              case '===': return Type.singleton(lvalue === rvalue);
+              case '!==': return Type.singleton(lvalue !== rvalue);
             }
           }
           if ((left.kind === 'number' || (left.kind === 'Singleton' && left.base.kind === 'number')) &&
