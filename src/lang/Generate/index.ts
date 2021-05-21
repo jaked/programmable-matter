@@ -148,7 +148,13 @@ function identifier(
   interfaceMap: InterfaceMap,
   env: Env,
 ): JS.Expression {
-  return env.get(ast.name) ?? JS.identifier(ast.name);
+  const intf = interfaceMap(ast);
+  if (intf.type === 'err') bug(`expected ok`);
+  const expr = env.get(ast.name) ?? JS.identifier(ast.name);
+  if (!intf.ok.dynamic && intf.ok.mutable)
+    return JS.callExpression(JS.memberExpression(expr, JS.identifier('get')), []);
+  else
+    return expr;
 }
 
 function jSXIdentifier(
@@ -156,7 +162,13 @@ function jSXIdentifier(
   interfaceMap: InterfaceMap,
   env: Env,
 ): JS.Expression {
-  return env.get(ast.name) ?? JS.identifier(ast.name);
+  const intf = interfaceMap(ast);
+  if (intf.type === 'err') bug(`expected ok`);
+  const expr = env.get(ast.name) ?? JS.identifier(ast.name);
+  if (!intf.ok.dynamic && intf.ok.mutable)
+    return JS.callExpression(JS.memberExpression(expr, JS.identifier('get')), []);
+  else
+    return expr;
 }
 
 function literal(

@@ -9,6 +9,9 @@ export default function (type: Types.Type) {
   switch (type.kind) {
     case 'Abstract':
       switch (type.label) {
+        case 'React.Element':
+          return type;
+
         case 'React.ReactNode': {
           if (type.params.size !== 0) bug(`expected 0 params to React.ReactNode`)
           return Predef.reactNodeType;
@@ -39,7 +42,7 @@ export default function (type: Types.Type) {
           return lensType(type.params.get(0) ?? bug(`expected param`));
 
         default:
-          return type;
+          bug(`unknown abstract type ${type.label}`);
       }
 
     default:

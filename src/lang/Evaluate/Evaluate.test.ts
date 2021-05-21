@@ -1,5 +1,6 @@
 import * as Immutable from 'immutable';
 import Try from '../../util/Try';
+import Signal from '../../util/Signal';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import expectEval from './expectEval';
@@ -10,6 +11,26 @@ const tenv = Typecheck.env({
 });
 const venv = Immutable.Map({
   error: error,
+});
+
+describe('identifiers', () => {
+  it('immutable', () => {
+    expectEval({
+      expr: 'foo',
+      tenv: { foo: Try.ok({ type: Type.number, dynamic: false }) },
+      venv: { foo: 7 },
+      value: 7
+    })
+  });
+
+  it('mutable', () => {
+    expectEval({
+      expr: 'foo',
+      tenv: { foo: Try.ok({ type: Type.number, dynamic: false, mutable: 'Code' }) },
+      venv: { foo: Signal.ok(7) },
+      value: 7
+    })
+  });
 });
 
 describe('unary expressions', () => {

@@ -294,12 +294,7 @@ function synthMember(
         if (object.type === 'err') return object;
 
         return Try.apply(() => {
-          const origObjectType = intfType(object);
-          let objectType = origObjectType;
-          if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
-            objectType = origObjectType.params.get(0) ?? bug(`expected param`);
-          }
-          let type = ((object: Type, prop: Type) => {
+          const type = ((object: Type, prop: Type) => {
             switch (object.kind) {
               case 'Array':
                 if (prop.kind === 'Error') return Type.undefined;
@@ -330,10 +325,7 @@ function synthMember(
               default:
                 return Error.expectedType(ast, 'Array or Tuple', object, interfaceMap).get();
             }
-          })(objectType, intfType(prop));
-          if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
-            type = Type.abstract(origObjectType.label, type);
-          }
+          })(intfType(object), intfType(prop));
           const dynamic = intfDynamic(object) || intfDynamic(prop);
           return { type, dynamic };
         });
@@ -346,12 +338,7 @@ function synthMember(
       if (object.type === 'err') return object;
 
       return Try.apply(() => {
-        const origObjectType = intfType(object);
-        let objectType = origObjectType;
-        if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
-          objectType = origObjectType.params.get(0) ?? bug(`expected param`);
-        }
-        let type = ((object: Type) => {
+        const type = ((object: Type) => {
           switch (object.kind) {
             case 'string':
               switch (name) {
@@ -447,15 +434,12 @@ function synthMember(
             }
           }
           return Error.unknownField(ast.property, name, interfaceMap).get();
-        })(objectType);
-        if (origObjectType.kind === 'Abstract' && (origObjectType.label === 'Code' || origObjectType.label === 'Session')) {
-          type = Type.abstract(origObjectType.label, type);
-        }
+        })(intfType(object));
         const dynamic = intfDynamic(object);
         return { type, dynamic };
       });
     }
-  }, /* preserveCell = */ true);
+  });
 }
 
 function synthCall(
@@ -807,34 +791,30 @@ function synthAssignment(
   env: Env,
   interfaceMap: InterfaceMap,
 ): Interface {
-  return synthAndThen(ast.left, env, interfaceMap, (left, interfaceMap) => {
-    if (left.type === 'err') {
-      synth(ast.right, env, interfaceMap);
-      return left;
+  const left = synth(ast.left, env, interfaceMap);
+  if (left.type === 'err') {
+    synth(ast.right, env, interfaceMap);
+    return left;
+  }
+
+  let object = ast.left;
+  let leftDynamic = false;
+  while (object.type === 'MemberExpression') {
+    if (object.computed) {
+      const intf = interfaceMap.get(object.property) ?? bug(`expected intf`);
+      leftDynamic ||= intfDynamic(intf);
     }
+    object = object.object;
+  }
 
-    if (left.ok.type.kind === 'Abstract' && (left.ok.type.label === 'Code' || left.ok.type.label === 'Session')) {
-      const param = left.ok.type.params.get(0) ?? bug(`expected param`);
-      const right = check(ast.right, env, param, interfaceMap);
-      if (right.type === 'err') return right;
+  const intf = interfaceMap.get(object) ?? bug(`expected intf`);
+  if (intf.type === 'err' || intf.ok.mutable === undefined)
+    return Error.expectedType(ast, 'mutable', 'immutable', interfaceMap);
 
-      // a cell is dynamic when used for its value but not in the lhs of an assignment;
-      // however the lhs of an assignment may be dynamic if it involves dynamic computed members
-      let dynamic = right.ok.dynamic;
-      let object = ast.left;
-      while (!dynamic && object.type === 'MemberExpression') {
-        if (object.computed) {
-          const intf = interfaceMap.get(object.property) ?? bug(`expected intf`);
-          dynamic ||= intfDynamic(intf);
-        }
-        object = object.object;
-      }
+  const right = check(ast.right, env, left.ok.type, interfaceMap);
+  if (right.type === 'err') return right;
 
-      return Try.ok({ type: right.ok.type, dynamic });
-    } else {
-      return Error.expectedType(ast.left, 'Code<T> or Session<T>', left.ok.type, interfaceMap);
-    }
-  }, /* preserveCell */ true);
+  return Try.ok({ type: right.ok.type, dynamic: leftDynamic || right.ok.dynamic });
 }
 
 function synthTSAs(
@@ -897,21 +877,13 @@ function andThen(
   intf: Interface,
   fn: (t: Interface, interfaceMap: InterfaceMap) => Interface,
   interfaceMap: InterfaceMap,
-  preserveCell: boolean = false
 ): Interface {
   if (intf.type === 'err')
     return fn(intf, interfaceMap);
   // TODO(jaked) should understand better where Type-level errors are allowed
   if (intf.ok.type.kind === 'Error')
     return fn(Try.err(intf.ok.type.err), interfaceMap);
-
-  let type = Type.expand(intf.ok.type);
-
-  // TODO(jaked) this is pretty ad-hoc
-  if (!preserveCell && type.kind === 'Abstract' && (type.label === 'Code' || type.label === 'Session')) {
-    const param = type.params.get(0) ?? bug(`expected param`);
-    type = param;
-  }
+  const type = Type.expand(intf.ok.type);
 
   switch (type.kind) {
     case 'Union': {
@@ -983,9 +955,8 @@ export function synthAndThen(
   env: Env,
   interfaceMap: InterfaceMap,
   fn: (t: Interface, interfaceMap: InterfaceMap) => Interface,
-  preserveCell: boolean = false
 ): Interface {
-  return andThen(synth(ast, env, interfaceMap), fn, interfaceMap, preserveCell);
+  return andThen(synth(ast, env, interfaceMap), fn, interfaceMap);
 }
 
 function importDecl(
@@ -1086,24 +1057,14 @@ function synthVariableDecl(
           synth(declarator.init, initEnv, interfaceMap);
           declIntf = Error.withLocation(declarator.id.typeAnnotation, `expected Code<T> or Session<T>`, interfaceMap);
         } else {
-          let dynamic;
-          if (ann.label === 'Code')
-            // TODO(jaked)
-            // code cells are not actually dynamic
-            // and we don't want to generate dynamic JS for them
-            // but they are Signals
-            // so must be marked dynamic so evaluation dereferences them
-            // maybe we need another state to indicate that they are dynamic at edit time?
-            // dynamic = false;
-            dynamic = true;
-
-          else if (ann.label === 'Session')
-            dynamic = true;
-          else bug(`expected Code or Session`);
+          const [dynamic, mutable]: [boolean, 'Code' | 'Session'] =
+            ann.label === 'Code' ? [false, 'Code'] :
+            ann.label === 'Session' ? [true, 'Session'] :
+            bug(`expected Code or Session`);
 
           const param = ann.params.get(0) ?? bug(`expected param`);
           const intf = check(declarator.init, initEnv, param, interfaceMap);
-          declIntf = intf.type === 'err' ? intf : Try.ok({ type: ann, dynamic });
+          declIntf = intf.type === 'err' ? intf : Try.ok({ type: param, dynamic, mutable });
         }
       }
     }

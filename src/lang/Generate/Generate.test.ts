@@ -1,5 +1,3 @@
-import * as JS from '@babel/types';
-
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
@@ -98,6 +96,26 @@ it('generates React hydrate for doc with dynamic node', () => {
 
 // TODO(jaked)
 // it would be cool to run the same tests on both Evaluate and Generate
+
+describe('identifiers', () => {
+  it('immutable', () => {
+    expectGenerate({
+      expr: 'foo',
+      tenv: { foo: Try.ok({ type: Type.number, dynamic: false }) },
+      venv: { foo: 7 },
+      value: 7
+    })
+  });
+
+  it('mutable', () => {
+    expectGenerate({
+      expr: 'foo',
+      tenv: { foo: Try.ok({ type: Type.number, dynamic: false, mutable: 'Code' }) },
+      venv: { foo: Signal.ok(7) },
+      value: 7
+    })
+  });
+});
 
 describe('literals', () => {
   it('numbers', () => {
@@ -375,14 +393,36 @@ describe('template literal expressions', () => {
 });
 
 describe('assignment expressions', () => {
-  it('ok', () => {
+  it('direct', () => {
     const tenv = {
-      x: Try.ok({ type: Type.abstract('Session', Type.number), dynamic: true })
+      x: Try.ok({ type: Type.number, dynamic: false, mutable: 'Session' as const })
     }
     const venv = {
       x: Signal.cellOk(7)
     }
     expectGenerate({ expr: 'x = 9', tenv, venv, value: 9 });
     expect(venv.x.get()).toBe(9);
+  });
+
+  it('object', () => {
+    const tenv = {
+      object: Try.ok({ type: Parse.parseType('{ x: number, y: number }'), dynamic: false, mutable: 'Session' as const })
+    }
+    const venv = {
+      object: Signal.cellOk({ x: 7, y: 9 }),
+    }
+    expectGenerate({ expr: 'object.x = 11', tenv, venv, value: 11 });
+    expect(venv.object.get().x).toBe(11);
+  });
+
+  it('array', () => {
+    const tenv = {
+      array: Try.ok({ type: Parse.parseType('number[]'), dynamic: false, mutable: 'Session' as const })
+    }
+    const venv = {
+      array: Signal.cellOk([ 7, 9 ])
+    }
+    expectGenerate({ expr: 'array[0] = 11', tenv, venv, value: 11 });
+    expect(venv.array.get()[0]).toBe(11);
   });
 });

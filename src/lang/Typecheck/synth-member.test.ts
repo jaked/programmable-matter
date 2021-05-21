@@ -1,17 +1,19 @@
+import Try from '../../util/Try';
 import Type from '../Type';
+import * as Parse from '../Parse';
 import Typecheck from './index';
 import expectSynth from './expectSynth';
 
 const error = new Error('error');
 const env = Typecheck.env({
-  error: Type.error(error),
-  object: '{ foo: boolean, bar: number }',
-  array: 'number[]',
-  tuple: '[ boolean, number ]',
-  numberUnion: '0 | 1',
-  stringUnion: `'foo' | 'bar'`,
-  objInt: '(() => boolean) & { bar: number }',
-  objectCell: 'Code<{ foo: boolean, bar: number }>',
+  error: Try.err(error),
+  object: Try.ok({ type: Parse.parseType('{ foo: boolean, bar: number }'), dynamic: false }),
+  array: Try.ok({ type: Parse.parseType('number[]'), dynamic: false }),
+  tuple: Try.ok({ type: Parse.parseType('[ boolean, number ]'), dynamic: false }),
+  numberUnion: Try.ok({ type: Parse.parseType('0 | 1'), dynamic: false }),
+  stringUnion: Try.ok({ type: Parse.parseType(`'foo' | 'bar'`), dynamic: false }),
+  objInt: Try.ok({ type: Parse.parseType('(() => boolean) & { bar: number }'), dynamic: false }),
+  objectCell: Try.ok({ type: Parse.parseType('{ foo: boolean, bar: number }'), dynamic: false, mutable: 'Code' }),
 });
 
 it('property names', () => {
@@ -127,7 +129,7 @@ it('member inside cell', () => {
   expectSynth({
     expr: 'objectCell.foo',
     env,
-    type: 'Code<boolean>',
+    type: 'boolean',
   });
 });
 
@@ -135,7 +137,7 @@ it('computed member inside cell', () => {
   expectSynth({
     expr: `objectCell['foo']`,
     env,
-    type: 'Code<boolean>',
+    type: 'boolean',
   });
 });
 

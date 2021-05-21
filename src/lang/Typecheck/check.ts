@@ -72,12 +72,7 @@ function checkSubtype(
       const intf = synth(ast, env, interfaceMap);
       if (intf.type === 'err') return intf;
 
-      let actual = intf.ok.type;
-      // TODO(jaked) this should go somewhere else
-      if (actual.kind === 'Abstract' && (actual.label === 'Code' || actual.label === 'Session')) {
-        const param = actual.params.get(0) ?? bug(`expected param`);
-        actual = param;
-      }
+      const actual = intf.ok.type;
       if (Type.isSubtype(actual, type))
         return Try.ok({ type: actual, dynamic: intf.ok.dynamic });
       else if (actual.kind === 'Error')

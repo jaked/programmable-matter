@@ -112,8 +112,13 @@ export function evaluateExpression(
 
     case 'Identifier':
     case 'JSXIdentifier':
-      if (env.has(ast.name)) return env.get(ast.name);
-      else bug(`expected value for ${ast.name}`);
+      if (env.has(ast.name)) {
+        const value = env.get(ast.name);
+        if (!intf.ok.dynamic && intf.ok.mutable)
+          return value.get();
+        else
+          return value;
+      } else bug(`expected value for ${ast.name}`);
 
     case 'JSXExpressionContainer':
       return evaluateExpression(ast.expression, interfaceMap, env);
@@ -585,10 +590,9 @@ function evalVariableDecl(
         let name = declarator.id.name;
         const cellIntf = interfaceMap.get(declarator.id) ?? bug(`expected type`);
         if (cellIntf.type === 'err') return valueEnv;
-        else if (cellIntf.ok.type.kind !== 'Abstract' || cellIntf.ok.type.params.size !== 1) bug(`expected Code<T> or Session<T>`);
         const init = declarator.init;
         const value = evaluateExpression(init, interfaceMap, Immutable.Map({ undefined: undefined }));
-        if (cellIntf.ok.type.label === 'Code') {
+        if (cellIntf.ok.mutable === 'Code') {
           // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
           valueEnv = valueEnv.set(name, nodes.mapWritable(
             _ => value,
@@ -623,10 +627,10 @@ function evalVariableDecl(
             })
           ));
 
-        } else if (cellIntf.ok.type.label === 'Session') {
+        } else if (cellIntf.ok.mutable === 'Session') {
           valueEnv = valueEnv.set(name, Signal.cellOk(value));
 
-        } else bug(`unexpected ${cellIntf.ok.type.label}`);
+        } else bug(`unexpected mutable ${cellIntf.ok.mutable}`);
       });
     }
     break;
