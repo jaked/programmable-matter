@@ -37,6 +37,11 @@ export default function expectGenerate({ expr, tenv, venv, value, logCode } : {
     (new Map());
   const interfaceMap = new Map<ESTree.Node, Interface>();
   Typecheck.synth(expr, tenv, interfaceMap);
+/*
+  for (const entry of interfaceMap) {
+    console.log(JSON.stringify(entry, undefined, 2));
+  }
+*/
 
   const jsExpr = Generate.expression(
     expr,

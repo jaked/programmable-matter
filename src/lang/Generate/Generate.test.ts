@@ -223,8 +223,6 @@ describe('member expressions', () => {
     object: Try.ok({ type: Type.object({ x: Type.number, y: Type.number }), dynamic: false }),
     dynamicObject: Try.ok({ type: Type.object({ x: Type.number, y: Type.number }), dynamic: true }),
     one: Try.ok({ type: Type.number, dynamic: true }),
-    seven: Try.ok({ type: Type.number, dynamic: true }),
-    nine: Try.ok({ type: Type.number, dynamic: true }),
     x: Try.ok({ type: Type.singleton('x'), dynamic: true }),
   };
   const venv = {
@@ -233,8 +231,6 @@ describe('member expressions', () => {
     object: { x: 7, y: 9 },
     dynamicObject: Signal.ok({ x: 7, y: 9 }),
     one: Signal.ok(1),
-    seven: Signal.ok(7),
-    nine: Signal.ok(9),
     x: Signal.ok('x'),
   };
 
@@ -258,5 +254,135 @@ describe('member expressions', () => {
     expectGenerate({ expr: 'dynamicObject.x', tenv, venv, value: 7 });
     expectGenerate({ expr: `dynamicObject['x']`, tenv, venv, value: 7 });
     expectGenerate({ expr: `dynamicObject[x]`, tenv, venv, value: 7 });
+  });
+});
+
+describe('call expressions', () => {
+  const tenv = {
+    f: Try.ok({ type: Type.functionType([Type.undefinedOrNumber], Type.string), dynamic: false }),
+    dynamicF: Try.ok({ type: Type.functionType([Type.undefinedOrNumber], Type.string), dynamic: true }),
+    g: Try.ok({ type: Type.functionType([Type.number], Type.string), dynamic: false }),
+    seven: Try.ok({ type: Type.number, dynamic: true }),
+  };
+  const venv = {
+    f: () => 'f',
+    dynamicF: Signal.ok(() => 'f'),
+    g: () => 'g',
+    seven: Signal.ok(7),
+  };
+
+  it('ok', () => {
+    expectGenerate({ expr: 'g(1)', value: undefined });
+    expectGenerate({ expr: 'f(7)', tenv, venv, value: 'f' });
+    expectGenerate({ expr: 'f()', tenv, venv, value: 'f' });
+    expectGenerate({ expr: 'f(x)', tenv, venv, value: 'f' });
+    expectGenerate({ expr: 'g(7)', tenv, venv, value: 'g' });
+    expectGenerate({ expr: 'g()', tenv, venv, value: undefined });
+    expectGenerate({ expr: 'g(x)', tenv, venv, value: undefined });
+
+    expectGenerate({ expr: 'dynamicF(7)', tenv, venv, value: 'f' });
+    expectGenerate({ expr: 'f(seven)', tenv, venv, value: 'f' });
+    expectGenerate({ expr: 'dynamicF(seven)', tenv, venv, value: 'f' });
+  });
+});
+
+describe('object expressions', () => {
+  const tenv = {
+    seven: Try.ok({ type: Type.number, dynamic: true }),
+    nine: Try.ok({ type: Type.number, dynamic: true }),
+  };
+  const venv = {
+    seven: Signal.ok(7),
+    nine: Signal.ok(9),
+  };
+
+  it('ok', () => {
+    expectGenerate({ expr: '{ x: 7, y: 9 }', value: { x: 7, y: 9 } });
+    expectGenerate({ expr: '{ x: seven, y: 9 }', tenv, venv, value: { x: 7, y: 9 } });
+    expectGenerate({ expr: '{ x: seven, y: nine }', tenv, venv, value: { x: 7, y: 9 } });
+  });
+});
+
+describe('array expressions', () => {
+  const tenv = {
+    seven: Try.ok({ type: Type.number, dynamic: true }),
+    nine: Try.ok({ type: Type.number, dynamic: true }),
+  };
+  const venv = {
+    seven: Signal.ok(7),
+    nine: Signal.ok(9),
+  };
+
+  it('ok', () => {
+    expectGenerate({ expr: '[ 7, 9 ]', value: [ 7, 9 ] });
+    expectGenerate({ expr: '[ seven, 9 ]', tenv, venv, value: [ 7, 9 ] });
+    expectGenerate({ expr: '[ seven, nine ]', tenv, venv, value: [ 7, 9 ] });
+  });
+});
+
+describe('function expressions', () => {
+  const tenv = {
+    seven: Try.ok({ type: Type.number, dynamic: true }),
+  };
+  const venv = {
+    seven: Signal.ok(7),
+  };
+
+  // TODO(jaked)
+  // test that dynamic functions are actually dynamic
+  it('ok', () => {
+    expectGenerate({ expr: '(() => 7)()', value: 7 });
+    expectGenerate({ expr: '(() => seven)()', tenv, venv, value: 7 });
+  });
+});
+
+describe('conditional expressions', () => {
+  const tenv = {
+    seven: Try.ok({ type: Type.number, dynamic: true }),
+    nine: Try.ok({ type: Type.number, dynamic: true }),
+    zero: Try.ok({ type: Type.number, dynamic: true }),
+  };
+  const venv = {
+    seven: Signal.ok(7),
+    nine: Signal.ok(9),
+    zero: Signal.ok(false),
+  };
+
+  it('ok', () => {
+    expectGenerate({ expr: '7 ? 9 : 7', value: 9 });
+    expectGenerate({ expr: '0 ? 9 : 7', value: 7 });
+    expectGenerate({ expr: '7 ? nine : 7', tenv, venv, value: 9 });
+    expectGenerate({ expr: '0 ? nine : 7', tenv, venv, value: 7 });
+    expectGenerate({ expr: '7 ? nine : seven', tenv, venv, value: 9 });
+    expectGenerate({ expr: '0 ? nine : seven', tenv, venv, value: 7 });
+    expectGenerate({ expr: '7 ? 9 : seven', tenv, venv, value: 9 });
+    expectGenerate({ expr: '0 ? 9 : seven', tenv, venv, value: 7 });
+    expectGenerate({ expr: 'seven ? 9 : 7', tenv, venv, value: 9 });
+    expectGenerate({ expr: 'zero ? 9 : 7', tenv, venv, value: 7 });
+    expectGenerate({ expr: 'seven ? nine : 7', tenv, venv, value: 9 });
+    expectGenerate({ expr: 'zero ? nine : 7', tenv, venv, value: 7 });
+    expectGenerate({ expr: 'seven ? nine : seven', tenv, venv, value: 9 });
+    expectGenerate({ expr: 'zero ? nine : seven', tenv, venv, value: 7 });
+    expectGenerate({ expr: 'seven ? 9 : seven', tenv, venv, value: 9 });
+    expectGenerate({ expr: 'zero ? 9 : seven', tenv, venv, value: 7 });
+  });
+});
+
+describe('template literal expressions', () => {
+  it('ok', () => {
+    expectGenerate({ expr: '`foo`', value: 'foo' });
+  });
+});
+
+describe('assignment expressions', () => {
+  it('ok', () => {
+    const tenv = {
+      x: Try.ok({ type: Type.abstract('Session', Type.number), dynamic: true })
+    }
+    const venv = {
+      x: Signal.cellOk(7)
+    }
+    expectGenerate({ expr: 'x = 9', tenv, venv, value: 9 });
+    expect(venv.x.get()).toBe(9);
   });
 });

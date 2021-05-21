@@ -3,11 +3,31 @@ import { Interface } from '../../model';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
+import Type from '../Type';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
 const intfDynamic = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.dynamic : false;
+
+const intfType = (intf: Interface) =>
+  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
+
+function bind(
+  lhs: JS.Expression,
+  binder: null | string,
+  body: (arg: JS.Expression) => JS.Expression
+): JS.Expression {
+  if (binder === null)
+    return body(lhs);
+  else {
+    const ident = JS.identifier('__v');
+    return JS.callExpression(
+      JS.memberExpression(lhs, JS.identifier(binder)),
+      [JS.arrowFunctionExpression([ident], body(ident))]
+    );
+  }
+}
 
 type InterfaceMap = (e: ESTree.Expression) => Interface;
 type Env = Map<string, JS.Expression>;
@@ -268,7 +288,7 @@ function logical(
   const rightExpr = expression(ast.right, interfaceMap, env);
   const leftDynamic = intfDynamic(interfaceMap(ast.left));
   const rightDynamic = intfDynamic(interfaceMap(ast.right));
-  const fn = (leftExpr: JS.Expression) =>
+  const body = (leftExpr: JS.Expression) =>
     JS.conditionalExpression(
       (
         ast.operator === '||' ? leftExpr :
@@ -279,23 +299,11 @@ function logical(
       maybeSignal(rightDynamic, leftExpr),
       rightExpr
     );
-  // TODO(jaked)
-  // this needs to be __v so map fusion doesn't mess up names
-  // do something more robust here
-  const leftIdent = JS.identifier('__v');
-  if (leftDynamic && rightDynamic) {
-    return JS.callExpression(
-      JS.memberExpression(leftExpr, JS.identifier('flatMap')),
-      [JS.arrowFunctionExpression([leftIdent], fn(leftIdent))]
-    );
-  } else if (leftDynamic) {
-    return JS.callExpression(
-      JS.memberExpression(leftExpr, JS.identifier('map')),
-      [JS.arrowFunctionExpression([leftIdent], fn(leftIdent))]
-    );
-  } else {
-    return fn(leftExpr);
-  }
+  const binder =
+    leftDynamic ?
+      (rightDynamic ? 'flatMap' : 'map') :
+      null;
+  return bind(leftExpr, binder, body);
 }
 
 function binary(
@@ -496,32 +504,33 @@ function conditional(
   interfaceMap: InterfaceMap,
   env: Env,
 ): JS.Expression {
-  const testExpr = expression(ast.test, interfaceMap, env);
   const consequentExpr = expression(ast.consequent, interfaceMap, env);
   const alternateExpr = expression(ast.alternate, interfaceMap, env);
-  const testDynamic = intfDynamic(interfaceMap(ast.test));
+  const testIntf = interfaceMap(ast.test);
+  const testType = intfType(testIntf);
   const consequentDynamic = intfDynamic(interfaceMap(ast.consequent));
   const alternateDynamic = intfDynamic(interfaceMap(ast.alternate));
-  const fn = (testExpr: JS.Expression) =>
-    JS.conditionalExpression(
-      testExpr,
-      maybeSignal(alternateDynamic && !consequentDynamic, consequentExpr),
-      maybeSignal(consequentDynamic && !alternateDynamic, alternateExpr)
-    );
-  const vIdent = JS.identifier('__v');
-  if (testDynamic && (consequentDynamic || alternateDynamic)) {
-    return JS.callExpression(
-      JS.memberExpression(testExpr, JS.identifier('flatMap')),
-      [JS.arrowFunctionExpression([vIdent], fn(vIdent))]
-    );
-  } else if (testDynamic) {
-    return JS.callExpression(
-      JS.memberExpression(testExpr, JS.identifier('map')),
-      [JS.arrowFunctionExpression([vIdent], fn(vIdent))]
-    );
-  } else {
-    return fn(testExpr);
-  }
+
+  const body =
+    Type.isTruthy(testType) ?
+      (testExpr: JS.Expression) => JS.sequenceExpression([testExpr, consequentExpr]) :
+    Type.isFalsy(testType) ?
+      (testExpr: JS.Expression) => JS.sequenceExpression([testExpr, alternateExpr]) :
+    (testExpr: JS.Expression) =>
+      JS.conditionalExpression(
+        testExpr,
+        maybeSignal(alternateDynamic && !consequentDynamic, consequentExpr),
+        maybeSignal(consequentDynamic && !alternateDynamic, alternateExpr)
+      );
+
+  const binder =
+    intfDynamic(testIntf) ? (
+      Type.isTruthy(testType) ? (consequentDynamic ? 'flatMap' : 'map') :
+      Type.isFalsy(testType) ? (alternateDynamic ? 'flatMap' : 'map') :
+      (consequentDynamic || alternateDynamic) ? 'flatMap' : 'map'
+    ) : null
+
+  return bind(expression(ast.test, interfaceMap, env), binder, body);
 }
 
 function templateLiteral(

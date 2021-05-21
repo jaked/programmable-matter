@@ -499,7 +499,7 @@ function synthCall(
     const errIntf = intfs.find(intf => intf.type === 'err');
     if (errIntf) return errIntf;
     const type = callee.ok.type.ret;
-    const dynamic = intfs.some(intfDynamic);
+    const dynamic = callee.ok.dynamic || intfs.some(intfDynamic);
     // TODO(jaked) carry dynamic bit on function type and use it here
     return Try.ok({ type, dynamic });
   });
@@ -817,7 +817,20 @@ function synthAssignment(
       const param = left.ok.type.params.get(0) ?? bug(`expected param`);
       const right = check(ast.right, env, param, interfaceMap);
       if (right.type === 'err') return right;
-      else return Try.ok({ type: right.ok.type, dynamic: left.ok.dynamic || right.ok.dynamic });
+
+      // a cell is dynamic when used for its value but not in the lhs of an assignment;
+      // however the lhs of an assignment may be dynamic if it involves dynamic computed members
+      let dynamic = right.ok.dynamic;
+      let object = ast.left;
+      while (!dynamic && object.type === 'MemberExpression') {
+        if (object.computed) {
+          const intf = interfaceMap.get(object.property) ?? bug(`expected intf`);
+          dynamic ||= intfDynamic(intf);
+        }
+        object = object.object;
+      }
+
+      return Try.ok({ type: right.ok.type, dynamic });
     } else {
       return Error.expectedType(ast.left, 'Code<T> or Session<T>', left.ok.type, interfaceMap);
     }
