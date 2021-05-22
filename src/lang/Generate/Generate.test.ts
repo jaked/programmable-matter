@@ -83,6 +83,13 @@ it('generates export for doc with export', () => {
   expectGenerateCode(nodes, 'export const x = 7;');
 });
 
+it('generates export for doc with let export', () => {
+  const nodes: PMAST.Node[] = [
+    { type: 'code', children: [ { text: 'export let x: Session<number> = 7' } ] },
+  ];
+  expectGenerateCode(nodes, 'export const x = Signal.cellOk(7);');
+});
+
 it('generates React hydrate for doc with dynamic node', () => {
   const nodes: PMAST.Node[] = [
     { type: 'code', children: [ { text: 'now' } ] },

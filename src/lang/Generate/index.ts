@@ -698,7 +698,7 @@ function variableDecl(
           [expression(declarator.init, interfaceMap, env)]
         );
 
-        decls.push(JS.variableDeclaration('let', [
+        decls.push(JS.variableDeclaration('const', [
           JS.variableDeclarator(JS.identifier(name), init)
         ]));
       }
@@ -724,6 +724,23 @@ function exportNamedDecl(
         ])));
       }
     }
+    break;
+
+    case 'let': {
+      for (const declarator of ast.declaration.declarations) {
+        if (!declarator.init) return;
+        const name = declarator.id.name;
+        const init = JS.callExpression(
+          JS.memberExpression(JS.identifier('Signal'), JS.identifier('cellOk')),
+          [expression(declarator.init, interfaceMap, env)]
+        );
+
+        decls.push(JS.exportNamedDeclaration(JS.variableDeclaration('const', [
+          JS.variableDeclarator(JS.identifier(name), init)
+        ])));
+      }
+    }
+    break;
   }
 }
 
