@@ -79,10 +79,10 @@ function computeTableConfig(
 function computeTableDataType(
   tableConfig: model.Table
 ): Type.ObjectType {
-  const tableDataFields: Tuple2<string, Type>[] = [];
+  const tableDataFields: { name: string, type: Type }[] = [];
   tableConfig.fields.forEach(field => {
     if (field.kind === 'data') {
-      tableDataFields.push(Tuple2(field.name, field.type));
+      tableDataFields.push({ name: field.name, type: field.type });
     }
   });
   return Type.object(tableDataFields);

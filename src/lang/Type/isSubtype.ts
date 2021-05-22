@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import { bug } from '../../util/bug';
 import { Type } from './types';
 import { undefined } from './constructors';
@@ -7,7 +6,7 @@ import expand from './expand';
 export function isSubtype(at: Type, bt: Type): boolean {
   const a = expand(at);
   const b = expand(bt);
-  if (Immutable.is(a, b)) return true;
+  if (a === b) return true;
   else if (a.kind === 'never') return true;
   else if (b.kind === 'unknown') return true;
   else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));
@@ -27,18 +26,18 @@ export function isSubtype(at: Type, bt: Type): boolean {
   else if (a.kind === 'Map' && b.kind === 'Map')
     return isSubtype(b.key, a.key) && isSubtype(a.value, b.value);
   else if (a.kind === 'Tuple' && b.kind === 'Tuple')
-    return a.elems.size === b.elems.size &&
-      a.elems.every((t, i) => isSubtype(t, b.elems.get(i) ?? bug()));
+    return a.elems.length === b.elems.length &&
+      a.elems.every((t, i) => isSubtype(t, b.elems[i] ?? bug()));
   else if (a.kind === 'Object' && b.kind === 'Object') {
-    const fieldTypes = new Map(a.fields.map(({ _1, _2 }) => [_1, _2]));
-    return b.fields.every((ft) => {
-      const a = fieldTypes.get(ft._1) || undefined;
-      return isSubtype(a, ft._2);
+    const fieldTypes = new Map(a.fields.map(({ name, type }) => [name, type]));
+    return b.fields.every(({ name, type }) => {
+      const a = fieldTypes.get(name) || undefined;
+      return isSubtype(a, type);
     });
   }
   else if (a.kind === 'Function' && b.kind === 'Function') {
-    return a.args.size <= b.args.size &&
-      a.args.every((a, i) => isSubtype(b.args.get(i) ?? bug(), a)) &&
+    return a.args.length <= b.args.length &&
+      a.args.every((a, i) => isSubtype(b.args[i] ?? bug(), a)) &&
       isSubtype(a.ret, b.ret);
   }
   else return false;

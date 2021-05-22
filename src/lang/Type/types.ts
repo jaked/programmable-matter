@@ -1,74 +1,42 @@
-import * as Immutable from 'immutable';
-import { Tuple2 } from '../../util/Tuple';
-
-export type NeverProps = { kind: 'never' };
-export type NeverType = Immutable.RecordOf<NeverProps>;
-export type UnknownProps = { kind: 'unknown' };
-export type UnknownType = Immutable.RecordOf<UnknownProps>;
-export type UndefinedProps = { kind: 'undefined' };
-export type UndefinedType = Immutable.RecordOf<UndefinedProps>;
-export type NullProps = { kind: 'null' };
-export type NullType = Immutable.RecordOf<NullProps>;
-export type BooleanProps = { kind: 'boolean' };
-export type BooleanType = Immutable.RecordOf<BooleanProps>;
-export type NumberProps = { kind: 'number' };
-export type NumberType = Immutable.RecordOf<NumberProps>;
-export type StringProps = { kind: 'string' };
-export type StringType = Immutable.RecordOf<StringProps>;
-export type TupleProps = { kind: 'Tuple', elems: Immutable.List<Type> };
-export type TupleType = Immutable.RecordOf<TupleProps>;
-export type ArrayProps = { kind: 'Array', elem: Type };
-export type ArrayType = Immutable.RecordOf<ArrayProps>;
-export type SetProps = { kind: 'Set', elem: Type };
-export type SetType = Immutable.RecordOf<SetProps>;
-export type MapProps = { kind: 'Map', key: Type, value: Type };
-export type MapType = Immutable.RecordOf<MapProps>;
-export type AbstractProps = { kind: 'Abstract', label: string, params: Immutable.List<Type> };
-export type AbstractType = Immutable.RecordOf<AbstractProps>;
-
-export type FunctionProps = {
-  kind: 'Function',
-  args: Immutable.List<Type>,
-  ret: Type
-};
-export type FunctionType = Immutable.RecordOf<FunctionProps>;
+export type NeverType = { readonly kind: 'never' };
+export type UnknownType = { readonly kind: 'unknown' };
+export type UndefinedType = { readonly kind: 'undefined' };
+export type NullType = { readonly kind: 'null' };
+export type BooleanType = { readonly kind: 'boolean' };
+export type NumberType = { readonly kind: 'number' };
+export type StringType = { readonly kind: 'string' };
+export type TupleType = { readonly kind: 'Tuple', readonly elems: Type[] };
+export type ArrayType = { readonly kind: 'Array', readonly elem: Type };
+export type SetType = { readonly kind: 'Set', readonly elem: Type };
+export type MapType = { readonly kind: 'Map', readonly key: Type, readonly value: Type };
+export type AbstractType = { readonly kind: 'Abstract', readonly label: string, readonly params: Type[] };
+export type FunctionType = { readonly kind: 'Function', readonly args: Type[], readonly ret: Type };
 
 // invariant: no duplicate fields
-export type ObjectProps = {
-  kind: 'Object',
-  fields: Immutable.List<Tuple2<string, Type>>,
-};
-export type ObjectType = Immutable.RecordOf<ObjectProps> & {
-  getFieldType(field: string): Type | undefined;
+export type ObjectType = {
+  readonly kind: 'Object',
+  readonly fields: { readonly name: string, readonly type: Type }[],
 };
 
 // invariant: no duplicate fields
-export type ModuleProps = {
-  kind: 'Module',
-  fields: Immutable.List<Tuple2<string, Type >>,
-};
-export type ModuleType = Immutable.RecordOf<ModuleProps> & {
-  getFieldType(field: string): Type | undefined;
+export type ModuleType = {
+  readonly kind: 'Module',
+  readonly fields: { readonly name: string, readonly type: Type }[],
 };
 
 // invariant: no nested unions, > 1 element
-export type UnionProps = { kind: 'Union', types: Immutable.List<Type> };
-export type UnionType = Immutable.RecordOf<UnionProps>;
+export type UnionType = { readonly kind: 'Union', readonly types: Type[] };
 
 // invariant: no nested intersections, > 1 element
-export type IntersectionProps = { kind: 'Intersection', types: Immutable.List<Type> };
-export type IntersectionType = Immutable.RecordOf<IntersectionProps>;
+export type IntersectionType = { readonly kind: 'Intersection', readonly types: Type[] };
 
 // invariant: `value` is a valid (JS-level) element of base type
-export type SingletonProps = { kind: 'Singleton', base: Type, value: any };
-export type SingletonType = Immutable.RecordOf<SingletonProps>;
+export type SingletonType = { readonly kind: 'Singleton', readonly base: Type, readonly value: any };
 
 // invariant: `type` is not a `Not`
-export type NotProps = { kind: 'Not', type: Type }
-export type NotType = Immutable.RecordOf<NotProps>;
+export type NotType = { readonly kind: 'Not', readonly type: Type }
 
-export type ErrorProps = { kind: 'Error', err: Error }
-export type ErrorType = Immutable.RecordOf<ErrorProps>;
+export type ErrorType = { readonly kind: 'Error', readonly err: Error }
 
 export type Type =
   NeverType |

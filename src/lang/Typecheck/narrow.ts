@@ -47,16 +47,15 @@ export function narrowType(a: Type, b: Type): Type {
     return (b.base.kind === a.kind) ? b : Type.never;
 
   if (a.kind === 'Object' && b.kind === 'Object') {
-    const type = Type.object(a.fields.map(aFieldType => {
-      const name = aFieldType._1;
-      const bFieldType = b.fields.find(bFieldType => bFieldType._1 === name);
-      if (bFieldType) {
-        return Tuple2(name, narrowType(aFieldType._2, bFieldType._2))
+    const type = Type.object(a.fields.map(({ name, type: aType }) => {
+      const bType = b.fields.find(({ name: bName }) => bName === name)?.type;
+      if (bType) {
+        return { name, type: narrowType(aType, bType) };
       }
-      else return aFieldType;
+      else return { name, type: aType };
       // if there are  fields in `b` that are not in `a`, ignore them
     }));
-    if (type.fields.some(({ _2: type }) => type.kind === 'never')) {
+    if (type.fields.some(({ type }) => type.kind === 'never')) {
       return Type.never;
     } else {
       return type;

@@ -296,8 +296,8 @@ function synthMember(
               case 'Tuple':
                 if (prop.kind === 'Error') return prop;
                 if (prop.kind === 'Singleton' && prop.base.kind === 'number') {
-                  if (prop.value < object.elems.size)
-                    return object.elems.get(prop.value) ?? bug(`expected elem`);
+                  if (prop.value < object.elems.length)
+                    return object.elems[prop.value] ?? bug(`expected elem`);
                   return Error.noElementAtIndex(ast, prop.value, interfaceMap).get();
                 }
                 return Error.expectedType(ast, Type.number, prop, interfaceMap).get();
@@ -305,7 +305,7 @@ function synthMember(
               case 'Object':
                 if (prop.kind === 'Error') return prop;
                 if (prop.kind === 'Singleton' && prop.base.kind === 'string') {
-                  const type = object.getFieldType(prop.value);
+                  const type = object.fields.find(({ name }) => name === prop.value)?.type;
                   if (type) return type;
                   else return Error.unknownField(ast, prop.value, interfaceMap).get();
                 }
@@ -411,13 +411,13 @@ function synthMember(
               break;
 
             case 'Object': {
-              const type = object.getFieldType(name);
+              const type = object.fields.find(({ name: name2 }) => name2 === name)?.type;
               if (type) return type;
               break;
             }
 
             case 'Module': {
-              const type = object.getFieldType(name);
+              const type = object.fields.find(({ name: name2 }) => name2 === name)?.type;
               if (type) return type;
               break;
             }
@@ -460,12 +460,12 @@ function synthCall(
         // it's OK for an argument to be missing if the function accepts undefined
         return undefinedIntf;
       } else
-        return Error.wrongArgsLength(ast, args.size, ast.arguments.length, interfaceMap);
+        return Error.wrongArgsLength(ast, args.length, ast.arguments.length, interfaceMap);
     });
     ast.arguments.forEach((arg, i) => {
-      if (i >= args.size) {
+      if (i >= args.length) {
         synth(arg, env, interfaceMap);
-        Error.wrongArgsLength(arg, args.size, ast.arguments.length, interfaceMap);
+        Error.wrongArgsLength(arg, args.length, ast.arguments.length, interfaceMap);
       }
     });
     // if there aren't enough arguments or a required argument is err then the call is err
@@ -501,11 +501,11 @@ function patTypeEnvObjectPattern(
 ): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
-    const field = t.fields.find(field => field._1 === key.name)
-    if (!field) {
+    const type = t.fields.find(({ name }) => name === key.name)?.type;
+    if (!type) {
       Error.unknownField(key, key.name, interfaceMap);
     } else {
-      env = patTypeEnv(prop.value, field._2, env, interfaceMap);
+      env = patTypeEnv(prop.value, type, env, interfaceMap);
     }
   });
   return env;
@@ -659,14 +659,14 @@ function synthJSXElement(
           return { props: Type.object({}), ret: element }
 
         case 'Function':
-          if (element.args.size === 0) {
+          if (element.args.length === 0) {
             return { props: Type.object({}), ret: element.ret };
 
-          } else if (element.args.size === 1) {
-            const argType = element.args.get(0) ?? bug();
+          } else if (element.args.length === 1) {
+            const argType = element.args[0] ?? bug();
             if (argType.kind === 'Object') {
-              const childrenField = argType.fields.find(field => field._1 === 'children');
-              if (!childrenField || Type.isSubtype(Type.array(Type.reactNodeType), childrenField._2))
+              const childrenType = argType.fields.find(({ name })=> name === 'children')?.type;
+              if (!childrenType || Type.isSubtype(Type.array(Type.reactNodeType), childrenType))
                 return { props: argType, ret: element.ret };
             }
           }
@@ -683,7 +683,7 @@ function synthJSXElement(
     })(intfType(element));
 
     const attrs = ast.openingElement.attributes.map(attr => {
-      const expectedType = props.getFieldType(attr.name.name);
+      const expectedType = props.fields.find(({ name }) => name === attr.name.name)?.type;
       if (expectedType) {
         if (attr.value) {
           const intf = check(attr.value, env, expectedType, interfaceMap);
@@ -720,7 +720,7 @@ function synthJSXElement(
     const attrNames =
       new Set(ast.openingElement.attributes.map(({ name }) => name.name ));
     let missingField: undefined | Interface = undefined;
-    props.fields.forEach(({ _1: name, _2: type }) => {
+    props.fields.forEach(({ name, type }) => {
       if (name !== 'children' &&
           !attrNames.has(name) &&
           // it's OK for an argument to be missing if the function accepts undefined
@@ -913,10 +913,10 @@ function andThen(
       );
       const okIndex = intfs.findIndex(intf => intf.type !== 'err')
       if (okIndex === -1) {
-        const intf = intfs.get(intfs.size - 1) ?? bug(`expected type`);
+        const intf = intfs[intfs.length - 1] ?? bug(`expected type`);
         return fn(intf, interfaceMap);
       } else {
-        const okType = type.types.get(okIndex) ?? bug(`expected type`);
+        const okType = type.types[okIndex] ?? bug(`expected type`);
         fn(Try.ok({ type: okType, dynamic: intfDynamic(intf) }), interfaceMap);
         let dynamic: boolean | undefined = undefined;
         const types: Type[] = [];
@@ -1051,7 +1051,7 @@ function synthVariableDecl(
             ann.label === 'Session' ? [true, 'Session'] :
             bug(`expected Code or Session`);
 
-          const param = ann.params.get(0) ?? bug(`expected param`);
+          const param = ann.params[0] ?? bug(`expected param`);
           const intf = check(declarator.init, initEnv, param, interfaceMap);
           declIntf = intf.type === 'err' ? intf : Try.ok({ type: param, dynamic, mutable });
         }

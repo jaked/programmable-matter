@@ -8,8 +8,8 @@ export default function lensType(type: Type): Type {
       return Type.intersection(
         Type.functionType([], type),
         Type.functionType([type], Type.undefined),
-        Type.object(type.fields.map(({ _1: name, _2: type }) => {
-          return Tuple2(name, lensType(type));
+        Type.object(type.fields.map(({ name, type }) => {
+          return { name, type: lensType(type) };
         }))
       );
 

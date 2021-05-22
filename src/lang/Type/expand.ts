@@ -13,13 +13,13 @@ export default function (type: Types.Type) {
           return type;
 
         case 'React.ReactNode': {
-          if (type.params.size !== 0) bug(`expected 0 params to React.ReactNode`)
+          if (type.params.length !== 0) bug(`expected 0 params to React.ReactNode`)
           return Predef.reactNodeType;
         }
 
         case 'React.Component': {
-          if (type.params.size !== 1) bug(`expected 1 param to React.Component`)
-          const param = type.params.get(0) ?? bug();
+          if (type.params.length !== 1) bug(`expected 1 param to React.Component`)
+          const param = type.params[0] ?? bug();
           if (param.kind !== 'Object') bug(`expected object param to React.Component, got ${param.kind}`);
           return Type.functionType([ param ], Predef.reactElementType);
         }
@@ -30,16 +30,16 @@ export default function (type: Types.Type) {
         // but it is useful to avoid a separate `type Props = ...`
         case 'React.FC':
         case 'React.FunctionComponent': {
-          if (type.params.size !== 1) bug(`expected 1 param to React.FunctionComponent`)
-          const param = type.params.get(0) ?? bug();
+          if (type.params.length !== 1) bug(`expected 1 param to React.FunctionComponent`)
+          const param = type.params[0] ?? bug();
           if (param.kind !== 'Object') bug(`expected object param to React.FunctionComponent, got ${param.kind}`);
           // TODO(jaked) catch multiple definition of `children`
-          const paramWithChildren = Type.object(param.fields.push(Tuple2('children', Type.array(Predef.reactNodeType))));
+          const paramWithChildren = Type.object([ ...param.fields, { name: 'children', type: Type.array(Predef.reactNodeType) }]);
           return Type.functionType([ paramWithChildren ], Predef.reactNodeType);
         }
 
         case 'lensType':
-          return lensType(type.params.get(0) ?? bug(`expected param`));
+          return lensType(type.params[0] ?? bug(`expected param`));
 
         default:
           bug(`unknown abstract type ${type.label}`);

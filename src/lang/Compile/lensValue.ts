@@ -31,7 +31,7 @@ export default function lensValue(value: any, setValue: (v: any) => void, type: 
 
           default:
             const setFieldValue = (v) => setValue({ ...value, [key]: v });
-            const fieldType = type.getFieldType(key) ?? bug(`expected field type for ${key}`);
+            const fieldType = type.fields.find(({ name }) => name === key)?.type ?? bug(`expected field type for ${key}`);
             return lensValue(value[key], setFieldValue, fieldType);
         }
       }});

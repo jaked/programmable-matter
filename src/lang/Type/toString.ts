@@ -14,18 +14,18 @@ export function toString(t: Types.Type): string {
     case 'Set': return `Set<${toString(t.elem)}>`;
     case 'Map': return `Map<${toString(t.key)}, ${toString(t.value)}>`;
     case 'Abstract':
-      if (t.params.size === 0)
+      if (t.params.length === 0)
         return t.label;
       else
         return `${t.label}<${t.params.map(toString).join(', ')}>`;
     case 'Function':
       return `(${t.args.map(toString).join(', ')}) => ${toString(t.ret)}`;
     case 'Object': {
-      const fields = t.fields.map(({ _1: name, _2: type }) => `${name}: ${toString(type)}`);
+      const fields = t.fields.map(({ name, type }) => `${name}: ${toString(type)}`);
       return `{ ${fields.join(', ')} }`;
     }
     case 'Module': {
-      const fields = t.fields.map(({ _1: name, _2: type }) => `${name}: ${toString(type)}`);
+      const fields = t.fields.map(({ name, type }) => `${name}: ${toString(type)}`);
       return `{ ${fields.join(', ')} }`;
     }
     case 'Union':

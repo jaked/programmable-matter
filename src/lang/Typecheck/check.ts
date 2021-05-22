@@ -207,11 +207,11 @@ function patTypeEnvObjectPattern(
 ): Env {
   ast.properties.forEach(prop => {
     const key = prop.key;
-    const field = t.fields.find(field => field._1 === key.name)
-    if (!field) {
+    const type = t.fields.find(({ name }) => name === key.name)?.type;
+    if (!type) {
       Error.unknownField(key, key.name, interfaceMap);
     } else {
-      env = patTypeEnv(prop.value, field._2, env, interfaceMap);
+      env = patTypeEnv(prop.value, type, env, interfaceMap);
     }
   });
   return env;
@@ -242,11 +242,11 @@ function checkFunction(
 ): Interface {
   switch (ast.type) {
     case 'ArrowFunctionExpression':
-      if (ast.params.length > type.args.size)
-        return Error.wrongArgsLength(ast, type.args.size, ast.params.length, interfaceMap);
+      if (ast.params.length > type.args.length)
+        return Error.wrongArgsLength(ast, type.args.length, ast.params.length, interfaceMap);
       let patEnv: Env = Immutable.Map(); // TODO(jaked) Env.empty();
       ast.params.forEach((pat, i) => {
-        patEnv = patTypeEnv(pat, type.args.get(i) ?? bug(), patEnv, interfaceMap);
+        patEnv = patTypeEnv(pat, type.args[i] ?? bug(), patEnv, interfaceMap);
       });
       env = env.merge(patEnv);
       const body = ast.body;
@@ -302,8 +302,8 @@ function checkUnion(
     (t.kind === 'Array' && ast.type === 'ArrayExpression') ||
     (t.kind === 'Function' && ast.type === 'ArrowFunctionExpression')
   );
-  if (matchingArms.size === 1)
-    return check(ast, env, matchingArms.get(0) ?? bug(), interfaceMap);
+  if (matchingArms.length === 1)
+    return check(ast, env, matchingArms[0] ?? bug(), interfaceMap);
   else
     return checkSubtype(ast, env, type, interfaceMap);
 }
@@ -360,7 +360,7 @@ function checkObject(
         return undefinedIntf;
       } else {
         seen.add(name);
-        const fieldType = type.getFieldType(name);
+        const fieldType = type.fields.find(({ name: name2 }) => name2 === name)?.type;
         if (fieldType) return check(prop.value, env, fieldType, interfaceMap);
         else {
           // TODO(jaked) this highlights the error but we also need to skip evaluation
@@ -381,7 +381,7 @@ function checkObject(
       return name;
     }));
     let missingField: undefined | Interface = undefined;
-    type.fields.forEach(({ _1: name, _2: type }) => {
+    type.fields.forEach(({ name, type }) => {
       if (!propNames.has(name) && !Type.isSubtype(Type.undefined, type))
         // TODO(jaked) stop after first one? aggregate all?
         missingField = Error.missingField(ast, name, interfaceMap);

@@ -1,136 +1,77 @@
-import * as Immutable from 'immutable';
-import { Tuple2 } from '../../util/Tuple';
 import * as Types from './types';
 
-const NeverType = Immutable.Record<Types.NeverProps>({ kind: 'never' });
-export const never = NeverType();
+export const never: Types.NeverType = { kind: 'never' };
 
-const UnknownType = Immutable.Record<Types.UnknownProps>({ kind: 'unknown' });
-export const unknown = UnknownType();
+export const unknown: Types.UnknownType = { kind: 'unknown' };
 
-const UndefinedType = Immutable.Record<Types.UndefinedProps>({ kind: 'undefined' });
-export const undefinedType = UndefinedType();
+export const undefinedType: Types.UndefinedType = { kind: 'undefined' };
 export const undefined = undefinedType;
 
-const NullType = Immutable.Record<Types.NullProps>({ kind: 'null' });
-export const nullType = NullType();
+export const nullType: Types.NullType = { kind: 'null' };
 
-const BooleanType = Immutable.Record<Types.BooleanProps>({ kind: 'boolean' });
-export const booleanType = BooleanType();
+export const booleanType: Types.BooleanType = { kind: 'boolean' };
 export const boolean = booleanType;
 
-const NumberType = Immutable.Record<Types.NumberProps>({ kind: 'number' });
-export const numberType = NumberType();
+export const numberType: Types.NumberType = { kind: 'number' };
 export const number = numberType;
 
-const StringType = Immutable.Record<Types.StringProps>({ kind: 'string' });
-export const stringType = StringType();
+export const stringType: Types.StringType = { kind: 'string' };
 export const string = stringType;
 
-const TupleType = Immutable.Record<Types.TupleProps>({
-  kind: 'Tuple',
-  elems: Immutable.List(),
-});
-export function tuple(...elems: Array<Types.Type>) {
-  return TupleType({ elems: Immutable.List(elems) });
+export function tuple(...elems: Types.Type[]): Types.TupleType {
+  return { kind: 'Tuple', elems };
 }
 
-const ArrayType = Immutable.Record<Types.ArrayProps>({
-  kind: 'Array',
-  elem: never,
-});
-export function array(elem: Types.Type) {
-  return ArrayType({ elem });
+export function array(elem: Types.Type): Types.ArrayType {
+  return { kind: 'Array', elem };
 }
 
-const SetType = Immutable.Record<Types.SetProps>({
-  kind: 'Set',
-  elem: never,
-});
-export function set(elem: Types.Type) {
-  return SetType({ elem });
+export function set(elem: Types.Type): Types.SetType {
+  return { kind: 'Set', elem };
 }
 
-const MapType = Immutable.Record<Types.MapProps>({
-  kind: 'Map',
-  key: never,
-  value: never,
-});
-export function map(key: Types.Type, value: Types.Type) {
-  return MapType({ key, value });
+export function map(key: Types.Type, value: Types.Type): Types.MapType {
+  return { kind: 'Map', key, value };
 }
 
-const AbstractType = Immutable.Record<Types.AbstractProps>({
-  kind: 'Abstract',
-  label: '',
-  params: Immutable.List(),
-})
-export function abstract(label: string, ...params: Array<Types.Type>) {
-  return new AbstractType({ label, params: Immutable.List(params) });
+export function abstract(label: string, ...params: Types.Type[]): Types.AbstractType {
+  return { kind: 'Abstract', label, params };
 }
 
-const FunctionType = Immutable.Record<Types.FunctionProps>({
-  kind: 'Function',
-  args:  Immutable.List(),
-  ret: never,
-})
-export function functionType(
-  args: Array<Types.Type>,
-  ret: Types.Type
-) {
-  return new FunctionType({ args: Immutable.List(args), ret });
+export function functionType(args: Types.Type[], ret: Types.Type): Types.FunctionType {
+  return { kind: 'Function', args, ret };
 }
 
-class ObjectType extends Immutable.Record<Types.ObjectProps>({
-  kind: 'Object',
-  fields: Immutable.List(),
-}) {
-  getFieldType(field: string) {
-    const ft = this.fields.find(ft => ft._1 === field);
-    if (ft) return ft._2;
-  }
-}
 export function object(
   fields:
     { [f: string]: Types.Type } |
-    Array<Tuple2<string, Types.Type>> |
-    Immutable.List<Tuple2<string, Types.Type>>
+    { name: string, type: Types.Type }[]
 ): Types.ObjectType {
-  if (Immutable.List.isList(fields)) {
-    return new ObjectType({ fields });
-  } else if (Array.isArray(fields)) {
-    return object(Immutable.List(fields));
+  if (Array.isArray(fields)) {
+    return { kind: 'Object', fields };
   } else {
-    return object(Object.entries(fields).map(([ field, type]) => Tuple2(field, type)));
+    return object(Object.entries(fields).map(([ name, type]) => ({ name, type })));
   }
 }
 
-class ModuleType extends Immutable.Record<Types.ModuleProps>({
-  kind: 'Module',
-  fields: Immutable.List(),
-}) {
-  getFieldType(field: string) {
-    const ft = this.fields.find(ft => ft._1 === field);
-    if (ft) return ft._2;
+export function module(fields:
+    { [f: string]: Types.Type } |
+    { name: string, type: Types.Type }[]
+): Types.ModuleType {
+  if (Array.isArray(fields)) {
+    return { kind: 'Module', fields };
+  } else {
+    return module(Object.entries(fields).map(([ name, type ]) => ({ name, type })));
   }
 }
-export function module(obj: { [f: string]: Types.Type }) {
-  return new ModuleType({
-    fields: Immutable.List(Object.entries(obj).map(([ field, type ]) => Tuple2(field, type)))
-  });
-}
 
-const SingletonType = Immutable.Record<Types.SingletonProps>({
-  kind: 'Singleton',
-  base: never,
-  value: undefined,
-});
-export function singleton(value: any) {
+export function singleton(value: any): Types.Type {
   const type = typeof value;
   switch (type) {
-    case 'boolean': return SingletonType({ base: booleanType, value });
-    case 'number': return SingletonType({ base: numberType, value });
-    case 'string': return SingletonType({ base: stringType, value });
+    case 'boolean': return { kind: 'Singleton', base: booleanType, value };
+    case 'number': return { kind: 'Singleton', base: numberType, value };
+    case 'string': return { kind: 'Singleton', base: stringType, value };
+    // TODO(jaked) not sure we need these cases
     case 'undefined': return undefinedType;
     case 'object':
       if (value === null) return nullType;
@@ -141,39 +82,23 @@ export function singleton(value: any) {
   }
 }
 
-const NotType = Immutable.Record<Types.NotProps>({
-  kind: 'Not',
-  type: never,
-});
-export function not(type: Types.Type) {
+export function not(type: Types.Type): Types.Type {
   if (type.kind === 'Not') return type.type;
-  else return new NotType({ type });
+  else return { kind: 'Not', type };
 }
 
-const ErrorType = Immutable.Record<Types.ErrorProps>({
-  kind: 'Error',
-  err: new Error(),
-});
-export function error(err: Error) {
-  return new ErrorType({ err });
+export function error(err: Error): Types.ErrorType {
+  return { kind: 'Error', err };
 }
 
-const UnionType = Immutable.Record<Types.UnionProps>({
-  kind: 'Union',
-  types: Immutable.List(),
-});
 // assumes that `types` satisfy the union invariants
-export function union(...types: Array<Types.Type>) {
-  return UnionType({ types: Immutable.List(types) });
+export function union(...types: Types.Type[]): Types.UnionType {
+  return { kind: 'Union', types };
 }
 
-const IntersectionType = Immutable.Record<Types.IntersectionProps>({
-  kind: 'Intersection',
-  types: Immutable.List(),
-});
 // assumes that `types` satisfy the intersection invariants
-export function intersection(...types: Array<Types.Type>) {
-  return IntersectionType({ types: Immutable.List(types) });
+export function intersection(...types: Types.Type[]): Types.IntersectionType {
+  return { kind: 'Intersection', types };
 }
 
 export function enumerate(...values: any[]): Types.Type {
