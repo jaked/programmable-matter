@@ -175,6 +175,8 @@ export function narrowEnvironment(
             env = narrowEnvironment(env, ast.left, false, interfaceMap);
             return narrowEnvironment(env, ast.right, false, interfaceMap);
           } else return env;
+        case '??':
+          return env;
         default:
           return bug(`unexpected AST ${(ast as any).operator}`);
       }
@@ -189,7 +191,7 @@ export function narrowEnvironment(
         env = narrowExpression(env, ast.left, Type.not(intfType(right)));
         return narrowExpression(env, ast.right, Type.not(intfType(left)));
       } else {
-        return bug('unimplemented BinaryExpression');
+        return env;
       }
 
     default:
