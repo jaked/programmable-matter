@@ -156,7 +156,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <RichEditor
             ref={richEditorRef}
             // TODO(jaked) Signal function to project from a Writable
-            content={(selectedFile.content as Signal.Writable<model.PMContent>).mapWritable(
+            content={(selectedFile.content as Signal.Writable<model.PMContent>).mapInvertible(
               content => content.nodes,
               nodes => ({ nodes, meta: (selectedFile.content.get() as model.PMContent).meta })
             )}

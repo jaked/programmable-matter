@@ -180,7 +180,7 @@ export class App {
     const type = typeOfPath(path);
 
     const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
-    const buffer = file.mapWritable(
+    const buffer = file.mapInvertible(
       ({ buffer }) => buffer,
       buffer => ({ buffer, mtimeMs: Date.now() })
     );
@@ -188,7 +188,7 @@ export class App {
     let content: Signal.Writable<unknown>;
     switch (type) {
       case 'pm':
-        content = buffer.mapWritable(
+        content = buffer.mapInvertible(
           // TODO(jaked) handle parse / validate errors
           buffer => {
             const obj = JSON5.parse(buffer.toString('utf8'));
@@ -219,7 +219,7 @@ export class App {
         break;
 
       default:
-        content = buffer.mapWritable(
+        content = buffer.mapInvertible(
           buffer => buffer.toString('utf8'),
           string => Buffer.from(string, 'utf8')
         );

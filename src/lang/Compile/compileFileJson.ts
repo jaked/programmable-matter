@@ -117,8 +117,8 @@ export default function compileFileJson(
         [ 'default', Try.ok({ type, dynamic: false, mutable: 'Code' }) ],
       ]);
       const value = Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map());
-      // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
-      const mutable = Signal.cellOk(undefined).mapWritable(
+      // TODO(jaked) this is an abuse of mapInvertible, maybe add a way to make Signals from arbitrary functions?
+      const mutable = Signal.cellOk(undefined).mapInvertible(
         _ => value,
         v => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8')) as undefined
       );

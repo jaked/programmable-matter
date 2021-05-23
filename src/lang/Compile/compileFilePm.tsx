@@ -63,7 +63,7 @@ export default function compileFilePm(
   const moduleName = Name.nameOfPath(file.path);
 
   // TODO(jaked) Signal function to project from a Writable
-  const nodes = (file.content as Signal.Writable<model.PMContent>).mapWritable(
+  const nodes = (file.content as Signal.Writable<model.PMContent>).mapInvertible(
       content => content.nodes,
       nodes => ({ nodes, meta: (file.content.get() as model.PMContent).meta })
   );

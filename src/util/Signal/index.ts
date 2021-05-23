@@ -132,7 +132,7 @@ interface WritableIntf<T> extends Signal<T> {
   update(fn: (t: T) => T): void;
   produce(fn: (t: T) => void): void;
 
-  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
+  mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
 }
 
 abstract class WritableImpl<T> extends SignalImpl<T> {
@@ -142,7 +142,7 @@ abstract class WritableImpl<T> extends SignalImpl<T> {
   // TODO(jaked) handle errors from fn
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
   produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
-  mapWritable<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapWritable(this, f, fInv); }
+  mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapInvertible(this, f, fInv); }
 }
 
 class Const<T> extends SignalImpl<T> {
@@ -256,7 +256,7 @@ class MapImpl<T, U> extends SignalImpl<U> {
   }
 }
 
-class MapWritable<T, U> extends WritableImpl<U> {
+class MapInvertible<T, U> extends WritableImpl<U> {
   s: WritableIntf<T>;
   sVersion: number;
   f: (t: T) => U;

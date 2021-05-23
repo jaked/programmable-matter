@@ -595,8 +595,8 @@ function evalVariableDecl(
         const init = declarator.init;
         const value = evaluateExpression(init, interfaceMap, Immutable.Map({ undefined: undefined }));
         if (cellIntf.ok.mutable === 'Code') {
-          // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
-          valueEnv = valueEnv.set(name, nodes.mapWritable(
+          // TODO(jaked) this is an abuse of mapInvertible, maybe add a way to make Signals from arbitrary functions?
+          valueEnv = valueEnv.set(name, nodes.mapInvertible(
             _ => value,
             v => Immer.produce(nodes.get(), nodes => {
               function walk(nodes: PMAST.Node[]): boolean {

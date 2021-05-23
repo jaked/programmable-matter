@@ -525,10 +525,10 @@ describe('ref', () => {
   });
 });
 
-describe('mapWritable', () => {
+describe('mapInvertible', () => {
   it('set pushes down inverse mapping', () => {
     const cell = Signal.cellOk(7);
-    const plus = cell.mapWritable(x => x + 1, x => x - 1);
+    const plus = cell.mapInvertible(x => x + 1, x => x - 1);
     const plusplus = plus.map(x => x + 1);
     plus.reconcile();
     plus.setOk(9);
@@ -539,7 +539,7 @@ describe('mapWritable', () => {
   it('unchanged value', () => {
     const cell = Signal.cellOk(7);
     expect(cell.version).toBe(1);
-    const plus = cell.mapWritable(x => x + 1, x => x - 1);
+    const plus = cell.mapInvertible(x => x + 1, x => x - 1);
     plus.reconcile();
     plus.setOk(8);
     expect(cell.version).toBe(1);
