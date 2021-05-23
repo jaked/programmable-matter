@@ -282,6 +282,8 @@ function synthMember(
       return synthAndThen(ast.property, env, interfaceMap, (prop, interfaceMap) => {
         if (object.type === 'err') return object;
 
+        // TODO(jaked) permit computed lookups in modules?
+
         return Try.apply(() => {
           const type = ((object: Type, prop: Type) => {
             switch (object.kind) {
@@ -325,6 +327,14 @@ function synthMember(
       const name = ast.property.name;
 
       if (object.type === 'err') return object;
+
+      if (object.ok.type.kind === 'Module') {
+        const intf = object.ok.type.fields.find(({ name: name2 }) => name2 === name)?.intf;
+        // TODO(jaked) a module can be returned from a dynamic expression
+        // so we should include the dynamic bit here
+        if (intf) return intf;
+        else return Error.unknownField(ast.property, name, interfaceMap);
+      }
 
       return Try.apply(() => {
         const type = ((object: Type) => {
@@ -411,12 +421,6 @@ function synthMember(
               break;
 
             case 'Object': {
-              const type = object.fields.find(({ name: name2 }) => name2 === name)?.type;
-              if (type) return type;
-              break;
-            }
-
-            case 'Module': {
               const type = object.fields.find(({ name: name2 }) => name2 === name)?.type;
               if (type) return type;
               break;
@@ -786,24 +790,21 @@ function synthAssignment(
     return left;
   }
 
+  // strip off MemberExpressions to find a mutable object
   let object = ast.left;
-  let leftDynamic = false;
-  while (object.type === 'MemberExpression') {
-    if (object.computed) {
-      const intf = interfaceMap.get(object.property) ?? bug(`expected intf`);
-      leftDynamic ||= intfDynamic(intf);
-    }
+  let objectIntf = interfaceMap.get(object) ?? bug(`expected intf`);
+  while (objectIntf.type === 'ok' && objectIntf.ok.mutable === undefined && object.type === 'MemberExpression') {
     object = object.object;
+    objectIntf = interfaceMap.get(object) ?? bug(`expected intf`);
   }
 
-  const intf = interfaceMap.get(object) ?? bug(`expected intf`);
-  if (intf.type === 'err' || intf.ok.mutable === undefined)
+  if (objectIntf.type === 'err' || objectIntf.ok.mutable === undefined)
     return Error.expectedType(ast, 'mutable', 'immutable', interfaceMap);
 
   const right = check(ast.right, env, left.ok.type, interfaceMap);
   if (right.type === 'err') return right;
 
-  return Try.ok({ type: right.ok.type, dynamic: leftDynamic || right.ok.dynamic });
+  return Try.ok({ type: right.ok.type, dynamic: left.ok.dynamic || right.ok.dynamic });
 }
 
 function synthTSAs(
@@ -964,17 +965,8 @@ function importDecl(
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
-          // TODO(jaked)
-          // module types should map names to interfaces
-          // so we can undo some hacks
-          const moduleObj: { [f: string]: Type } = {};
-          for (const [name, intf] of module.entries()) {
-            moduleObj[name] = intfType(intf);
-          }
-          const type = Type.module(moduleObj);
-          // if any field is dynamic the whole module is dynamic
-          // TODO(jaked) make this more fine-grained, see comment in compileFilePm
-          const dynamic = [...module.values()].some(intfDynamic);
+          const type = Type.module([...module.entries()].map(([name, intf]) => ({ name, intf })));
+          const dynamic = false;
           env = env.set(spec.local.name, Try.ok({ type, dynamic }));
         }
         break;

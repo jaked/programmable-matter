@@ -378,8 +378,9 @@ function member(
   interfaceMap: InterfaceMap,
   env: Env,
 ): JS.Expression {
+  let expr;
   if (ast.computed) {
-    return joinDynamicExpressions(
+    expr = joinDynamicExpressions(
       [ast.object, ast.property],
       interfaceMap,
       env,
@@ -388,13 +389,19 @@ function member(
   } else {
     if (ast.property.type !== 'Identifier') bug(`expected Identifier`);
     const name = ast.property.name;
-    return joinDynamicExpressions(
+    expr = joinDynamicExpressions(
       [ast.object],
       interfaceMap,
       env,
       ([object]) => JS.memberExpression(object, JS.identifier(name))
     );
   }
+  const intf = interfaceMap(ast);
+  if (intf.type === 'err') bug(`expected ok`);
+  if (!intf.ok.dynamic && intf.ok.mutable)
+    return JS.callExpression(JS.memberExpression(expr, JS.identifier('get')), []);
+  else
+    return expr;
 }
 
 function call(
@@ -570,7 +577,8 @@ function assignment(
     const props: (JS.Expression | null)[] = [];
     const exprs: ESTree.Expression[] = [ast.right];
     let object = ast.left;
-    while (object.type === 'MemberExpression') {
+    let objectIntf = interfaceMap(object);
+    while (objectIntf.type === 'ok' && objectIntf.ok.mutable === undefined && object.type === 'MemberExpression') {
       if (object.computed) {
         props.unshift(null);
         exprs.unshift(object.property);
@@ -579,9 +587,21 @@ function assignment(
         props.unshift(JS.identifier(object.property.name));
       }
       object = object.object;
+      objectIntf = interfaceMap(object);
     }
-    if (object.type !== 'Identifier') bug(`expected Identifier`);
-    const objectSignal = JS.identifier(object.name);
+    let objectSignal;
+    switch (object.type) {
+      case 'Identifier':
+        objectSignal = JS.identifier(object.name);
+        break;
+      case 'MemberExpression':
+        const objectValue = expression(object.object, interfaceMap, env) as object;
+        if (object.property.type !== 'Identifier') bug(`expected Identifier`);
+        objectSignal = objectValue[object.property.name];
+        break;
+      default:
+        bug(`unexpected ast ${object.type}`);
+    }
     return joinDynamicExpressions(
       exprs,
       interfaceMap,

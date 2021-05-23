@@ -249,6 +249,14 @@ describe('member expressions', () => {
     dynamicObject: Try.ok({ type: Type.object({ x: Type.number, y: Type.number }), dynamic: true }),
     one: Try.ok({ type: Type.number, dynamic: true }),
     x: Try.ok({ type: Type.singleton('x'), dynamic: true }),
+    module: Try.ok({
+      type: Type.module({
+        static: Try.ok({ type: Type.number, dynamic: false }),
+        dynamic: Try.ok({ type: Type.number, dynamic: true }),
+        cell: Try.ok({ type: Type.number, dynamic: false, mutable: 'Code' }),
+      }),
+      dynamic: false,
+    }),
   };
   const venv = {
     array: [1, 2, 3],
@@ -257,6 +265,11 @@ describe('member expressions', () => {
     dynamicObject: Signal.ok({ x: 7, y: 9 }),
     one: Signal.ok(1),
     x: Signal.ok('x'),
+    module: {
+      static: 7,
+      dynamic: Signal.ok(9),
+      cell: Signal.cellOk(11),
+    }
   };
 
   it('arrays', () => {
@@ -279,6 +292,12 @@ describe('member expressions', () => {
     expectGenerate({ expr: 'dynamicObject.x', tenv, venv, value: 7 });
     expectGenerate({ expr: `dynamicObject['x']`, tenv, venv, value: 7 });
     expectGenerate({ expr: `dynamicObject[x]`, tenv, venv, value: 7 });
+  });
+
+  it('modules', () => {
+    expectGenerate({ expr: 'module.static', tenv, venv, value: 7 });
+    expectGenerate({ expr: 'module.dynamic', tenv, venv, value: 9 });
+    expectGenerate({ expr: 'module.cell', tenv, venv, value: 11 });
   });
 });
 

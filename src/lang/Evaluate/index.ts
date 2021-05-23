@@ -6,7 +6,6 @@ import * as ESTree from '../ESTree';
 import * as PMAST from '../../model/PMAST';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
-import * as MapFuncs from '../../util/MapFuncs';
 import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 
@@ -284,9 +283,10 @@ export function evaluateExpression(
         values => values[values.length - 1]
       );
 
-    case 'MemberExpression':
+    case 'MemberExpression': {
+      let value;
       if (ast.computed) {
-        return joinDynamicExpressions(
+        value = joinDynamicExpressions(
           [ast.object, ast.property],
           interfaceMap,
           env,
@@ -295,13 +295,18 @@ export function evaluateExpression(
       } else {
         if (ast.property.type !== 'Identifier') bug(`expected Identifier`);
         const name = ast.property.name;
-        return joinDynamicExpressions(
+        value = joinDynamicExpressions(
           [ast.object],
           interfaceMap,
           env,
           ([object]) => (object as object)[name]
         );
       }
+      if (!intf.ok.dynamic && intf.ok.mutable)
+        return value.get();
+      else
+        return value;
+    }
 
     case 'CallExpression': {
       const exprs: ESTree.Expression[] = [];
@@ -460,7 +465,8 @@ export function evaluateExpression(
         const props: (string | null)[] = [];
         const exprs: ESTree.Expression[] = [ast.right];
         let object = ast.left;
-        while (object.type === 'MemberExpression') {
+        let objectIntf = interfaceMap.get(object) ?? bug(`expected intf`);
+        while (objectIntf.type === 'ok' && objectIntf.ok.mutable === undefined && object.type === 'MemberExpression') {
           if (object.computed) {
             props.unshift(null);
             exprs.unshift(object.property);
@@ -469,9 +475,21 @@ export function evaluateExpression(
             props.unshift(object.property.name);
           }
           object = object.object;
+          objectIntf = interfaceMap.get(object) ?? bug(`expected intf`);
         }
-        if (object.type !== 'Identifier') bug(`expected identifier`);
-        const objectSignal = env.get(object.name) ?? bug(`expected ${object.name}`);
+        let objectSignal;
+        switch (object.type) {
+          case 'Identifier':
+            objectSignal = env.get(object.name) ?? bug(`expected ${object.name}`);
+            break;
+          case 'MemberExpression':
+            const objectValue = evaluateExpression(object.object, interfaceMap, env) as object;
+            if (object.property.type !== 'Identifier') bug(`expected Identifier`);
+            objectSignal = objectValue[object.property.name];
+            break;
+          default:
+            bug(`unexpected ast ${object.type}`);
+        }
         return joinDynamicExpressions(
           exprs,
           interfaceMap,
@@ -506,7 +524,6 @@ export function evaluateExpression(
 
 function importDecl(
   decl: ESTree.ImportDeclaration,
-  moduleInterfaceEnv: Map<string, Map<string, Interface>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   interfaceMap: InterfaceMap,
   valueEnv: Env,
@@ -521,25 +538,10 @@ function importDecl(
     });
   } else {
     const moduleValue = moduleValueEnv.get(decl.source.value) ?? bug(`expected moduleValue`);
-    const moduleInterface = moduleInterfaceEnv.get(decl.source.value) ?? bug(`expected moduleInterface`);
     decl.specifiers.forEach(spec => {
       switch (spec.type) {
         case 'ImportNamespaceSpecifier': {
-          // TODO(jaked) carry dynamic flags in Type.ModuleType
-          // so we can distinguish dynamic/static module members at the point of use
-          // for now if any member is dynamic the whole module is dynamic, else static
-          let value;
-          if ([...moduleInterface.values()].some(intfDynamic)) {
-            value = Signal.joinMap(Signal.ok(MapFuncs.map(moduleValue, (v, k) => {
-              if (intfDynamic(moduleInterface.get(k) ?? bug(`expected dynamic`)))
-                return v as Signal<unknown>;
-              else
-                return Signal.ok(v);
-            })))
-              .map(moduleValue => Object.fromEntries(moduleValue.entries()));
-          } else {
-            value = Object.fromEntries(moduleValue.entries());
-          }
+          const value = Object.fromEntries(moduleValue.entries());
           valueEnv = valueEnv.set(spec.local.name, value);
           break;
         }
@@ -644,7 +646,6 @@ export function evaluateCodeNode(
   nodes: Signal.Writable<PMAST.Node[]>,
   node: PMAST.Code,
   interfaceMap: InterfaceMap,
-  moduleInterfaceEnv: Map<string, Map<string, Interface>>,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   valueEnv: Env,
 ): Env {
@@ -653,7 +654,7 @@ export function evaluateCodeNode(
     for (const decl of code.body) {
       switch (decl.type) {
         case 'ImportDeclaration':
-          valueEnv = importDecl(decl, moduleInterfaceEnv, moduleValueEnv, interfaceMap, valueEnv);
+          valueEnv = importDecl(decl, moduleValueEnv, interfaceMap, valueEnv);
           break;
 
         case 'ExportNamedDeclaration':

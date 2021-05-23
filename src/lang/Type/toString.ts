@@ -25,7 +25,14 @@ export function toString(t: Types.Type): string {
       return `{ ${fields.join(', ')} }`;
     }
     case 'Module': {
-      const fields = t.fields.map(({ name, type }) => `${name}: ${toString(type)}`);
+      const fields = t.fields.map(({ name, intf }) => {
+        switch (intf.type) {
+          case 'ok':
+            return `${name}: Try.ok({ type: ${toString(intf.ok.type)}, dynamic: ${intf.ok.dynamic}, mutable: ${intf.ok.mutable} })`;
+          case 'err':
+            return `${name}: Try.err('${intf.err.message}')`;
+        }
+      });
       return `{ ${fields.join(', ')} }`;
     }
     case 'Union':

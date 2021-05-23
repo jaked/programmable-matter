@@ -74,7 +74,7 @@ function checkSubtype(
 
       const actual = intf.ok.type;
       if (Type.isSubtype(actual, type))
-        return Try.ok({ type: actual, dynamic: intf.ok.dynamic });
+        return intf;
       else if (actual.kind === 'Error')
         return Try.err(actual.err);
       else

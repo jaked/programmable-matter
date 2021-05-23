@@ -235,9 +235,8 @@ export default function compileFilePm(
     typecheckedCode,
     jsonValue,
     tableValue,
-    moduleInterfaceEnv,
     moduleValueEnv,
-  ).map(([codeNodes, { interfaceMap }, jsonValue, tableValue, moduleInterfaceEnv, moduleValueEnv]) => {
+  ).map(([codeNodes, { interfaceMap }, jsonValue, tableValue, moduleValueEnv]) => {
     // TODO(jaked) pass into compileFilePm
     let valueEnv = Render.initValueEnv;
 
@@ -250,7 +249,6 @@ export default function compileFilePm(
         nodes,
         node,
         interfaceMap,
-        moduleInterfaceEnv,
         moduleValueEnv,
         valueEnv
       )
@@ -385,10 +383,10 @@ ${html}
     })
   );
 
-  const exportInterface = Signal.join(exports, typecheckedCode).map(([exportNames, { interfaceEnv: typeEnv }]) => {
+  const exportInterface = Signal.join(exports, typecheckedCode).map(([exportNames, { interfaceEnv }]) => {
     const exportInterface: Map<string, Interface> = new Map();
     exportNames.forEach(name => {
-      exportInterface.set(name, typeEnv.get(name) ?? bug(`expected type`));
+      exportInterface.set(name, interfaceEnv.get(name) ?? bug(`expected interface`));
     });
     return exportInterface;
   });

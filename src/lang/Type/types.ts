@@ -1,3 +1,6 @@
+// TODO(jaked) move Interface to Type
+import { Interface } from '../../model';
+
 export type NeverType = { readonly kind: 'never' };
 export type UnknownType = { readonly kind: 'unknown' };
 export type UndefinedType = { readonly kind: 'undefined' };
@@ -21,7 +24,7 @@ export type ObjectType = {
 // invariant: no duplicate fields
 export type ModuleType = {
   readonly kind: 'Module',
-  readonly fields: { readonly name: string, readonly type: Type }[],
+  readonly fields: { readonly name: string, readonly intf: Interface }[],
 };
 
 // invariant: no nested unions, > 1 element

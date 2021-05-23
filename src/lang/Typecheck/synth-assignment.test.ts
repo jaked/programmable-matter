@@ -12,6 +12,10 @@ const env = Typecheck.env({
   cellNumber: Try.ok({ type: Type.number, dynamic: false, mutable: 'Code' }),
   cellObject: Try.ok({ type: Parse.parseType('{ x: number, y: number }'), dynamic: false, mutable: 'Code' }),
   cellArray: Try.ok({ type: Parse.parseType('number[]'), dynamic: false, mutable: 'Code' }),
+  moduleCell: Try.ok({
+    type: Type.module({ cell: Try.ok({ type: Type.number, dynamic: false, mutable: 'Code' }) }),
+    dynamic: false
+  }),
 });
 
 it(`ok`, () => {
@@ -33,6 +37,14 @@ it(`ok object`, () => {
 it(`ok array`, () => {
   expectSynth({
     expr: 'cellArray[0] = 7',
+    type: '7',
+    env
+  });
+});
+
+it(`ok module`, () => {
+  expectSynth({
+    expr: 'moduleCell.cell = 7',
     type: '7',
     env
   });

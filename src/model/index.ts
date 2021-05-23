@@ -26,7 +26,11 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type Interface = Try<{ type: Type, dynamic: boolean, mutable?: 'Code' | 'Session' }>;
+export type Interface = Try<{
+  readonly type: Type,
+  readonly dynamic: boolean,
+  readonly mutable?: 'Code' | 'Session'
+}>;
 export type InterfaceMap = Map<ESTree.Node, Interface>;
 
 export type NoteFiles = {

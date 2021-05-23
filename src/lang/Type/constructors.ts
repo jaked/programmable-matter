@@ -1,4 +1,5 @@
 import * as Types from './types';
+import { Interface } from '../../model';
 
 export const never: Types.NeverType = { kind: 'never' };
 
@@ -55,13 +56,13 @@ export function object(
 }
 
 export function module(fields:
-    { [f: string]: Types.Type } |
-    { name: string, type: Types.Type }[]
+    { [f: string]: Interface } |
+    { name: string, intf: Interface }[]
 ): Types.ModuleType {
   if (Array.isArray(fields)) {
     return { kind: 'Module', fields };
   } else {
-    return module(Object.entries(fields).map(([ name, type ]) => ({ name, type })));
+    return module(Object.entries(fields).map(([ name, intf ]) => ({ name, intf })));
   }
 }
 
