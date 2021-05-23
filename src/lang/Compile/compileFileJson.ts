@@ -12,8 +12,6 @@ import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import { Interface, Content, CompiledFile } from '../../model';
 import { Record } from '../../components/Record';
-import lensType from './lensType';
-import lensValue from './lensValue';
 
 import metaForPath from './metaForPath';
 
@@ -100,11 +98,9 @@ export default function compileFileJson(
       // TODO(jaked) these should be Signal.err
       const exportInterface = new Map([
         [ 'default', intf ],
-        [ 'mutable', intf ],
       ]);
       const exportValue = new Map([
         [ 'default', intf.err ],
-        [ 'mutable', intf.err ]
       ]);
       const rendered = Signal.ok(null);
       return {
@@ -117,21 +113,23 @@ export default function compileFileJson(
     } else {
       const type = meta.dataType ? meta.dataType : intf.ok.type;
 
+      const exportInterface = new Map<string, Interface>([
+        [ 'default', Try.ok({ type, dynamic: false, mutable: 'Code' }) ],
+      ]);
+      const value = Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map());
+      // TODO(jaked) this is an abuse of mapWritable, maybe add a way to make Signals from arbitrary functions?
+      const mutable = Signal.cellOk(undefined).mapWritable(
+        _ => value,
+        v => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8')) as undefined
+      );
+      const exportValue = new Map([
+        [ 'default', mutable ],
+      ]);
+
+      /* TODO(jaked) reimplement
       // TODO(jaked) handle other JSON types
       if (type.kind !== 'Object') bug(`expected Object type`);
       const typeObject = type;
-
-      const exportInterface = new Map([
-        [ 'default', Try.ok({ type, dynamic: false }) ],
-        [ 'mutable', Try.ok({ type: lensType(type), dynamic: false }) ],
-      ]);
-      const value = Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map());
-      const setValue = (v) => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8'));
-      const lens = lensValue(value, setValue, type);
-      const exportValue = new Map([
-        [ 'default', value ],
-        [ 'mutable', lens ]
-      ]);
 
       const rendered = Signal.constant(Try.apply(() => {
         // TODO(jaked) error handling here
@@ -144,6 +142,8 @@ export default function compileFileJson(
         // TODO(json) handle arrays of records (with Table)
         return React.createElement(Record, { object: lens, fields });
       }));
+      */
+      const rendered = Signal.ok(null);
 
       return {
         exportInterface,
