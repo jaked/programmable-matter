@@ -24,25 +24,25 @@ const Input = styled.input({
   height: '100%',
 });
 
-const stringInputComponent = ({ lens }) =>
+const stringInputComponent = ({ cell }: { cell: Signal.Writable<unknown> }) =>
   React.createElement(Input, {
     type: 'text',
-    value: lens(),
-    onChange: (e: React.FormEvent<HTMLInputElement>) => lens(e.currentTarget.value)
+    value: cell.get(),
+    onChange: (e: React.FormEvent<HTMLInputElement>) => cell.setOk(e.currentTarget.value)
   });
 
-const booleanInputComponent = ({ lens }) =>
+const booleanInputComponent = ({ cell }: { cell: Signal.Writable<unknown> }) =>
   React.createElement(Input, {
     type: 'checkbox',
-    checked: lens(),
-    onChange: (e: React.FormEvent<HTMLInputElement>) => lens(e.currentTarget.checked)
+    checked: cell.get(),
+    onChange: (e: React.FormEvent<HTMLInputElement>) => cell.setOk(e.currentTarget.checked)
   });
 
-const numberInputComponent = ({ lens }) =>
+const numberInputComponent = ({ cell }: { cell: Signal.Writable<unknown> }) =>
   React.createElement(Input, {
     type: 'text',
-    value: String(lens()),
-    onChange: (e: React.FormEvent<HTMLInputElement>) => lens(Number(e.currentTarget.value))
+    value: String(cell.get()),
+    onChange: (e: React.FormEvent<HTMLInputElement>) => cell.setOk(Number(e.currentTarget.value))
   });
 
 function fieldComponent(field: string, type: Type) {
@@ -55,13 +55,13 @@ function fieldComponent(field: string, type: Type) {
       // TODO(jaked) support non-required select if `undefined` in union
       if (type.types.some(type => type.kind !== 'Singleton' || type.base.kind !== 'string'))
         bug(`unhandled type ${Type.toString(type)} in fieldComponent`);
-      return ({ lens }) =>
+      return ({ cell }: { cell: Signal.Writable<unknown> }) =>
         React.createElement(
           'select',
           {
             required: true,
-            value: lens(),
-            onChange: (e: React.FormEvent<HTMLInputElement>) => lens(e.currentTarget.value)
+            value: cell.get(),
+            onChange: (e: React.FormEvent<HTMLInputElement>) => cell.setOk(e.currentTarget.value)
           },
           ...type.types.map(type => {
             if (type.kind !== 'Singleton' || type.base.kind !== 'string')
@@ -118,15 +118,14 @@ export default function compileFileJson(
       ]);
       const value = Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map());
       // TODO(jaked) this is an abuse of mapInvertible, maybe add a way to make Signals from arbitrary functions?
-      const mutable = Signal.cellOk(undefined).mapInvertible(
+      const cell = Signal.cellOk(undefined).mapInvertible(
         _ => value,
         v => updateFile(file.path, Buffer.from(JSON5.stringify(v, undefined, 2), 'utf-8')) as undefined
       );
       const exportValue = new Map([
-        [ 'default', mutable ],
+        [ 'default', cell ],
       ]);
 
-      /* TODO(jaked) reimplement
       // TODO(jaked) handle other JSON types
       if (type.kind !== 'Object') bug(`expected Object type`);
       const typeObject = type;
@@ -135,15 +134,14 @@ export default function compileFileJson(
         // TODO(jaked) error handling here
         const fields = typeObject.fields.map(({ name, type }) => ({
           label: name,
-          accessor: (o: object) => o[name],
+          getter: (o: unknown) => (o as object)[name],
+          setter: (o: unknown, v: unknown) => { (o as object)[name] = v },
           component: fieldComponent(name, type)
         }));
 
         // TODO(json) handle arrays of records (with Table)
-        return React.createElement(Record, { object: lens, fields });
+        return React.createElement(Record, { cell, fields });
       }));
-      */
-      const rendered = Signal.ok(null);
 
       return {
         exportInterface,

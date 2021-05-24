@@ -230,12 +230,12 @@ type DisplayPaneProps = {
 const DisplayPane = React.memo((props: DisplayPaneProps) =>
   <Frame
     style={{
-      flex: 1,
       width: '100%',
-      minWidth: 0,
       height: '100%',
       borderStyle: 'none'
     }}
+    // everything up the tree needs to have height: 100% for auto-resize to work
+    initialContent={`<!DOCTYPE html><html style='height:100%'><head><style>.frame-content{height:100%}</style></head><body style='height:100%'><div style='height:100%' class="frame-root"></div></body></html>`}
   >
     <FrameContextConsumer>{
       ({ document, window }) =>

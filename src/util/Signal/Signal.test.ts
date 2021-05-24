@@ -546,3 +546,24 @@ describe('mapInvertible', () => {
     expect(cell.get()).toBe(7);
   });
 });
+
+describe('mapProjection', () => {
+  it('set calls set function on underlying signal', () => {
+    const cell = Signal.cellOk({ foo: 7, bar: 9 });
+    const foo = cell.mapProjection(x => x.foo, (x, foo) => x.foo = foo);
+    const plus = foo.map(x => x + 1);
+    foo.reconcile();
+    foo.setOk(11);
+    expect(cell.get().foo).toBe(11);
+    expect(plus.get()).toBe(12);
+  });
+
+  it('chained projections', () => {
+    const cell = Signal.cellOk({ foo: { bar: 9, baz: 11 }, quux: 13 });
+    const foo = cell.mapProjection(x => x.foo, (x, foo) => x.foo = foo);
+    const bar = foo.mapProjection(x => x.bar, (x, bar) => x.bar = bar);
+    bar.reconcile();
+    bar.setOk(17);
+    expect(cell.get().foo.bar).toBe(17);
+  });
+});

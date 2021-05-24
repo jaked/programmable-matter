@@ -133,6 +133,7 @@ interface WritableIntf<T> extends Signal<T> {
   produce(fn: (t: T) => void): void;
 
   mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
+  mapProjection<U>(f: (t: T) => U, fSet: (t: T, u: U) => void): WritableIntf<U>;
 }
 
 abstract class WritableImpl<T> extends SignalImpl<T> {
@@ -143,6 +144,7 @@ abstract class WritableImpl<T> extends SignalImpl<T> {
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
   produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
   mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapInvertible(this, f, fInv); }
+  mapProjection<U>(f: (t: T) => U, fSet: (t: T, u: U) => void): WritableIntf<U> { return new MapProjection(this, f, fSet); }
 }
 
 class Const<T> extends SignalImpl<T> {
@@ -301,6 +303,57 @@ class MapInvertible<T, U> extends WritableImpl<U> {
     this.sVersion = this.s.version;
     this.value = u;
     this.version++;
+  }
+}
+
+class MapProjection<T, U> extends WritableImpl<U> {
+  s: WritableIntf<T>;
+  sVersion: number;
+  f: (t: T) => U;
+  fSet: (t: T, u: U) => void;
+
+  constructor(s: WritableIntf<T>, f: (t: T) => U, fSet: (t: T, u: U) => void) {
+    super();
+    this.value = unreconciled;
+    this.version = 0;
+    this.sVersion = 0;
+    this.s = s;
+    this.f = f;
+    this.fSet = fSet;
+  }
+
+  get() { this.reconcile(); return this.value.get(); }
+
+  value: Try<U>;
+  version: number;
+  reconcile() {
+    if (!this.isDirty) return;
+    this.isDirty = false;
+    impl(this.s).depend(this);
+    this.s.reconcile();
+    if (this.sVersion === this.s.version) return;
+    this.sVersion = this.s.version;
+    const value = this.s.value.map(this.f);
+    if (equal(value, this.value)) return;
+    this.value = value;
+    this.version++;
+  }
+
+  set(u: Try<U>) {
+    if (equal(u, this.value)) return;
+    if (u.type === 'ok') {
+      this.s.produce(t => { this.fSet(t, u.ok) });
+    } else {
+      this.s.set(u as unknown as Try<T>);
+    }
+    // avoid recomputing `f` just to get the value we already have
+    this.sVersion = this.s.version;
+    this.value = u;
+    this.version++;
+  }
+
+  produce(fn: (u: U) => void) {
+    this.s.produce(t => fn(this.f(t)));
   }
 }
 
