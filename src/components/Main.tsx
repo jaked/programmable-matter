@@ -235,7 +235,11 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
       borderStyle: 'none'
     }}
     // everything up the tree needs to have height: 100% for auto-resize to work
-    initialContent={`<!DOCTYPE html><html style='height:100%'><head><style>.frame-content{height:100%}</style></head><body style='height:100%'><div style='height:100%' class="frame-root"></div></body></html>`}
+    // the -16px accounts for 8px margin on the body
+    // but this does not work when the top element has a > 8px margin
+    // (that is collapsed into the body margin)
+    // TODO(jaked) fix this insanity. maybe just don't use auto-resize
+    initialContent={`<!DOCTYPE html><html style='height:100%'><head><style>.frame-content{height:100%}</style></head><body style='height:calc(100% - 16px)'><div style='height:100%' class="frame-root"></div></body></html>`}
   >
     <FrameContextConsumer>{
       ({ document, window }) =>
@@ -305,7 +309,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       gridTemplateColumns,
       gridTemplateRows: 'auto 1fr',
       gridTemplateAreas: `"${gridTemplateAreasRow1}" "${gridTemplateAreasRow2}"`,
-      overflow: 'auto',
+      overflow: 'hidden',
     }}>
       { sideBarVisible &&
         <div style={{
@@ -365,7 +369,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       { showDisplayPane &&
         <div style={{
           gridArea: 'display',
-          overflow: 'auto'
+          overflow: 'hidden'
         }}>
           <Catch>
             <DisplayPane
