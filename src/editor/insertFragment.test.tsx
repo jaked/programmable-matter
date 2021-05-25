@@ -199,6 +199,62 @@ describe('insert list items', () => {
       </editor>
     )
   });
+
+  it('collapses empty list items at the beginning on paste', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo<cursor/></p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertFragment(editor)(
+          <fragment>
+            <ul>
+              <li><p><stext /></p></li>
+              <li><p>bar</p></li>
+            </ul>
+          </fragment> as unknown as Node[]
+        );
+      },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p>bar<cursor/></p></li>
+        </ul>
+      </editor>
+    )
+  });
+
+  it('collapses empty list items at the end on paste', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li><p>foo<cursor/></p></li>
+        </ul>
+      </editor>,
+
+      editor => {
+        insertFragment(editor)(
+          <fragment>
+            <ul>
+              <li><p>bar</p></li>
+              <li><p><stext /></p></li>
+            </ul>
+          </fragment> as unknown as Node[]
+        );
+      },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p>bar<cursor/></p></li>
+        </ul>
+      </editor>
+    )
+  });
 });
 
 describe('insert links', () => {
