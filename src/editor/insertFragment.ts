@@ -1,4 +1,5 @@
 import { Editor, Element, Node, Range, Text, Transforms } from 'slate';
+import _ from 'lodash';
 
 import { bug } from '../util/bug';
 
@@ -66,6 +67,22 @@ export const insertFragment = (editor: Editor) => {
     if (lowest.type === 'ul') {
       const inListItemResult = inListItem(editor);
       if (inListItemResult) {
+        // Strip off any empty list items on either end.
+        // These end up in the tree that Slate gives us if the selection
+        // starts or ends with a newline.
+        if (_.isEqual(lowest.children[0], {
+          type: 'li',
+          children: [{ type: 'p', children: [{ text: '' }]}]
+        })) {
+          lowest.children.shift();
+        }
+        if (_.isEqual(lowest.children[lowest.children.length-1], {
+          type: 'li',
+          children: [{ type: 'p', children: [{ text: '' }]}]
+        })) {
+          lowest.children.pop();
+        }
+
         insertNodes(
           editor,
           lowest.children,
