@@ -256,6 +256,10 @@ function synthBinary(
           switch (ast.operator) {
             case '===':
             case '!==':
+            case '<':
+            case '<=':
+            case '>':
+            case '>=':
               return Type.boolean;
           }
           return Error.withLocation(ast, `incompatible operands to ${ast.operator} (${Type.toString(left)}, ${Type.toString(right)})`, interfaceMap).get();

@@ -359,6 +359,12 @@ function binary(
           else
             return JS.binaryExpression('!==', left, right);
 
+        case '<':
+        case '<=':
+        case '>':
+        case '>=':
+          return JS.binaryExpression(ast.operator, left, right)
+
         default:
           bug(`unimplemented ${ast.operator}`);
       }

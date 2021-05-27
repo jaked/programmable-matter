@@ -281,6 +281,13 @@ export function evaluateExpression(
               else
                 return lv !== rv;
 
+            // TODO(jaked)
+            // Javascript allows comparing any value but Typescript doesn't allow comparing unknowns?
+            case '<': return (lv as any) < (rv as any);
+            case '<=': return (lv as any) <= (rv as any);
+            case '>': return (lv as any) > (rv as any);
+            case '>=': return (lv as any) >= (rv as any);
+
             default:
               throw new Error(`unexpected binary operator ${ast.operator}`)
           }
