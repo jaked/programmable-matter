@@ -230,6 +230,7 @@ describe('JSX', () => {
 */
 });
 
+/*
 describe('Map#filter', () => {
   it('works', () => {
     expectEval({
@@ -245,3 +246,4 @@ describe('Map#filter', () => {
     });
   });
 });
+*/

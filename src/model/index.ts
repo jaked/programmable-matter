@@ -60,6 +60,17 @@ export type Table = {
   fields: TableField[];
 }
 
+export type TableValue<K, V> = {
+  size: number,
+  clear: () => void,
+  delete: (key: K) => void,
+  get: (key: K) => Signal.Writable<V> | undefined,
+  has: (key: K) => boolean,
+  set: (key: K, value: V) => void,
+  keys: () => K[],
+  values: () => V[],
+}
+
 export interface CompiledFile {
   ast: Signal<unknown>;
   interfaceMap?: Signal<InterfaceMap>;

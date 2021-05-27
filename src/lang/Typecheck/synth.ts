@@ -389,28 +389,19 @@ function synthMember(
                 case 'size': return Type.number;
 
                 case 'set':
-                  return Type.functionType([ object.key, object.value ], object);
+                  return Type.functionType([ object.key, object.value ], Type.undefined);
 
                 case 'delete':
-                  return Type.functionType([ object.key ], object);
+                  return Type.functionType([ object.key ], Type.undefined);
 
                 case 'clear':
-                  return Type.functionType([], object);
+                  return Type.functionType([], Type.undefined);
 
-                case 'filter':
-                  return Type.functionType(
-                    [ Type.functionType([ object.value, object.key, object ], Type.boolean) ],
-                    object,
-                  );
-
-                case 'toList':
+                case 'values':
                   return Type.functionType([], Type.array(object.value));
 
-                case 'update':
-                  return Type.functionType(
-                    [ object.key, Type.functionType([ object.value ], object.value) ],
-                    object
-                  );
+                case 'keys':
+                  return Type.functionType([], Type.array(object.key));
 
                 case 'get':
                   return Type.functionType(

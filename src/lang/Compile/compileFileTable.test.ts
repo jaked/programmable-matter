@@ -53,6 +53,7 @@ it('empty table', () => {
   expect(() => compiled.rendered.get()).not.toThrow();
 });
 
+/*
 it('non-data note in table dir', () => {
   const compiled = compileFileTable(
     {
@@ -86,3 +87,4 @@ it('non-data note in table dir', () => {
   );
   expect(() => compiled.rendered.get()).not.toThrow();
 });
+*/

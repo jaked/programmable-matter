@@ -3,10 +3,8 @@ import * as Immer from 'immer';
 import JSON5 from 'json5';
 import * as React from 'react';
 import Try from '../../util/Try';
-import { Tuple2 } from '../../util/Tuple';
 import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
-import { diffMap as diffImmutableMap } from '../../util/immutable/Map';
 import { diffMap } from '../../util/diffMap';
 import { bug } from '../../util/bug';
 import * as ESTree from '../ESTree';
@@ -17,7 +15,6 @@ import * as Evaluate from '../Evaluate';
 import { Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
 import * as model from '../../model';
 import { Table } from '../../components/Table';
-import lensType from './lensType';
 
 const intfType = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
@@ -95,101 +92,52 @@ function computeTable(
   noteEnv: Map<string, CompiledNote>,
   updateFile: (path: string, buffer: Buffer) => void,
   deleteFile: (path: string) => void,
-) {
-  const tryLensTable = Signal.joinImmutableMap(Signal.ok(
-    Immutable.Map<string, Signal<Try<any>>>().withMutations(map =>
-      noteEnv.forEach((note, name) => {
-        const mutableValue = note.exportValue.map(exportValue =>
-          exportValue.get('mutable') ?? bug(`expected mutable value`)
-        );
+): Signal<model.TableValue<string, unknown>> {
+  const cellMap = new Map<string, Signal<Signal.Writable<unknown>>>();
+  noteEnv.forEach((note, name) => {
+    const cell = Signal.join(
+      note.exportInterface, note.exportValue
+    ).map(([exportInterface, exportValue]) => {
+      const intf = exportInterface.get('default') ?? bug(`expected default interface`);
+      // TODO(jaked)
+      // check data files directly against table config
+      // instead of checking after the fact
+      // that their types agree with the table config type
+      if (!intf || !Type.isSubtype(intfType(intf), tableDataType))
+        throw new Error('record data type must match table config type')
+      if (!(intf.type === 'ok' && intf.ok.mutable))
+        throw new Error(`expected mutable`)
+      // TODO(jaked) should return a Try.err here instead of throwing?
+      return (exportValue.get('default') ?? bug(`expected default value`)) as Signal.Writable<unknown>;
+    });
 
-        const metaValue = note.meta.map(meta =>
-          tableConfig.fields.reduce<object>(
-            (obj, field) => {
-              if (field.kind === 'meta') {
-                switch (field.field) {
-                  case 'title': return { obj, [field.name]: meta.title }
-                }
-              }
-              return obj;
-            },
-            {}
-          ),
-        );
-
-        const value = note.exportInterface.flatMap(exportInterface => {
-          const defaultIntf = exportInterface.get('default');
-          // TODO(jaked)
-          // check data files directly against table config
-          // instead of checking after the fact
-          // that their types agree with the table config type
-          const mutableIntf = exportInterface.get('mutable');
-          if (!defaultIntf || !mutableIntf || !Type.isSubtype(intfType(defaultIntf), tableDataType))
-            // TODO(jaked) check `mutableType` too
-            throw new Error('record data type must match table config type')
-
-          return Signal.join(mutableValue, metaValue).map(([mutableValue, metaValue]) => {
-            // TODO(jaked) merge mutable data members and immutable meta members
-            // TODO(jaked) could some meta members be mutable?
-            return mutableValue;
-          });
-        });
-
-        const baseName = Name.relative(Name.dirname(tableName), name);
-        map.set(baseName, value.liftToTry());
-      })
-    )
-  ));
-  // TODO(jaked) give return a better type
-  return tryLensTable.map<any>(tryLensTable => {
-    // skip over failed notes
-    // TODO(jaked) reflect failures in UI
-    const lensTable = tryLensTable.filter(t => t.type === 'ok').map(t => t.get());
-
-    const table = lensTable.map(v => v());
-
-    const f = function(...v: any[]) {
-      switch (v.length) {
-        case 0: return table;
-
-        case 1: {
-          const table2 = v[0];
-          const { added, changed, deleted } = diffImmutableMap(table, table2);
-          added.forEach((value, key) => {
-            const path = Name.pathOfName(Name.join(Name.dirname(tableName), key), 'json');
-            updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
-          });
-          changed.forEach(([prev, curr], key) => {
-            const lens = lensTable.get(key) ?? bug(`expected lens for ${key}`);
-            lens(curr);
-          });
-          deleted.forEach(key => {
-            // TODO(jaked) delete multi-part notes
-            const path = Name.pathOfName(Name.join(Name.dirname(tableName), key), 'json');
-            deleteFile(path);
-          });
-          return;
-        }
-
-        default: bug(`expected 0- or 1-arg invocation`);
-      }
-    }
-
-    return new Proxy(f, { get: (target, key, receiver) => {
-      switch (key) {
-        case 'size': return lensTable.size;
-        case 'set': return (key, value) => lensTable.set(key, value);
-        case 'delete': return (key) => lensTable.delete(key);
-        case 'clear': return () => lensTable.clear();
-        case 'filter': return (fn) => lensTable.filter(fn);
-        case 'toList': return () => lensTable.toList();
-        case 'update': return (key, fn) => lensTable.update(key, fn);
-        case 'get': return (key, nsv) => lensTable.get(key, nsv);
-
-        default: return undefined;
-      }
-    }});
+    const baseName = Name.relative(Name.dirname(tableName), name);
+    cellMap.set(baseName, cell);
   });
+
+  return Signal.joinMap(Signal.ok(cellMap)).map(cellMap => ({
+    size: cellMap.size,
+
+    clear: () => bug(`unimplemented`),
+
+    delete: (key: string) => {
+      // TODO(jaked) delete multi-part notes
+      const path = Name.pathOfName(Name.join(Name.dirname(tableName), key), 'json');
+      deleteFile(path);
+    },
+
+    get: (key: string) => cellMap.get(key),
+
+    has: (key: string) => cellMap.has(key),
+
+    set: (key: string, value: unknown) => {
+      const path = Name.pathOfName(Name.join(Name.dirname(tableName), key), 'json');
+      updateFile(path, Buffer.from(JSON5.stringify(value, undefined, 2)));
+    },
+
+    keys: () => [...cellMap.keys()],
+    values: () => [...cellMap.values()].map(cell => cell.get()),
+  }));
 }
 
 function computeFields(
@@ -260,15 +208,19 @@ export default function compileFileTable(
 
     const fields = computeFields(tableConfig);
 
-    const exportInterface = new Map([
-      ['default', Try.ok({ type: lensType(Type.map(Type.string, tableDataType)), dynamic: false })]
+    const exportInterface = new Map<string, Interface>([
+      ['default', Try.ok({ type: Type.map(Type.string, tableDataType), dynamic: false, /* mutable: 'Code' */ })]
     ]);
-    const exportValue = table.map(table => new Map([[ 'default', table ]]));
+    const exportValue = table.map(table =>
+      // weirdly, without cast TS doesn't deduce
+      //   Signal<Map<string, Error>> | Signal<Map<string, object>> <: Signal<Map<string, unknown>>
+      new Map([[ 'default', table as unknown ]])
+    );
 
     const onSelect = (name: string) => setSelected(Name.join(Name.dirname(tableName), name));
 
     const rendered = table.map(table =>
-      React.createElement(Table, { data: table(), fields, onSelect })
+      React.createElement(Table, { table, fields, onSelect })
     );
     return {
       exportInterface,

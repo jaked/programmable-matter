@@ -23,7 +23,7 @@ function stringOfQualifiedIdentifier(
 }
 
 const okLabels = [
-  'React.ReactNode', 'React.Component', 'React.FC', 'React.FunctionComponent', 'lensType',
+  'React.ReactNode', 'React.Component', 'React.FC', 'React.FunctionComponent',
   'Code', 'Session'
 ]
 

@@ -1,4 +1,3 @@
-import * as Immutable from 'immutable';
 import * as React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
@@ -6,6 +5,8 @@ import { VariableSizeGrid } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
 import { bug } from '../util/bug';
+import Signal from '../util/Signal';
+import * as model from '../model';
 
 const Box = styled(BoxBase)`
   border-style: solid;
@@ -33,7 +34,7 @@ export type Field = {
 }
 
 type Props = {
-  data: Immutable.Map<string, object>,
+  table: model.TableValue<string, unknown>,
   fields: Field[],
   onSelect: (name: string) => void
 }
@@ -48,8 +49,8 @@ function measureText(text: string): number {
   return width;
 }
 
-export const Table = ({ data, fields, onSelect }: Props) => {
-  const namesByIndex = data.keySeq().toIndexedSeq();
+export const Table = ({ table, fields, onSelect }: Props) => {
+  const namesByIndex = table.keys;
 
   // TODO(jaked) Util.memoize
   const onSelectByNameMap = new Map<string, () => void>();
@@ -62,34 +63,29 @@ export const Table = ({ data, fields, onSelect }: Props) => {
     return onSelectForName;
   }
 
-  const widths = data.reduce(
-    (widths, r) =>
-      fields.reduce(
-        (widths, field, i) => {
-          const width = Math.max(widths[i], measureText(field.accessor(r)));
-          return { ...widths, [i]: width }
-        },
-        widths
-      ),
-    fields.reduce((widths, field, i) => ({ ...widths, [i]: 0 }), {})
-  )
+  const widths = fields.map(_ => 0);
+  table.values().forEach(v => {
+    fields.forEach((f, i) => {
+      widths[i] = Math.max(widths[i], measureText(f.accessor(v as object)));
+    });
+  });
 
   return (
     <AutoSizer>
       {({ height, width }) =>
         <VariableSizeGrid
           columnCount={fields.length}
-          rowCount={data.size}
+          rowCount={table.size}
           columnWidth={(col) => widths[col] + 14} // 6px padding + 1px margin
           rowHeight={(row) => 30}
           height={height}
           width={width}
         >
           {({ rowIndex, columnIndex, style }) => {
-            const name = namesByIndex.get(rowIndex) || bug(`expected name for ${rowIndex}`)
-            const object = data.get(name) || bug(`expected object for ${name}`);
+            const name = namesByIndex[rowIndex] ?? bug(`expected name for ${rowIndex}`)
+            const object = table.get(name) ?? bug(`expected object for ${name}`);
             const field = fields[columnIndex];
-            const value = field.accessor(object);
+            const value = field.accessor(object.get() as object);
             const Component = field.component;
             const borderTopWidth = rowIndex === 0 ? 1 : 0;
             const borderLeftWidth = columnIndex === 0 ? 1 : 0;
