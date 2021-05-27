@@ -237,6 +237,12 @@ function synthBinary(
               case '*':
               case '/':
               case '%':
+              case '|':
+              case '&':
+              case '^':
+              case '<<':
+              case '>>':
+              case '>>>':
                 return Type.number;
             }
           }

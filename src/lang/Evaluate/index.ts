@@ -242,6 +242,12 @@ export function evaluateExpression(
             case '*':
             case '/':
             case '%':
+            case '|':
+            case '&':
+            case '^':
+            case '<<':
+            case '>>':
+            case '>>>':
               if (leftIntf.type === 'err') return rv;
               else if (rightIntf.type === 'err') return lv;
               else {
@@ -253,7 +259,13 @@ export function evaluateExpression(
                   case '*': return lvn * rvn;
                   case '/': return lvn / rvn;
                   case '%': return lvn % rvn;
-                  default: bug(`unexpected ast.operator ${ast.operator}`);
+                  case '|': return lvn | rvn;
+                  case '&': return lvn & rvn;
+                  case '^': return lvn ^ rvn;
+                  case '<<': return lvn << rvn;
+                  case '>>': return lvn >> rvn;
+                  case '>>>': return lvn >>> rvn;
+                    default: bug(`unexpected ast.operator ${ast.operator}`);
                 }
               }
 

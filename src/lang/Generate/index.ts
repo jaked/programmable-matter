@@ -337,6 +337,12 @@ function binary(
         case '*':
         case '/':
         case '%':
+        case '|':
+        case '&':
+        case '^':
+        case '<<':
+        case '>>':
+        case '>>>':
           if (leftIntf.type === 'err') return right;
           else if (rightIntf.type === 'err') return left;
           else return JS.binaryExpression(ast.operator, left, right);
