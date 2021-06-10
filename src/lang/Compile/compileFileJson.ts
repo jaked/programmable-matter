@@ -126,11 +126,11 @@ export default function compileFileJson(
         [ 'default', cell ],
       ]);
 
-      // TODO(jaked) handle other JSON types
-      if (type.kind !== 'Object') bug(`expected Object type`);
-      const typeObject = type;
-
       const rendered = Signal.constant(Try.apply(() => {
+        // TODO(jaked) handle other JSON types
+        if (type.kind !== 'Object') return null; // bug(`expected Object type`);
+        const typeObject = type;
+
         // TODO(jaked) error handling here
         const fields = typeObject.fields.map(({ name, type }) => ({
           label: name,
