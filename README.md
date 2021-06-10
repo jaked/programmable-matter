@@ -37,4 +37,4 @@ npm run start
 
 ## Using
 
-![Programmable Matter screenshot](https://github.io/jaked/programmable-matter/img/pm.png)
+![Programmable Matter screenshot](https://jaked.github.io/programmable-matter/img/pm.png)
