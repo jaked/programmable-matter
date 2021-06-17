@@ -30,6 +30,7 @@ test('makes dir on update if needed', async () => {
     stat: (path: string) => Promise.reject('state'),
     readFile: (path: string) => Promise.reject('readFile'),
     writeFile: (path: string, buffer: Buffer) => Promise.resolve(),
+    rename: (oldPath: string, newPath: string) => Promise.resolve(),
     unlink: (path: string) => Promise.reject('unlink'),
     mkdir: (path: string, options?: { recursive?: boolean }) => {
       if (path === '/foo' && options && options.recursive)

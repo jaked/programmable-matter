@@ -9,7 +9,6 @@ import * as model from '../model';
 type FileMeta = {
   writing: boolean; // true if we are in the middle of writing the file
   lastWriteMs: number; // timestamp of last write to underlying filesystem
-  deleted: boolean; // true if file has been deleted in memory
 }
 
 const debug = false;
@@ -58,6 +57,7 @@ type Fs = {
   }>,
   readFile: (path: string) => Promise<Buffer>,
   writeFile: (path: string, buffer: Buffer) => Promise<void>,
+  rename: (oldPath: string, newPath: string) => Promise<void>,
   unlink: (path: string) => Promise<void>,
   mkdir: (path: string, options?: { recursive?: boolean }) => Promise<void>,
 }
@@ -131,16 +131,6 @@ function make(
         if (debug) console.log(`${path} is being written`);
         return;
       }
-      // we just wrote the file, this is most likely a notification
-      // of that write, so skip it.
-      if (Now.now() < fileMeta.lastWriteMs + 5000) {
-        if (debug) console.log(`${path} was just written`);
-        return;
-      }
-      if (buffer.equals(file.buffer)) {
-        if (debug) console.log(`${path} has not changed`);
-        return;
-      }
 
       if (debug) console.log(`updating ${path}`);
       file.buffer = buffer;
@@ -151,7 +141,6 @@ function make(
       fileMetas.set(path, {
         lastWriteMs: mtimeMs,
         writing: false,
-        deleted: false,
       });
       files.set(path, {
         buffer,
@@ -167,6 +156,22 @@ function make(
       const stat = Fs.stat(path);
       return Promise.all([buffer, stat]).then(([buffer, stat]) => ({ buffer, mtimeMs: stat.mtimeMs }));
     }
+
+    // filter out app-initiated writes / renames of temporary files
+    nsfwEvents = nsfwEvents.filter(ev => {
+      if (state.state === 'no path') bug(`expected path`);
+      switch (ev.action) {
+        case 0: // created
+          const path = canonizePath(state.path, ev.directory, ev.file);
+          return !files.get().has(path);
+        case 2: // modified
+          return !ev.file.endsWith('.tmp');
+        case 3: // renamed
+          return !ev.oldFile.endsWith('.tmp');
+        case 1: // deleted
+          return !ev.file.endsWith('.tmp');
+      }
+    });
 
     const events = await Promise.all(
       nsfwEvents.map(async function(ev: NsfwEvent): Promise<{ ev: NsfwEvent, buffer: Buffer, mtimeMs: number }> {
@@ -242,7 +247,6 @@ function make(
         fileMetas.set(path, {
           lastWriteMs: 0,
           writing: false,
-          deleted: false,
         });
         files.set(path, {
           buffer,
@@ -254,8 +258,6 @@ function make(
 
   const remove = (path: string) => {
     files.produce(files => {
-      const fileMeta = fileMetas.get(path) ?? bug(`expected fileMeta`);
-      fileMeta.deleted = true;
       files.delete(path);
     });
   }
@@ -266,26 +268,13 @@ function make(
       const now = Now.now();
 
       const oldFile = files.get(oldPath) ?? bug(`expected oldFile`);
-      const oldFileMeta = fileMetas.get(oldPath) ?? bug(`rename: expected file for ${oldPath}`);
-      oldFileMeta.deleted = true;
       files.delete(oldPath);
+      fileMetas.set(newPath, { writing: false, lastWriteMs: 0 });
 
-      const newFile = files.get(newPath);
-      if (newFile) {
-        const newFileMeta = fileMetas.get(newPath) ?? bug(`expected newFileMeta`);
-        newFile.buffer = oldFile.buffer;
-        newFile.mtimeMs = now;
-      } else {
-        fileMetas.set(newPath, {
-          lastWriteMs: now,
-          writing: false,
-          deleted: false,
-        });
-        files.set(newPath, {
-          buffer: oldFile.buffer,
-          mtimeMs: now,
-        });
-      }
+      files.set(newPath, {
+        buffer: oldFile.buffer,
+        mtimeMs: now,
+      });
     });
   }
 
@@ -374,26 +363,31 @@ function make(
       if (state.state === 'no path') bug(`expected path`);
       const now = Now.now();
       const filePath = Path.join(state.path, path);
-      if (fileMeta.deleted) {
-        if (!fileMeta.writing) {
-          fileMeta.writing = true;
-          if (debug) console.log(`unlink(${path})`);
-          waits.push(Fs.unlink(filePath)
-            .finally(() => {
-              fileMetas.delete(path);
-            }));
-        }
-      } else {
-        const file = files.get().get(path) ?? bug(`expected file`);
+      const file = files.get().get(path);
+      if (file) {
         if (shouldWrite(path, fileMeta, file.mtimeMs, force)) {
           fileMeta.writing = true;
           if (debug) console.log(`writeFile(${path})`);
-          waits.push(Fs.mkdir(Path.dirname(filePath), { recursive: true })
-            .then(() => Fs.writeFile(filePath, file.buffer))
+          waits.push(
+            Fs.mkdir(Path.dirname(filePath), { recursive: true })
+            .then(() => Fs.writeFile(filePath + '.tmp', file.buffer))
+            .then(() => Fs.rename(filePath + '.tmp', filePath))
             .finally(() => {
               fileMeta.lastWriteMs = now;
               fileMeta.writing = false;
-            }));
+            })
+          );
+        }
+      } else {
+        if (!fileMeta.writing) {
+          fileMeta.writing = true;
+          if (debug) console.log(`unlink(${path})`);
+          waits.push(
+            Fs.unlink(filePath)
+            .finally(() => {
+              fileMetas.delete(path);
+            })
+          );
         }
       }
     });
