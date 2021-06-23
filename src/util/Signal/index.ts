@@ -303,6 +303,9 @@ class MapInvertible<T, U> extends WritableImpl<U> {
     this.sVersion = this.s.version;
     this.value = u;
     this.version++;
+    ReactDOM.unstable_batchedUpdates(() => {
+      this.dirty(u);
+    });
   }
 }
 
@@ -350,6 +353,9 @@ class MapProjection<T, U> extends WritableImpl<U> {
     this.sVersion = this.s.version;
     this.value = u;
     this.version++;
+    ReactDOM.unstable_batchedUpdates(() => {
+      this.dirty(u);
+    });
   }
 
   produce(fn: (u: U) => void) {
@@ -1178,17 +1184,13 @@ module Signal {
             if (p(curr, key, output))
               input.set(key, curr);
             else
-              // TODO(jaked)
-              // this is a caller error not an implementation error
-              bug(`value doesn't match predicate`);
+              throw new Error(`value doesn't match predicate`);
           });
           added.forEach((v, key) => {
             if (p(v, key, output))
               input.set(key, v)
             else
-              // TODO(jaked)
-              // this is a caller error not an implementation error
-              bug(`value doesn't match predicate`);
+              throw new Error(`value doesn't match predicate`);
           });
       }),
       new Map(),
