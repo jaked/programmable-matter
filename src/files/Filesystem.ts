@@ -1,18 +1,20 @@
 import fs from 'fs';
 import timers from 'timers';
 import * as Path from 'path';
+import * as Immer from 'immer';
 import nsfw from 'nsfw';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
 import * as model from '../model';
 
-type FileMeta = {
+type FsFile = {
+  mtimeMs: number;
+  buffer: Buffer;
+  deleted: boolean;
   writing: boolean; // true if we are in the middle of writing the file
-  lastWriteMs: number; // timestamp of last write to underlying filesystem
 }
 
-const debug = false;
-const debugShouldWrite = false;
+const debug = true;
 
 const emptyBuffer = Buffer.from('');
 
@@ -101,7 +103,7 @@ function make(
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
   let state: State = { state: 'no path' };
-  const fileMetas = new Map<string, FileMeta>();
+  const fsFiles = new Map<string, FsFile>();
 
   const setPath = async (path: string) => {
     if (state.state !== 'no path')
@@ -115,55 +117,14 @@ function make(
     return start();
   }
 
-  // updates coming from Nsfw
-  const updateFile = (
-    files: Map<string, model.File>,
-    path: string,
-    buffer: Buffer,
-    mtimeMs: number,
-  ): void => {
-    const file = files.get(path);
-    if (file) {
-      const fileMeta = fileMetas.get(path) ?? bug(`expected fileMeta`);
-      if (debug) console.log(`${path} has oldFile`);
-      // TODO(jaked) should check this before reading file.
-      if (fileMeta.writing) {
-        if (debug) console.log(`${path} is being written`);
-        return;
-      }
-
-      if (debug) console.log(`updating ${path}`);
-      file.buffer = buffer;
-      file.mtimeMs = mtimeMs;
-      fileMeta.lastWriteMs = mtimeMs;
-    } else {
-      if (debug) console.log(`adding ${path}`);
-      fileMetas.set(path, {
-        lastWriteMs: mtimeMs,
-        writing: false,
-      });
-      files.set(path, {
-        buffer,
-        mtimeMs,
-      });
-    }
-  }
-
   const handleNsfwEvents = async (nsfwEvents: Array<NsfwEvent>) => {
-    function readBuffer(directory: string, file: string): Promise<{ buffer: Buffer, mtimeMs: number }> {
-      const path = Path.resolve(directory, file);
-      const buffer = Fs.readFile(path);
-      const stat = Fs.stat(path);
-      return Promise.all([buffer, stat]).then(([buffer, stat]) => ({ buffer, mtimeMs: stat.mtimeMs }));
-    }
+    if (state.state === 'no path') bug(`expected path`);
 
-    // filter out app-initiated writes / renames of temporary files
+    // filter out app-initiated actions on temporary files
     nsfwEvents = nsfwEvents.filter(ev => {
       if (state.state === 'no path') bug(`expected path`);
       switch (ev.action) {
         case 0: // created
-          const path = canonizePath(state.path, ev.directory, ev.file);
-          return !files.get().has(path);
         case 2: // modified
           return !ev.file.endsWith('.tmp');
         case 3: // renamed
@@ -173,84 +134,109 @@ function make(
       }
     });
 
-    const events = await Promise.all(
-      nsfwEvents.map(async function(ev: NsfwEvent): Promise<{ ev: NsfwEvent, buffer: Buffer, mtimeMs: number }> {
-        switch (ev.action) {
-          case 0:   // created
-          case 2: { // modified
-            if (debug) console.log(`${ev.directory} / ${ev.file} was ${ev.action == 0 ? 'created' : 'modified'}`);
-            const { buffer, mtimeMs } = await readBuffer(ev.directory, ev.file);
-            return { ev, buffer, mtimeMs };
-          }
-
-          case 3: { // renamed
-            if (debug) console.log(`${(ev as any).directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
-            const { buffer, mtimeMs } = await readBuffer(ev.newDirectory, ev.newFile);
-            return { ev, buffer, mtimeMs };
-          }
-
-          case 1: { // deleted
-            if (debug) console.log(`${ev.directory} / ${ev.file} was deleted`);
-            return { ev, buffer: emptyBuffer, mtimeMs: 0 };
-          }
+    // read file mtimes / buffers
+    const buffers: Promise<[string, { mtimeMs: number, buffer: Buffer }]>[] = [];
+    for (const ev of nsfwEvents) {
+      switch (ev.action) {
+        case 0:   // created
+        case 2: { // modified
+          const fsPath = Path.resolve(ev.directory, ev.file);
+          // TODO(jaked) avoid re-reading file if mtime hasn't changed
+          const buffer = Fs.readFile(fsPath);
+          const stat = Fs.stat(fsPath);
+          const path = canonizePath(state.path, ev.directory, ev.file);
+          buffers.push(Promise.all([buffer, stat]).then(([buffer, stat]) =>
+            [path, { buffer, mtimeMs: stat.mtimeMs }]
+          ));
+          continue;
         }
-      })
-    )
+      }
+    };
+    const buffersByPath = new Map(await Promise.all(buffers.values()));
 
-    files.produce(files => {
-      // defer deletions to account for delete/add
-      // TODO(jaked) rethink this
-      const deleted = new Set<string>();
-      events.forEach(({ ev, buffer, mtimeMs }) => {
-        if (state.state === 'no path') bug(`expected path`);
-        switch (ev.action) {
-          case 0:   // created
-          case 2: { // modified
-            const path = canonizePath(state.path, ev.directory, ev.file);
-            deleted.delete(path);
-            updateFile(files, path, buffer, mtimeMs);
-            break;
+    for (const ev of nsfwEvents) {
+      switch (ev.action) {
+        case 0:   // created
+        case 2: { // modified
+          if (debug) console.log(`${ev.directory} / ${ev.file} was ${ev.action == 0 ? 'created' : 'modified'}`);
+          const path = canonizePath(state.path, ev.directory, ev.file);
+          const { buffer, mtimeMs } = buffersByPath.get(path) ?? bug(`expected buffer`);
+          const fsFile = fsFiles.get(path);
+          if (fsFile) {
+            if (fsFile.writing) continue;
+            if (fsFile.mtimeMs === mtimeMs) continue;
+            fsFile.mtimeMs = mtimeMs;
+            if (fsFile.buffer.equals(buffer)) continue;
+            fsFile.buffer = buffer;
+          } else {
+            fsFiles.set(path, {
+              mtimeMs,
+              buffer,
+              deleted: false,
+              writing: false
+            });
           }
-
-          case 3: { // renamed
-            const oldPath = canonizePath(state.path, (ev as any).directory, ev.oldFile);
-            deleted.add(oldPath);
-            const path = canonizePath(state.path, ev.newDirectory, ev.newFile);
-            updateFile(files, path, buffer, mtimeMs);
-            break;
-          }
-          case 1: // deleted
-            const oldPath = canonizePath(state.path, ev.directory, ev.file);
-            deleted.add(oldPath);
-            break;
+          continue;
         }
-      }, files);
 
-      deleted.forEach(path => { files.delete(path) });
-    });
+        case 3: { // renamed
+          if (debug) console.log(`${(ev as any).directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
+          const oldPath = canonizePath(state.path, (ev as any).directory, ev.oldFile);
+          const newPath = canonizePath(state.path, ev.newDirectory, ev.newFile);
+          const fsFile = fsFiles.get(oldPath) ?? bug(`expected fsFile`);
+          fsFiles.set(oldPath, {
+            mtimeMs: Now.now(),
+            buffer: emptyBuffer,
+            deleted: true,
+            writing: false
+          });
+          fsFiles.set(newPath, {
+            mtimeMs: Now.now(),
+            buffer: fsFile.buffer,
+            deleted: false,
+            writing: false
+          });
+          continue;
+        }
+
+        case 1: { // deleted
+          if (debug) console.log(`${ev.directory} / ${ev.file} was deleted`);
+          const path = canonizePath(state.path, ev.directory, ev.file);
+          fsFiles.set(path, {
+            mtimeMs: Now.now(),
+            buffer: emptyBuffer,
+            deleted: true,
+            writing: false
+          });
+          continue;
+        }
+      }
+    }
   }
 
   const update = (path: string, buffer: Buffer) => {
     files.produce(files => {
       const oldFile = files.get(path);
-      const now = Now.now();
+      const mtimeMs = Now.now();
       if (oldFile) {
         if (buffer.equals(oldFile.buffer)) {
           if (debug) console.log(`${path} has not changed`);
         } else {
           if (debug) console.log(`updating file path=${path}`);
+          files.set(path, {
+            mtimeMs,
+            buffer,
+            deleted: false,
+          })
           oldFile.buffer = buffer;
-          oldFile.mtimeMs = now;
+          oldFile.mtimeMs = mtimeMs;
         }
       } else {
         if (debug) console.log(`new file path=${path}`);
-        fileMetas.set(path, {
-          lastWriteMs: 0,
-          writing: false,
-        });
         files.set(path, {
+          mtimeMs,
           buffer,
-          mtimeMs: now,
+          deleted: false,
         });
       }
     });
@@ -258,50 +244,36 @@ function make(
 
   const remove = (path: string) => {
     files.produce(files => {
-      files.delete(path);
+      files.set(path, {
+        mtimeMs: Now.now(),
+        buffer: emptyBuffer,
+        deleted: true
+      });
     });
   }
 
   const rename = (oldPath: string, newPath: string) => {
     files.produce(files => {
       if (oldPath === newPath) return;
-      const now = Now.now();
+      const mtimeMs = Now.now();
 
       const oldFile = files.get(oldPath) ?? bug(`expected oldFile`);
-      files.delete(oldPath);
-      fileMetas.set(newPath, { writing: false, lastWriteMs: 0 });
-
+      const buffer = oldFile.buffer;
+      files.set(oldPath, {
+        mtimeMs,
+        buffer: emptyBuffer,
+        deleted: true
+      });
       files.set(newPath, {
-        buffer: oldFile.buffer,
-        mtimeMs: now,
+        mtimeMs,
+        buffer,
+        deleted: false,
       });
     });
   }
 
   const exists = (path: string) => {
     return files.get().has(path);
-  }
-
-  const deleteMissing = (events: NsfwEvent[]) => {
-    const seen = new Set<string>();
-    events.forEach(ev => {
-      if (state.state === 'no path') bug(`expected path`);
-      switch (ev.action) {
-        case 0:
-          seen.add(canonizePath(state.path, ev.directory, ev.file));
-          break;
-
-        default: bug(`expected add`);
-      }
-    });
-    files.produce(files => {
-      files.forEach((_, path) => {
-        if (!seen.has(path)) {
-          fileMetas.delete(path);
-          files.delete(path);
-        }
-      });
-    });
   }
 
   const walkDir = async (directory: string, events: Array<NsfwEvent>) => {
@@ -320,78 +292,91 @@ function make(
     }));
   }
 
-  const shouldWrite = (path: string, fileMeta: FileMeta, mtimeMs: number, force: boolean) => {
-    // we're in the middle of a write
-    if (fileMeta.writing) {
-      if (debugShouldWrite) console.log(`shouldWrite(${path}): false because file.writing`);
-      return false;
-    }
-
-    // the current in-memory file is already written
-    if (fileMeta.lastWriteMs >= mtimeMs) {
-      if (debugShouldWrite) console.log(`shouldWrite(${path}): false because already written`);
-      return false;
-    }
-
-    if (force) {
-      if (debugShouldWrite) console.log(`shouldWrite($path): true because force`);
-      return true;
-    }
-
-    const now = Now.now();
-
-    // there's been no update in 500 ms
-    if (now > mtimeMs + 500) {
-      if (debugShouldWrite) console.log(`shouldWrite(${path}): true because no update in 500 ms`);
-      return true;
-    }
-
-    // the file hasn't been written in 5 s
-    if (now > fileMeta.lastWriteMs + 5000) {
-      if (debugShouldWrite) console.log(`shouldWrite(${path}): true because no write in 5 s`);
-      return true;
-    }
-
-    if (debugShouldWrite) console.log(`shouldWrite(${path}): false because otherwise`);
-    return false;
-  }
-
   const timerCallback = async (force = false) => {
     if (debug) console.log(`timerCallback`);
-    const waits: Promise<unknown>[] = []; // TODO(jaked) yuck
-    fileMetas.forEach((fileMeta, path) => {
+    const now = Now.now();
+    const ops: Promise<unknown>[] = [];
+
+    files.produce(files => {
       if (state.state === 'no path') bug(`expected path`);
-      const now = Now.now();
-      const filePath = Path.join(state.path, path);
-      const file = files.get().get(path);
-      if (file) {
-        if (shouldWrite(path, fileMeta, file.mtimeMs, force)) {
-          fileMeta.writing = true;
-          if (debug) console.log(`writeFile(${path})`);
-          waits.push(
-            Fs.mkdir(Path.dirname(filePath), { recursive: true })
-            .then(() => Fs.writeFile(filePath + '.tmp', file.buffer))
-            .then(() => Fs.rename(filePath + '.tmp', filePath))
-            .finally(() => {
-              fileMeta.lastWriteMs = now;
-              fileMeta.writing = false;
-            })
-          );
-        }
-      } else {
-        if (!fileMeta.writing) {
-          fileMeta.writing = true;
-          if (debug) console.log(`unlink(${path})`);
-          waits.push(
-            Fs.unlink(filePath)
-            .finally(() => {
-              fileMetas.delete(path);
-            })
-          );
+      const paths = new Set([...files.keys(), ...fsFiles.keys()]).keys();
+      for (const path of paths) {
+        const filePath = Path.join(state.path, path);
+        const file = files.get(path) ?? {
+          mtimeMs: 0,
+          buffer: emptyBuffer,
+          deleted: true,
+        };
+        if (!files.has(path)) files.set(path, file);
+        const fsFile = fsFiles.get(path) ?? {
+          mtimeMs: 0,
+          buffer: emptyBuffer,
+          deleted: true,
+          writing: false
+        };
+        if (!fsFiles.has(path)) fsFiles.set(path, fsFile);
+
+        if (file.deleted && fsFile.deleted) {
+          if (debug) console.log(`both deleted for ${path}`);
+          files.delete(path);
+          fsFiles.delete(path);
+
+        } else if (file.mtimeMs > fsFile.mtimeMs) {
+          if (debug) console.log(`file newer (${file.mtimeMs} > ${fsFile.mtimeMs}) for ${path}`);
+          if (file.deleted) {
+            if (debug) console.log(`file deleted for ${path}`);
+            if (fsFile.writing) continue;
+            if (debug) console.log(`deleting ${filePath}`);
+            fsFile.deleted = true;
+            fsFile.buffer = emptyBuffer;
+            fsFile.writing = true;
+            ops.push(
+              Fs.unlink(filePath)
+              .catch(e => { console.log(e) })
+              .finally(() => fsFile.writing = false)
+            );
+
+          } else if (
+            force ||
+            file.mtimeMs < now - 500 ||
+            fsFile.mtimeMs < now - 5000
+          ) {
+            if (debug) console.log(`should write for ${path}`);
+            if (fsFile.writing) continue;
+            if (debug) console.log(`writing ${filePath}`);
+            fsFile.deleted = false;
+            fsFile.writing = true;
+            const tmpFilePath = filePath + '.tmp';
+            const buffer = Immer.original(file)?.buffer ?? bug(`expected buffer`);
+            ops.push((async () => {
+              try {
+                await Fs.mkdir(Path.dirname(filePath), { recursive: true });
+                if (debug) console.log(`writeFile(${tmpFilePath})`);
+                await Fs.writeFile(tmpFilePath, buffer);
+                if (debug) console.log(`rename(${tmpFilePath}, ${filePath}`)
+                await Fs.rename(tmpFilePath, filePath);
+                if (debug) console.log(`stat(${filePath})`);
+                const stat = await Fs.stat(filePath);
+                if (debug) console.log(`mtimeMs = ${stat.mtimeMs} for ${filePath}`)
+                fsFile.mtimeMs = stat.mtimeMs;
+              } catch(e) { console.log(e) }
+              finally {
+                fsFile.buffer = buffer;
+                fsFile.writing = false
+              }
+            })());
+          }
+
+        } else if (fsFile.mtimeMs > file.mtimeMs) {
+          if (debug) console.log(`fsFile newer (${fsFile.mtimeMs} > ${file.mtimeMs}) for ${path}`);
+          file.mtimeMs = fsFile.mtimeMs;
+          if (!file.buffer.equals(fsFile.buffer))
+            file.buffer = fsFile.buffer;
+          file.deleted = fsFile.deleted;
         }
       }
     });
-    return Promise.all(waits);
+    return Promise.all(ops);
   };
 
   const start = async () => {
@@ -402,7 +387,6 @@ function make(
     // TODO(jaked) needs protecting against concurrent updates
     await walkDir(state.path, events);
     await handleNsfwEvents(events);
-    deleteMissing(events);
     await state.watcher.start();
     const timeout = Timers.setInterval(timerCallback, 1000);
     state = { state: 'running', path: state.path, watcher: state.watcher, timeout };

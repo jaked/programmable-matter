@@ -182,7 +182,7 @@ export class App {
     const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
     const buffer = file.mapInvertible(
       ({ buffer }) => buffer,
-      buffer => ({ buffer, mtimeMs: Date.now() })
+      buffer => ({ buffer, mtimeMs: Date.now(), deleted: false })
     );
 
     let content: Signal.Writable<unknown>;

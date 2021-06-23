@@ -11,6 +11,7 @@ import * as ESTree from '../lang/ESTree';
 export type File = {
   mtimeMs: number;
   buffer: Buffer;
+  deleted: boolean;
 }
 
 export type Files = Map<string, File>;
