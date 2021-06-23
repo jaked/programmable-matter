@@ -176,56 +176,64 @@ export class App {
     });
   }
 
-  private contents = Signal.mapMap(Signal.unjoinMapWritable(this.files), (file, path) => {
-    const type = typeOfPath(path);
+  private contents = Signal.mapMap(
+    Signal.unjoinMapWritable(
+      Signal.filterMapWritable(
+        this.files,
+        file => !file.deleted
+      )
+    ),
+    (file, path) => {
+      const type = typeOfPath(path);
 
-    const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
-    const buffer = file.mapInvertible(
-      ({ buffer }) => buffer,
-      buffer => ({ buffer, mtimeMs: Date.now(), deleted: false })
-    );
+      const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
+      const buffer = file.mapInvertible(
+        ({ buffer }) => buffer,
+        buffer => ({ buffer, mtimeMs: Date.now(), deleted: false })
+      );
 
-    let content: Signal.Writable<unknown>;
-    switch (type) {
-      case 'pm':
-        content = buffer.mapInvertible(
-          // TODO(jaked) handle parse / validate errors
-          buffer => {
-            const obj = JSON5.parse(buffer.toString('utf8'));
-            if (Array.isArray(obj)) {
-              PMAST.validateNodes(obj);
-              return {
-                nodes: obj,
-                meta: {},
-              };
-            } else {
-              PMAST.validateNodes(obj.nodes);
-              return {
-                nodes: obj.nodes,
-                meta: Meta.validate(obj.meta)
+      let content: Signal.Writable<unknown>;
+      switch (type) {
+        case 'pm':
+          content = buffer.mapInvertible(
+            // TODO(jaked) handle parse / validate errors
+            buffer => {
+              const obj = JSON5.parse(buffer.toString('utf8'));
+              if (Array.isArray(obj)) {
+                PMAST.validateNodes(obj);
+                return {
+                  nodes: obj,
+                  meta: {},
+                };
+              } else {
+                PMAST.validateNodes(obj.nodes);
+                return {
+                  nodes: obj.nodes,
+                  meta: Meta.validate(obj.meta)
+                }
               }
-            }
-          },
-          obj => Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf8')
-        );
-        break;
+            },
+            obj => Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf8')
+          );
+          break;
 
-      case 'jpeg':
-        content = buffer;
-        break;
+        case 'jpeg':
+          content = buffer;
+          break;
 
-      case 'png':
-        content = buffer;
-        break;
+        case 'png':
+          content = buffer;
+          break;
 
-      default:
-        content = buffer.mapInvertible(
-          buffer => buffer.toString('utf8'),
-          string => Buffer.from(string, 'utf8')
-        );
+        default:
+          content = buffer.mapInvertible(
+            buffer => buffer.toString('utf8'),
+            string => Buffer.from(string, 'utf8')
+          );
+      }
+      return { type, path, mtimeMs, content };
     }
-    return { type, path, mtimeMs, content };
-  });
+  );
 
   private compiledFilesSignalNotesSignal =
     Compile.compileFiles(

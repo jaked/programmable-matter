@@ -951,6 +951,28 @@ module Signal {
     });
   }
 
+  export function mapInvertibleWithPrev<T, U>(
+    s: Signal.Writable<T>,
+    f: (t: T, prevT: T, prevU: U) => U,
+    fInv: (u: U, prevU: U, prevT: T) => T,
+    initT: T,
+    initU: U
+  ): Signal.Writable<U> {
+    let currT = initT;
+    let currU = initU;
+    return s.mapInvertible(
+      t => {
+        currU = f(t, currT, currU);
+        currT = t;
+        return currU;
+      },
+      u => {
+        currT = fInv(u, currU, currT);
+        currU = u;
+        return currT;
+      });
+  }
+
   export function join<T1, T2>(
     s1: Signal<T1>,
     s2: Signal<T2>,
@@ -1117,6 +1139,56 @@ module Signal {
           });
           added.forEach((v, key) => {
             if (p(v, key, input)) output.set(key, v)
+          });
+      }),
+      new Map(),
+      new Map(),
+    )
+  }
+
+  export function filterMapWritable<K, V>(
+    input: Signal.Writable<Map<K, V>>,
+    p: (v: V, k: K, coll: Map<K, V>) => boolean
+  ): Signal.Writable<Map<K, V>> {
+    return mapInvertibleWithPrev<Map<K, V>, Map<K, V>>(
+      input,
+      (input, prevInput, prevOutput) =>
+        Immer.produce(prevOutput, outputDraft => {
+          const output = outputDraft as Map<K, V>;
+
+          const { added, changed, deleted } = diffMap(prevInput, input);
+          deleted.forEach(key => { output.delete(key) });
+          changed.forEach(([prev, curr], key) => {
+            if (p(curr, key, input))
+              output.set(key, curr);
+            else
+              output.delete(key);
+          });
+          added.forEach((v, key) => {
+            if (p(v, key, input)) output.set(key, v)
+          });
+      }),
+      (output, prevOutput, prevInput) =>
+        Immer.produce(prevInput, inputDraft => {
+          const input = inputDraft as Map<K, V>;
+
+          const { added, changed, deleted } = diffMap(prevOutput, output);
+          deleted.forEach(key => { input.delete(key) });
+          changed.forEach(([prev, curr], key) => {
+            if (p(curr, key, output))
+              input.set(key, curr);
+            else
+              // TODO(jaked)
+              // this is a caller error not an implementation error
+              bug(`value doesn't match predicate`);
+          });
+          added.forEach((v, key) => {
+            if (p(v, key, output))
+              input.set(key, v)
+            else
+              // TODO(jaked)
+              // this is a caller error not an implementation error
+              bug(`value doesn't match predicate`);
           });
       }),
       new Map(),
