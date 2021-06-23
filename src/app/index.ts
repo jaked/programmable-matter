@@ -47,13 +47,10 @@ function typeOfPath(path: string): model.Types {
 
 export class App {
   private files = Signal.cellOk<model.Files>(new Map());
-  private filesystem = Filesystem(this.files);
+  private filesystem = Filesystem(process.argv[process.argv.length - 1], this.files);
 
   constructor() {
     this.render();
-
-    const path = process.argv[process.argv.length - 1];
-    this.filesystem.setPath(path);
 
     // TODO(jaked) do we need to remove these somewhere?
     ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
@@ -74,7 +71,11 @@ export class App {
     ipc.on('focus', () => this.filesystem.start());
     ipc.on('blur', () => this.filesystem.stop());
 
-    ipc.on('set-data-dir', (_, path: string) => this.filesystem.setPath(path));
+    ipc.on('set-data-dir', async (_, path: string) => {
+      await this.filesystem.close();
+      this.files.setOk(new Map());
+      this.filesystem = Filesystem(path, this.files);
+    });
 
     document.onmousemove = (e: MouseEvent) => {
       this.mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });

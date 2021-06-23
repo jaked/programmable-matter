@@ -49,6 +49,7 @@ test('makes dir on update if needed', async () => {
   });
 
   const filesystem = Filesystem(
+    '/',
     Signal.cellOk(new Map()),
     Now,
     Timers,
@@ -56,11 +57,10 @@ test('makes dir on update if needed', async () => {
     Nsfw,
   );
 
-  await filesystem.setPath('/');
   filesystem.update('/foo/bar.json', Buffer.from('foo bar'));
   theNow = 2000;
   runScheduled();
-  await filesystem.stop();
+  await filesystem.close();
 
   expect(ok).toBe(true);
 });

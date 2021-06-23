@@ -14,7 +14,7 @@ type FsFile = {
   writing: boolean; // true if we are in the middle of writing the file
 }
 
-const debug = true;
+const debug = false;
 
 const emptyBuffer = Buffer.from('');
 
@@ -76,53 +76,24 @@ type Nsfw = (
 }>
 
 type Filesystem = {
-  setPath: (path: string) => Promise<void>,
   update: (path: string, buffer: Buffer) => void,
   remove: (path: string) => void,
   rename: (oldPath: string, newPath: string) => void,
   exists: (path: string) => boolean,
   start: () => Promise<void>,
   stop: () => Promise<void>,
+  close: () => Promise<void>,
 }
 
-type Watcher = {
-  start: () => Promise<void>;
-  stop: () => Promise<void>;
-}
-
-type State =
-  { state: 'no path' } |
-  { state: 'stopped', path: string, watcher: Watcher } |
-  { state: 'running', path: string, watcher: Watcher, timeout: NodeJS.Timeout }
-
-function make(
-  files: Signal.Writable<model.Files>,
-  Now: Now = Date,
-  Timers: Timers = timers,
-  Fs: Fs = fs.promises,
-  Nsfw: Nsfw = nsfw,
-): Filesystem {
-  let state: State = { state: 'no path' };
-  const fsFiles = new Map<string, FsFile>();
-
-  const setPath = async (path: string) => {
-    if (state.state !== 'no path')
-      await stop();
-    const watcher = await Nsfw(
-      path,
-      handleNsfwEvents,
-      { debounceMS: 500 }
-    );
-    state = { state: 'stopped', path, watcher }
-    return start();
-  }
-
-  const handleNsfwEvents = async (nsfwEvents: Array<NsfwEvent>) => {
-    if (state.state === 'no path') bug(`expected path`);
-
+function makeHandleNsfwEvents(
+  Now: Now,
+  Fs: Fs,
+  rootPath: string,
+  fsFiles: Map<string, FsFile>,
+)  {
+  return async (nsfwEvents: Array<NsfwEvent>) => {
     // filter out app-initiated actions on temporary files
     nsfwEvents = nsfwEvents.filter(ev => {
-      if (state.state === 'no path') bug(`expected path`);
       switch (ev.action) {
         case 0: // created
         case 2: // modified
@@ -144,7 +115,7 @@ function make(
           // TODO(jaked) avoid re-reading file if mtime hasn't changed
           const buffer = Fs.readFile(fsPath);
           const stat = Fs.stat(fsPath);
-          const path = canonizePath(state.path, ev.directory, ev.file);
+          const path = canonizePath(rootPath, ev.directory, ev.file);
           buffers.push(Promise.all([buffer, stat]).then(([buffer, stat]) =>
             [path, { buffer, mtimeMs: stat.mtimeMs }]
           ));
@@ -159,7 +130,7 @@ function make(
         case 0:   // created
         case 2: { // modified
           if (debug) console.log(`${ev.directory} / ${ev.file} was ${ev.action == 0 ? 'created' : 'modified'}`);
-          const path = canonizePath(state.path, ev.directory, ev.file);
+          const path = canonizePath(rootPath, ev.directory, ev.file);
           const { buffer, mtimeMs } = buffersByPath.get(path) ?? bug(`expected buffer`);
           const fsFile = fsFiles.get(path);
           if (fsFile) {
@@ -181,8 +152,8 @@ function make(
 
         case 3: { // renamed
           if (debug) console.log(`${(ev as any).directory} / ${ev.oldFile} was renamed to ${ev.newFile}`);
-          const oldPath = canonizePath(state.path, (ev as any).directory, ev.oldFile);
-          const newPath = canonizePath(state.path, ev.newDirectory, ev.newFile);
+          const oldPath = canonizePath(rootPath, (ev as any).directory, ev.oldFile);
+          const newPath = canonizePath(rootPath, ev.newDirectory, ev.newFile);
           const fsFile = fsFiles.get(oldPath) ?? bug(`expected fsFile`);
           fsFiles.set(oldPath, {
             mtimeMs: Now.now(),
@@ -201,7 +172,7 @@ function make(
 
         case 1: { // deleted
           if (debug) console.log(`${ev.directory} / ${ev.file} was deleted`);
-          const path = canonizePath(state.path, ev.directory, ev.file);
+          const path = canonizePath(rootPath, ev.directory, ev.file);
           fsFiles.set(path, {
             mtimeMs: Now.now(),
             buffer: emptyBuffer,
@@ -213,6 +184,35 @@ function make(
       }
     }
   }
+}
+
+function make(
+  rootPath: string,
+  files: Signal.Writable<model.Files>,
+  Now: Now = Date,
+  Timers: Timers = timers,
+  Fs: Fs = fs.promises,
+  Nsfw: Nsfw = nsfw,
+): Filesystem {
+  const fsFiles = new Map<string, FsFile>();
+  let timeout: null | NodeJS.Timeout;
+
+  const handleNsfwEvents = makeHandleNsfwEvents(Now, Fs, rootPath, fsFiles);
+
+  const watcher = Nsfw(
+    rootPath,
+    handleNsfwEvents,
+    { debounceMS: 500 }
+  );
+
+  watcher.then(async (watcher) => {
+    const events: Array<NsfwEvent> = [];
+    // TODO(jaked) needs protecting against concurrent updates
+    await walkDir(rootPath, events);
+    await handleNsfwEvents(events);
+    await watcher.start();
+    timeout = Timers.setInterval(timerCallback, 1000);
+  })
 
   const update = (path: string, buffer: Buffer) => {
     files.produce(files => {
@@ -298,10 +298,9 @@ function make(
     const ops: Promise<unknown>[] = [];
 
     files.produce(files => {
-      if (state.state === 'no path') bug(`expected path`);
       const paths = new Set([...files.keys(), ...fsFiles.keys()]).keys();
       for (const path of paths) {
-        const filePath = Path.join(state.path, path);
+        const filePath = Path.join(rootPath, path);
         const file = files.get(path) ?? {
           mtimeMs: 0,
           buffer: emptyBuffer,
@@ -380,36 +379,28 @@ function make(
   };
 
   const start = async () => {
-    if (state.state === 'running') return;
-    if (state.state !== 'stopped') bug(`expected stopped`);
-    if (debug) console.log(`Filesystem.start`);
-    const events: Array<NsfwEvent> = [];
-    // TODO(jaked) needs protecting against concurrent updates
-    await walkDir(state.path, events);
-    await handleNsfwEvents(events);
-    await state.watcher.start();
-    const timeout = Timers.setInterval(timerCallback, 1000);
-    state = { state: 'running', path: state.path, watcher: state.watcher, timeout };
+    // timeout = Timers.setInterval(timerCallback, 1000);
   }
 
   const stop = async () => {
-    if (state.state !== 'running') return;
-    if (debug) console.log(`Filesystem.stop`);
-    Timers.clearInterval(state.timeout);
+    // if (timeout) Timers.clearInterval(timeout);
+  }
+
+  const close = async () => {
+    if (timeout) Timers.clearInterval(timeout);
     // TODO(jaked) ensure no updates after final write
     await timerCallback(true);
-    await state.watcher.stop();
-    state = { state: 'stopped', path: state.path, watcher: state.watcher };
+    await watcher.then(watcher => watcher.stop());
   }
 
   return {
-    setPath,
     update,
     remove,
     rename,
     exists,
     start,
     stop,
+    close
   };
 }
 
