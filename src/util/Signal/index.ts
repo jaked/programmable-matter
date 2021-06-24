@@ -120,7 +120,7 @@ abstract class SignalImpl<T> implements Signal<T> {
   }
   public undepend(s: { dirty: (value?: Try<T>) => void }) {
     for (let i=0; i < this.deps.length; i++)
-      if (this.deps[i] === s) this.deps[i] === undefined;
+      if (this.deps[i] === s) this.deps[i] = undefined;
   }
 
   map<U>(f: (t: T) => U): Signal<U> { return new MapImpl(this, f); }
@@ -171,6 +171,7 @@ class CellImpl<T> extends WritableImpl<T> {
     super();
     this.value = value;
     this.version = 1;
+    this.isDirty = false;
   }
 
   get() { return this.value.get(); }
@@ -294,12 +295,14 @@ class MapInvertible<T, U> extends WritableImpl<U> {
 
   set(u: Try<U>) {
     if (equal(u, this.value)) return;
+    impl(this.s).undepend(this);
     if (u.type === 'ok') {
       const t = Try.apply(() => this.fInv(u.ok));
       this.s.set(t);
     } else {
       this.s.set(u as unknown as Try<T>);
     }
+    impl(this.s).depend(this);
     // avoid recomputing `f` just to get the value we already have
     this.sVersion = this.s.version;
     this.value = u;
@@ -354,11 +357,13 @@ class MapProjection<T, U> extends WritableImpl<U> {
 
   set(u: Try<U>) {
     if (equal(u, this.value)) return;
+    impl(this.s).undepend(this);
     if (u.type === 'ok') {
       this.s.produce(t => { this.fSet(t, u.ok) });
     } else {
       this.s.set(u as unknown as Try<T>);
     }
+    impl(this.s).depend(this);
     // avoid recomputing `f` just to get the value we already have
     this.sVersion = this.s.version;
     this.value = u;

@@ -530,7 +530,8 @@ describe('mapInvertible', () => {
     const cell = Signal.cellOk(7);
     const plus = cell.mapInvertible(x => x + 1, x => x - 1);
     const plusplus = plus.map(x => x + 1);
-    plus.reconcile();
+    expect(plus.get()).toBe(8);
+    expect(plusplus.get()).toBe(9);
     plus.setOk(9);
     expect(cell.get()).toBe(8);
     expect(plusplus.get()).toBe(10);
@@ -540,7 +541,7 @@ describe('mapInvertible', () => {
     const cell = Signal.cellOk(7);
     expect(cell.version).toBe(1);
     const plus = cell.mapInvertible(x => x + 1, x => x - 1);
-    plus.reconcile();
+    expect(plus.get()).toBe(8);
     plus.setOk(8);
     expect(cell.version).toBe(1);
     expect(cell.get()).toBe(7);
@@ -552,7 +553,8 @@ describe('mapProjection', () => {
     const cell = Signal.cellOk({ foo: 7, bar: 9 });
     const foo = cell.mapProjection(x => x.foo, (x, foo) => x.foo = foo);
     const plus = foo.map(x => x + 1);
-    foo.reconcile();
+    expect(foo.get()).toBe(7);
+    expect(plus.get()).toBe(8);
     foo.setOk(11);
     expect(cell.get().foo).toBe(11);
     expect(plus.get()).toBe(12);
