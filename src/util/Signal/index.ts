@@ -101,14 +101,17 @@ abstract class SignalImpl<T> implements Signal<T> {
 
   public isDirty: boolean = true;
   protected deps: (undefined | { dirty: (value?: Try<T>) => void })[] = [];
-  public dirty(value?: Try<unknown>) {
-    this.isDirty = true;
+  protected dirtyDeps(value?: Try<unknown>) {
     const deps = [...this.deps];
     this.deps = [];
     for (let i=0; i < deps.length; i++) {
       const s = deps[i];
-      if (s) s.dirty();
+      if (s) s.dirty(value as Try<T>);
     }
+  }
+  public dirty(value?: Try<unknown>) {
+    this.isDirty = true;
+    this.dirtyDeps();
   }
   public depend(s: { dirty: (value?: Try<T>) => void }) {
     for (let i=0; i < this.deps.length; i++)
@@ -132,7 +135,7 @@ interface WritableIntf<T> extends Signal<T> {
   update(fn: (t: T) => T): void;
   produce(fn: (t: T) => void): void;
 
-  mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U>;
+  mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T, eager?: boolean): WritableIntf<U>;
   mapProjection<U>(f: (t: T) => U, fSet: (t: T, u: U) => void): WritableIntf<U>;
 }
 
@@ -143,7 +146,7 @@ abstract class WritableImpl<T> extends SignalImpl<T> {
   // TODO(jaked) handle errors from fn
   update(fn: (t: T) => T) { this.setOk(fn(this.get())); }
   produce(fn: (t: T) => void) { this.setOk(Immer.produce(this.get(), fn)); }
-  mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T): WritableIntf<U> { return new MapInvertible(this, f, fInv); }
+  mapInvertible<U>(f: (t: T) => U, fInv: (u: U) => T, eager: boolean = false): WritableIntf<U> { return new MapInvertible(this, f, fInv, eager); }
   mapProjection<U>(f: (t: T) => U, fSet: (t: T, u: U) => void): WritableIntf<U> { return new MapProjection(this, f, fSet); }
 }
 
@@ -181,17 +184,8 @@ class CellImpl<T> extends WritableImpl<T> {
     this.value = t;
     this.version++;
     ReactDOM.unstable_batchedUpdates(() => {
-      this.dirty(t);
+      this.dirtyDeps(t);
     });
-  }
-
-  public dirty(value?: Try<T>) {
-    const deps = [...this.deps];
-    this.deps = [];
-    for (let i=0; i < deps.length; i++) {
-      const s = deps[i];
-      if (s) s.dirty(value);
-    }
   }
 }
 
@@ -263,8 +257,14 @@ class MapInvertible<T, U> extends WritableImpl<U> {
   sVersion: number;
   f: (t: T) => U;
   fInv: (u: U) => T;
+  eager: boolean;
 
-  constructor(s: WritableIntf<T>, f: (t: T) => U, fInv: (u: U) => T) {
+  constructor(
+    s: WritableIntf<T>,
+    f: (t: T) => U,
+    fInv: (u: U) => T,
+    eager: boolean = false
+  ) {
     super();
     this.value = unreconciled;
     this.version = 0;
@@ -272,6 +272,7 @@ class MapInvertible<T, U> extends WritableImpl<U> {
     this.s = s;
     this.f = f;
     this.fInv = fInv;
+    this.eager = eager;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -304,8 +305,17 @@ class MapInvertible<T, U> extends WritableImpl<U> {
     this.value = u;
     this.version++;
     ReactDOM.unstable_batchedUpdates(() => {
-      this.dirty(u);
+      this.dirtyDeps(u);
     });
+  }
+
+  public dirty(value?: Try<unknown>) {
+    this.isDirty = true;
+    let u: undefined | Try<U> = undefined;
+    if (this.eager && value && value.type == 'ok') {
+      u = Try.apply(() => this.f(value.ok as T));
+    }
+    this.dirtyDeps(u);
   }
 }
 
@@ -354,7 +364,7 @@ class MapProjection<T, U> extends WritableImpl<U> {
     this.value = u;
     this.version++;
     ReactDOM.unstable_batchedUpdates(() => {
-      this.dirty(u);
+      this.dirtyDeps(u);
     });
   }
 
@@ -962,7 +972,8 @@ module Signal {
     f: (t: T, prevT: T, prevU: U) => U,
     fInv: (u: U, prevU: U, prevT: T) => T,
     initT: T,
-    initU: U
+    initU: U,
+    eager: boolean = false,
   ): Signal.Writable<U> {
     let currT = initT;
     let currU = initU;
@@ -976,7 +987,8 @@ module Signal {
         currT = fInv(u, currU, currT);
         currU = u;
         return currT;
-      });
+      },
+      eager);
   }
 
   export function join<T1, T2>(
@@ -1195,6 +1207,7 @@ module Signal {
       }),
       new Map(),
       new Map(),
+      true, // eager
     )
   }
 
