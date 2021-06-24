@@ -634,21 +634,21 @@ class JoinMap<K, V> extends SignalImpl<Map<K, V>> {
 
 // specialized MapImpl that projects a key from a map
 // and also does not depend on the map signal
-// since this is handled specially in UnjoinMap
-class UnjoinMapEntry<K,V> extends SignalImpl<V> {
-  unjoin: UnjoinMap<K, V>;
+// since this is handled specially in SplitMap
+class SplitMapEntry<K,V> extends SignalImpl<V> {
+  splitMap: SplitMap<K, V>;
   s: Signal<Map<K, V>>;
   sVersion: number;
   key: K;
 
-  constructor(unjoin: UnjoinMap<K, V>, s: Signal<Map<K, V>>, key: K) {
+  constructor(splitMap: SplitMap<K, V>, s: Signal<Map<K, V>>, key: K) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.key = key;
-    this.unjoin = unjoin;
+    this.splitMap = splitMap;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -660,7 +660,7 @@ class UnjoinMapEntry<K,V> extends SignalImpl<V> {
     this.isDirty = false;
     // nobody reconciles the outer signal when values change but keys don't
     // so we need to re-add the dep when values change
-    impl(this.s).depend(this.unjoin);
+    impl(this.s).depend(this.splitMap);
     this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
@@ -680,7 +680,7 @@ class UnjoinMapEntry<K,V> extends SignalImpl<V> {
   }
 }
 
-class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
+class SplitMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
   s: Signal<Map<K, V>>;
   sVersion: number;
   prevInput: Map<K, V>;
@@ -721,7 +721,7 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
         const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
-          output.set(key, new UnjoinMapEntry(this, this.s, key));
+          output.set(key, new SplitMapEntry(this, this.s, key));
         });
       });
       this.prevInput = input;
@@ -750,21 +750,21 @@ class UnjoinMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
 
 // specialized MapWritable that projects a key from a map
 // and also does not depend on the map signal
-// since this is handled specially in UnjoinMapWritable
-class UnjoinMapWritableEntry<K,V> extends WritableImpl<V> {
-  unjoin: UnjoinMapWritable<K, V>;
+// since this is handled specially in SplitMapWritable
+class SplitMapWritableEntry<K,V> extends WritableImpl<V> {
+  splitMapWritable: SplitMapWritable<K, V>;
   s: Signal.Writable<Map<K, V>>;
   sVersion: number;
   key: K;
 
-  constructor(unjoin: UnjoinMapWritable<K, V>, s: Signal.Writable<Map<K, V>>, key: K) {
+  constructor(splitMapWritable: SplitMapWritable<K, V>, s: Signal.Writable<Map<K, V>>, key: K) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.key = key;
-    this.unjoin = unjoin;
+    this.splitMapWritable = splitMapWritable;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -776,7 +776,7 @@ class UnjoinMapWritableEntry<K,V> extends WritableImpl<V> {
     this.isDirty = false;
     // nobody reconciles the outer signal when values change but keys don't
     // so we need to re-add the dep when values change
-    impl(this.s).depend(this.unjoin);
+    impl(this.s).depend(this.splitMapWritable);
     this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
@@ -807,7 +807,7 @@ class UnjoinMapWritableEntry<K,V> extends WritableImpl<V> {
   }
 }
 
-class UnjoinMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
+class SplitMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
   s: Signal.Writable<Map<K, V>>;
   sVersion: number;
   prevInput: Map<K, V>;
@@ -848,7 +848,7 @@ class UnjoinMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
         const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
-          output.set(key, new UnjoinMapWritableEntry(this, this.s, key));
+          output.set(key, new SplitMapWritableEntry(this, this.s, key));
         });
       });
       this.prevInput = input;
@@ -1094,16 +1094,16 @@ module Signal {
     return new JoinMap(map);
   }
 
-  export function unjoinMap<K, V>(
+  export function splitMap<K, V>(
     map: Signal<Map<K, V>>
   ): Signal<Map<K, Signal<V>>> {
-    return new UnjoinMap(map);
+    return new SplitMap(map);
   }
 
-  export function unjoinMapWritable<K, V>(
+  export function splitMapWritable<K, V>(
     map: Signal.Writable<Map<K, V>>
   ): Signal<Map<K, Signal.Writable<V>>> {
-    return new UnjoinMapWritable(map);
+    return new SplitMapWritable(map);
   }
 
   export function mapImmutableMap<K, V, U>(

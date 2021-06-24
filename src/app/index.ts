@@ -178,7 +178,7 @@ export class App {
   }
 
   private contents = Signal.mapMap(
-    Signal.unjoinMapWritable(
+    Signal.splitMapWritable(
       Signal.filterMapWritable(
         this.files,
         file => !file.deleted
