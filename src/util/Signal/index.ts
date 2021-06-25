@@ -44,7 +44,7 @@ interface Signal<T> {
    */
   get(): T;
 
-  map<U>(f: (t: T) => U): Signal<U>;
+  map<U>(f: (t: T) => U, eager?: boolean): Signal<U>;
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U>;
   liftToTry(): Signal<Try<T>>;
 
@@ -114,16 +114,21 @@ abstract class SignalImpl<T> implements Signal<T> {
     this.dirtyDeps();
   }
   public depend(s: { dirty: (value?: Try<T>) => void }) {
-    for (let i=0; i < this.deps.length; i++)
+    for (let i=0; i < this.deps.length; i++) {
       if (this.deps[i] === s) return;
+    }
     this.deps.push(s);
   }
   public undepend(s: { dirty: (value?: Try<T>) => void }) {
-    for (let i=0; i < this.deps.length; i++)
-      if (this.deps[i] === s) this.deps[i] = undefined;
+    for (let i=0; i < this.deps.length; i++) {
+      if (this.deps[i] === s) {
+        this.deps[i] = undefined;
+        return;
+      }
+    }
   }
 
-  map<U>(f: (t: T) => U): Signal<U> { return new MapImpl(this, f); }
+  map<U>(f: (t: T) => U, eager: boolean = false): Signal<U> { return new MapImpl(this, f, eager); }
   flatMap<U>(f: (t: T) => Signal<U>): Signal<U> { return new FlatMap(this, f); }
   liftToTry(): Signal<Try<T>> { return new LiftToTry(this); }
 }
@@ -225,14 +230,20 @@ class MapImpl<T, U> extends SignalImpl<U> {
   s: Signal<T>;
   sVersion: number;
   f: (t: T) => U;
+  eager: boolean;
 
-  constructor(s: Signal<T>, f: (t: T) => U) {
+  constructor(
+    s: Signal<T>,
+    f: (t: T) => U,
+    eager: boolean = false,
+  ) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.f = f;
+    this.eager = eager;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -251,6 +262,16 @@ class MapImpl<T, U> extends SignalImpl<U> {
     this.value = value;
     this.version++;
   }
+
+  public dirty(value?: Try<unknown>) {
+    this.isDirty = true;
+    let u: undefined | Try<U> = undefined;
+    if (this.eager && value && value.type === 'ok') {
+      u = Try.apply(() => this.f(value.ok as T));
+      impl(this.s).depend(this);
+    }
+    this.dirtyDeps(u);
+  }
 }
 
 class MapInvertible<T, U> extends WritableImpl<U> {
@@ -264,7 +285,7 @@ class MapInvertible<T, U> extends WritableImpl<U> {
     s: WritableIntf<T>,
     f: (t: T) => U,
     fInv: (u: U) => T,
-    eager: boolean = false
+    eager: boolean = false,
   ) {
     super();
     this.value = unreconciled;
@@ -315,8 +336,9 @@ class MapInvertible<T, U> extends WritableImpl<U> {
   public dirty(value?: Try<unknown>) {
     this.isDirty = true;
     let u: undefined | Try<U> = undefined;
-    if (this.eager && value && value.type == 'ok') {
+    if (this.eager && value && value.type === 'ok') {
       u = Try.apply(() => this.f(value.ok as T));
+      impl(this.s).depend(this);
     }
     this.dirtyDeps(u);
   }
@@ -738,6 +760,8 @@ class SplitMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
       const { added, changed, deleted } = diffMap(this.prevInput, value.ok);
       if (added.size > 0 || deleted.size > 0)
         super.dirty();
+      else
+        impl(this.s).depend(this);
       changed.forEach((_, key) => {
         const entry = this.prevOutput.get(key) ?? bug(`expected entry`);
         entry.dirty();
@@ -865,6 +889,8 @@ class SplitMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
       const { added, changed, deleted } = diffMap(this.prevInput, value.ok);
       if (added.size > 0 || deleted.size > 0)
         super.dirty();
+      else
+        impl(this.s).depend(this);
       changed.forEach((_, key) => {
         const entry = this.prevOutput.get(key) ?? bug(`expected entry`);
         entry.dirty();

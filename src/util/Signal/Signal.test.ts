@@ -434,7 +434,18 @@ describe('splitMap', () => {
     expect(split.isDirty).toBe(true);
     expect(a.isDirty).toBe(false);
     expect(b.isDirty).toBe(false);
-  })
+  });
+
+  it('value change resets outer dependency', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const mapped = map.map(x => x, true);
+    const split = Signal.splitMap(mapped);
+    expect([...split.get().keys()]).toEqual(['a', 'b']);
+    map.produce(map => map.set('a', 11));
+    expect([...split.get().keys()]).toEqual(['a', 'b']);
+    map.produce(map => map.set('c', 17));
+    expect([...split.get().keys()]).toEqual(['a', 'b', 'c']);
+  });
 });
 
 describe('splitMapWritable', () => {
@@ -498,6 +509,17 @@ describe('splitMapWritable', () => {
     expect(a.isDirty).toBe(true);
     expect(b.isDirty).toBe(false);
     expect(map.get().get('a')).toBe(8);
+  });
+
+  it('value change resets outer dependency', () => {
+    const map = Signal.cellOk(new Map([['a', 7], ['b', 9]]));
+    const mapped = map.mapInvertible(x => x, x => x, true);
+    const split = Signal.splitMapWritable(mapped);
+    expect([...split.get().keys()]).toEqual(['a', 'b']);
+    map.produce(map => map.set('a', 11));
+    expect([...split.get().keys()]).toEqual(['a', 'b']);
+    map.produce(map => map.set('c', 17));
+    expect([...split.get().keys()]).toEqual(['a', 'b', 'c']);
   });
 });
 
