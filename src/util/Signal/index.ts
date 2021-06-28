@@ -658,19 +658,17 @@ class JoinMap<K, V> extends SignalImpl<Map<K, V>> {
 // and also does not depend on the map signal
 // since this is handled specially in SplitMap
 class SplitMapEntry<K,V> extends SignalImpl<V> {
-  splitMap: SplitMap<K, V>;
   s: Signal<Map<K, V>>;
   sVersion: number;
   key: K;
 
-  constructor(splitMap: SplitMap<K, V>, s: Signal<Map<K, V>>, key: K) {
+  constructor(s: Signal<Map<K, V>>, key: K) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.key = key;
-    this.splitMap = splitMap;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -680,9 +678,6 @@ class SplitMapEntry<K,V> extends SignalImpl<V> {
   reconcile() {
     if (!this.isDirty) return;
     this.isDirty = false;
-    // nobody reconciles the outer signal when values change but keys don't
-    // so we need to re-add the dep when values change
-    impl(this.s).depend(this.splitMap);
     this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
@@ -743,7 +738,7 @@ class SplitMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
         const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
-          output.set(key, new SplitMapEntry(this, this.s, key));
+          output.set(key, new SplitMapEntry(this.s, key));
         });
       });
       this.prevInput = input;
@@ -767,6 +762,7 @@ class SplitMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
         entry.dirty();
       });
     } else {
+      // TODO(jaked) should dirty all values
       super.dirty();
     }
   }
@@ -776,19 +772,17 @@ class SplitMap<K, V> extends SignalImpl<Map<K, Signal<V>>> {
 // and also does not depend on the map signal
 // since this is handled specially in SplitMapWritable
 class SplitMapWritableEntry<K,V> extends WritableImpl<V> {
-  splitMapWritable: SplitMapWritable<K, V>;
   s: Signal.Writable<Map<K, V>>;
   sVersion: number;
   key: K;
 
-  constructor(splitMapWritable: SplitMapWritable<K, V>, s: Signal.Writable<Map<K, V>>, key: K) {
+  constructor(s: Signal.Writable<Map<K, V>>, key: K) {
     super();
     this.value = unreconciled;
     this.version = 0;
     this.sVersion = 0;
     this.s = s;
     this.key = key;
-    this.splitMapWritable = splitMapWritable;
   }
 
   get() { this.reconcile(); return this.value.get(); }
@@ -798,9 +792,6 @@ class SplitMapWritableEntry<K,V> extends WritableImpl<V> {
   reconcile() {
     if (!this.isDirty) return;
     this.isDirty = false;
-    // nobody reconciles the outer signal when values change but keys don't
-    // so we need to re-add the dep when values change
-    impl(this.s).depend(this.splitMapWritable);
     this.s.reconcile();
     if (this.sVersion === this.s.version) return;
     this.sVersion = this.s.version;
@@ -872,7 +863,7 @@ class SplitMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
         const { added, deleted } = diffMap(this.prevInput, input);
         deleted.forEach(key => { output.delete(key) });
         added.forEach((v, key) => {
-          output.set(key, new SplitMapWritableEntry(this, this.s, key));
+          output.set(key, new SplitMapWritableEntry(this.s, key));
         });
       });
       this.prevInput = input;
@@ -896,6 +887,7 @@ class SplitMapWritable<K, V> extends SignalImpl<Map<K, Signal.Writable<V>>> {
         entry.dirty();
       });
     } else {
+      // TODO(jaked) should dirty all values
       super.dirty();
     }
   }
