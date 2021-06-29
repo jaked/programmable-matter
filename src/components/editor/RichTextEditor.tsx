@@ -1,5 +1,5 @@
 import React from 'react';
-import { createEditor, Editor, Node, Path, Point } from 'slate';
+import { createEditor, Editor, Node, Path, Point, Transforms } from 'slate';
 import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
@@ -259,6 +259,27 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
     };
     return editor;
   }, [props.moduleName]);
+
+  // on undo or change from filesystem,
+  // editor selection may be invalid for current document tree
+  // if so deselect it
+  // TODO(jaked) instead of deselecting, find nearest valid point
+  if (editor.selection) {
+    function pointOK(node: Node, point: Point) {
+      if (!Node.has(node, point.path)) return false;
+      const text = Node.get(node, point.path);
+      if (!('text' in text)) return false;
+      if (point.offset > (text['text'] as string).length) return false;
+      return true;
+    }
+    const node = { children: props.value };
+    if (
+      !pointOK(node, editor.selection.anchor) ||
+      !pointOK(node, editor.selection.focus)
+    ) {
+      Transforms.deselect(editor);
+    }
+  }
 
   React.useImperativeHandle(ref, () => ({
     focus: () => {
