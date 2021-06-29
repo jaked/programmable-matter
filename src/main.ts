@@ -196,6 +196,16 @@ function initMenu() {
       submenu: [
         { role: 'undo' },
         { role: 'redo' },
+        {
+          label: 'Global Undo',
+          accelerator: 'CmdOrCtrl+Alt+Z',
+          click: sendFunc('global-undo'),
+        },
+        {
+          label: 'Global Redo',
+          accelerator: 'CmdOrCtrl+Alt+Shift+Z',
+          click: sendFunc('global-redo'),
+        },
         { type: 'separator' },
         { role: 'cut' },
         { role: 'copy' },

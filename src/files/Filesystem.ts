@@ -80,6 +80,7 @@ type Filesystem = {
   remove: (path: string) => void,
   rename: (oldPath: string, newPath: string) => void,
   exists: (path: string) => boolean,
+  fsPaths: () => string[],
   start: () => Promise<void>,
   stop: () => Promise<void>,
   close: () => Promise<void>,
@@ -335,6 +336,10 @@ function make(
               .finally(() => fsFile.writing = false)
             );
 
+          } else if (file.mtimeMs > fsFile.mtimeMs && fsFile.buffer.equals(file.buffer)) {
+            fsFile.deleted = false;
+            fsFile.mtimeMs = file.mtimeMs;
+
           } else if (
             force ||
             file.mtimeMs < now - 500 ||
@@ -367,16 +372,19 @@ function make(
           }
 
         } else if (fsFile.mtimeMs > file.mtimeMs) {
+          if (file.buffer.equals(fsFile.buffer) && file.deleted === fsFile.deleted)
+            continue;
           if (debug) console.log(`fsFile newer (${fsFile.mtimeMs} > ${file.mtimeMs}) for ${path}`);
           file.mtimeMs = fsFile.mtimeMs;
-          if (!file.buffer.equals(fsFile.buffer))
-            file.buffer = fsFile.buffer;
+          file.buffer = fsFile.buffer;
           file.deleted = fsFile.deleted;
         }
       }
     });
     return Promise.all(ops);
   };
+
+  const fsPaths = () => [...fsFiles.keys()]
 
   const start = async () => {
     // timeout = Timers.setInterval(timerCallback, 1000);
@@ -398,6 +406,7 @@ function make(
     remove,
     rename,
     exists,
+    fsPaths,
     start,
     stop,
     close

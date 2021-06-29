@@ -30,6 +30,8 @@ import mkNewNote from './newNote';
 
 const debug = false;
 
+const emptyBuffer = Buffer.from('');
+
 function typeOfPath(path: string): model.Types {
   const ext = Path.parse(path).ext;
   switch (ext) {
@@ -47,7 +49,22 @@ function typeOfPath(path: string): model.Types {
 
 export class App {
   private files = Signal.cellOk<model.Files>(new Map());
-  private filesystem = Filesystem(process.argv[process.argv.length - 1], this.files);
+
+  // TODO(jaked) break versioning out to a separate module
+  private filesVersions: model.Files[] = [];
+  private filesVersionIndex = -1; // index of the current version
+  private filesWithVersions = this.files.mapInvertible(
+    files => files,
+    files => {
+      this.filesVersionIndex += 1;
+      this.filesVersions.splice(this.filesVersionIndex);
+      this.filesVersions.push(files);
+      return files;
+    },
+    true // eager
+  )
+
+  private filesystem = Filesystem(process.argv[process.argv.length - 1], this.filesWithVersions);
 
   constructor() {
     this.render();
@@ -60,6 +77,8 @@ export class App {
     });
     ipc.on('history-back', this.historyBack);
     ipc.on('history-forward', this.historyForward);
+    ipc.on('global-undo', this.globalUndo);
+    ipc.on('global-redo', this.globalRedo);
     ipc.on('previous-problem', this.previousProblem);
     ipc.on('next-problem', this.nextProblem);
 
@@ -74,7 +93,9 @@ export class App {
     ipc.on('set-data-dir', async (_, path: string) => {
       await this.filesystem.close();
       this.files.setOk(new Map());
-      this.filesystem = Filesystem(path, this.files);
+      this.filesVersions = [];
+      this.filesVersionIndex = -1;
+      this.filesystem = Filesystem(path, this.filesWithVersions);
     });
 
     document.onmousemove = (e: MouseEvent) => {
@@ -121,7 +142,35 @@ export class App {
     }
   }
 
-  public historyBack = () => {
+  private setFiles(filesVersion: model.Files) {
+    const mtimeMs = Date.now();
+    const files: model.Files = new Map();
+    filesVersion.forEach((file, path) => {
+      files.set(path, { ...file, mtimeMs });
+    });
+    for (const path of this.filesystem.fsPaths()) {
+      if (!filesVersion.has(path)) {
+        files.set(path, { deleted: true, mtimeMs, buffer: emptyBuffer })
+      }
+    }
+    this.files.setOk(files);
+  }
+
+  private globalUndo = () => {
+    if (this.filesVersionIndex > 0) {
+      this.filesVersionIndex -= 1;
+      this.setFiles(this.filesVersions[this.filesVersionIndex]);
+    }
+  }
+
+  private globalRedo = () => {
+    if (this.filesVersionIndex < this.filesVersions.length - 1) {
+      this.filesVersionIndex += 1;
+      this.setFiles(this.filesVersions[this.filesVersionIndex]);
+    }
+  }
+
+  private historyBack = () => {
     const notes = this.compiledNotesSignal.get();
     const selected = this.selectedCell.get();
     let newIndex = this.historyIndex;
@@ -134,7 +183,7 @@ export class App {
       this.setEditName(undefined);
     }
   }
-  public historyForward = () => {
+  private historyForward = () => {
     const notes = this.compiledNotesSignal.get();
     const selected = this.selectedCell.get();
     let newIndex = this.historyIndex;
@@ -180,7 +229,7 @@ export class App {
   private contents = Signal.mapMap(
     Signal.splitMapWritable(
       Signal.filterMapWritable(
-        this.files,
+        this.filesWithVersions,
         file => !file.deleted
       )
     ),
