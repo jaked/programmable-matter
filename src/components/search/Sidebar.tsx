@@ -50,7 +50,7 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     if (note.files.pm) {
       strings.push(note.files.pm.content.map(pmContent => {
         const editor = createEditor();
-        editor.children = (pmContent as model.PMContent).nodes;
+        editor.children = (pmContent as model.PMContent).children;
         return Editor.string(editor, []);
       }));
     }

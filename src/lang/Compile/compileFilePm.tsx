@@ -64,8 +64,18 @@ export default function compileFilePm(
 
   // TODO(jaked) Signal function to project from a Writable
   const nodes = (file.content as Signal.Writable<model.PMContent>).mapInvertible(
-      content => content.nodes,
-      nodes => ({ nodes, meta: (file.content.get() as model.PMContent).meta })
+    content => content.children,
+    children => {
+      const pmContent = file.content.get() as model.PMContent;
+      return {
+        children,
+        // TODO(jaked)
+        // selection may be invalid after a programmatic update to children
+        // should find nearest valid selection
+        selection: pmContent.selection,
+        meta: pmContent.meta
+      };
+    }
   );
 
   // TODO(jaked)

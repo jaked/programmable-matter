@@ -1,4 +1,5 @@
 import React from 'react';
+import { Range } from 'slate';
 
 import Try from '../util/Try';
 import Signal from '../util/Signal';
@@ -117,7 +118,8 @@ export type WritableContent = {
 }
 
 export type PMContent = {
-  nodes: PMAST.Node[];
+  children: PMAST.Node[];
+  selection: null | Range;
   meta: Meta;
 }
 

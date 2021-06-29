@@ -1,5 +1,6 @@
 import React from 'react';
 import Frame, { FrameContextConsumer } from 'react-frame-component';
+import { Range } from 'slate';
 
 import Signal from '../util/Signal';
 
@@ -56,23 +57,22 @@ const CodeEditor = React.memo(React.forwardRef<Editor, CodeEditorProps>((props, 
 }));
 
 type RichEditorProps = {
-  content: Signal.Writable<PMAST.Node[]>;
+  content: Signal.Writable<model.PMContent>;
   moduleName: string;
   compiledFile: model.CompiledFile;
   setSelected: (selected: string | null) => void;
 }
 
 const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>((props, ref) => {
-  const nodes = Signal.useSignal(props.content);
-  PMAST.validateNodes(nodes);
-  const setValue = (nodes: PMAST.Node[]) => {
-    props.content.setOk(nodes);
+  const { children, selection, meta } = Signal.useSignal(props.content);
+  const setValue = ({ children, selection }: { children: PMAST.Node[], selection: null | Range }) => {
+    props.content.setOk({ children, selection, meta });
   }
 
   return (
     <RichTextEditor
       ref={ref}
-      value={nodes}
+      value={{ children, selection }}
       setValue={setValue}
       moduleName={props.moduleName}
       compiledFile={props.compiledFile}
@@ -156,10 +156,7 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
           <RichEditor
             ref={richEditorRef}
             // TODO(jaked) Signal function to project from a Writable
-            content={(selectedFile.content as Signal.Writable<model.PMContent>).mapInvertible(
-              content => content.nodes,
-              nodes => ({ nodes, meta: (selectedFile.content.get() as model.PMContent).meta })
-            )}
+            content={selectedFile.content as Signal.Writable<model.PMContent>}
             moduleName={moduleName}
             compiledFile={compiledFile}
             setSelected={props.setSelected}

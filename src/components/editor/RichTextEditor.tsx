@@ -1,5 +1,5 @@
 import React from 'react';
-import { createEditor, Editor, Node, Path, Point, Transforms } from 'slate';
+import { createEditor, Editor, Node, Path, Point, Range as SlateRange, Transforms } from 'slate';
 import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
@@ -226,8 +226,8 @@ export const makeOnKeyDown = (editor: Editor) =>
   }
 
 export type RichTextEditorProps = {
-  value: PMAST.Node[];
-  setValue: (nodes: PMAST.Node[]) => void;
+  value: { children: PMAST.Node[], selection: null | SlateRange };
+  setValue: (v: { children: PMAST.Node[], selection: null | SlateRange }) => void;
   moduleName: string;
   compiledFile: model.CompiledFile;
 
@@ -260,26 +260,7 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
     return editor;
   }, [props.moduleName]);
 
-  // on undo or change from filesystem,
-  // editor selection may be invalid for current document tree
-  // if so deselect it
-  // TODO(jaked) instead of deselecting, find nearest valid point
-  if (editor.selection) {
-    function pointOK(node: Node, point: Point) {
-      if (!Node.has(node, point.path)) return false;
-      const text = Node.get(node, point.path);
-      if (!('text' in text)) return false;
-      if (point.offset > (text['text'] as string).length) return false;
-      return true;
-    }
-    const node = { children: props.value };
-    if (
-      !pointOK(node, editor.selection.anchor) ||
-      !pointOK(node, editor.selection.focus)
-    ) {
-      Transforms.deselect(editor);
-    }
-  }
+  editor.selection = props.value.selection;
 
   React.useImperativeHandle(ref, () => ({
     focus: () => {
@@ -314,6 +295,16 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
     [props.moduleName, props.setSelected]
   );
 
+  const onChange = React.useCallback(
+    children => {
+      props.setValue({
+        children: children as PMAST.Node[],
+        selection: editor.selection
+      });
+    },
+    [editor, props.setValue]
+  )
+
   // key={props.moduleName} forces a remount when editor changes
   // to work around a slate-react bug
   // see https://github.com/ianstormtaylor/slate/issues/3886
@@ -321,8 +312,8 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
     <Slate
       key={props.moduleName}
       editor={editor}
-      value={props.value}
-      onChange={props.setValue as (nodes: Node[]) => void}
+      value={props.value.children}
+      onChange={onChange}
     >
       <Editable
         renderElement={renderElement}

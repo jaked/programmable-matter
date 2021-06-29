@@ -252,18 +252,27 @@ export class App {
               if (Array.isArray(obj)) {
                 PMAST.validateNodes(obj);
                 return {
-                  nodes: obj,
+                  children: obj,
+                  selection: null,
                   meta: {},
                 };
-              } else {
+              } else if ('nodes' in obj) {
                 PMAST.validateNodes(obj.nodes);
                 return {
-                  nodes: obj.nodes,
+                  children: obj.nodes,
+                  selection: null,
+                  meta: Meta.validate(obj.meta)
+                }
+              } else if (obj.version === 1) {
+                PMAST.validateNodes(obj.children);
+                return {
+                  children: obj.children,
+                  selection: obj.selection,
                   meta: Meta.validate(obj.meta)
                 }
               }
             },
-            obj => Buffer.from(JSON5.stringify(obj, undefined, 2), 'utf8')
+            obj => Buffer.from(JSON5.stringify({ version: 1, ...obj }, undefined, 2), 'utf8')
           );
           break;
 
