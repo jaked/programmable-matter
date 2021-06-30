@@ -56,9 +56,11 @@ export class App {
   private filesWithVersions = this.files.mapInvertible(
     files => files,
     files => {
-      this.filesVersionIndex += 1;
-      this.filesVersions.splice(this.filesVersionIndex);
+      this.filesVersions.splice(this.filesVersionIndex + 1);
+      while (this.filesVersions.length >= 200)
+        this.filesVersions.shift();
       this.filesVersions.push(files);
+      this.filesVersionIndex = this.filesVersions.length - 1;
       return files;
     },
     true // eager
