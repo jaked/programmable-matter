@@ -10,7 +10,6 @@ import * as Meta from '../model/Meta';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 import * as Name from '../util/Name';
-import Filesystem from '../files/Filesystem';
 
 import * as Compile from '../lang/Compile';
 
@@ -26,11 +25,10 @@ import * as GTasks from '../integrations/gtasks';
 
 import ghPages from '../publish/ghPages';
 
+import * as Files from './files';
 import mkNewNote from './newNote';
 
 const debug = false;
-
-const emptyBuffer = Buffer.from('');
 
 function typeOfPath(path: string): model.Types {
   const ext = Path.parse(path).ext;
@@ -46,26 +44,6 @@ function typeOfPath(path: string): model.Types {
       throw new Error(`unhandled extension '${ext}' for '${path}'`);
   }
 }
-
-const files = Signal.cellOk<model.Files>(new Map());
-
-// TODO(jaked) break versioning out to a separate module
-let filesVersions: model.Files[] = [];
-let filesVersionIndex = -1; // index of the current version
-const filesWithVersions = files.mapInvertible(
-  files => files,
-  files => {
-    filesVersions.splice(filesVersionIndex + 1);
-    while (filesVersions.length >= 200)
-      filesVersions.shift();
-    filesVersions.push(files);
-    filesVersionIndex = filesVersions.length - 1;
-    return files;
-  },
-  true // eager
-)
-
-let filesystem = Filesystem(process.argv[process.argv.length - 1], filesWithVersions);
 
 export const mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
 
@@ -102,34 +80,6 @@ export const maybeSetSelected = (selected: string | null): boolean => {
   else {
     setSelected(selected);
     return true;
-  }
-}
-
-function setFiles(filesVersion: model.Files) {
-  const mtimeMs = Date.now();
-  const newFiles: model.Files = new Map();
-  filesVersion.forEach((file, path) => {
-    newFiles.set(path, { ...file, mtimeMs });
-  });
-  for (const path of filesystem.fsPaths()) {
-    if (!filesVersion.has(path)) {
-      newFiles.set(path, { deleted: true, mtimeMs, buffer: emptyBuffer })
-    }
-  }
-  files.setOk(newFiles);
-}
-
-const globalUndo = () => {
-  if (filesVersionIndex > 0) {
-    filesVersionIndex -= 1;
-    setFiles(filesVersions[filesVersionIndex]);
-  }
-}
-
-const globalRedo = () => {
-  if (filesVersionIndex < filesVersions.length - 1) {
-    filesVersionIndex += 1;
-    setFiles(filesVersions[filesVersionIndex]);
   }
 }
 
@@ -186,14 +136,14 @@ const deleteNote = () => {
 
   Object.values(note.files).forEach(file => {
     if (!file) return;
-    filesystem.remove(file.path);
+    Files.filesystem.remove(file.path);
   });
 }
 
 const contents = Signal.mapMap(
   Signal.splitMapWritable(
     Signal.filterMapWritable(
-      filesWithVersions,
+      Files.filesWithVersions,
       file => !file.deleted
     )
   ),
@@ -261,8 +211,8 @@ const contents = Signal.mapMap(
 const compiledFilesSignalNotesSignal =
   Compile.compileFiles(
     contents,
-    filesystem.update,
-    filesystem.remove,
+    Files.filesystem.update,
+    Files.filesystem.remove,
     setSelected,
   )
 const compiledFilesSignal = compiledFilesSignalNotesSignal.compiledFiles;
@@ -287,14 +237,14 @@ export const setNameSignal = compiledNoteSignal.map(compiledNote => {
       const pathParsed = Path.parse(file.path);
       const newParsed = { ...pathParsed, base: undefined, dir: Name.dirname(name), name: Name.basename(name) };
       const newPath = Path.format(newParsed);
-      filesystem.rename(file.path, newPath);
+      Files.filesystem.rename(file.path, newPath);
     });
     setSelected(name);
   };
 });
 
 export const onNewNoteSignal = mkNewNote({
-  fsUpdate: filesystem.update,
+  fsUpdate: Files.filesystem.update,
   notes: compiledNotesSignal,
   focusDir: focusDirCell,
   callback: (name: string) => {
@@ -428,8 +378,8 @@ ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
 });
 ipc.on('history-back', historyBack);
 ipc.on('history-forward', historyForward);
-ipc.on('global-undo', globalUndo);
-ipc.on('global-redo', globalRedo);
+ipc.on('global-undo', Files.globalUndo);
+ipc.on('global-redo', Files.globalRedo);
 ipc.on('previous-problem', previousProblem);
 ipc.on('next-problem', nextProblem);
 
@@ -438,16 +388,10 @@ ipc.on('delete-note', deleteNote);
 ipc.on('publish-site', publishSite);
 ipc.on('sync-google-tasks', syncGoogleTasks);
 
-ipc.on('focus', () => filesystem.start());
-ipc.on('blur', () => filesystem.stop());
+ipc.on('focus', () => Files.filesystem.start());
+ipc.on('blur', () => Files.filesystem.stop());
 
-ipc.on('set-data-dir', async (_, path: string) => {
-  await filesystem.close();
-  files.setOk(new Map());
-  filesVersions = [];
-  filesVersionIndex = -1;
-  filesystem = Filesystem(path, filesWithVersions);
-});
+ipc.on('set-data-dir', (_, path: string) => { Files.setPath(path) });
 
 document.onmousemove = (e: MouseEvent) => {
   mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });
