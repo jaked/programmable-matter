@@ -7,7 +7,7 @@ import Signal from '../util/Signal';
 import * as model from '../model';
 import * as PMAST from '../model/PMAST';
 
-import { App } from '../app';
+import * as App from '../app';
 
 import { Session } from './react-simple-code-editor';
 
@@ -20,10 +20,6 @@ import RichTextEditor from './editor/RichTextEditor';
 // TODO(jaked) straighten out dependencies
 import { mouse } from '../lang/Render/initEnv';
 import { window as windowSignal } from '../lang/Render/initEnv';
-
-interface Props {
-  app: App;
-}
 
 type CodeEditorProps = {
   type: model.Types,
@@ -253,9 +249,9 @@ type Main = {
   focusSearchBox: () => void;
 }
 
-const Main = React.forwardRef<Main, Props>((props, ref) => {
-  const sideBarVisible = Signal.useSignal(props.app.sideBarVisibleCell);
-  const mainPaneView = Signal.useSignal(props.app.mainPaneViewCell);
+const Main = React.forwardRef<Main, {}>(({}, ref) => {
+  const sideBarVisible = Signal.useSignal(App.sideBarVisibleCell);
+  const mainPaneView = Signal.useSignal(App.mainPaneViewCell);
 
   const sidebarRef = React.useRef<Sidebar>(null);
   const editorRef = React.useRef<EditorPane>(null);
@@ -319,13 +315,13 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           <Catch>
             <Sidebar
               ref={sidebarRef}
-              compiledNotes={props.app.compiledNotesSignal}
-              selected={props.app.selectedCell}
-              setSelected={props.app.setSelected}
-              maybeSetSelected={props.app.maybeSetSelected}
-              focusDir={props.app.focusDirCell}
-              setFocusDir={props.app.setFocusDir}
-              onNewNote={props.app.onNewNoteSignal}
+              compiledNotes={App.compiledNotesSignal}
+              selected={App.selectedCell}
+              setSelected={App.setSelected}
+              maybeSetSelected={App.maybeSetSelected}
+              focusDir={App.focusDirCell}
+              setFocusDir={App.setFocusDir}
+              onNewNote={App.onNewNoteSignal}
               focusEditor={focusEditor}
             />
           </Catch>
@@ -333,12 +329,12 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
       }
       <div style={{ gridArea: 'header' }}>
         <Header
-          name={props.app.selectedCell}
-          setName={props.app.setNameSignal}
-          editName={props.app.editNameCell}
-          setEditName={props.app.setEditName}
+          name={App.selectedCell}
+          setName={App.setNameSignal}
+          editName={App.editNameCell}
+          setEditName={App.setEditName}
           focusEditor={focusEditor}
-          selectedNoteProblems={props.app.selectedNoteProblemsSignal}
+          selectedNoteProblems={App.selectedNoteProblemsSignal}
           />
       </div>
       { showEditorPane &&
@@ -352,13 +348,13 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
           <Catch>
             <EditorPane
               ref={editorRef}
-              selectedFile={props.app.selectedFileSignal}
-              moduleName={props.app.selectedCell}
-              compiledFile={props.app.compiledFileSignal}
-              session={props.app.sessionSignal}
-              mouse={props.app.mouseSignal}
-              setSession={props.app.setSessionSignal}
-              setSelected={props.app.setSelected}
+              selectedFile={App.selectedFileSignal}
+              moduleName={App.selectedCell}
+              compiledFile={App.compiledFileSignal}
+              session={App.sessionSignal}
+              mouse={App.mouseSignal}
+              setSession={App.setSessionSignal}
+              setSelected={App.setSelected}
             />
           </Catch>
         </div>
@@ -370,7 +366,7 @@ const Main = React.forwardRef<Main, Props>((props, ref) => {
         }}>
           <Catch>
             <DisplayPane
-              compiledNoteSignal={props.app.compiledNoteSignal}
+              compiledNoteSignal={App.compiledNoteSignal}
             />
           </Catch>
         </div>

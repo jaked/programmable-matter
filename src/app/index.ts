@@ -47,427 +47,413 @@ function typeOfPath(path: string): model.Types {
   }
 }
 
-export class App {
-  private files = Signal.cellOk<model.Files>(new Map());
+const files = Signal.cellOk<model.Files>(new Map());
 
-  // TODO(jaked) break versioning out to a separate module
-  private filesVersions: model.Files[] = [];
-  private filesVersionIndex = -1; // index of the current version
-  private filesWithVersions = this.files.mapInvertible(
-    files => files,
-    files => {
-      this.filesVersions.splice(this.filesVersionIndex + 1);
-      while (this.filesVersions.length >= 200)
-        this.filesVersions.shift();
-      this.filesVersions.push(files);
-      this.filesVersionIndex = this.filesVersions.length - 1;
-      return files;
-    },
-    true // eager
-  )
+// TODO(jaked) break versioning out to a separate module
+let filesVersions: model.Files[] = [];
+let filesVersionIndex = -1; // index of the current version
+const filesWithVersions = files.mapInvertible(
+  files => files,
+  files => {
+    filesVersions.splice(filesVersionIndex + 1);
+    while (filesVersions.length >= 200)
+      filesVersions.shift();
+    filesVersions.push(files);
+    filesVersionIndex = filesVersions.length - 1;
+    return files;
+  },
+  true // eager
+)
 
-  private filesystem = Filesystem(process.argv[process.argv.length - 1], this.filesWithVersions);
+let filesystem = Filesystem(process.argv[process.argv.length - 1], filesWithVersions);
 
-  constructor() {
-    this.render();
+export const mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
 
-    // TODO(jaked) do we need to remove these somewhere?
-    ipc.on('focus-search-box', () => this.mainRef.current && this.mainRef.current.focusSearchBox());
-    ipc.on('toggle-sidebar-visible', this.toggleSidebarVisible);
-    ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
-      this.setMainPaneView(view)
-    });
-    ipc.on('history-back', this.historyBack);
-    ipc.on('history-forward', this.historyForward);
-    ipc.on('global-undo', this.globalUndo);
-    ipc.on('global-redo', this.globalRedo);
-    ipc.on('previous-problem', this.previousProblem);
-    ipc.on('next-problem', this.nextProblem);
+export const editNameCell = Signal.cellOk<string | undefined>(undefined);
+export const setEditName = (editName: string | undefined) => editNameCell.setOk(editName)
 
-    ipc.on('delete-note', this.deleteNote);
+// TODO(jaked)
+// selection + history needs its own module + tests
+let history: string[] = [];
+let historyIndex: number = -1; // index of current selection, or -1 if none
+export const selectedCell = Signal.cellOk<string | null>(null);
 
-    ipc.on('publish-site', this.publishSite);
-    ipc.on('sync-google-tasks', this.syncGoogleTasks);
+function rewriteName(name: string | null): string | null {
+  if (name === null) return null;
+  const compiledNotes = compiledNotesSignal.get();
+  return Name.rewrite(compiledNotes, name);
+}
 
-    ipc.on('focus', () => this.filesystem.start());
-    ipc.on('blur', () => this.filesystem.stop());
-
-    ipc.on('set-data-dir', async (_, path: string) => {
-      await this.filesystem.close();
-      this.files.setOk(new Map());
-      this.filesVersions = [];
-      this.filesVersionIndex = -1;
-      this.filesystem = Filesystem(path, this.filesWithVersions);
-    });
-
-    document.onmousemove = (e: MouseEvent) => {
-      this.mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });
-    }
+export const setSelected = (selected: string | null) => {
+  selected = rewriteName(selected);
+  if (selected === selectedCell.get()) return;
+  if (selected !== null) {
+    history = history.slice(0, historyIndex + 1);
+    history.push(selected);
+    historyIndex++;
   }
+  selectedCell.setOk(selected);
+  setEditName(undefined);
+}
 
-  public mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
-
-  public editNameCell = Signal.cellOk<string | undefined>(undefined);
-  public setEditName = (editName: string | undefined) => this.editNameCell.setOk(editName)
-
-  private history: string[] = [];
-  private historyIndex: number = -1; // index of current selection, or -1 if none
-  public selectedCell = Signal.cellOk<string | null>(null);
-
-  // TODO(jaked)
-  // selection + history needs its own module + tests
-
-  private rewriteName(name: string | null): string | null {
-    if (name === null) return null;
-    const compiledNotes = this.compiledNotesSignal.get();
-    return Name.rewrite(compiledNotes, name);
-  }
-
-  public setSelected = (selected: string | null) => {
-    selected = this.rewriteName(selected);
-    if (selected === this.selectedCell.get()) return;
-    if (selected !== null) {
-      this.history = this.history.slice(0, this.historyIndex + 1);
-      this.history.push(selected);
-      this.historyIndex++;
-    }
-    this.selectedCell.setOk(selected);
-    this.setEditName(undefined);
-  }
-
-  public maybeSetSelected = (selected: string | null): boolean => {
-    selected = this.rewriteName(selected);
-    if (selected === null) return false;
-    else {
-      this.setSelected(selected);
-      return true;
-    }
-  }
-
-  private setFiles(filesVersion: model.Files) {
-    const mtimeMs = Date.now();
-    const files: model.Files = new Map();
-    filesVersion.forEach((file, path) => {
-      files.set(path, { ...file, mtimeMs });
-    });
-    for (const path of this.filesystem.fsPaths()) {
-      if (!filesVersion.has(path)) {
-        files.set(path, { deleted: true, mtimeMs, buffer: emptyBuffer })
-      }
-    }
-    this.files.setOk(files);
-  }
-
-  private globalUndo = () => {
-    if (this.filesVersionIndex > 0) {
-      this.filesVersionIndex -= 1;
-      this.setFiles(this.filesVersions[this.filesVersionIndex]);
-    }
-  }
-
-  private globalRedo = () => {
-    if (this.filesVersionIndex < this.filesVersions.length - 1) {
-      this.filesVersionIndex += 1;
-      this.setFiles(this.filesVersions[this.filesVersionIndex]);
-    }
-  }
-
-  private historyBack = () => {
-    const notes = this.compiledNotesSignal.get();
-    const selected = this.selectedCell.get();
-    let newIndex = this.historyIndex;
-    // skip history entries of deleted notes
-    while (newIndex >= 0 && (this.history[newIndex] === selected || !notes.has(this.history[newIndex])))
-     newIndex--;
-    if (newIndex >= 0 && newIndex < this.history.length) {
-      this.historyIndex = newIndex;
-      this.selectedCell.setOk(this.history[newIndex]);
-      this.setEditName(undefined);
-    }
-  }
-  private historyForward = () => {
-    const notes = this.compiledNotesSignal.get();
-    const selected = this.selectedCell.get();
-    let newIndex = this.historyIndex;
-    // skip history entries of deleted notes
-    while (newIndex < this.history.length && (this.history[newIndex] === selected || !notes.has(this.history[newIndex])))
-     newIndex++;
-    if (newIndex >= 0 && newIndex < this.history.length) {
-      this.historyIndex = newIndex;
-      this.selectedCell.setOk(this.history[newIndex]);
-      this.setEditName(undefined);
-    }
-  }
-
-  public focusDirCell = Signal.cellOk<string | null>(null);
-  public setFocusDir = (focus: string | null) => {
-    this.focusDirCell.setOk(focus);
-  }
-
-  public sideBarVisibleCell = Signal.cellOk<boolean>(true);
-  public toggleSidebarVisible = () => {
-    this.sideBarVisibleCell.update(b => !b);
-  };
-
-  public mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
-  public setMainPaneView = (view: 'code' | 'display' | 'split') => {
-    this.mainPaneViewCell.setOk(view);
-  }
-
-  deleteNote = () => {
-    const selected = this.selectedCell.get();
-    this.setSelected(null);
-    if (selected === null) return;
-
-    const note = this.compiledNotesSignal.get().get(selected);
-    if (!note) return;
-
-    Object.values(note.files).forEach(file => {
-      if (!file) return;
-      this.filesystem.remove(file.path);
-    });
-  }
-
-  private contents = Signal.mapMap(
-    Signal.splitMapWritable(
-      Signal.filterMapWritable(
-        this.filesWithVersions,
-        file => !file.deleted
-      )
-    ),
-    (file, path) => {
-      const type = typeOfPath(path);
-
-      const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
-      const buffer = file.mapInvertible(
-        ({ buffer }) => buffer,
-        buffer => ({ buffer, mtimeMs: Date.now(), deleted: false })
-      );
-
-      let content: Signal.Writable<unknown>;
-      switch (type) {
-        case 'pm':
-          content = buffer.mapInvertible(
-            // TODO(jaked) handle parse / validate errors
-            buffer => {
-              const obj = JSON5.parse(buffer.toString('utf8'));
-              if (Array.isArray(obj)) {
-                PMAST.validateNodes(obj);
-                return {
-                  children: obj,
-                  selection: null,
-                  meta: {},
-                };
-              } else if ('nodes' in obj) {
-                PMAST.validateNodes(obj.nodes);
-                return {
-                  children: obj.nodes,
-                  selection: null,
-                  meta: Meta.validate(obj.meta)
-                }
-              } else if (obj.version === 1) {
-                PMAST.validateNodes(obj.children);
-                return {
-                  children: obj.children,
-                  selection: obj.selection,
-                  meta: Meta.validate(obj.meta)
-                }
-              }
-            },
-            obj => Buffer.from(JSON5.stringify({ version: 1, ...obj }, undefined, 2), 'utf8')
-          );
-          break;
-
-        case 'jpeg':
-          content = buffer;
-          break;
-
-        case 'png':
-          content = buffer;
-          break;
-
-        default:
-          content = buffer.mapInvertible(
-            buffer => buffer.toString('utf8'),
-            string => Buffer.from(string, 'utf8')
-          );
-      }
-      return { type, path, mtimeMs, content };
-    }
-  );
-
-  private compiledFilesSignalNotesSignal =
-    Compile.compileFiles(
-      this.contents,
-      this.filesystem.update,
-      this.filesystem.remove,
-      this.setSelected,
-    )
-  private compiledFilesSignal = this.compiledFilesSignalNotesSignal.compiledFiles;
-  public compiledNotesSignal = this.compiledFilesSignalNotesSignal.compiledNotes;
-
-  public compiledNoteSignal = Signal.label('compiledNote',
-    Signal.join(this.compiledNotesSignal, this.selectedCell).map(([compiledNotes, selected]) => {
-      if (selected !== null) {
-        const note = compiledNotes.get(selected);
-        if (note) return note;
-      }
-      return null;
-    })
-  );
-
-  public setNameSignal = this.compiledNoteSignal.map(compiledNote => {
-    if (compiledNote === null) return (name: string) => {};
-    else return (name: string) => {
-      name = Name.normalize(name);
-      Object.values(compiledNote.files).forEach(file => {
-        if (!file) return;
-        const pathParsed = Path.parse(file.path);
-        const newParsed = { ...pathParsed, base: undefined, dir: Name.dirname(name), name: Name.basename(name) };
-        const newPath = Path.format(newParsed);
-        this.filesystem.rename(file.path, newPath);
-      });
-      this.setSelected(name);
-    };
-  });
-
-  public onNewNoteSignal = mkNewNote({
-    fsUpdate: this.filesystem.update,
-    notes: this.compiledNotesSignal,
-    focusDir: this.focusDirCell,
-    callback: (name: string) => {
-      this.setSelected(name);
-      this.setEditName(name);
-    }
-  });
-
-  public selectedNoteProblemsSignal =
-    Signal.join(this.compiledFilesSignal, this.compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
-      // TODO(jaked)
-      // selectedNoteProblemsSignal is reconciled even when compiledNote is null
-      // why?
-      if (compiledNote === null) return Signal.ok({
-        pm: false, meta: false, table: false, json: false,
-      });
-
-      const name = compiledNote.name;
-      function problems(type: model.Types) {
-        return compiledFiles.get(Name.pathOfName(name, type))?.problems ?? Signal.ok(false);
-      }
-      // TODO(jaked) pass these on note instead of reconstructing
-      return Signal.join(
-        problems('pm'),
-        problems('meta'),
-        problems('table'),
-        problems('json'),
-      ).map(([pm, meta, table, json]) => ({
-        pm, meta, table, json
-      }));
-    });
-
-  public selectedFileSignal =
-    Signal.join(
-      this.compiledNoteSignal,
-      this.contents,
-    ).map(([compiledNote, files]) => {
-      if (compiledNote) {
-        const path = Name.pathOfName(compiledNote.name, compiledNote.type);
-        const file = files.get(path);
-        if (file) return file;
-      }
-      return null;
-    });
-
-  public compiledFileSignal = Signal.label('compiledFile',
-    Signal.join(this.selectedFileSignal, this.compiledFilesSignal).map(([file, compiledFiles]) => {
-      if (file) {
-        const compiledFile = compiledFiles.get(file.path) ?? bug(`expected compiled file for ${file.path}`);
-        return compiledFile;
-      }
-      return null;
-    })
-  );
-
-  private sessionsCell = Signal.cellOk<Map<string, Session>>(new Map());
-  public sessionSignal = Signal.label('session',
-    Signal.join(this.selectedFileSignal, this.sessionsCell).map(([file, sessions]) => {
-      if (file) {
-        const session = sessions.get(file.path);
-        if (session) {
-          return session;
-        }
-      }
-      return emptySession();
-    })
-  );
-
-  public setSessionSignal = Signal.label('setSession',
-    this.selectedFileSignal.map(file => {
-      const noop = (session: Session) => {};
-      if (!file) return noop;
-      return (session: Session) => {
-        this.sessionsCell.produce(sessions => { sessions.set(file.path, session) });
-      };
-    })
-  );
-
-  private server =
-    new Server(this.compiledNotesSignal);
-
-  private mainRef = React.createRef<Main>();
-
-  private render = () => {
-    ReactDOM.render(
-      React.createElement(Main, { ref: this.mainRef, app: this }),
-      document.getElementById('main')
-    );
-  }
-
-  private nextProblem = () => {
-    // TODO(jaked)
-    // const selected = this.selected;
-    // const matchingNotes = this.matchingNotes;
-    // const nextIndex = matchingNotes.findIndex(note => note.name === selected) + 1;
-    // let cont = true;
-    // for (let i = 0; cont && i < matchingNotes.length; i++) {
-    //   const index = (nextIndex + i) % matchingNotes.length;
-    //   const matchingNote = matchingNotes[index];
-    //   // TODO(jaked) separate selectable content objects in notes?
-    //   if (matchingNote.problems.get() === true) {
-    //     cont = false;
-    //     this.setSelected(matchingNote.name);
-    //   }
-    // }
-  }
-
-  private previousProblem = () => {
-    // TODO(jaked)
-    // const selected = this.selected;
-    // const matchingNotes = this.matchingNotes;
-    // const previousIndex = matchingNotes.findIndex(note => note.name === selected) - 1;
-    // let cont = true;
-    // for (let i = matchingNotes.length - 1; cont && i > 0; i--) {
-    //   const index = (previousIndex + i) % matchingNotes.length;
-    //   const matchingNote = matchingNotes[index];
-    //   // TODO(jaked) separate selectable content objects in notes?
-    //   if (matchingNote.problems.get() === true) {
-    //     cont = false;
-    //     this.setSelected(matchingNote.name);
-    //   }
-    // }
-  }
-
-  publishSite = async () => {
-    const compiledNotes = this.compiledNotesSignal.get();
-    ghPages(compiledNotes);
-  }
-
-  syncGoogleTasks = () => {
-    // TODO(jaked) should do this via Filesystem object
-    // not via direct filesystem accesss
-    const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-    GTasks.authAndSyncTaskLists(filesPath);
+export const maybeSetSelected = (selected: string | null): boolean => {
+  selected = rewriteName(selected);
+  if (selected === null) return false;
+  else {
+    setSelected(selected);
+    return true;
   }
 }
 
-const app = new App();
+function setFiles(filesVersion: model.Files) {
+  const mtimeMs = Date.now();
+  const newFiles: model.Files = new Map();
+  filesVersion.forEach((file, path) => {
+    newFiles.set(path, { ...file, mtimeMs });
+  });
+  for (const path of filesystem.fsPaths()) {
+    if (!filesVersion.has(path)) {
+      newFiles.set(path, { deleted: true, mtimeMs, buffer: emptyBuffer })
+    }
+  }
+  files.setOk(newFiles);
+}
+
+const globalUndo = () => {
+  if (filesVersionIndex > 0) {
+    filesVersionIndex -= 1;
+    setFiles(filesVersions[filesVersionIndex]);
+  }
+}
+
+const globalRedo = () => {
+  if (filesVersionIndex < filesVersions.length - 1) {
+    filesVersionIndex += 1;
+    setFiles(filesVersions[filesVersionIndex]);
+  }
+}
+
+const historyBack = () => {
+  const notes = compiledNotesSignal.get();
+  const selected = selectedCell.get();
+  let newIndex = historyIndex;
+  // skip history entries of deleted notes
+  while (newIndex >= 0 && (history[newIndex] === selected || !notes.has(history[newIndex])))
+    newIndex--;
+  if (newIndex >= 0 && newIndex < history.length) {
+    historyIndex = newIndex;
+    selectedCell.setOk(history[newIndex]);
+    setEditName(undefined);
+  }
+}
+
+const historyForward = () => {
+  const notes = compiledNotesSignal.get();
+  const selected = selectedCell.get();
+  let newIndex = historyIndex;
+  // skip history entries of deleted notes
+  while (newIndex < history.length && (history[newIndex] === selected || !notes.has(history[newIndex])))
+    newIndex++;
+  if (newIndex >= 0 && newIndex < history.length) {
+    historyIndex = newIndex;
+    selectedCell.setOk(history[newIndex]);
+    setEditName(undefined);
+  }
+}
+
+export const focusDirCell = Signal.cellOk<string | null>(null);
+export const setFocusDir = (focus: string | null) => {
+  focusDirCell.setOk(focus);
+}
+
+export const sideBarVisibleCell = Signal.cellOk<boolean>(true);
+const toggleSidebarVisible = () => {
+  sideBarVisibleCell.update(b => !b);
+};
+
+export const mainPaneViewCell = Signal.cellOk<'code' | 'display' | 'split'>('split');
+const setMainPaneView = (view: 'code' | 'display' | 'split') => {
+  mainPaneViewCell.setOk(view);
+}
+
+const deleteNote = () => {
+  const selected = selectedCell.get();
+  setSelected(null);
+  if (selected === null) return;
+
+  const note = compiledNotesSignal.get().get(selected);
+  if (!note) return;
+
+  Object.values(note.files).forEach(file => {
+    if (!file) return;
+    filesystem.remove(file.path);
+  });
+}
+
+const contents = Signal.mapMap(
+  Signal.splitMapWritable(
+    Signal.filterMapWritable(
+      filesWithVersions,
+      file => !file.deleted
+    )
+  ),
+  (file, path) => {
+    const type = typeOfPath(path);
+
+    const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
+    const buffer = file.mapInvertible(
+      ({ buffer }) => buffer,
+      buffer => ({ buffer, mtimeMs: Date.now(), deleted: false })
+    );
+
+    let content: Signal.Writable<unknown>;
+    switch (type) {
+      case 'pm':
+        content = buffer.mapInvertible(
+          // TODO(jaked) handle parse / validate errors
+          buffer => {
+            const obj = JSON5.parse(buffer.toString('utf8'));
+            if (Array.isArray(obj)) {
+              PMAST.validateNodes(obj);
+              return {
+                children: obj,
+                selection: null,
+                meta: {},
+              };
+            } else if ('nodes' in obj) {
+              PMAST.validateNodes(obj.nodes);
+              return {
+                children: obj.nodes,
+                selection: null,
+                meta: Meta.validate(obj.meta)
+              }
+            } else if (obj.version === 1) {
+              PMAST.validateNodes(obj.children);
+              return {
+                children: obj.children,
+                selection: obj.selection,
+                meta: Meta.validate(obj.meta)
+              }
+            }
+          },
+          obj => Buffer.from(JSON5.stringify({ version: 1, ...obj }, undefined, 2), 'utf8')
+        );
+        break;
+
+      case 'jpeg':
+        content = buffer;
+        break;
+
+      case 'png':
+        content = buffer;
+        break;
+
+      default:
+        content = buffer.mapInvertible(
+          buffer => buffer.toString('utf8'),
+          string => Buffer.from(string, 'utf8')
+        );
+    }
+    return { type, path, mtimeMs, content };
+  }
+);
+
+const compiledFilesSignalNotesSignal =
+  Compile.compileFiles(
+    contents,
+    filesystem.update,
+    filesystem.remove,
+    setSelected,
+  )
+const compiledFilesSignal = compiledFilesSignalNotesSignal.compiledFiles;
+export const compiledNotesSignal = compiledFilesSignalNotesSignal.compiledNotes;
+
+export const compiledNoteSignal = Signal.label('compiledNote',
+  Signal.join(compiledNotesSignal, selectedCell).map(([compiledNotes, selected]) => {
+    if (selected !== null) {
+      const note = compiledNotes.get(selected);
+      if (note) return note;
+    }
+    return null;
+  })
+);
+
+export const setNameSignal = compiledNoteSignal.map(compiledNote => {
+  if (compiledNote === null) return (name: string) => {};
+  else return (name: string) => {
+    name = Name.normalize(name);
+    Object.values(compiledNote.files).forEach(file => {
+      if (!file) return;
+      const pathParsed = Path.parse(file.path);
+      const newParsed = { ...pathParsed, base: undefined, dir: Name.dirname(name), name: Name.basename(name) };
+      const newPath = Path.format(newParsed);
+      filesystem.rename(file.path, newPath);
+    });
+    setSelected(name);
+  };
+});
+
+export const onNewNoteSignal = mkNewNote({
+  fsUpdate: filesystem.update,
+  notes: compiledNotesSignal,
+  focusDir: focusDirCell,
+  callback: (name: string) => {
+    setSelected(name);
+    setEditName(name);
+  }
+});
+
+export const selectedNoteProblemsSignal =
+  Signal.join(compiledFilesSignal, compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
+    // TODO(jaked)
+    // selectedNoteProblemsSignal is reconciled even when compiledNote is null
+    // why?
+    if (compiledNote === null) return Signal.ok({
+      pm: false, meta: false, table: false, json: false,
+    });
+
+    const name = compiledNote.name;
+    function problems(type: model.Types) {
+      return compiledFiles.get(Name.pathOfName(name, type))?.problems ?? Signal.ok(false);
+    }
+    // TODO(jaked) pass these on note instead of reconstructing
+    return Signal.join(
+      problems('pm'),
+      problems('meta'),
+      problems('table'),
+      problems('json'),
+    ).map(([pm, meta, table, json]) => ({
+      pm, meta, table, json
+    }));
+  });
+
+export const selectedFileSignal =
+  Signal.join(
+    compiledNoteSignal,
+    contents,
+  ).map(([compiledNote, files]) => {
+    if (compiledNote) {
+      const path = Name.pathOfName(compiledNote.name, compiledNote.type);
+      const file = files.get(path);
+      if (file) return file;
+    }
+    return null;
+  });
+
+export const compiledFileSignal = Signal.label('compiledFile',
+  Signal.join(selectedFileSignal, compiledFilesSignal).map(([file, compiledFiles]) => {
+    if (file) {
+      const compiledFile = compiledFiles.get(file.path) ?? bug(`expected compiled file for ${file.path}`);
+      return compiledFile;
+    }
+    return null;
+  })
+);
+
+const sessionsCell = Signal.cellOk<Map<string, Session>>(new Map());
+export const sessionSignal = Signal.label('session',
+  Signal.join(selectedFileSignal, sessionsCell).map(([file, sessions]) => {
+    if (file) {
+      const session = sessions.get(file.path);
+      if (session) {
+        return session;
+      }
+    }
+    return emptySession();
+  })
+);
+
+export const setSessionSignal = Signal.label('setSession',
+  selectedFileSignal.map(file => {
+    const noop = (session: Session) => {};
+    if (!file) return noop;
+    return (session: Session) => {
+      sessionsCell.produce(sessions => { sessions.set(file.path, session) });
+    };
+  })
+);
+
+const server =
+  new Server(compiledNotesSignal);
+
+const mainRef = React.createRef<Main>();
+
+const nextProblem = () => {
+  // TODO(jaked)
+  // const nextIndex = matchingNotes.findIndex(note => note.name === selected) + 1;
+  // let cont = true;
+  // for (let i = 0; cont && i < matchingNotes.length; i++) {
+  //   const index = (nextIndex + i) % matchingNotes.length;
+  //   const matchingNote = matchingNotes[index];
+  //   // TODO(jaked) separate selectable content objects in notes?
+  //   if (matchingNote.problems.get() === true) {
+  //     cont = false;
+  //     setSelected(matchingNote.name);
+  //   }
+  // }
+}
+
+const previousProblem = () => {
+  // TODO(jaked)
+  // const previousIndex = matchingNotes.findIndex(note => note.name === selected) - 1;
+  // let cont = true;
+  // for (let i = matchingNotes.length - 1; cont && i > 0; i--) {
+  //   const index = (previousIndex + i) % matchingNotes.length;
+  //   const matchingNote = matchingNotes[index];
+  //   // TODO(jaked) separate selectable content objects in notes?
+  //   if (matchingNote.problems.get() === true) {
+  //     cont = false;
+  //     setSelected(matchingNote.name);
+  //   }
+  // }
+}
+
+const publishSite = async () => {
+  const compiledNotes = compiledNotesSignal.get();
+  ghPages(compiledNotes);
+}
+
+const syncGoogleTasks = () => {
+  // TODO(jaked) should do this via Filesystem object
+  // not via direct filesystem accesss
+  const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
+  GTasks.authAndSyncTaskLists(filesPath);
+}
+
+// TODO(jaked) do we need to remove these somewhere?
+ipc.on('focus-search-box', () => mainRef.current && mainRef.current.focusSearchBox());
+ipc.on('toggle-sidebar-visible', toggleSidebarVisible);
+ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
+  setMainPaneView(view)
+});
+ipc.on('history-back', historyBack);
+ipc.on('history-forward', historyForward);
+ipc.on('global-undo', globalUndo);
+ipc.on('global-redo', globalRedo);
+ipc.on('previous-problem', previousProblem);
+ipc.on('next-problem', nextProblem);
+
+ipc.on('delete-note', deleteNote);
+
+ipc.on('publish-site', publishSite);
+ipc.on('sync-google-tasks', syncGoogleTasks);
+
+ipc.on('focus', () => filesystem.start());
+ipc.on('blur', () => filesystem.stop());
+
+ipc.on('set-data-dir', async (_, path: string) => {
+  await filesystem.close();
+  files.setOk(new Map());
+  filesVersions = [];
+  filesVersionIndex = -1;
+  filesystem = Filesystem(path, filesWithVersions);
+});
+
+document.onmousemove = (e: MouseEvent) => {
+  mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });
+}
+
+ReactDOM.render(
+  React.createElement(Main, { ref: mainRef }),
+  document.getElementById('main')
+);
