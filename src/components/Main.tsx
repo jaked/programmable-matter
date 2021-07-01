@@ -334,7 +334,6 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
           editName={App.editNameCell}
           setEditName={App.setEditName}
           focusEditor={focusEditor}
-          selectedNoteProblems={App.selectedNoteProblemsSignal}
           />
       </div>
       { showEditorPane &&

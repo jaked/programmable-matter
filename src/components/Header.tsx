@@ -21,7 +21,6 @@ type Props = {
   editName: string | undefined;
   setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
-  selectedNoteProblems: { meta?: boolean, pm?: boolean, table?: boolean, json?: boolean } | undefined,
 }
 
 export default Signal.liftComponent<Props>(props => {

@@ -253,30 +253,6 @@ export const onNewNoteSignal = mkNewNote({
   }
 });
 
-export const selectedNoteProblemsSignal =
-  Signal.join(compiledFilesSignal, compiledNoteSignal).flatMap(([compiledFiles, compiledNote]) => {
-    // TODO(jaked)
-    // selectedNoteProblemsSignal is reconciled even when compiledNote is null
-    // why?
-    if (compiledNote === null) return Signal.ok({
-      pm: false, meta: false, table: false, json: false,
-    });
-
-    const name = compiledNote.name;
-    function problems(type: model.Types) {
-      return compiledFiles.get(Name.pathOfName(name, type))?.problems ?? Signal.ok(false);
-    }
-    // TODO(jaked) pass these on note instead of reconstructing
-    return Signal.join(
-      problems('pm'),
-      problems('meta'),
-      problems('table'),
-      problems('json'),
-    ).map(([pm, meta, table, json]) => ({
-      pm, meta, table, json
-    }));
-  });
-
 export const selectedFileSignal =
   Signal.join(
     compiledNoteSignal,
