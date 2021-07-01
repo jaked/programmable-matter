@@ -8,6 +8,8 @@ import * as model from '../model';
 import * as PMAST from '../model/PMAST';
 
 import * as App from '../app';
+import * as EditName from '../app/editName';
+import * as SelectedNote from '../app/selectedNote';
 
 import { Session } from './react-simple-code-editor';
 
@@ -316,9 +318,9 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
             <Sidebar
               ref={sidebarRef}
               compiledNotes={App.compiledNotesSignal}
-              selected={App.selectedCell}
-              setSelected={App.setSelected}
-              maybeSetSelected={App.maybeSetSelected}
+              selected={SelectedNote.selectedCell}
+              setSelected={SelectedNote.setSelected}
+              maybeSetSelected={SelectedNote.maybeSetSelected}
               focusDir={App.focusDirCell}
               setFocusDir={App.setFocusDir}
               onNewNote={App.onNewNoteSignal}
@@ -329,10 +331,10 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
       }
       <div style={{ gridArea: 'header' }}>
         <Header
-          name={App.selectedCell}
+          name={SelectedNote.selectedCell}
           setName={App.setNameSignal}
-          editName={App.editNameCell}
-          setEditName={App.setEditName}
+          editName={EditName.editNameCell}
+          setEditName={EditName.setEditName}
           focusEditor={focusEditor}
           />
       </div>
@@ -348,12 +350,12 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
             <EditorPane
               ref={editorRef}
               selectedFile={App.selectedFileSignal}
-              moduleName={App.selectedCell}
+              moduleName={SelectedNote.selectedCell}
               compiledFile={App.compiledFileSignal}
               session={App.sessionSignal}
               mouse={App.mouseSignal}
               setSession={App.setSessionSignal}
-              setSelected={App.setSelected}
+              setSelected={SelectedNote.setSelected}
             />
           </Catch>
         </div>

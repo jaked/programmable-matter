@@ -6,7 +6,7 @@ import * as Name from '../../util/Name';
 import * as model from '../../model';
 
 import compileFile from './compileFile';
-import groupFilesByName from './groupFilesByName';
+import groupFilesByName from '../../util/groupFilesByName';
 import metaForPath from './metaForPath';
 
 function mergeModule<T>(

@@ -26,6 +26,9 @@ import * as GTasks from '../integrations/gtasks';
 import ghPages from '../publish/ghPages';
 
 import * as Files from './files';
+import * as EditName from './editName';
+import * as SelectedNote from './selectedNote';
+
 import mkNewNote from './newNote';
 
 const debug = false;
@@ -47,69 +50,6 @@ function typeOfPath(path: string): model.Types {
 
 export const mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
 
-export const editNameCell = Signal.cellOk<string | undefined>(undefined);
-export const setEditName = (editName: string | undefined) => editNameCell.setOk(editName)
-
-// TODO(jaked)
-// selection + history needs its own module + tests
-let history: string[] = [];
-let historyIndex: number = -1; // index of current selection, or -1 if none
-export const selectedCell = Signal.cellOk<string | null>(null);
-
-function rewriteName(name: string | null): string | null {
-  if (name === null) return null;
-  const compiledNotes = compiledNotesSignal.get();
-  return Name.rewrite(compiledNotes, name);
-}
-
-export const setSelected = (selected: string | null) => {
-  selected = rewriteName(selected);
-  if (selected === selectedCell.get()) return;
-  if (selected !== null) {
-    history = history.slice(0, historyIndex + 1);
-    history.push(selected);
-    historyIndex++;
-  }
-  selectedCell.setOk(selected);
-  setEditName(undefined);
-}
-
-export const maybeSetSelected = (selected: string | null): boolean => {
-  selected = rewriteName(selected);
-  if (selected === null) return false;
-  else {
-    setSelected(selected);
-    return true;
-  }
-}
-
-const historyBack = () => {
-  const notes = compiledNotesSignal.get();
-  const selected = selectedCell.get();
-  let newIndex = historyIndex;
-  // skip history entries of deleted notes
-  while (newIndex >= 0 && (history[newIndex] === selected || !notes.has(history[newIndex])))
-    newIndex--;
-  if (newIndex >= 0 && newIndex < history.length) {
-    historyIndex = newIndex;
-    selectedCell.setOk(history[newIndex]);
-    setEditName(undefined);
-  }
-}
-
-const historyForward = () => {
-  const notes = compiledNotesSignal.get();
-  const selected = selectedCell.get();
-  let newIndex = historyIndex;
-  // skip history entries of deleted notes
-  while (newIndex < history.length && (history[newIndex] === selected || !notes.has(history[newIndex])))
-    newIndex++;
-  if (newIndex >= 0 && newIndex < history.length) {
-    historyIndex = newIndex;
-    selectedCell.setOk(history[newIndex]);
-    setEditName(undefined);
-  }
-}
 
 export const focusDirCell = Signal.cellOk<string | null>(null);
 export const setFocusDir = (focus: string | null) => {
@@ -127,8 +67,8 @@ const setMainPaneView = (view: 'code' | 'display' | 'split') => {
 }
 
 const deleteNote = () => {
-  const selected = selectedCell.get();
-  setSelected(null);
+  const selected = SelectedNote.selectedCell.get();
+  SelectedNote.setSelected(null);
   if (selected === null) return;
 
   const note = compiledNotesSignal.get().get(selected);
@@ -213,13 +153,13 @@ const compiledFilesSignalNotesSignal =
     contents,
     Files.filesystem.update,
     Files.filesystem.remove,
-    setSelected,
+    SelectedNote.setSelected,
   )
 const compiledFilesSignal = compiledFilesSignalNotesSignal.compiledFiles;
 export const compiledNotesSignal = compiledFilesSignalNotesSignal.compiledNotes;
 
 export const compiledNoteSignal = Signal.label('compiledNote',
-  Signal.join(compiledNotesSignal, selectedCell).map(([compiledNotes, selected]) => {
+  Signal.join(compiledNotesSignal, SelectedNote.selectedCell).map(([compiledNotes, selected]) => {
     if (selected !== null) {
       const note = compiledNotes.get(selected);
       if (note) return note;
@@ -239,7 +179,7 @@ export const setNameSignal = compiledNoteSignal.map(compiledNote => {
       const newPath = Path.format(newParsed);
       Files.filesystem.rename(file.path, newPath);
     });
-    setSelected(name);
+    SelectedNote.setSelected(name);
   };
 });
 
@@ -248,8 +188,8 @@ export const onNewNoteSignal = mkNewNote({
   notes: compiledNotesSignal,
   focusDir: focusDirCell,
   callback: (name: string) => {
-    setSelected(name);
-    setEditName(name);
+    SelectedNote.setSelected(name);
+    EditName.setEditName(name);
   }
 });
 
@@ -352,8 +292,8 @@ ipc.on('toggle-sidebar-visible', toggleSidebarVisible);
 ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
   setMainPaneView(view)
 });
-ipc.on('history-back', historyBack);
-ipc.on('history-forward', historyForward);
+ipc.on('history-back', SelectedNote.historyBack);
+ipc.on('history-forward', SelectedNote.historyForward);
 ipc.on('global-undo', Files.globalUndo);
 ipc.on('global-redo', Files.globalRedo);
 ipc.on('previous-problem', previousProblem);
