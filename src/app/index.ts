@@ -24,17 +24,13 @@ import * as Contents from './contents';
 import * as EditName from './editName';
 import * as SelectedNote from './selectedNote';
 import * as Compiled from './compiled';
+import * as Sidebar from './sidebar';
 
 import mkNewNote from './newNote';
 
 const debug = false;
 
 export const mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
-
-export const focusDirCell = Signal.cellOk<string | null>(null);
-export const setFocusDir = (focus: string | null) => {
-  focusDirCell.setOk(focus);
-}
 
 export const sideBarVisibleCell = Signal.cellOk<boolean>(true);
 const toggleSidebarVisible = () => {
@@ -78,7 +74,7 @@ export const setNameSignal = Compiled.compiledNoteSignal.map(compiledNote => {
 export const onNewNoteSignal = mkNewNote({
   fsUpdate: Files.filesystem.update,
   notes: Compiled.compiledNotesSignal,
-  focusDir: focusDirCell,
+  focusDir: Sidebar.focusDirCell,
   callback: (name: string) => {
     SelectedNote.setSelected(name);
     EditName.setEditName(name);

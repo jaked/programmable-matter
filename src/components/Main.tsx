@@ -322,8 +322,6 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
               selected={SelectedNote.selectedCell}
               setSelected={SelectedNote.setSelected}
               maybeSetSelected={SelectedNote.maybeSetSelected}
-              focusDir={App.focusDirCell}
-              setFocusDir={App.setFocusDir}
               onNewNote={App.onNewNoteSignal}
               focusEditor={focusEditor}
             />
