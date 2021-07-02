@@ -8,11 +8,7 @@ import * as Name from '../../util/Name';
 import * as App from '../../app';
 import * as SelectedNote from '../../app/selectedNote';
 import * as Sidebar from '../../app/sidebar';
-
-type Props = {
-  focusNotes: () => void;
-  focusEditor: () => void;
-}
+import * as Focus from '../../app/focus';
 
 const FocusDir = styled(Box)`
   white-space: nowrap;
@@ -60,11 +56,7 @@ Button.defaultProps = {
   as: 'button'
 }
 
-type SearchBox = {
-  focus: () => void
-};
-
-const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
+const SearchBox = () => {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const search = Signal.useSignal(Sidebar.searchCell);
@@ -72,15 +64,17 @@ const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
   const onNewNote = Signal.useSignal(App.onNewNoteSignal);
   const matchingNotes = Signal.useSignal(Sidebar.matchingNotesSignal);
 
-  React.useImperativeHandle(ref, () => ({
-    focus: () => {
-      const input = inputRef.current;
-      if (input) {
-        input.setSelectionRange(0, input.value.length)
+  // TODO(jaked) useFocus hook?
+  const focused = Signal.useSignal(Focus.searchboxFocused);
+  React.useEffect(() => {
+    const input = inputRef.current;
+    if (input) {
+      if (focused) {
         input.focus();
+        input.setSelectionRange(0, input.value.length);
       }
     }
-  }));
+  }, [focused]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
@@ -88,13 +82,13 @@ const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
 
     switch (e.key) {
       case 'ArrowUp':
-        props.focusNotes();
+        Focus.focus.setOk('notes');
         SelectedNote.setSelected(matchingNotes[matchingNotes.length - 1].name);
         e.preventDefault();
         break;
 
       case 'ArrowDown':
-        props.focusNotes();
+        Focus.focus.setOk('notes');
         SelectedNote.setSelected(matchingNotes[0].name);
         e.preventDefault();
         break;
@@ -102,7 +96,7 @@ const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
       case 'Enter':
         const name = focusDir ? Name.join(focusDir, search) : search;
         if (SelectedNote.maybeSetSelected(name)) {
-          props.focusEditor();
+          Focus.focus.setOk('editor');
         } else {
           onNewNote(name);
         }
@@ -137,6 +131,6 @@ const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
       >+</Button>
     </OuterBox>
   );
-});
+}
 
 export default SearchBox;

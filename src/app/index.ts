@@ -25,6 +25,7 @@ import * as EditName from './editName';
 import * as SelectedNote from './selectedNote';
 import * as Compiled from './compiled';
 import * as Sidebar from './sidebar';
+import * as Focus from './focus';
 
 import mkNewNote from './newNote';
 
@@ -128,8 +129,6 @@ export const setSessionSignal = Signal.label('setSession',
 const server =
   new Server(Compiled.compiledNotesSignal);
 
-const mainRef = React.createRef<Main>();
-
 const nextProblem = () => {
   // TODO(jaked)
   // const nextIndex = matchingNotes.findIndex(note => note.name === selected) + 1;
@@ -173,7 +172,7 @@ const syncGoogleTasks = () => {
 }
 
 // TODO(jaked) do we need to remove these somewhere?
-ipc.on('focus-search-box', () => mainRef.current && mainRef.current.focusSearchBox());
+ipc.on('focus-search-box', () => Focus.focus.setOk('searchbox'));
 ipc.on('toggle-sidebar-visible', toggleSidebarVisible);
 ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
   setMainPaneView(view)
@@ -200,6 +199,6 @@ document.onmousemove = (e: MouseEvent) => {
 }
 
 ReactDOM.render(
-  React.createElement(Main, { ref: mainRef }),
+  React.createElement(Main),
   document.getElementById('main')
 );

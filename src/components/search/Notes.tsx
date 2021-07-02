@@ -10,6 +10,7 @@ import * as model from '../../model';
 
 import * as SelectedNote from '../../app/selectedNote';
 import * as Sidebar from '../../app/sidebar';
+import * as Focus from '../../app/focus';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
@@ -79,20 +80,24 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   );
 });
 
-interface Props {
-  focusEditor: () => void;
-}
-
-type Notes = {
-  focus: () => void
-};
-
-const Notes = React.forwardRef<Notes, Props>((props, ref) => {
+const Notes = () => {
   const selected = Signal.useSignal(SelectedNote.selectedNote);
   const focusDir = Signal.useSignal(Sidebar.focusDirCell);
   const notes = Signal.useSignal(Sidebar.matchingNotesSignal);
   const onSelect = SelectedNote.setSelected;
   const onFocusDir = Sidebar.setFocusDir;
+
+  const boxRef = React.useRef<typeof Box>(null);
+  // TODO(jaked) useFocus hook?
+  const focused = Signal.useSignal(Focus.notesFocused);
+  React.useEffect(() => {
+    const box = boxRef.current;
+    if (box) {
+      if (focused) {
+        box.focus();
+      }
+    }
+  }, [focused]);
 
   function nextNote() {
     const length = notes.length;
@@ -123,7 +128,7 @@ const Notes = React.forwardRef<Notes, Props>((props, ref) => {
         return true;
 
       case 'Enter':
-        props.focusEditor();
+        Focus.focus.setOk('editor');
         return true;
 
       default: return false;
@@ -139,7 +144,7 @@ const Notes = React.forwardRef<Notes, Props>((props, ref) => {
 
   return (
     <Box
-      ref={ref}
+      ref={boxRef}
       tabIndex='0'
       onKeyDown={(e: React.KeyboardEvent) => {
         if (onKeyDown(e))
@@ -162,6 +167,6 @@ const Notes = React.forwardRef<Notes, Props>((props, ref) => {
       </AutoSizer>
     </Box>
   );
-});
+};
 
 export default Notes;

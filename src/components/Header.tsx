@@ -17,11 +17,7 @@ const TitleBox = styled(Box)({
   padding: '2px',
 })
 
-type Props = {
-  focusEditor: () => void;
-}
-
-export default (props: Props) => {
+export default () => {
   const name = Signal.useSignal(SelectedNote.selectedNote);
 
   if (name === null)
@@ -30,9 +26,7 @@ export default (props: Props) => {
     return (
       <HeaderBox>
         <TitleBox>
-          <TitleBar
-            focusEditor={props.focusEditor}
-          />
+          <TitleBar />
         </TitleBox>
       </HeaderBox>
     );

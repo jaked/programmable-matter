@@ -7,10 +7,7 @@ import Signal from '../util/Signal';
 import * as SelectedNote from '../app/selectedNote';
 import * as EditName from '../app/editName';
 import * as App from '../app';
-
-type Props = {
-  focusEditor: () => void;
-}
+import * as Focus from '../app/focus';
 
 const InputBox = styled(BoxBase)({
   padding: '1px',
@@ -29,9 +26,8 @@ type InputProps = {
   setName: (s: string) => void;
   editName: string;
   setEditName: (s: string | undefined) => void;
-  focusEditor: () => void;
 };
-const Input = ({ setName, editName, setEditName, focusEditor }: InputProps) => {
+const Input = ({ setName, editName, setEditName }: InputProps) => {
   const ref = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
     if (ref.current) {
@@ -48,14 +44,14 @@ const Input = ({ setName, editName, setEditName, focusEditor }: InputProps) => {
     switch (e.key) {
       case 'Enter': {
         setName(editName);
-        focusEditor();
+        Focus.focus.setOk('editor');
         e.preventDefault();
         break;
       }
 
       case 'Escape': {
         setEditName(undefined);
-        focusEditor();
+        Focus.focus.setOk('editor');
         e.preventDefault();
         break;
       }
@@ -76,7 +72,7 @@ const Input = ({ setName, editName, setEditName, focusEditor }: InputProps) => {
   />;
 }
 
-export default ({ focusEditor }: Props) => {
+export default () => {
   const name = Signal.useSignal(SelectedNote.selectedNote);
   const setName = Signal.useSignal(App.setNameSignal);
   const editName = Signal.useSignal(EditName.editNameCell);
@@ -91,7 +87,6 @@ export default ({ focusEditor }: Props) => {
       setName={setName}
       editName={editName}
       setEditName={setEditName}
-      focusEditor={focusEditor}
     />;
   }
 };

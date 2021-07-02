@@ -62,7 +62,7 @@ type RichEditorProps = {
   setSelected: (selected: string | null) => void;
 }
 
-const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>((props, ref) => {
+const RichEditor = React.memo((props : RichEditorProps) => {
   const { children, selection, meta } = Signal.useSignal(props.content);
   const setValue = ({ children, selection }: { children: PMAST.Node[], selection: null | Range }) => {
     props.content.setOk({ children, selection, meta });
@@ -70,7 +70,6 @@ const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>(
 
   return (
     <RichTextEditor
-      ref={ref}
       value={{ children, selection }}
       setValue={setValue}
       moduleName={props.moduleName}
@@ -78,7 +77,7 @@ const RichEditor = React.memo(React.forwardRef<RichTextEditor, RichEditorProps>(
       setSelected={props.setSelected}
     />
   );
-}));
+});
 
 type StatusProps = {
   mouse: Signal<{ clientX: number, clientY: number }>;
@@ -127,19 +126,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   const selectedFile = Signal.useSignal(props.selectedFile);
   const moduleName = Signal.useSignal(props.moduleName);
   const compiledFile = Signal.useSignal(props.compiledFile);
-  const richEditorRef = React.useRef<RichTextEditor>(null);
-  const codeEditorRef = React.useRef<Editor>(null);
-
-  React.useImperativeHandle(ref, () => ({
-    focus: () => {
-      if (richEditorRef.current) {
-        richEditorRef.current.focus();
-      }
-      if (codeEditorRef.current) {
-        codeEditorRef.current.focus();
-      }
-    }
-  }));
 
   return (
     <div style={{
@@ -153,7 +139,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
         selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
         selectedFile.type === 'pm' ?
           <RichEditor
-            ref={richEditorRef}
             // TODO(jaked) Signal function to project from a Writable
             content={selectedFile.content as Signal.Writable<model.PMContent>}
             moduleName={moduleName}
@@ -161,7 +146,6 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
             setSelected={props.setSelected}
           /> :
           <CodeEditor
-            ref={codeEditorRef}
             type={selectedFile.type}
             content={selectedFile.content as Signal.Writable<string>}
             compiledFile={compiledFile}
@@ -248,34 +232,11 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
   </Frame>
 );
 
-type Main = {
-  focusSearchBox: () => void;
-}
-
-const Main = React.forwardRef<Main, {}>(({}, ref) => {
+const Main = () => {
   const sideBarVisible = Signal.useSignal(App.sideBarVisibleCell);
   const mainPaneView = Signal.useSignal(App.mainPaneViewCell);
 
-  const searchBoxRef = React.useRef<SearchBox>(null);
-  const notesRef = React.useRef<Notes>(null);
   const editorRef = React.useRef<EditorPane>(null);
-
-  // TODO(jaked) necessary to avoid spurious rerenders until Main is memoized
-  const focusEditor = React.useCallback(() => {
-    editorRef.current && editorRef.current.focus();
-  }, []);
-
-  const focusSearchBox = () => {
-    searchBoxRef.current && searchBoxRef.current.focus();
-  }
-
-  const focusNotes = () => {
-    notesRef.current && notesRef.current.focus();
-  }
-
-  React.useImperativeHandle(ref, () => ({
-    focusSearchBox
-  }))
 
   const [showEditorPane, showDisplayPane] = (
     mainPaneView === 'code' ? [true, false] :
@@ -321,11 +282,7 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
           borderRightColor: '#cccccc',
         }}>
           <Catch>
-            <SearchBox
-              ref={searchBoxRef}
-              focusNotes={focusNotes}
-              focusEditor={focusEditor}
-            />
+            <SearchBox />
           </Catch>
         </div>
       }
@@ -338,17 +295,12 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
           borderRightColor: '#cccccc',
         }}>
           <Catch>
-            <Notes
-              ref={notesRef}
-              focusEditor={focusEditor}
-            />
+            <Notes />
           </Catch>
         </div>
       }
       <div style={{ gridArea: 'header' }}>
-        <Header
-          focusEditor={focusEditor}
-          />
+        <Header />
       </div>
       { showEditorPane &&
         <div style={{
@@ -386,7 +338,6 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
       }
     </div>
   );
-});
+};
 
 export default Main;
-

@@ -15,6 +15,8 @@ import * as PMEditor from '../../editor/PMEditor';
 import * as Highlight from '../../lang/highlight';
 import makeLink from '../../components/makeLink';
 
+import * as Focus from '../../app/focus';
+
 const okComponents =
 {
   default:    styled.span({ color: '#000000' }),
@@ -234,11 +236,7 @@ export type RichTextEditorProps = {
   setSelected: (name: string) => void;
 }
 
-type RichTextEditor = {
-  focus: () => void
-}
-
-const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((props, ref) => {
+const RichTextEditor = (props: RichTextEditorProps) => {
   const editor = React.useMemo(() => {
     const editor = withHistory(withReact(PMEditor.withPMEditor(createEditor())));
 
@@ -262,11 +260,12 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
 
   editor.selection = props.value.selection;
 
-  React.useImperativeHandle(ref, () => ({
-    focus: () => {
+  const focused = Signal.useSignal(Focus.editorFocused);
+  React.useEffect(() => {
+    if (focused) {
       ReactEditor.focus(editor);
     }
-  }), [editor]);
+  }, [focused]);
 
   const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
   // TODO(jaked) can we use interfaceMap conditionally? breaks the rules of hooks but does it matter?
@@ -324,6 +323,6 @@ const RichTextEditor = React.forwardRef<RichTextEditor, RichTextEditorProps>((pr
       />
     </Slate>
   );
-});
+};
 
 export default RichTextEditor;
