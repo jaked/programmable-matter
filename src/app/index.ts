@@ -73,7 +73,7 @@ export const setNameSignal = Compiled.compiledNoteSignal.map(compiledNote => {
 
 export const onNewNoteSignal = mkNewNote({
   fsUpdate: Files.filesystem.update,
-  notes: Compiled.compiledNotesSignal,
+  notes: Files.filesByNameSignal,
   focusDir: Sidebar.focusDirCell,
   callback: (name: string) => {
     SelectedNote.setSelected(name);

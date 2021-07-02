@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
+
 import Signal from '../../util/Signal';
+import * as Name from '../../util/Name';
 
 import * as App from '../../app';
 import * as SelectedNote from '../../app/selectedNote';
@@ -98,10 +100,11 @@ const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
         break;
 
       case 'Enter':
-        if (SelectedNote.maybeSetSelected(search)) {
+        const name = focusDir ? Name.join(focusDir, search) : search;
+        if (SelectedNote.maybeSetSelected(name)) {
           props.focusEditor();
         } else {
-          onNewNote(search);
+          onNewNote(name);
         }
         e.preventDefault();
         break;

@@ -2,6 +2,8 @@ import Signal from '../util/Signal';
 import Filesystem from '../files/Filesystem';
 import * as model from '../model';
 
+import groupFilesByName from '../util/groupFilesByName';
+
 const emptyBuffer = Buffer.from('');
 
 const files = Signal.cellOk<model.Files>(new Map());
@@ -58,3 +60,6 @@ export async function setPath(path: string) {
   filesVersionIndex = -1;
   filesystem = Filesystem(path, filesWithVersions);
 }
+
+export const filesByNameSignal: Signal<Map<string, unknown>> =
+  groupFilesByName(filesWithVersions)

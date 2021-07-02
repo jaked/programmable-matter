@@ -3,18 +3,13 @@ import Signal from '../util/Signal';
 import * as Files from './files';
 import * as EditName from './editName';
 
-import groupFilesByName from '../util/groupFilesByName';
-
-const noteNamesSignal: Signal<Map<string, unknown>> =
-  groupFilesByName(Files.filesWithVersions)
-
 let history: string[] = [];
 let historyIndex: number = -1; // index of current selection, or -1 if none
 export const selectedCell = Signal.cellOk<string | null>(null);
 
 function rewriteName(name: string | null): string | null {
   if (name === null) return null;
-  const noteNames = noteNamesSignal.get();
+  const noteNames = Files.filesByNameSignal.get();
   return Name.rewrite(noteNames, name);
 }
 
@@ -40,7 +35,7 @@ export const maybeSetSelected = (selected: string | null): boolean => {
 }
 
 export const historyBack = () => {
-  const noteNames = noteNamesSignal.get();
+  const noteNames = Files.filesByNameSignal.get();
   const selected = selectedCell.get();
   let newIndex = historyIndex;
   // skip history entries of deleted notes
@@ -54,7 +49,7 @@ export const historyBack = () => {
 }
 
 export const historyForward = () => {
-  const noteNames = noteNamesSignal.get();
+  const noteNames = Files.filesByNameSignal.get();
   const selected = selectedCell.get();
   let newIndex = historyIndex;
   // skip history entries of deleted notes
