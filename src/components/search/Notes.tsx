@@ -19,6 +19,7 @@ const Box = styled(BoxBase)({
 });
 
 const Label = styled(BoxBase)`
+  flex: 1;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
