@@ -35,49 +35,11 @@ const Sidebar = React.memo(React.forwardRef<Sidebar, Props>((props, ref) => {
     focusNotes,
   }));
 
-  const onKeyDown = Signal.join(
-    AppSidebar.searchCell,
-    AppSidebar.matchingNotesSignal,
-    props.onNewNote,
-  ).map(([search, matchingNotes, onNewNote]) =>
-    (e: React.KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
-        return;
-
-      switch (e.key) {
-        case 'ArrowUp':
-          focusNotes();
-          props.setSelected(matchingNotes[matchingNotes.length - 1].name);
-          e.preventDefault();
-          break;
-
-        case 'ArrowDown':
-          focusNotes();
-          props.setSelected(matchingNotes[0].name);
-          e.preventDefault();
-          break;
-
-        case 'Enter':
-          if (props.maybeSetSelected(search)) {
-            props.focusEditor();
-          } else {
-            onNewNote(search);
-          }
-          e.preventDefault();
-          break;
-      }
-    }
-  );
-
   return (<>
     <SearchBox
       ref={searchBoxRef}
-      focusDir={AppSidebar.focusDirCell}
-      setFocusDir={AppSidebar.setFocusDir}
-      search={AppSidebar.searchCell}
-      onSearch={AppSidebar.setSearch}
-      onKeyDown={onKeyDown}
-      onNewNote={props.onNewNote}
+      focusNotes={focusNotes}
+      focusEditor={props.focusEditor}
     />
     <Notes
       ref={notesRef}

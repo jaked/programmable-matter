@@ -3,13 +3,13 @@ import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
 import Signal from '../../util/Signal';
 
+import * as App from '../../app';
+import * as SelectedNote from '../../app/selectedNote';
+import * as Sidebar from '../../app/sidebar';
+
 type Props = {
-  focusDir: string | null,
-  setFocusDir: (focusDir: string | null) => void,
-  search: string,
-  onSearch: (search: string) => void,
-  onKeyDown: (e: React.KeyboardEvent) => void,
-  onNewNote: (name: string) => void,
+  focusNotes: () => void;
+  focusEditor: () => void;
 }
 
 const FocusDir = styled(Box)`
@@ -62,8 +62,13 @@ type SearchBox = {
   focus: () => void
 };
 
-const SearchBox = Signal.liftRefForwardingComponent<SearchBox, Props>((props, ref) => {
+const SearchBox = React.forwardRef<SearchBox, Props>((props, ref) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const search = Signal.useSignal(Sidebar.searchCell);
+  const focusDir = Signal.useSignal(Sidebar.focusDirCell);
+  const onNewNote = Signal.useSignal(App.onNewNoteSignal);
+  const matchingNotes = Signal.useSignal(Sidebar.matchingNotesSignal);
 
   React.useImperativeHandle(ref, () => ({
     focus: () => {
@@ -75,10 +80,40 @@ const SearchBox = Signal.liftRefForwardingComponent<SearchBox, Props>((props, re
     }
   }));
 
-  const { focusDir, setFocusDir, search, onSearch, onKeyDown, onNewNote } = props;
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
+      return;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        props.focusNotes();
+        SelectedNote.setSelected(matchingNotes[matchingNotes.length - 1].name);
+        e.preventDefault();
+        break;
+
+      case 'ArrowDown':
+        props.focusNotes();
+        SelectedNote.setSelected(matchingNotes[0].name);
+        e.preventDefault();
+        break;
+
+      case 'Enter':
+        if (SelectedNote.maybeSetSelected(search)) {
+          props.focusEditor();
+        } else {
+          onNewNote(search);
+        }
+        e.preventDefault();
+        break;
+    }
+  };
+
   return (
     <OuterBox>
-      { focusDir ? <FocusDir onClick={() => setFocusDir(null)}>{focusDir + '/'}</FocusDir> : null }
+      { focusDir &&
+        <FocusDir
+          onClick={() => Sidebar.setFocusDir(null)}
+        >{focusDir + '/'}</FocusDir> }
       <InputBox>
         <Input
           ref={inputRef}
@@ -87,7 +122,7 @@ const SearchBox = Signal.liftRefForwardingComponent<SearchBox, Props>((props, re
           value={search}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             e.preventDefault();
-            onSearch(e.currentTarget.value);
+            Sidebar.setSearch(e.currentTarget.value);
           }}
           onKeyDown={onKeyDown}
         />
