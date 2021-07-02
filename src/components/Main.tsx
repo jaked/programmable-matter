@@ -15,7 +15,8 @@ import * as Compiled from '../app/compiled';
 import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
-import Sidebar from './search/Sidebar';
+import SearchBox from './search/SearchBox';
+import Notes from './search/Notes';
 import Header from './Header'
 import Editor from './Editor';
 import RichTextEditor from './editor/RichTextEditor';
@@ -256,7 +257,8 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
   const sideBarVisible = Signal.useSignal(App.sideBarVisibleCell);
   const mainPaneView = Signal.useSignal(App.mainPaneViewCell);
 
-  const sidebarRef = React.useRef<Sidebar>(null);
+  const searchBoxRef = React.useRef<SearchBox>(null);
+  const notesRef = React.useRef<Notes>(null);
   const editorRef = React.useRef<EditorPane>(null);
 
   // TODO(jaked) necessary to avoid spurious rerenders until Main is memoized
@@ -265,7 +267,11 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
   }, []);
 
   const focusSearchBox = () => {
-    sidebarRef.current && sidebarRef.current.focusSearchBox();
+    searchBoxRef.current && searchBoxRef.current.focus();
+  }
+
+  const focusNotes = () => {
+    notesRef.current && notesRef.current.focus();
   }
 
   React.useImperativeHandle(ref, () => ({
@@ -284,8 +290,8 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
   let gridTemplateAreasRow2 = '';
   if (sideBarVisible) {
     gridTemplateColumns += '20% ';
-    gridTemplateAreasRow1 += 'sidebar ';
-    gridTemplateAreasRow2 += 'sidebar ';
+    gridTemplateAreasRow1 += 'searchbox ';
+    gridTemplateAreasRow2 += 'notes ';
   }
   if (showEditorPane) {
     gridTemplateColumns += '2fr ';
@@ -309,20 +315,32 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
     }}>
       { sideBarVisible &&
         <div style={{
-          gridArea: 'sidebar',
-          overflow: 'auto',
+          gridArea: 'searchbox',
+          overflow: 'hidden',
           borderRightWidth: '1px',
           borderRightStyle: 'solid',
           borderRightColor: '#cccccc',
         }}>
           <Catch>
-            <Sidebar
-              ref={sidebarRef}
-              compiledNotes={Compiled.compiledNotesSignal}
-              selected={SelectedNote.selectedCell}
-              setSelected={SelectedNote.setSelected}
-              maybeSetSelected={SelectedNote.maybeSetSelected}
-              onNewNote={App.onNewNoteSignal}
+            <SearchBox
+              ref={searchBoxRef}
+              focusNotes={focusNotes}
+              focusEditor={focusEditor}
+            />
+          </Catch>
+        </div>
+      }
+      { sideBarVisible &&
+        <div style={{
+          gridArea: 'notes',
+          overflow: 'hidden',
+          borderRightWidth: '1px',
+          borderRightStyle: 'solid',
+          borderRightColor: '#cccccc',
+        }}>
+          <Catch>
+            <Notes
+              ref={notesRef}
               focusEditor={focusEditor}
             />
           </Catch>

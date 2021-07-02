@@ -8,6 +8,9 @@ import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import * as model from '../../model';
 
+import * as SelectedNote from '../../app/selectedNote';
+import * as Sidebar from '../../app/sidebar';
+
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
   outline: 'none',
@@ -42,7 +45,13 @@ const Flex = styled(FlexBase)`
 type NoteFnProps = {
   index: number,
   style: object,
-  data: Props,
+  data: {
+    notes: model.CompiledNote[],
+    selected: string | null,
+    onSelect: (s: string | null) => void,
+    focusDir: string | null,
+    onFocusDir: (s: string | null) => void,
+  },
 }
 
 const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
@@ -71,28 +80,33 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
 });
 
 interface Props {
-  notes: model.CompiledNote[];
-  selected: string | null;
-  onSelect: (name: string) => void;
-  focusDir: string | null;
-  onFocusDir: (name: string | null) => void;
   focusEditor: () => void;
 }
 
-export default Signal.liftRefForwardingComponent<HTMLDivElement, Props>((props, ref) => {
+type Notes = {
+  focus: () => void
+};
+
+const Notes = React.forwardRef<Notes, Props>((props, ref) => {
+  const selected = Signal.useSignal(SelectedNote.selectedCell);
+  const focusDir = Signal.useSignal(Sidebar.focusDirCell);
+  const notes = Signal.useSignal(Sidebar.matchingNotesSignal);
+  const onSelect = SelectedNote.setSelected;
+  const onFocusDir = Sidebar.setFocusDir;
+
   function nextNote() {
-    const length = props.notes.length;
-    let currIndex = props.notes.findIndex(note => note.name === props.selected);
-    const note = props.notes[(currIndex + 1) % length];
-    props.onSelect(note.name);
+    const length = notes.length;
+    let currIndex = notes.findIndex(note => note.name === selected);
+    const note = notes[(currIndex + 1) % length];
+    onSelect(note.name);
   }
 
   function prevNote() {
-    const length = props.notes.length;
-    let currIndex = props.notes.findIndex(note => note.name === props.selected);
+    const length = notes.length;
+    let currIndex = notes.findIndex(note => note.name === selected);
     if (currIndex === -1) currIndex = length;
-    const note = props.notes[(length + currIndex - 1) % length];
-    props.onSelect(note.name);
+    const note = notes[(length + currIndex - 1) % length];
+    onSelect(note.name);
   }
 
   function onKeyDown(e: React.KeyboardEvent): boolean {
@@ -116,12 +130,12 @@ export default Signal.liftRefForwardingComponent<HTMLDivElement, Props>((props, 
     }
   }
 
-  const selectedIndex = props.notes.findIndex(note => note.name === props.selected);
+  const selectedIndex = notes.findIndex(note => note.name === selected);
   const fixedSizeListRef = React.createRef<FixedSizeList>();
   React.useEffect(() => {
     const current = fixedSizeListRef.current;
     if (current && selectedIndex !== -1) current.scrollToItem(selectedIndex, 'auto');
-  }, [ props.selected ]);
+  }, [ selected ]);
 
   return (
     <Box
@@ -136,11 +150,11 @@ export default Signal.liftRefForwardingComponent<HTMLDivElement, Props>((props, 
         {({ height, width }) =>
           <FixedSizeList
             ref={fixedSizeListRef}
-            itemCount={props.notes.length}
+            itemCount={notes.length}
             itemSize={30} // TODO(jaked) compute somehow
             width={width}
             height={height}
-            itemData={props}
+            itemData={{ notes, selected, focusDir, onSelect, onFocusDir }}
           >
             {NoteFn}
           </FixedSizeList>
@@ -149,3 +163,5 @@ export default Signal.liftRefForwardingComponent<HTMLDivElement, Props>((props, 
     </Box>
   );
 });
+
+export default Notes;
