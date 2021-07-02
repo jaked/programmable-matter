@@ -8,7 +8,6 @@ import * as model from '../model';
 import * as PMAST from '../model/PMAST';
 
 import * as App from '../app';
-import * as EditName from '../app/editName';
 import * as SelectedNote from '../app/selectedNote';
 import * as Compiled from '../app/compiled';
 
@@ -348,10 +347,6 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
       }
       <div style={{ gridArea: 'header' }}>
         <Header
-          name={SelectedNote.selectedCell}
-          setName={App.setNameSignal}
-          editName={EditName.editNameCell}
-          setEditName={EditName.setEditName}
           focusEditor={focusEditor}
           />
       </div>

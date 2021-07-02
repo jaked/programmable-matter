@@ -408,70 +408,7 @@ var Signal;
         [ signal, signal.version ]
       );
     }
-  
     Signal.node = (signal) => React.createElement(SignalComponent, { signal });
-    function liftComponent(component) {
-        // TODO(jaked) fast path if no props / children are Signals?
-        // TODO(jaked) tighten up types?
-        return (props) => {
-            // memoize on props to avoid recreating on level changes
-            const signal = React.useMemo(() => Signal.joinObject(Object.keys(props).reduce((obj, key) => {
-                const value = props[key];
-                const signal = value instanceof SignalImpl ? value : Signal.ok(value);
-                return { ...obj, [key]: signal };
-            }, {})), Object.values(props));
-            const [_, update] = React.useState({});
-            const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
-            signal.depend(d);
-            React.useEffect(() => {
-                return () => signal.undepend(d);
-            }, [signal, d]);
-            signal.reconcile();
-            // memoize on signal + version to prune render
-            return React.useMemo(() => {
-                if (signal.value.type === 'ok') {
-                    return React.createElement(component, signal.value.ok);
-                }
-                else {
-                    console.log(signal.value.err);
-                    return React.createElement('pre', {}, signal.value.err);
-                }
-            }, [signal, signal.version]);
-        };
-    }
-    Signal.liftComponent = liftComponent;
-    function liftRefForwardingComponent(component) {
-        // create once to avoid remounts
-        const memoComponent = React.forwardRef(component);
-        return React.forwardRef((props, ref) => {
-            // memoize on props to avoid recreating on level changes
-            const signal = React.useMemo(() => {
-                return Signal.joinObject(Object.keys(props).reduce((obj, key) => {
-                    const value = props[key];
-                    const signal = value instanceof SignalImpl ? value : Signal.ok(value);
-                    return { ...obj, [key]: signal };
-                }, {}));
-            }, Object.values(props));
-            const [_, update] = React.useState({});
-            const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);
-            signal.depend(d);
-            React.useEffect(() => {
-                return () => { signal.undepend(d); };
-            }, [signal, d]);
-            signal.reconcile();
-            // memoize on signal + version to prune render
-            return React.useMemo(() => {
-                if (signal.value.type === 'ok') {
-                    return React.createElement(memoComponent, { ref, ...signal.value.ok });
-                }
-                else {
-                    console.log(signal.value.err);
-                    return React.createElement('pre', {}, signal.value.err);
-                }
-            }, [signal, signal.version]);
-        });
-    }
-    Signal.liftRefForwardingComponent = liftRefForwardingComponent;
     function useSignal(signal) {
         const [_, update] = React.useState({});
         const d = React.useMemo(() => ({ dirty: () => update({}) }), [update]);

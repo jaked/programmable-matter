@@ -2,11 +2,13 @@ import React from 'react';
 import { Box as BoxBase } from 'rebass';
 import styled from 'styled-components';
 
+import Signal from '../util/Signal';
+
+import * as SelectedNote from '../app/selectedNote';
+import * as EditName from '../app/editName';
+import * as App from '../app';
+
 type Props = {
-  name: string;
-  setName: (s: string) => void;
-  editName: string | undefined;
-  setEditName: (s: string | undefined) => void;
   focusEditor: () => void;
 }
 
@@ -74,8 +76,13 @@ const Input = ({ setName, editName, setEditName, focusEditor }: InputProps) => {
   />;
 }
 
-export default ({ name, setName, editName, setEditName, focusEditor }: Props) => {
-  const onClick = () => setEditName(name)
+export default ({ focusEditor }: Props) => {
+  const name = Signal.useSignal(SelectedNote.selectedCell);
+  const setName = Signal.useSignal(App.setNameSignal);
+  const editName = Signal.useSignal(EditName.editNameCell);
+  const setEditName = EditName.setEditName;
+
+  const onClick = () => name && setEditName(name)
 
   if (editName === undefined) {
     return <InputBox onClick={onClick}>{name}</InputBox>;
