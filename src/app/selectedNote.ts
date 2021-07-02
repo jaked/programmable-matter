@@ -5,7 +5,13 @@ import * as EditName from './editName';
 
 let history: string[] = [];
 let historyIndex: number = -1; // index of current selection, or -1 if none
-export const selectedCell = Signal.cellOk<string | null>(null);
+const selectedCell = Signal.cellOk<string | null>(null);
+
+export const selectedNote = Signal.join(
+  selectedCell, Files.filesByNameSignal
+).map(([selected, files]) =>
+  (selected && files.has(selected)) ? selected : null
+);
 
 function rewriteName(name: string | null): string | null {
   if (name === null) return null;
@@ -15,7 +21,7 @@ function rewriteName(name: string | null): string | null {
 
 export const setSelected = (selected: string | null) => {
   selected = rewriteName(selected);
-  if (selected === selectedCell.get()) return;
+  if (selected === selectedNote.get()) return;
   if (selected !== null) {
     history = history.slice(0, historyIndex + 1);
     history.push(selected);
@@ -36,7 +42,7 @@ export const maybeSetSelected = (selected: string | null): boolean => {
 
 export const historyBack = () => {
   const noteNames = Files.filesByNameSignal.get();
-  const selected = selectedCell.get();
+  const selected = selectedNote.get();
   let newIndex = historyIndex;
   // skip history entries of deleted notes
   while (newIndex >= 0 && (history[newIndex] === selected || !noteNames.has(history[newIndex])))
@@ -50,7 +56,7 @@ export const historyBack = () => {
 
 export const historyForward = () => {
   const noteNames = Files.filesByNameSignal.get();
-  const selected = selectedCell.get();
+  const selected = selectedNote.get();
   let newIndex = historyIndex;
   // skip history entries of deleted notes
   while (newIndex < history.length && (history[newIndex] === selected || !noteNames.has(history[newIndex])))

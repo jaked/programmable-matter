@@ -22,7 +22,7 @@ type Props = {
 }
 
 export default (props: Props) => {
-  const name = Signal.useSignal(SelectedNote.selectedCell);
+  const name = Signal.useSignal(SelectedNote.selectedNote);
 
   if (name === null)
     return <HeaderBox />

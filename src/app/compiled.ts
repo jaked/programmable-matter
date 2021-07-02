@@ -16,7 +16,7 @@ export const compiledFilesSignal = compiledFilesSignalNotesSignal.compiledFiles;
 export const compiledNotesSignal = compiledFilesSignalNotesSignal.compiledNotes;
 
 export const compiledNoteSignal = Signal.label('compiledNote',
-  Signal.join(compiledNotesSignal, SelectedNote.selectedCell).map(([compiledNotes, selected]) => {
+  Signal.join(compiledNotesSignal, SelectedNote.selectedNote).map(([compiledNotes, selected]) => {
     if (selected !== null) {
       const note = compiledNotes.get(selected);
       if (note) return note;

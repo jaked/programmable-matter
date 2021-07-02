@@ -43,17 +43,15 @@ const setMainPaneView = (view: 'code' | 'display' | 'split') => {
 }
 
 const deleteNote = () => {
-  const selected = SelectedNote.selectedCell.get();
-  SelectedNote.setSelected(null);
+  const selected = SelectedNote.selectedNote.get();
   if (selected === null) return;
 
-  const note = Compiled.compiledNotesSignal.get().get(selected);
-  if (!note) return;
+  const paths = Files.filesByNameSignal.get().get(selected);
+  if (!paths) return;
 
-  Object.values(note.files).forEach(file => {
-    if (!file) return;
-    Files.filesystem.remove(file.path);
-  });
+  for (const path of paths.keys()) {
+    Files.filesystem.remove(path);
+  }
 }
 
 export const setNameSignal = Compiled.compiledNoteSignal.map(compiledNote => {

@@ -6,11 +6,11 @@ import groupFilesByName from '../util/groupFilesByName';
 
 const emptyBuffer = Buffer.from('');
 
-const files = Signal.cellOk<model.Files>(new Map());
+const filesCell = Signal.cellOk<model.Files>(new Map());
 
 let filesVersions: model.Files[] = [];
 let filesVersionIndex = -1; // index of the current version
-export const filesWithVersions = files.mapInvertible(
+const filesWithVersions = filesCell.mapInvertible(
   files => files,
   files => {
     filesVersions.splice(filesVersionIndex + 1);
@@ -36,7 +36,7 @@ function setFiles(filesVersion: model.Files) {
       newFiles.set(path, { deleted: true, mtimeMs, buffer: emptyBuffer })
     }
   }
-  files.setOk(newFiles);
+  filesCell.setOk(newFiles);
 }
 
 export const globalUndo = () => {
@@ -55,11 +55,12 @@ export const globalRedo = () => {
 
 export async function setPath(path: string) {
   await filesystem.close();
-  files.setOk(new Map());
+  filesCell.setOk(new Map());
   filesVersions = [];
   filesVersionIndex = -1;
   filesystem = Filesystem(path, filesWithVersions);
 }
 
-export const filesByNameSignal: Signal<Map<string, unknown>> =
-  groupFilesByName(filesWithVersions)
+export const files = Signal.filterMapWritable(filesWithVersions, file => !file.deleted);
+
+export const filesByNameSignal = groupFilesByName(files)

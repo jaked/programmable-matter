@@ -362,7 +362,7 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
             <EditorPane
               ref={editorRef}
               selectedFile={App.selectedFileSignal}
-              moduleName={SelectedNote.selectedCell}
+              moduleName={SelectedNote.selectedNote}
               compiledFile={App.compiledFileSignal}
               session={App.sessionSignal}
               mouse={App.mouseSignal}

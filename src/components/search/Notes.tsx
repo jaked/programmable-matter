@@ -88,7 +88,7 @@ type Notes = {
 };
 
 const Notes = React.forwardRef<Notes, Props>((props, ref) => {
-  const selected = Signal.useSignal(SelectedNote.selectedCell);
+  const selected = Signal.useSignal(SelectedNote.selectedNote);
   const focusDir = Signal.useSignal(Sidebar.focusDirCell);
   const notes = Signal.useSignal(Sidebar.matchingNotesSignal);
   const onSelect = SelectedNote.setSelected;

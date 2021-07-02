@@ -24,12 +24,7 @@ function typeOfPath(path: string): model.Types {
 }
 
 export const contents = Signal.mapMap(
-  Signal.splitMapWritable(
-    Signal.filterMapWritable(
-      Files.filesWithVersions,
-      file => !file.deleted
-    )
-  ),
+  Signal.splitMapWritable(Files.files),
   (file, path) => {
     const type = typeOfPath(path);
 

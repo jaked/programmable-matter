@@ -77,7 +77,7 @@ const Input = ({ setName, editName, setEditName, focusEditor }: InputProps) => {
 }
 
 export default ({ focusEditor }: Props) => {
-  const name = Signal.useSignal(SelectedNote.selectedCell);
+  const name = Signal.useSignal(SelectedNote.selectedNote);
   const setName = Signal.useSignal(App.setNameSignal);
   const editName = Signal.useSignal(EditName.editNameCell);
   const setEditName = EditName.setEditName;
