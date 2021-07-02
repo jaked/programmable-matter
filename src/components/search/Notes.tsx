@@ -80,6 +80,13 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
   );
 });
 
+// if you click on notes from editor
+// we must enforce notes focus
+// or else the focus is still editor and doesn't change
+// when you select a note
+// TODO(jaked) do this in a more uniform way
+const onFocus = () => Focus.focus.setOk('notes');
+
 const Notes = () => {
   const selected = Signal.useSignal(SelectedNote.selectedNote);
   const focusDir = Signal.useSignal(Sidebar.focusDirCell);
@@ -150,6 +157,7 @@ const Notes = () => {
         if (onKeyDown(e))
           e.preventDefault();
       }}
+      onFocus={onFocus}
     >
       <AutoSizer>
         {({ height, width }) =>
