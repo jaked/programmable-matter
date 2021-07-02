@@ -10,6 +10,7 @@ import * as PMAST from '../model/PMAST';
 import * as App from '../app';
 import * as EditName from '../app/editName';
 import * as SelectedNote from '../app/selectedNote';
+import * as Compiled from '../app/compiled';
 
 import { Session } from './react-simple-code-editor';
 
@@ -317,7 +318,7 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
           <Catch>
             <Sidebar
               ref={sidebarRef}
-              compiledNotes={App.compiledNotesSignal}
+              compiledNotes={Compiled.compiledNotesSignal}
               selected={SelectedNote.selectedCell}
               setSelected={SelectedNote.setSelected}
               maybeSetSelected={SelectedNote.maybeSetSelected}
@@ -367,7 +368,7 @@ const Main = React.forwardRef<Main, {}>(({}, ref) => {
         }}>
           <Catch>
             <DisplayPane
-              compiledNoteSignal={App.compiledNoteSignal}
+              compiledNoteSignal={Compiled.compiledNoteSignal}
             />
           </Catch>
         </div>

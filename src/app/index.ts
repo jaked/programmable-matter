@@ -2,16 +2,10 @@ import * as fs from "fs";
 import * as Path from 'path';
 import * as process from 'process';
 import { ipcRenderer as ipc } from 'electron';
-import JSON5 from 'json5';
 
-import * as model from '../model';
-import * as PMAST from '../model/PMAST';
-import * as Meta from '../model/Meta';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 import * as Name from '../util/Name';
-
-import * as Compile from '../lang/Compile';
 
 import Server from '../server';
 
@@ -26,30 +20,16 @@ import * as GTasks from '../integrations/gtasks';
 import ghPages from '../publish/ghPages';
 
 import * as Files from './files';
+import * as Contents from './contents';
 import * as EditName from './editName';
 import * as SelectedNote from './selectedNote';
+import * as Compiled from './compiled';
 
 import mkNewNote from './newNote';
 
 const debug = false;
 
-function typeOfPath(path: string): model.Types {
-  const ext = Path.parse(path).ext;
-  switch (ext) {
-    case '.meta': return 'meta';
-    case '.pm': return 'pm';
-    case '.json': return 'json';
-    case '.table': return 'table';
-    case '.jpeg': return 'jpeg';
-    case '.png': return 'png';
-    case '.xml': return 'xml';
-    default:
-      throw new Error(`unhandled extension '${ext}' for '${path}'`);
-  }
-}
-
 export const mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
-
 
 export const focusDirCell = Signal.cellOk<string | null>(null);
 export const setFocusDir = (focus: string | null) => {
@@ -71,7 +51,7 @@ const deleteNote = () => {
   SelectedNote.setSelected(null);
   if (selected === null) return;
 
-  const note = compiledNotesSignal.get().get(selected);
+  const note = Compiled.compiledNotesSignal.get().get(selected);
   if (!note) return;
 
   Object.values(note.files).forEach(file => {
@@ -80,95 +60,7 @@ const deleteNote = () => {
   });
 }
 
-const contents = Signal.mapMap(
-  Signal.splitMapWritable(
-    Signal.filterMapWritable(
-      Files.filesWithVersions,
-      file => !file.deleted
-    )
-  ),
-  (file, path) => {
-    const type = typeOfPath(path);
-
-    const mtimeMs = file.map(({ mtimeMs }) => mtimeMs);
-    const buffer = file.mapInvertible(
-      ({ buffer }) => buffer,
-      buffer => ({ buffer, mtimeMs: Date.now(), deleted: false })
-    );
-
-    let content: Signal.Writable<unknown>;
-    switch (type) {
-      case 'pm':
-        content = buffer.mapInvertible(
-          // TODO(jaked) handle parse / validate errors
-          buffer => {
-            const obj = JSON5.parse(buffer.toString('utf8'));
-            if (Array.isArray(obj)) {
-              PMAST.validateNodes(obj);
-              return {
-                children: obj,
-                selection: null,
-                meta: {},
-              };
-            } else if ('nodes' in obj) {
-              PMAST.validateNodes(obj.nodes);
-              return {
-                children: obj.nodes,
-                selection: null,
-                meta: Meta.validate(obj.meta)
-              }
-            } else if (obj.version === 1) {
-              PMAST.validateNodes(obj.children);
-              return {
-                children: obj.children,
-                selection: obj.selection,
-                meta: Meta.validate(obj.meta)
-              }
-            }
-          },
-          obj => Buffer.from(JSON5.stringify({ version: 1, ...obj }, undefined, 2), 'utf8')
-        );
-        break;
-
-      case 'jpeg':
-        content = buffer;
-        break;
-
-      case 'png':
-        content = buffer;
-        break;
-
-      default:
-        content = buffer.mapInvertible(
-          buffer => buffer.toString('utf8'),
-          string => Buffer.from(string, 'utf8')
-        );
-    }
-    return { type, path, mtimeMs, content };
-  }
-);
-
-const compiledFilesSignalNotesSignal =
-  Compile.compileFiles(
-    contents,
-    Files.filesystem.update,
-    Files.filesystem.remove,
-    SelectedNote.setSelected,
-  )
-const compiledFilesSignal = compiledFilesSignalNotesSignal.compiledFiles;
-export const compiledNotesSignal = compiledFilesSignalNotesSignal.compiledNotes;
-
-export const compiledNoteSignal = Signal.label('compiledNote',
-  Signal.join(compiledNotesSignal, SelectedNote.selectedCell).map(([compiledNotes, selected]) => {
-    if (selected !== null) {
-      const note = compiledNotes.get(selected);
-      if (note) return note;
-    }
-    return null;
-  })
-);
-
-export const setNameSignal = compiledNoteSignal.map(compiledNote => {
+export const setNameSignal = Compiled.compiledNoteSignal.map(compiledNote => {
   if (compiledNote === null) return (name: string) => {};
   else return (name: string) => {
     name = Name.normalize(name);
@@ -185,7 +77,7 @@ export const setNameSignal = compiledNoteSignal.map(compiledNote => {
 
 export const onNewNoteSignal = mkNewNote({
   fsUpdate: Files.filesystem.update,
-  notes: compiledNotesSignal,
+  notes: Compiled.compiledNotesSignal,
   focusDir: focusDirCell,
   callback: (name: string) => {
     SelectedNote.setSelected(name);
@@ -195,19 +87,19 @@ export const onNewNoteSignal = mkNewNote({
 
 export const selectedFileSignal =
   Signal.join(
-    compiledNoteSignal,
-    contents,
-  ).map(([compiledNote, files]) => {
+    Compiled.compiledNoteSignal,
+    Contents.contents,
+  ).map(([compiledNote, contents]) => {
     if (compiledNote) {
       const path = Name.pathOfName(compiledNote.name, compiledNote.type);
-      const file = files.get(path);
+      const file = contents.get(path);
       if (file) return file;
     }
     return null;
   });
 
 export const compiledFileSignal = Signal.label('compiledFile',
-  Signal.join(selectedFileSignal, compiledFilesSignal).map(([file, compiledFiles]) => {
+  Signal.join(selectedFileSignal, Compiled.compiledFilesSignal).map(([file, compiledFiles]) => {
     if (file) {
       const compiledFile = compiledFiles.get(file.path) ?? bug(`expected compiled file for ${file.path}`);
       return compiledFile;
@@ -240,7 +132,7 @@ export const setSessionSignal = Signal.label('setSession',
 );
 
 const server =
-  new Server(compiledNotesSignal);
+  new Server(Compiled.compiledNotesSignal);
 
 const mainRef = React.createRef<Main>();
 
@@ -275,7 +167,7 @@ const previousProblem = () => {
 }
 
 const publishSite = async () => {
-  const compiledNotes = compiledNotesSignal.get();
+  const compiledNotes = Compiled.compiledNotesSignal.get();
   ghPages(compiledNotes);
 }
 
