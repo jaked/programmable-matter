@@ -8,6 +8,8 @@ import { diffMap } from '../diffMap';
 import * as MapFuncs from '../MapFuncs';
 import { bug } from '../bug';
 
+Immer.enableMapSet();
+
 const unreconciled = Try.err(new Error('unreconciled'));
 
 /**
