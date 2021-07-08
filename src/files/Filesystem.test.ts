@@ -27,11 +27,15 @@ test('makes dir on update if needed', async () => {
   // instead of stubbing functions
   const Fs = {
     readdir: (path: string) => Promise.resolve([]),
-    stat: (path: string) => Promise.reject('state'),
-    readFile: (path: string) => Promise.reject('readFile'),
+    stat: (path: string) => Promise.resolve({
+      isFile: () => false,
+      isDirectory: () => false,
+      mtimeMs: 0
+    }),
+    readFile: (path: string) => Promise.reject('unimplemented readFile'),
     writeFile: (path: string, buffer: Buffer) => Promise.resolve(),
     rename: (oldPath: string, newPath: string) => Promise.resolve(),
-    unlink: (path: string) => Promise.reject('unlink'),
+    unlink: (path: string) => Promise.reject('unimplemented unlink'),
     mkdir: (path: string, options?: { recursive?: boolean }) => {
       if (path === '/foo' && options && options.recursive)
         ok = true;
