@@ -253,33 +253,6 @@ describe('Transforms.unwrapNodes', () => {
   });
 });
 
-describe('deleteBackward', () => {
-  it('deletes trailing nodes in subtree :(', () => {
-    // TODO(jaked) figure out why this happens and report a bug
-    expectEditor(
-      <editor>
-        <p>foo</p>
-        <ul>
-          <li>
-            <p><cursor/></p>
-            <ul>
-              <li><p>baz</p></li>
-            </ul>
-          </li>
-        </ul>
-      </editor>,
-
-      editor => {
-        editor.deleteBackward('character');
-      },
-
-      <editor>
-        <p>foo<cursor/></p>
-      </editor>
-    );
-  });
-});
-
 describe('Editor.nodes', () => {
   it('finds matching nodes in depth-first order', () => {
     const editor = <editor>
