@@ -14,16 +14,20 @@ export const deleteBackward = (editor: Slate.Editor) => {
   return (unit: 'character' | 'word' | 'line' | 'block') => {
     Slate.Editor.withoutNormalizing(editor, () => {
       if (atStartOfBlock(editor)) {
-        if (inListItem(editor)) {
-          if (!blockIsEmpty(editor)) {
-            return dedent(editor);
-          } else {
+        const inListItemResult = inListItem(editor);
+        if (inListItemResult &&
+            !Slate.Path.hasPrevious(inListItemResult.itemPath) &&
+            inListItemResult.itemNode.children.length === 1) {
+          if (blockIsEmpty(editor) && inListItemResult.listNode.children.length === 1) {
             // TODO(jaked)
-            // for some reason I don't understand
-            // the stock deleteBackward deletes the whole list item
-            // so we special case it
-            const [_, path] = blockAbove(editor) ?? bug(`expected blockEntry`);
-            return Slate.Transforms.delete(editor, { at: path });
+            // this deletes the whole list
+            // but if the list was the whole doc
+            // leaves a completely empty (so invalid) doc
+            return Slate.Transforms.delete(editor, { at: inListItemResult.listPath });
+          } else if (blockIsEmpty(editor)) {
+            return Slate.Transforms.delete(editor);
+          } else {
+            return dedent(editor);
           }
         }
 
