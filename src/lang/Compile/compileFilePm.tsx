@@ -412,9 +412,14 @@ ${html}
   return {
     ast: Signal.ok(null),
     interfaceMap: typecheckedInlineCode.map(({ interfaceMap }) => interfaceMap),
-    problems: typecheckedInlineCode.liftToTry().map(compiled =>
-      compiled.type === 'ok' ? compiled.ok.problems : true
-    ),
+    problems: typecheckedInlineCode.liftToTry().map(compiled => {
+      if (compiled.type === 'err') {
+        console.log(compiled.err);
+        return true;
+      } else {
+        return compiled.ok.problems;
+      }
+    }),
     rendered: renderedWithLayout,
 
     exportInterface,

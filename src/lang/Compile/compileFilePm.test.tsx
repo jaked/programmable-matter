@@ -49,7 +49,7 @@ it('compiles', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         {
           type: 'p',
           children: [
@@ -73,7 +73,7 @@ it('compiles exports', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         {
           type: 'code',
           children: [
@@ -95,7 +95,7 @@ it('reports errors', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         {
           type: 'code',
           children: [
@@ -111,7 +111,7 @@ it('reports errors', () => {
 it('recovers from fixed errors in inline code', () => {
   const content = Signal.cellOk({
     meta: {},
-    nodes: [
+    children: [
       {
         type: 'inlineCode',
         children: [
@@ -129,7 +129,7 @@ it('recovers from fixed errors in inline code', () => {
   expect(compiled.problems.get()).toBeTruthy();
   content.setOk({
     meta: {},
-    nodes: [
+    children: [
       {
         type: 'inlineCode',
         children: [
@@ -149,7 +149,7 @@ it('renders marks', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         {
           type: 'p',
           children: [
@@ -181,7 +181,7 @@ it('renders elements', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         { type: 'p', children: [{ text: 'foo' }] },
         { type: 'h1', children: [{ text: 'bar' }] },
         { type: 'ul', children: [
@@ -208,7 +208,7 @@ it('renders links', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         { type: 'p', children: [
           { type: 'a', href: 'https://foo.bar', children: [
             { text: 'foo' }
@@ -233,7 +233,7 @@ it('compiles code', () => {
     mtimeMs: Signal.ok(0),
     content: Signal.cellOk({
       meta: {},
-      nodes: [
+      children: [
         { type: 'code', children: [
           { text: 'const foo = 7' }
         ]},
@@ -263,7 +263,7 @@ it('compiles with import', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.cellOk({
         meta: {},
-        nodes: [
+        children: [
           { type: 'code', children: [
             { text: `import { bar } from '/baz'` }
           ]},
@@ -307,7 +307,7 @@ it('compiles referencing data / table', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.cellOk({
         meta: {},
-        nodes: [
+        children: [
           { type: 'p', children: [
             { text: 'foo ' },
            { type: 'inlineCode', children: [{ text: 'data.bar' }]},
@@ -355,7 +355,7 @@ it('compiles with layout', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.cellOk({
         meta: { layout: '/layout' },
-        nodes: [
+        children: [
           { type: 'p', children: [ { text: 'foo' } ]}
         ]
       })
@@ -398,7 +398,7 @@ it('identifier uses itself in initializer with dynamic value', () => {
       mtimeMs: Signal.ok(0),
       content: Signal.cellOk({
         meta: {},
-        nodes: [
+        children: [
           { type: 'code', children: [
             // use of foo is an error,
             // skip over it but don't blow up
