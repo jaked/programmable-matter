@@ -2,6 +2,7 @@ import { Editor, Element, Node, Range, Text, Transforms } from 'slate';
 import _ from 'lodash';
 
 import { bug } from '../util/bug';
+import * as PMAST from '../model/PMAST';
 
 import { blockAbove } from './blockAbove';
 import { inListItem } from './inListItem';
@@ -36,11 +37,12 @@ export const insertFragment = (editor: Editor) => {
 
     // TODO(jaked) delete selection if expanded
 
-    // TODO(jaked) should work with PMAST.Nodes here
-
     // the pasted fragment includes the element tree up to the root
     // drill down to the part we actually want to paste
-    let lowest: Node = { type: 'fragment', children: fragment };
+    // TODO(jaked)
+    // need to cast `fragment` here because `Node` includes `Editor` but
+    // `Element` children does not. should straighten this out somehow.
+    let lowest: Node = { type: 'p', children: fragment as PMAST.Node[] };
     while (true) {
       if (Text.isText(lowest)) break;
       if (Editor.isInline(editor, lowest)) break;
@@ -59,10 +61,6 @@ export const insertFragment = (editor: Editor) => {
     lowest = lowest as Element;
     if (lowest.type === 'p')
       return insertNodes(editor, lowest.children);
-
-    if (lowest.type === 'fragment') {
-      return insertNodes(editor, lowest.children);
-    }
 
     if (lowest.type === 'ul') {
       const inListItemResult = inListItem(editor);

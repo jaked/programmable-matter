@@ -1,5 +1,5 @@
 import React from 'react';
-import { createEditor, Editor, Node, Path, Point, Range as SlateRange, Transforms } from 'slate';
+import { createEditor, Editor, Node, Path, Point, Range as SlateRange } from 'slate';
 import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';

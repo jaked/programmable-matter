@@ -44,7 +44,7 @@
     "jest": "^26.0.1",
     "jsx-loader": "^0.13.2",
     "slate-hyperscript": "^0.62.0",
-    "typescript": "^4.1.2"
+    "typescript": "^4.3.5"
   },
   "dependencies": {
     "@babel/generator": "^7.13.9",

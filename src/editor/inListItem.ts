@@ -1,5 +1,7 @@
 import { Editor, Element, Path } from 'slate';
+import { bug } from '../util/bug';
 import { blockAbove } from './blockAbove';
+import * as PMAST from '../model/PMAST';
 
 export const inListItem = (editor: Editor, options: { at?: Path } = {}): undefined | {
   itemNode: Element,
@@ -16,9 +18,10 @@ export const inListItem = (editor: Editor, options: { at?: Path } = {}): undefin
     const item = Editor.parent(editor, path);
     if (item) {
       const [itemNode, itemPath] = item
-      if (itemNode.type === 'li') {
+      if (PMAST.isListItem(itemNode)) {
         const list = Editor.parent(editor, itemPath);
         const [listNode, listPath] = list;
+        if (!PMAST.isList(listNode)) bug(`expected List`)
         return { itemNode, itemPath, listNode, listPath };
       }
     }

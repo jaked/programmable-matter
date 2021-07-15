@@ -7,7 +7,7 @@ import * as PMAST from '../model/PMAST';
 export type Editor = BaseEditor & ReactEditor & HistoryEditor
 
 declare module 'slate' {
-  interface CustomTypes {
+  export interface CustomTypes {
     Editor: Editor
     Element: PMAST.Element
     Text: PMAST.Text

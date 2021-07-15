@@ -36,7 +36,7 @@ export const normalizeNode = (editor: Editor) => {
     if ((PMAST.isList(node) || PMAST.isBlockquote(node)) && hasPrevious(path)) {
       const prevPath = Path.previous(path);
       const prevNode = Node.get(editor, prevPath);
-      if (prevNode.type === node.type) {
+      if (PMAST.isElement(prevNode) && prevNode.type === node.type) {
         return Transforms.mergeNodes(editor, { at: path });
       }
     }
@@ -51,7 +51,7 @@ export const normalizeNode = (editor: Editor) => {
         if ((PMAST.isList(child) || PMAST.isBlockquote(child)) && hasPrevious(childPath)) {
           const prevPath = Path.previous(childPath);
           const prevNode = Node.get(editor, prevPath);
-          if (prevNode.type === child.type) {
+          if (PMAST.isElement(prevNode) && prevNode.type === child.type) {
             return Transforms.mergeNodes(editor, { at: childPath });
           }
         }

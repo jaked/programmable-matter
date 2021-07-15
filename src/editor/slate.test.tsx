@@ -270,7 +270,10 @@ describe('Editor.nodes', () => {
         </li>
       </ul>
     </editor> as unknown as Editor;
-    const [ [_, path] ] = Editor.nodes(editor, { at: [0, 0], match: node => node.type === 'p' });
+    const [ [_, path] ] = Editor.nodes(editor, {
+      at: [0, 0],
+      match: node => PMAST.isElement(node) && node.type === 'p'
+    });
     expect(path).toEqual([0, 0, 0, 0, 0, 0, 0]);
   });
 });

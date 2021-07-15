@@ -1,6 +1,7 @@
 import * as Url from 'url';
 import { Editor, Range, Text, Transforms } from 'slate';
 import { bug } from '../util/bug';
+import * as PMAST from '../model/PMAST';
 import { matchStringBefore } from './matchStringBefore';
 import { setType } from './setType';
 
@@ -32,13 +33,13 @@ const isUrl = (text: string) => {
 }
 
 const inLink = (editor: Editor) => {
-  const [link] = Editor.nodes(editor, { match: n => n.type === 'a' });
+  const [link] = Editor.nodes(editor, { match: PMAST.isLink });
   return !!link
 }
 
 const wrapLink = (editor: Editor, url: string) => {
   if (inLink(editor)) {
-    Transforms.unwrapNodes(editor, { match: n => n.type === 'a' });
+    Transforms.unwrapNodes(editor, { match: PMAST.isLink });
   }
 
   const { selection } = editor;
@@ -119,7 +120,7 @@ export const insertText = (editor: Editor) => {
     if (!above) return insertText(text);
 
     const [node, path] = above;
-    if (node.type === 'code' || node.type === 'inlineCode')
+    if (PMAST.isCode(node) || PMAST.isInlineCode(node))
       return insertText(text);
 
     if (isUrl(text)) return wrapLink(editor, text);
@@ -196,7 +197,7 @@ export const insertText = (editor: Editor) => {
         return insertText(text);
       }
 
-      if (node.type !== 'a') {
+      if (!PMAST.isLink(node)) {
         const matchUrl = matchStringBefore(editor, range, isUrl, true);
         if (matchUrl) {
           const { match: url, at } = matchUrl;

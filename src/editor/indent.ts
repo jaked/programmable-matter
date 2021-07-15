@@ -19,12 +19,12 @@ export const indent = (editor: Editor) => {
 
         Transforms.wrapNodes(
           editor,
-          { type: itemNode.type, children: [] },
+          { ...itemNode, children: [] },
           { at: path }
         );
         Transforms.wrapNodes(
           editor,
-          { type: listNode.type, children: [] },
+          { ...listNode, children: [] },
           { at: path }
         );
       }
