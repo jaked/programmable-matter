@@ -34,7 +34,7 @@
     "@types/react-test-renderer": "^16.9.3",
     "@types/react-virtualized-auto-sizer": "^1.0.0",
     "@types/react-window": "^1.8.1",
-    "@types/styled-components": "^5.1.0",
+    "@types/styled-components": "^5.1.11",
     "@types/styled-system": "^4.2.2",
     "@types/victory": "^31.0.21",
     "electron": "^9.3.4",
@@ -79,7 +79,7 @@
     "slate": "^0.63.0",
     "slate-history": "^0.62.0",
     "slate-react": "^0.65.2",
-    "styled-components": "^5.1.0",
+    "styled-components": "^5.3.0",
     "victory": "^32.3.7"
   },
   "config": {
