@@ -3,16 +3,34 @@ import Signal from '../util/Signal';
 type Focus =
   null | 'searchbox' | 'notes' | 'editor' | 'titlebar'
 
-export const focus = Signal.cellOk<Focus>('searchbox');
+export const focusCell = Signal.cellOk<Focus>('searchbox');
+
+export const focus: Signal<Focus> = focusCell;
+
+export const focusSearchbox = () => {
+  focusCell.setOk('searchbox');
+}
 
 export const searchboxFocused =
-  focus.map(focus => focus === 'searchbox', true)
+  focusCell.map(focus => focus === 'searchbox', true)
+
+export const focusNotes = () => {
+  focusCell.setOk('notes');
+}
 
 export const notesFocused =
-  focus.map(focus => focus === 'notes', true)
+  focusCell.map(focus => focus === 'notes', true)
+
+export const focusEditor = () => {
+  focusCell.setOk('editor');
+}
 
 export const editorFocused =
-  focus.map(focus => focus === 'editor', true)
+  focusCell.map(focus => focus === 'editor', true)
+
+export const focusTitlebar = () => {
+  focusCell.setOk('titlebar');
+}
 
 export const titlebarFocused =
-  focus.map(focus => focus === 'editor', true)
+  focusCell.map(focus => focus === 'titlebar', true)

@@ -318,7 +318,13 @@ function initMenu() {
         {
           role: 'toggleDevTools',
           accelerator: 'CommandOrControl+Alt+I'
-        }
+        },
+        {
+          // TODO(jaked) show current state of debug pane in menu
+          label: 'Toggle Debug Pane',
+          accelerator: 'CmdOrCtrl+Alt+G',
+          click: sendFunc('toggle-debug-visible'),
+        },
       ]
     }
   ];

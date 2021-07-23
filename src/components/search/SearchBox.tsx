@@ -77,7 +77,7 @@ const SearchBox = () => {
   }, [focused]);
 
   const onFocus = () => {
-    Focus.focus.setOk('searchbox');
+    Focus.focusSearchbox();
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -86,13 +86,13 @@ const SearchBox = () => {
 
     switch (e.key) {
       case 'ArrowUp':
-        Focus.focus.setOk('notes');
+        Focus.focusNotes();
         SelectedNote.setSelected(matchingNotes[matchingNotes.length - 1].name);
         e.preventDefault();
         break;
 
       case 'ArrowDown':
-        Focus.focus.setOk('notes');
+        Focus.focusNotes();
         SelectedNote.setSelected(matchingNotes[0].name);
         e.preventDefault();
         break;
@@ -100,7 +100,7 @@ const SearchBox = () => {
       case 'Enter':
         const name = focusDir ? Name.join(focusDir, search) : search;
         if (SelectedNote.maybeSetSelected(name)) {
-          Focus.focus.setOk('editor');
+          Focus.focusEditor();
         } else {
           onNewNote(name);
         }

@@ -48,14 +48,14 @@ const Input = ({ setName, editName, setEditName }: InputProps) => {
     switch (e.key) {
       case 'Enter': {
         setName(editName);
-        Focus.focus.setOk('editor');
+        Focus.focusEditor();
         e.preventDefault();
         break;
       }
 
       case 'Escape': {
         setEditName(undefined);
-        Focus.focus.setOk('editor');
+        Focus.focusEditor();
         e.preventDefault();
         break;
       }
@@ -63,7 +63,7 @@ const Input = ({ setName, editName, setEditName }: InputProps) => {
   }
 
   const onFocus = () => {
-    Focus.focus.setOk('titlebar');
+    Focus.focusTitlebar();
   }
 
   const onBlur = () => {

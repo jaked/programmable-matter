@@ -43,6 +43,11 @@ const setMainPaneView = (view: 'code' | 'display' | 'split') => {
   mainPaneViewCell.setOk(view);
 }
 
+export const debugVisibleCell = Signal.cellOk<boolean>(false);
+const toggleDebugVisible = () => {
+  debugVisibleCell.update(b => !b);
+}
+
 const deleteNote = () => {
   const selected = SelectedNote.selectedNote.get();
   if (selected === null) return;
@@ -172,8 +177,9 @@ const syncGoogleTasks = () => {
 }
 
 // TODO(jaked) do we need to remove these somewhere?
-ipc.on('focus-search-box', () => Focus.focus.setOk('searchbox'));
+ipc.on('focus-search-box', () => Focus.focusSearchbox());
 ipc.on('toggle-sidebar-visible', toggleSidebarVisible);
+ipc.on('toggle-debug-visible', toggleDebugVisible);
 ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
   setMainPaneView(view)
 });

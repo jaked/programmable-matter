@@ -86,7 +86,7 @@ const NoteFn = React.memo(({ index, style, data }: NoteFnProps) => {
 // or else the focus is still editor and doesn't change
 // when you select a note
 // TODO(jaked) do this in a more uniform way
-const onFocus = () => Focus.focus.setOk('notes');
+const onFocus = () => Focus.focusNotes();
 
 const Notes = () => {
   const selected = Signal.useSignal(SelectedNote.selectedNote);
@@ -136,7 +136,7 @@ const Notes = () => {
         return true;
 
       case 'Enter':
-        Focus.focus.setOk('editor');
+        Focus.focusEditor();
         return true;
 
       default: return false;

@@ -8,6 +8,7 @@ import * as model from '../model';
 import * as PMAST from '../model/PMAST';
 
 import * as App from '../app';
+import * as Focus from '../app/focus';
 import * as SelectedNote from '../app/selectedNote';
 import * as Compiled from '../app/compiled';
 
@@ -127,6 +128,10 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   const moduleName = Signal.useSignal(props.moduleName);
   const compiledFile = Signal.useSignal(props.compiledFile);
 
+  const onClick = () => {
+    Focus.focusEditor();
+  }
+
   return (
     <div style={{
       height: '100%',
@@ -134,7 +139,10 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
       gridTemplateRows: '1fr auto',
       overflow: 'hidden',
     }}>
-      <div style={{ padding: '8px', overflow: 'auto'}}>
+      <div
+        style={{ padding: '8px', overflow: 'auto'}}
+        onClick={onClick}
+      >
       {
         selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
         selectedFile.type === 'pm' ?
@@ -232,9 +240,17 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
   </Frame>
 );
 
+const Debug = () => {
+  const focus = Signal.useSignal(Focus.focus);
+  const selectedNote = Signal.useSignal(SelectedNote.selectedNote)
+
+  return <div>focus = {focus}, selectedNote = {selectedNote}</div>
+}
+
 const Main = () => {
   const sideBarVisible = Signal.useSignal(App.sideBarVisibleCell);
   const mainPaneView = Signal.useSignal(App.mainPaneViewCell);
+  const debugPaneVisible = Signal.useSignal(App.debugVisibleCell);
 
   const editorRef = React.useRef<EditorPane>(null);
 
@@ -248,20 +264,24 @@ const Main = () => {
   let gridTemplateColumns = '';
   let gridTemplateAreasRow1 = '';
   let gridTemplateAreasRow2 = '';
+  let gridTemplateAreasRow3 = '';
   if (sideBarVisible) {
     gridTemplateColumns += '20% ';
     gridTemplateAreasRow1 += 'searchbox ';
     gridTemplateAreasRow2 += 'notes ';
+    gridTemplateAreasRow3 += 'debug ';
   }
   if (showEditorPane) {
     gridTemplateColumns += '2fr ';
     gridTemplateAreasRow1 += 'header ';
     gridTemplateAreasRow2 += 'editor ';
+    gridTemplateAreasRow3 += 'debug ';
   }
   if (showDisplayPane) {
     gridTemplateColumns += '2fr ';
     gridTemplateAreasRow1 += 'header ';
     gridTemplateAreasRow2 += 'display ';
+    gridTemplateAreasRow3 += 'debug ';
   }
 
   return (
@@ -269,8 +289,8 @@ const Main = () => {
       height: '100vh',
       display: 'grid',
       gridTemplateColumns,
-      gridTemplateRows: 'auto 1fr',
-      gridTemplateAreas: `"${gridTemplateAreasRow1}" "${gridTemplateAreasRow2}"`,
+      gridTemplateRows: 'auto 1fr auto',
+      gridTemplateAreas: `"${gridTemplateAreasRow1}" "${gridTemplateAreasRow2}" "${gridTemplateAreasRow3}"`,
       overflow: 'hidden',
     }}>
       { sideBarVisible &&
@@ -335,6 +355,11 @@ const Main = () => {
             />
           </Catch>
         </div>
+      }
+      { debugPaneVisible &&
+      <div style={{ gridArea: 'debug' }}>
+        <Debug />
+      </div>
       }
     </div>
   );
