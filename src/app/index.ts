@@ -82,6 +82,7 @@ export const onNewNoteSignal = mkNewNote({
   callback: (name: string) => {
     SelectedNote.setSelected(name);
     EditName.setEditName(name);
+    Focus.focusTitlebar();
   }
 });
 
