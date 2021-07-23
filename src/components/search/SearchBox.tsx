@@ -76,6 +76,10 @@ const SearchBox = () => {
     }
   }, [focused]);
 
+  const onFocus = () => {
+    Focus.focus.setOk('searchbox');
+  }
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)
       return;
@@ -122,6 +126,7 @@ const SearchBox = () => {
             Sidebar.setSearch(e.currentTarget.value);
           }}
           onKeyDown={onKeyDown}
+          onFocus={onFocus}
         />
       </InputBox>
       <Button

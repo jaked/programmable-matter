@@ -29,12 +29,16 @@ type InputProps = {
 };
 const Input = ({ setName, editName, setEditName }: InputProps) => {
   const ref = React.useRef<HTMLInputElement>(null);
+  const focused = Signal.useSignal(Focus.titlebarFocused);
   React.useEffect(() => {
-    if (ref.current) {
-      ref.current.focus();
-      ref.current.setSelectionRange(0, editName.length);
+    const input = ref.current;
+    if (input) {
+      if (focused) {
+        input.focus();
+        input.setSelectionRange(0, editName.length);
+      }
     }
-  }, []);
+  }, [focused]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
@@ -57,6 +61,11 @@ const Input = ({ setName, editName, setEditName }: InputProps) => {
       }
     }
   }
+
+  const onFocus = () => {
+    Focus.focus.setOk('titlebar');
+  }
+
   const onBlur = () => {
     setEditName(undefined);
   }
@@ -69,6 +78,7 @@ const Input = ({ setName, editName, setEditName }: InputProps) => {
     onChange={onChange}
     onKeyDown={onKeyDown}
     onBlur={onBlur}
+    onFocus={onFocus}
   />;
 }
 
