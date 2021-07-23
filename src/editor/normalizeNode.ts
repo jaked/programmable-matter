@@ -10,6 +10,12 @@ function hasPrevious(path: Path) {
 export const normalizeNode = (editor: Editor) => {
   const { normalizeNode } = editor;
   return ([node, path]: [Node, Path]) => {
+    // TODO(jaked)
+    // this avoids crashing the editor but loses the cursor position
+    if (Editor.isEditor(node) && node.children.length === 0) {
+      editor.children = PMAST.empty;
+      return;
+    }
 
     // remove empty inlines
     if ((PMAST.isLink(node) || PMAST.isInlineCode(node)) && Editor.isEmpty(editor, node)) {

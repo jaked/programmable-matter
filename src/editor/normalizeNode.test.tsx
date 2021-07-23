@@ -200,3 +200,19 @@ it('dedents initial list item with missing initial paragraph', () => {
     </editor>
   );
 });
+
+it('replaces empty node list with valid empty document', () => {
+  expectEditor(
+    <editor>
+    </editor>,
+
+    editor => {
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    <editor>
+      <p><stext /></p>
+    </editor>
+  );
+});

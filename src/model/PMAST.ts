@@ -241,3 +241,5 @@ function validateBlock(node: Node) {
 export function validateNodes(nodes: Node[]) {
   nodes.forEach(validateBlock);
 }
+
+export const empty: Node[] = [ { type: 'p', children: [ { text: '' } ] }];
