@@ -18,14 +18,8 @@ export const deleteBackward = (editor: Slate.Editor) => {
         if (inListItemResult &&
             !Slate.Path.hasPrevious(inListItemResult.itemPath) &&
             inListItemResult.itemNode.children.length === 1) {
-          if (blockIsEmpty(editor) && inListItemResult.listNode.children.length === 1) {
-            // TODO(jaked)
-            // this deletes the whole list
-            // but if the list was the whole doc
-            // leaves a completely empty (so invalid) doc
-            return Slate.Transforms.delete(editor, { at: inListItemResult.listPath });
-          } else if (blockIsEmpty(editor)) {
-            return Slate.Transforms.delete(editor);
+          if (blockIsEmpty(editor)) {
+            return Slate.Transforms.removeNodes(editor, { at: inListItemResult.itemPath });
           } else {
             return dedent(editor);
           }

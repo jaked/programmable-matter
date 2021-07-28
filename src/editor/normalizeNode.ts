@@ -38,6 +38,13 @@ export const normalizeNode = (editor: Editor) => {
       return;
     }
 
+    if ((PMAST.isList(node) || PMAST.isBlockquote(node)) &&
+        (node.children.length === 0 ||
+        // Editor.normalize inserts empty text nodes into empty elements :/
+        (node.children.length === 1 && PMAST.isText(node.children[0]) && node.children[0].text === ''))) {
+      return Transforms.removeNodes(editor, { at: path });
+    }
+
     // merge adjacent lists / block quotes
     if ((PMAST.isList(node) || PMAST.isBlockquote(node)) && hasPrevious(path)) {
       const prevPath = Path.previous(path);

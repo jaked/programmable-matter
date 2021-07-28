@@ -7,8 +7,6 @@ import { isInline } from './isInline';
 function expectEditor(e1: JSX.Element, action: (e: Editor) => void, e2: JSX.Element) {
   const ed1 = e1 as unknown as Editor;
   const ed2 = e2 as unknown as Editor;
-  Editor.normalize(ed1);
-  Editor.normalize(ed2);
   action(ed1);
   expect(ed1.children).toStrictEqual(ed2.children);
   expect(ed1.selection).toStrictEqual(ed2.selection);
@@ -137,6 +135,24 @@ it('drops empty inlineCode nodes', () => {
       <p><cursor/></p>
     </editor>
   )
+});
+
+it('drops empty lists', () => {
+  expectEditor(
+    <editor>
+      <p>foo</p>
+      <ul></ul>
+    </editor>,
+
+    editor => {
+      editor.normalizeNode = normalizeNode(editor);
+      Editor.normalize(editor, { force: true });
+    },
+
+    <editor>
+      <p>foo</p>
+    </editor>
+  );
 });
 
 it('merges list item with missing initial paragraph', () => {
