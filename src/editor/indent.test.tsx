@@ -118,3 +118,57 @@ it('does not indent nested items', () => {
     </editor>
   );
 });
+
+it('indents single item when selection is expanded', () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li><p><anchor/>bar<focus/></p></li>
+      </ul>
+    </editor>,
+
+    editor => {
+      indent(editor);
+    },
+
+    <editor>
+      <ul>
+        <li>
+          <p>foo</p>
+          <ul>
+            <li><p><anchor/>bar<focus/></p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  );
+});
+
+it('indents multiple items', () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li><p><anchor/>bar</p></li>
+        <li><p>baz<focus/></p></li>
+      </ul>
+    </editor>,
+
+    editor => {
+      indent(editor);
+    },
+
+    <editor>
+      <ul>
+        <li>
+          <p>foo</p>
+          <ul>
+            <li><p><anchor/>bar</p></li>
+            <li><p>baz<focus/></p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  );
+});
