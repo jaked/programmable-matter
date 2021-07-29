@@ -115,6 +115,56 @@ describe('nested list item', () => {
       </editor>
     );
   });
+
+  it('dedents single item when selection is expanded', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p>foo</p>
+            <ul>
+              <li><p><anchor/>bar<focus/></p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p><anchor/>bar<focus/></p></li>
+        </ul>
+      </editor>
+    );
+  });
+
+  it('dedents multiple items', () => {
+    expectEditor(
+      <editor>
+        <ul>
+          <li>
+            <p>foo</p>
+            <ul>
+              <li><p><anchor/>bar</p></li>
+              <li><p>baz<focus/></p></li>
+            </ul>
+          </li>
+        </ul>
+      </editor>,
+
+      editor => { dedent(editor); },
+
+      <editor>
+        <ul>
+          <li><p>foo</p></li>
+          <li><p><anchor/>bar</p></li>
+          <li><p>baz<focus/></p></li>
+        </ul>
+      </editor>
+    );
+  });
 });
 
 describe('top-level list item', () => {
