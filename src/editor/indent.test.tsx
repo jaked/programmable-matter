@@ -172,3 +172,31 @@ it('indents multiple items', () => {
     </editor>
   );
 });
+
+it(`doesn't indent item in hanging selection`, () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li><p><anchor/>bar</p></li>
+        <li><p><focus/>baz</p></li>
+      </ul>
+    </editor>,
+
+    editor => {
+      indent(editor);
+    },
+
+    <editor>
+      <ul>
+        <li>
+          <p>foo</p>
+          <ul>
+            <li><p><anchor/>bar</p></li>
+          </ul>
+        </li>
+        <li><p><focus/>baz</p></li>
+      </ul>
+    </editor>
+  );
+});
