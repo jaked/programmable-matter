@@ -200,3 +200,35 @@ it(`doesn't indent item in hanging selection`, () => {
     </editor>
   );
 });
+
+it(`doesn't indent outer item when inner item is selected`, () => {
+  expectEditor(
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li>
+          <p>bar</p>
+          <ul>
+            <li><p><cursor/>baz</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>,
+
+    editor => {
+      indent(editor);
+    },
+
+    <editor>
+      <ul>
+        <li><p>foo</p></li>
+        <li>
+          <p>bar</p>
+          <ul>
+            <li><p><cursor/>baz</p></li>
+          </ul>
+        </li>
+      </ul>
+    </editor>
+  );
+});

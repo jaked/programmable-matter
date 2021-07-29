@@ -1,7 +1,7 @@
-import { Editor, Range, Transforms } from 'slate';
+import { Editor, Node, Transforms } from 'slate';
 
-import { bug } from '../util/bug';
-import * as PMAST from '../model/PMAST';
+// avoid https://github.com/aelbore/esbuild-jest/issues/21
+import { isLeafBlock as isLeafBlockFn } from './isLeafBlock';
 
 import { inListItem } from './inListItem';
 
@@ -9,23 +9,24 @@ export const indent = (editor: Editor) => {
   Editor.withoutNormalizing(editor, () => {
     if (!editor.selection) return;
     const at = Editor.unhangRange(editor, editor.selection);
+    const match = (node: Node) => isLeafBlockFn(editor, node);
+    const blocks = [...Editor.nodes(editor, { at, match })];
 
-    const items = [...Editor.nodes(editor, { at, match: PMAST.isListItem })];
-    for (const [_, itemPath] of items) {
-      const blockPath = itemPath.concat(0);
+    for (const [_, blockPath] of blocks) {
       const inListItemResult = inListItem(editor, { at: blockPath });
-      if (!inListItemResult) bug(`expected inListItem`);
-      const { itemNode, listNode } = inListItemResult;
-      Transforms.wrapNodes(
-        editor,
-        { ...itemNode, children: [] },
-        { at: blockPath }
-      );
-      Transforms.wrapNodes(
-        editor,
-        { ...listNode, children: [] },
-        { at: blockPath }
-      );
+      if (inListItemResult) {
+        const { itemNode, listNode } = inListItemResult;
+        Transforms.wrapNodes(
+          editor,
+          { ...itemNode, children: [] },
+          { at: blockPath }
+        );
+        Transforms.wrapNodes(
+          editor,
+          { ...listNode, children: [] },
+          { at: blockPath }
+        );
+      }
     }
   });
 }
