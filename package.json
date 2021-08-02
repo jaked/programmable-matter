@@ -37,7 +37,7 @@
     "@types/styled-components": "^5.1.11",
     "@types/styled-system": "^4.2.2",
     "@types/victory": "^31.0.21",
-    "electron": "^9.3.4",
+    "electron": "^9.4.0",
     "electron-rebuild": "^1.8.6",
     "jest": "^26.0.1",
     "jsx-loader": "^0.13.2",
