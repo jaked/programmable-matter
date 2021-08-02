@@ -6,12 +6,6 @@ import * as Immutable from 'immutable';
 import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
 
-import { TwitterTweetEmbed } from 'react-twitter-embed';
-import YouTube from 'react-youtube';
-import { VictoryBar, VictoryChart } from 'victory';
-import ReactTable from 'react-table';
-import Gist from 'react-gist';
-import { InlineMath, BlockMath } from 'react-katex';
 import * as Plot from '@observablehq/plot';
 import { PlotFigure } from 'plot-react';
 
@@ -399,62 +393,9 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     dynamic: false
   },
 
-  'Tweet': {
-    type: componentType({ tweetId: Type.string }),
-    value: TwitterTweetEmbed,
-    dynamic: false
-  },
-
-  'YouTube': {
-    type: componentType({ videoId: Type.string }),
-    value: YouTube,
-    dynamic: false
-  },
-
-  'Gist': {
-    type: componentType({ id: Type.string }),
-    value: Gist,
-    dynamic: false
-  },
-
-  // TODO(jaked) tighten this up. need a type parameter for data
-  'VictoryBar': {
-    type: componentType({
-      data: Type.unknown,
-      x: Type.string,
-      y: Type.string,
-    }),
-    value: VictoryBar,
-    dynamic: false
-  },
-
-  'VictoryChart': {
-    type: componentType({
-      domainPadding: Type.undefinedOrNumber,
-    }),
-    value: VictoryChart,
-    dynamic: false
-  },
-
   'Inspector': {
     type: componentType({ data: Type.unknown }),
     value: Inspector,
-    dynamic: false
-  },
-
-  'Table': {
-    type: componentType({
-      data: Type.array(Type.object({})),
-      // TODO(jaked)
-      // column accessor types depend on data type (for Victory too)
-      // can we express this with a type parameter?
-      columns: Type.array(Type.object({
-        Header: Type.string,
-        accessor: Type.string,
-      })),
-      pageSize: Type.number,
-    }),
-    value: ReactTable,
     dynamic: false
   },
 
