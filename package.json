@@ -40,7 +40,6 @@
     "electron": "^9.4.4",
     "electron-rebuild": "^1.8.6",
     "jest": "^27.0.6",
-    "jsx-loader": "^0.13.2",
     "react-test-renderer": "^17.0.2",
     "slate-hyperscript": "^0.62.0",
     "typescript": "^4.3.5"
