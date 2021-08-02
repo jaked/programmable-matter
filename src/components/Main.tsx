@@ -64,14 +64,14 @@ type RichEditorProps = {
 }
 
 const RichEditor = React.memo((props : RichEditorProps) => {
-  const { children, selection, meta } = Signal.useSignal(props.content);
-  const setValue = ({ children, selection }: { children: PMAST.Node[], selection: null | Range }) => {
-    props.content.setOk({ children, selection, meta });
+  const { children, meta } = Signal.useSignal(props.content);
+  const setValue = ({ children }: { children: PMAST.Node[] }) => {
+    props.content.setOk({ children, meta });
   }
 
   return (
     <RichTextEditor
-      value={{ children, selection }}
+      value={{ children }}
       setValue={setValue}
       moduleName={props.moduleName}
       compiledFile={props.compiledFile}

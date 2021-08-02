@@ -119,7 +119,6 @@ export type WritableContent = {
 
 export type PMContent = {
   children: PMAST.Node[];
-  selection: null | Range;
   meta: Meta;
 }
 

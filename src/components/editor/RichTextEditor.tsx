@@ -228,8 +228,8 @@ export const makeOnKeyDown = (editor: Editor) =>
   }
 
 export type RichTextEditorProps = {
-  value: { children: PMAST.Node[], selection: null | SlateRange };
-  setValue: (v: { children: PMAST.Node[], selection: null | SlateRange }) => void;
+  value: { children: PMAST.Node[] };
+  setValue: (v: { children: PMAST.Node[] }) => void;
   moduleName: string;
   compiledFile: model.CompiledFile;
 
@@ -257,8 +257,6 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     };
     return editor;
   }, [props.moduleName]);
-
-  editor.selection = props.value.selection;
 
   const focused = Signal.useSignal(Focus.editorFocused);
   React.useEffect(() => {
@@ -298,7 +296,6 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     children => {
       props.setValue({
         children: children as PMAST.Node[],
-        selection: editor.selection
       });
     },
     [editor, props.setValue]

@@ -186,8 +186,6 @@ ipc.on('set-main-pane-view', (_, view: 'code' | 'display' | 'split') => {
 });
 ipc.on('history-back', SelectedNote.historyBack);
 ipc.on('history-forward', SelectedNote.historyForward);
-ipc.on('global-undo', Files.globalUndo);
-ipc.on('global-redo', Files.globalRedo);
 ipc.on('previous-problem', previousProblem);
 ipc.on('next-problem', nextProblem);
 

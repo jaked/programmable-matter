@@ -69,10 +69,6 @@ export default function compileFilePm(
       const pmContent = file.content.get() as model.PMContent;
       return {
         children,
-        // TODO(jaked)
-        // selection may be invalid after a programmatic update to children
-        // should find nearest valid selection
-        selection: pmContent.selection,
         meta: pmContent.meta
       };
     }
