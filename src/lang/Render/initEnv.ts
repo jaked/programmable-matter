@@ -3,7 +3,6 @@ import Type from '../Type';
 
 import * as Immutable from 'immutable';
 
-import 'regenerator-runtime/runtime'; // required for react-inspector
 import { Inspector } from 'react-inspector';
 
 import * as Plot from '@observablehq/plot';
