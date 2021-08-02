@@ -51,7 +51,7 @@
     "@babel/types": "^7.13.0",
     "@observablehq/plot": "^0.1.0",
     "atomically": "^1.7.0",
-    "browser-sync": "^2.26.7",
+    "browser-sync": "^2.27.5",
     "electron-squirrel-startup": "^1.0.0",
     "feed": "^4.2.2",
     "gh-pages": "^2.1.1",
