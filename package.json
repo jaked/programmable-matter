@@ -55,7 +55,6 @@
     "electron-squirrel-startup": "^1.0.0",
     "feed": "^4.2.2",
     "gh-pages": "^2.1.1",
-    "googleapis": "^46.0.0",
     "immer": "^8.0.4",
     "immutable": "^4.0.0-rc.12",
     "json5": "^2.1.1",

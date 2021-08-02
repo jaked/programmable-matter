@@ -185,10 +185,6 @@ function initMenu() {
           label: 'Publish Site',
           click: sendFunc('publish-site'),
         },
-        {
-          label: 'Sync Google Tasks',
-          click: sendFunc('sync-google-tasks'),
-        },
       ]
     },
     {

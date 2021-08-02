@@ -15,8 +15,6 @@ import * as ReactDOM from 'react-dom';
 import Main from '../components/Main';
 import { Session, emptySession } from '../components/react-simple-code-editor';
 
-import * as GTasks from '../integrations/gtasks';
-
 import ghPages from '../publish/ghPages';
 
 import * as Files from './files';
@@ -170,13 +168,6 @@ const publishSite = async () => {
   ghPages(compiledNotes);
 }
 
-const syncGoogleTasks = () => {
-  // TODO(jaked) should do this via Filesystem object
-  // not via direct filesystem accesss
-  const filesPath = fs.realpathSync(Path.resolve(process.cwd(), 'docs'));
-  GTasks.authAndSyncTaskLists(filesPath);
-}
-
 // TODO(jaked) do we need to remove these somewhere?
 ipc.on('focus-search-box', () => Focus.focusSearchbox());
 ipc.on('toggle-sidebar-visible', toggleSidebarVisible);
@@ -192,7 +183,6 @@ ipc.on('next-problem', nextProblem);
 ipc.on('delete-note', deleteNote);
 
 ipc.on('publish-site', publishSite);
-ipc.on('sync-google-tasks', syncGoogleTasks);
 
 ipc.on('focus', () => Files.filesystem.start());
 ipc.on('blur', () => Files.filesystem.stop());
