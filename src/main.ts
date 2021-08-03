@@ -66,6 +66,7 @@ async function createWindow () {
       // need to remove this for security
       nodeIntegration: true,
       contextIsolation: false,
+      enableRemoteModule: true,
 
       additionalArguments: [config.dataDir]
     }
