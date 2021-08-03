@@ -43,7 +43,7 @@ export default async function ghPages(
       await mkdir(Path.dirname(path), { recursive: true });
       const exportValue = note.exportValue.get();
       const buffer = exportValue.get('buffer') ?? bug(`expected buffer`)
-      await writeFile(path, buffer);
+      await writeFile(path, buffer as Buffer);
 
     } else if (note.type === 'png') {
       const path = Path.join(tempdir, note.name) + '.png';
@@ -51,24 +51,24 @@ export default async function ghPages(
       await mkdir(Path.dirname(path), { recursive: true });
       const exportValue = note.exportValue.get();
       const buffer = exportValue.get('buffer') ?? bug(`expected buffer`)
-      await writeFile(path, buffer);
+      await writeFile(path, buffer as Buffer);
 
     } else if (note.type === 'xml') {
       const path = Path.join(tempdir, note.name) + '.xml';
 
       await mkdir(Path.dirname(path), { recursive: true });
       const xml = note.rendered.get();
-      await writeFile(path, xml);
+      await writeFile(path, xml as string);
 
     } else if (note.type === 'pm') {
       const htmlPath = Path.join(tempdir, note.name) + '.html';
-      const html = note.html?.get();
+      const html = note.html ?? bug(`expected html`);
       await mkdir(Path.dirname(htmlPath), { recursive: true });
-      await writeFile(htmlPath, html);
+      await writeFile(htmlPath, html.get())
 
       const jsPath = Path.join(tempdir, note.name) + '.js';
-      const js = note.js?.get();
-      await writeFile(jsPath, js);
+      const js = note.js ?? bug(`expected js`);
+      await writeFile(jsPath, js.get());
     }
   }).values()]);
   const publish = true;

@@ -65,6 +65,7 @@ async function createWindow () {
       // TODO(jaked)
       // need to remove this for security
       nodeIntegration: true,
+      contextIsolation: false,
 
       additionalArguments: [config.dataDir]
     }

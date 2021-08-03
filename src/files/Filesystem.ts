@@ -192,7 +192,7 @@ function make(
   files: Signal.Writable<model.Files>,
   Now: Now = Date,
   Timers: Timers = timers,
-  Fs: Fs = fs.promises,
+  Fs: Fs = fs.promises as Fs, // TODO(jaked)
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
   const fsFiles = new Map<string, FsFile>();
