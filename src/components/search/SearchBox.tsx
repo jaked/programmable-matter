@@ -102,7 +102,7 @@ const SearchBox = () => {
         if (SelectedNote.maybeSetSelected(name)) {
           Focus.focusEditor();
         } else {
-          onNewNote(name);
+          onNewNote(search);
         }
         e.preventDefault();
         break;
