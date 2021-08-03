@@ -1,6 +1,5 @@
 import React from 'react';
 import Frame, { FrameContextConsumer } from 'react-frame-component';
-import { Range } from 'slate';
 
 import Signal from '../util/Signal';
 
@@ -64,9 +63,9 @@ type RichEditorProps = {
 }
 
 const RichEditor = React.memo((props : RichEditorProps) => {
-  const { children, meta } = Signal.useSignal(props.content);
+  const { children } = Signal.useSignal(props.content);
   const setValue = ({ children }: { children: PMAST.Node[] }) => {
-    props.content.setOk({ children, meta });
+    props.content.produce(value => { value.children = children });
   }
 
   return (
