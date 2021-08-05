@@ -3,8 +3,6 @@ import * as Path from 'path';
 import * as Url from 'url';
 import * as Fs from 'fs';
 
-import BrowserSync from 'browser-sync';
-
 import { bug } from './util/bug';
 import * as model from './model';
 import * as Name from './util/Name';
@@ -12,7 +10,7 @@ import Signal from './util/Signal';
 
 export default class Server {
   compiledNotes: Signal<model.CompiledNotes>;
-  browserSync: BrowserSync.BrowserSyncInstance;
+  http: Http.Server;
 
   constructor(
     compiledNotes: Signal<model.CompiledNotes>
@@ -20,20 +18,9 @@ export default class Server {
     this.handle = this.handle.bind(this);
 
     this.compiledNotes = compiledNotes;
-    this.browserSync = BrowserSync.create();
-    // TODO(jaked) takes a readiness callback, should use it?
-    this.browserSync.init({
-      logLevel: 'silent',
-      middleware: this.handle,
-      online: false,
-      open: false,
-      notify: false,
-      port: 3001,
-      ui: false,
-    });
+    this.http = Http.createServer(this.handle);
+    this.http.listen(3001);
   }
-
-  reload = { dirty: () => this.browserSync.reload () }
 
   handle(req: Http.IncomingMessage, res: Http.ServerResponse) {
     let url = Url.parse(req.url || '');
@@ -70,7 +57,6 @@ export default class Server {
           res.end(buffer);
 
       } else if (ext === '.xml') {
-        note.rendered.depend(this.reload);
         // TODO(jaked) don't blow up on failed notes
         const xml = note.rendered.get();
 
@@ -78,12 +64,10 @@ export default class Server {
         res.end(xml)
 
       } else if (ext === '.html' || ext === '') {
-        note.html?.depend(this.reload);
         res.setHeader("Content-Type", "text/html; charset=UTF-8")
         res.end(note.html?.get());
 
       } else if (ext === '.js') {
-        note.js?.depend(this.reload);
         res.setHeader("Content-Type", "text/javascript; charset=UTF-8");
         res.end(note.js?.get());
 
