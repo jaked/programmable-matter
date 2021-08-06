@@ -44,7 +44,7 @@ export function parseType(input: string): Type {
 // or maybe rewrite the PMAST with parsed code (and types / dynamic flags)
 const parsedCode = new WeakMap<PMAST.Node, Try<ESTree.Node>>();
 
-export function parseCodeNode(node: PMAST.Code): Try<ESTree.Program> {
+export function parseLiveCodeNode(node: PMAST.LiveCode): Try<ESTree.Program> {
   const ast = parsedCode.get(node);
   if (ast) return ast as Try<ESTree.Program>;
   if (!(node.children.length === 1)) bug('expected 1 child');
@@ -55,7 +55,7 @@ export function parseCodeNode(node: PMAST.Code): Try<ESTree.Program> {
   return ast2;
 }
 
-export function parseInlineCodeNode(node: PMAST.InlineCode): Try<ESTree.Expression> {
+export function parseInlineLiveCodeNode(node: PMAST.InlineLiveCode): Try<ESTree.Expression> {
   const ast = parsedCode.get(node);
   if (ast) return ast as Try<ESTree.Expression>;
   if (!(node.children.length === 1)) bug('expected 1 child');

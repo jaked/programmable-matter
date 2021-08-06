@@ -52,13 +52,13 @@ const errComponents =
   link:       styled(okComponents.link)(errStyle),
 }
 
-const Pre = styled.pre`
+const LiveCode = styled.pre`
   background-color: #eeeeee;
   border-radius: 10px;
   padding: 10px;
 `;
 
-const Code = styled.code`
+const InlineLiveCode = styled.code`
   background-color: #eeeeee;
   border-radius: 5px;
   padding: 5px;
@@ -71,17 +71,16 @@ function makeRenderElement(
   const Link = makeLink(moduleName, setSelected);
 
   return ({ element, attributes, children }: RenderElementProps) => {
-    const pmElement = element as PMAST.Element;
-    if (pmElement.type === 'a') {
-      return React.createElement(Link, { ...attributes, href: pmElement.href }, children);
-    } else if (pmElement.type === 'code') {
-      return <Pre {...attributes}>
+    if (PMAST.isLink(element)) {
+      return React.createElement(Link, { ...attributes, href: element.href }, children);
+    } else if (PMAST.isLiveCode(element)) {
+      return <LiveCode {...attributes}>
         <code>{children}</code>
-      </Pre>
-    } else if (pmElement.type === 'inlineCode') {
-      return <Code {...attributes}>{children}</Code>
+      </LiveCode>
+    } else if (PMAST.isInlineLiveCode(element)) {
+      return <InlineLiveCode {...attributes}>{children}</InlineLiveCode>
     } else {
-      return React.createElement(pmElement.type, attributes, children);
+      return React.createElement(element.type, attributes, children);
     }
   }
 }
@@ -147,8 +146,8 @@ export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
     // TODO(jaked) cache decorations
     const ranges: Range[] = [];
     const code: Try<ESTree.Node> | null =
-      PMAST.isCode(node) ? Parse.parseCodeNode(node) :
-      PMAST.isInlineCode(node) ? Parse.parseInlineCodeNode(node) :
+      PMAST.isLiveCode(node) ? Parse.parseLiveCodeNode(node) :
+      PMAST.isInlineLiveCode(node) ? Parse.parseInlineLiveCodeNode(node) :
       null;
     if (code) {
       code.forEach(code => {

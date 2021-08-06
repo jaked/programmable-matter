@@ -86,16 +86,16 @@ export function isLink(node: Slate.Node): node is Link {
   return isElement(node) && node.type === 'a';
 }
 
-export type Code = ElementType<'code'>;
+export type LiveCode = ElementType<'liveCode'>;
 
-export function isCode(node: Slate.Node): node is Code {
-  return isElement(node) && node.type === 'code';
+export function isLiveCode(node: Slate.Node): node is LiveCode {
+  return isElement(node) && node.type === 'liveCode';
 }
 
-export type InlineCode = ElementType<'inlineCode'>;
+export type InlineLiveCode = ElementType<'inlineLiveCode'>;
 
-export function isInlineCode(node: Slate.Node): node is InlineCode {
-  return isElement(node) && node.type === 'inlineCode';
+export function isInlineLiveCode(node: Slate.Node): node is InlineLiveCode {
+  return isElement(node) && node.type === 'inlineLiveCode';
 }
 
 export type Blockquote = ElementType<'blockquote'>;
@@ -104,14 +104,14 @@ export function isBlockquote(node: Slate.Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
-export type Pre = ElementType<'pre'>;
+export type Code = ElementType<'code'>;
 
-export function isPre(node: Slate.Node): node is Pre {
-  return isElement(node) && node.type === 'pre';
+export function isCode(node: Slate.Node): node is Code {
+  return isElement(node) && node.type === 'code';
 }
 
-export type Block = Paragraph | Header | List | Code | Blockquote | Pre;
-export type Inline = Link | InlineCode;
+export type Block = Paragraph | Header | List | LiveCode | Blockquote | Code;
+export type Inline = Link | InlineLiveCode;
 
 export type Element = Block | Inline | ListItem;
 export type Node = Text | Element;
@@ -141,7 +141,7 @@ function validateLink(link: Link) {
   });
 }
 
-function validateInlineCode(code: InlineCode) {
+function validateInlineCode(code: InlineLiveCode) {
   if (code.children.length !== 1)
     invalid(`expected 1 child`);
   code.children.forEach(node => {
@@ -156,7 +156,7 @@ function validateParagraph(p: Paragraph) {
   p.children.forEach(node => {
     if (isText(node)) {} // ok
     else if (isLink(node)) validateLink(node);
-    else if (isInlineCode(node)) validateInlineCode(node);
+    else if (isInlineLiveCode(node)) validateInlineCode(node);
     else
       invalid('expected p > (text | a | inlineCode)+');
   });
@@ -168,7 +168,7 @@ function validateHeader(h: Header) {
   h.children.forEach(node => {
     if (isText(node)) {} // ok
     else if (isLink(node)) validateLink(node);
-    else if (isInlineCode(node)) validateInlineCode(node);
+    else if (isInlineLiveCode(node)) validateInlineCode(node);
     else
       invalid('expected h > (text | a | inlineCode)+');
   });
@@ -181,7 +181,7 @@ function validateListItem(item: ListItem) {
     if (isParagraph(node)) validateParagraph(node);
     else if (isBlockquote(node)) validateBlockquote(node);
     else if (isList(node)) validateList(node);
-    else if (isPre(node)) validatePre(node);
+    else if (isCode(node)) validateCode(node);
     else
       invalid(`expected li > p (p | ul | ol | blockquote | pre)*`);
   });
@@ -198,7 +198,7 @@ function validateList(list: List) {
   });
 }
 
-function validateCode(code: Code) {
+function validateLiveCode(code: LiveCode) {
   if (code.children.length !== 1)
     invalid(`expected 1 child`);
   code.children.forEach(node => {
@@ -216,7 +216,7 @@ function validateBlockquote(blockquote: Blockquote) {
   });
 }
 
-function validatePre(pre: Pre) {
+function validateCode(pre: Code) {
   if (pre.children.length !== 1)
     invalid(`expected 1 child`);
   pre.children.forEach(node => {
@@ -229,9 +229,9 @@ function validateBlock(node: Node) {
   if (isParagraph(node)) validateParagraph(node);
   else if (isHeader(node)) validateHeader(node);
   else if (isList(node)) validateList(node);
-  else if (isCode(node)) validateCode(node);
+  else if (isLiveCode(node)) validateLiveCode(node);
   else if (isBlockquote(node)) validateBlockquote(node);
-  else if (isPre(node)) validatePre(node);
+  else if (isCode(node)) validateCode(node);
   else if (isElement(node))
     invalid(`expected block, got ${node.type}`);
   else if (isText(node))

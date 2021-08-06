@@ -20,7 +20,7 @@ const SHORTCUTS = {
   '>': 'blockquote',
 
   // TODO(jaked) this would be more usable if it fired on enter not space
-  '{{{': 'code',
+  '{{{': 'liveCode',
 }
 
 const isUrl = (text: string) => {
@@ -120,7 +120,7 @@ export const insertText = (editor: Editor) => {
     if (!above) return insertText(text);
 
     const [node, path] = above;
-    if (PMAST.isCode(node) || PMAST.isInlineCode(node))
+    if (PMAST.isLiveCode(node) || PMAST.isInlineLiveCode(node))
       return insertText(text);
 
     if (isUrl(text)) return wrapLink(editor, text);
@@ -172,7 +172,7 @@ export const insertText = (editor: Editor) => {
       if (handleDelimitedShortcut(editor, range, '{', '}', range => {
         Transforms.wrapNodes(
           editor,
-          { type: 'inlineCode', children: [] },
+          { type: 'inlineLiveCode', children: [] },
           {
             at: range,
             match: Text.isText,

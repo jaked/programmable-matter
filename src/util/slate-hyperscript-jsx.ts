@@ -14,7 +14,8 @@ declare global {
       // and I can't figure out how to omit it
       // so we use an alternate name
       stext: { children?: any, bold?: boolean };
-      inlineCode: any;
+      liveCode: any;
+      inlineLiveCode: any;
     }
   }
 }
@@ -28,7 +29,8 @@ export const jsx = createHyperscript({
     'ul': { type: 'ul' },
     'a': { type: 'a' },
     'code': { type: 'code' },
-    'inlineCode': { type: 'inlineCode' },
+    'liveCode': { type: 'liveCode' },
+    'inlineLiveCode': { type: 'inlineLiveCode' },
     'blockquote': { type: 'blockquote' },
   },
   creators: {

@@ -19,7 +19,7 @@ export const insertBreak = (editor: Editor) => {
         Transforms.insertNodes(editor, { type: 'p', children: [ { text: '' } ]})
         return;
       }
-      if (node.type === 'code') {
+      if (PMAST.isCode(node) || PMAST.isLiveCode(node)) {
         softBreak(editor);
         return;
       }

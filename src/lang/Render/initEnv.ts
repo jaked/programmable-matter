@@ -239,14 +239,6 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     dynamic: false
   },
 
-  // TODO(jaked)
-  // this is an MDX thing, I think it can be removed
-  'inlineCode': {
-    type: componentType({}),
-    value: 'inlineCode',
-    dynamic: false
-  },
-
   'input': {
     type: componentType({
       id: Type.undefinedOrString,

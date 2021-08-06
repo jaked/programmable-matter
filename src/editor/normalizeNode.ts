@@ -18,7 +18,7 @@ export const normalizeNode = (editor: Editor) => {
     }
 
     // remove empty inlines
-    if ((PMAST.isLink(node) || PMAST.isInlineCode(node)) && Editor.isEmpty(editor, node)) {
+    if ((PMAST.isLink(node) || PMAST.isInlineLiveCode(node)) && Editor.isEmpty(editor, node)) {
       if (editor.selection) {
         // if a selection endpoint is in the link,
         // unwrapping the link and normalizing can move the endpoint to the previous node

@@ -5,7 +5,7 @@ describe('validateNodes', () => {
     const nodes: PMAST.Node[] = [
       { type: 'h1', children: [
         { text: 'foo' },
-        { type: `inlineCode`, children: [ { text: 'bar' } ]},
+        { type: `inlineLiveCode`, children: [ { text: 'bar' } ]},
         { text: 'baz' },
       ]}
     ];

@@ -3,5 +3,6 @@ build
 docs
 docs.*
 .vscode
+.yalc
 .DS_Store
 out/

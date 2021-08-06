@@ -119,10 +119,10 @@ it('drops empty links', () => {
   )
 });
 
-it('drops empty inlineCode nodes', () => {
+it('drops empty inlineLiveCode nodes', () => {
   expectEditor(
     <editor>
-      <p><stext/><inlineCode><cursor/></inlineCode><stext/></p>
+      <p><stext/><inlineLiveCode><cursor/></inlineLiveCode><stext/></p>
     </editor>,
 
     editor => {

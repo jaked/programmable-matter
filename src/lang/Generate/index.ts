@@ -804,8 +804,8 @@ function genNode(
     );
   }
 
-  if (PMAST.isCode(node)) {
-    const ast = Parse.parseCodeNode(node);
+  if (PMAST.isLiveCode(node)) {
+    const ast = Parse.parseLiveCodeNode(node);
     if (ast.type === 'ok') {
       for (const node of ast.ok.body) {
         switch (node.type) {
@@ -846,8 +846,8 @@ function genNode(
       }
     }
 
-  } else if (PMAST.isInlineCode(node)) {
-    const ast = Parse.parseInlineCodeNode(node);
+  } else if (PMAST.isInlineLiveCode(node)) {
+    const ast = Parse.parseInlineLiveCodeNode(node);
     if (ast.type === 'ok') {
       const expr = ast.ok as ESTree.Expression;
       const dynamic = intfDynamic(interfaceMap(expr));

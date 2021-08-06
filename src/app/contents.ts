@@ -23,6 +23,18 @@ function typeOfPath(path: string): model.Types {
   }
 }
 
+function renameCode(node: any) {
+  if ('type' in node) {
+    if (node.type === 'code') node.type === 'liveCode';
+    if (node.type === 'inlineCode') node.type === 'inlineLiveCode';
+    if (node.type === 'pre') node.type === 'code';
+  }
+  if ('children' in node) {
+    for (const child of node.children)
+      renameCode(child);
+  }
+}
+
 export const contents = Signal.mapMap(
   Signal.splitMapWritable(Files.files),
   (file, path) => {
@@ -42,29 +54,37 @@ export const contents = Signal.mapMap(
           buffer => {
             const obj = JSON5.parse(buffer.toString('utf8'));
             if (Array.isArray(obj)) {
+              for (const node in obj)
+                renameCode(node);
               PMAST.validateNodes(obj);
               return {
                 children: obj,
-                selection: null,
                 meta: {},
               };
             } else if ('nodes' in obj) {
+              for (const node in obj.nodes)
+                renameCode(node);
               PMAST.validateNodes(obj.nodes);
               return {
                 children: obj.nodes,
-                selection: null,
                 meta: Meta.validate(obj.meta)
               }
             } else if (obj.version === 1) {
+              renameCode(obj);
               PMAST.validateNodes(obj.children);
               return {
                 children: obj.children,
-                selection: obj.selection,
+                meta: Meta.validate(obj.meta)
+              }
+            } else if (obj.version === 2) {
+              PMAST.validateNodes(obj.children);
+              return {
+                children: obj.children,
                 meta: Meta.validate(obj.meta)
               }
             }
           },
-          obj => Buffer.from(JSON5.stringify({ version: 1, ...obj }, undefined, 2), 'utf8')
+          obj => Buffer.from(JSON5.stringify({ version: 2, ...obj }, undefined, 2), 'utf8')
         );
         break;
 

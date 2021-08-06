@@ -15,11 +15,11 @@ import expectGenerate from './expectGenerate';
 function typecheckNodes(
   nodes: PMAST.Node[],
 ) {
-  const codeNodes: PMAST.Code[] = [];
-  const inlineCodeNodes: PMAST.InlineCode[] = [];
+  const codeNodes: PMAST.LiveCode[] = [];
+  const inlineCodeNodes: PMAST.InlineLiveCode[] = [];
   function walkNodes(node: PMAST.Node) {
-    if (PMAST.isCode(node)) codeNodes.push(node);
-    else if (PMAST.isInlineCode(node)) inlineCodeNodes.push(node);
+    if (PMAST.isLiveCode(node)) codeNodes.push(node);
+    else if (PMAST.isInlineLiveCode(node)) inlineCodeNodes.push(node);
     else if (PMAST.isElement(node)) node.children.forEach(walkNodes);
   }
   nodes.forEach(walkNodes);
@@ -29,7 +29,7 @@ function typecheckNodes(
   const interfaceMap: InterfaceMap = new Map();
 
   codeNodes.forEach(node => {
-    const code = Parse.parseCodeNode(node);
+    const code = Parse.parseLiveCodeNode(node);
     code.forEach(code => {
       interfaceEnv = Typecheck.synthProgram(
         moduleTypeEnv,
@@ -41,7 +41,7 @@ function typecheckNodes(
   });
 
   inlineCodeNodes.forEach(node => {
-    const code = Parse.parseInlineCodeNode(node);
+    const code = Parse.parseInlineLiveCodeNode(node);
     code.forEach(code => {
       Typecheck.check(
         code,
@@ -71,28 +71,28 @@ function expectGenerateCode(
 
 it('generates nothing for static doc with no exports', () => {
   const nodes: PMAST.Node[] = [
-    { type: 'code', children: [ { text: 'const x = 7' } ] },
+    { type: 'liveCode', children: [ { text: 'const x = 7' } ] },
   ];
   expectGenerateCode(nodes, '');
 });
 
 it('generates export for doc with export', () => {
   const nodes: PMAST.Node[] = [
-    { type: 'code', children: [ { text: 'export const x = 7' } ] },
+    { type: 'liveCode', children: [ { text: 'export const x = 7' } ] },
   ];
   expectGenerateCode(nodes, 'export const x = 7;');
 });
 
 it('generates export for doc with let export', () => {
   const nodes: PMAST.Node[] = [
-    { type: 'code', children: [ { text: 'export let x: Session<number> = 7' } ] },
+    { type: 'liveCode', children: [ { text: 'export let x: Session<number> = 7' } ] },
   ];
   expectGenerateCode(nodes, 'export const x = Signal.cellOk(7);');
 });
 
 it('generates React hydrate for doc with dynamic node', () => {
   const nodes: PMAST.Node[] = [
-    { type: 'code', children: [ { text: 'now' } ] },
+    { type: 'liveCode', children: [ { text: 'now' } ] },
   ];
   expectGenerateCode(
     nodes,

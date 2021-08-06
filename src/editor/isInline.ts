@@ -1,15 +1,14 @@
 import { Editor, Element } from 'slate';
 
+import * as PMAST from '../model/PMAST';
+
 export const isInline = (editor: Editor) => {
   const { isInline } = editor;
   return (element: Element) => {
-    switch (element.type) {
-      case 'a':
-      case 'inlineCode':
-        return true;
+    if (PMAST.isLink(element) || PMAST.isInlineLiveCode(element))
+      return true;
 
-      default:
-        return isInline(element);
-    }
+    else
+      return isInline(element);
   }
 }

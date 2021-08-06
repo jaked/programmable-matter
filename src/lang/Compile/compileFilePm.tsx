@@ -26,12 +26,12 @@ const intfDynamic = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.dynamic : false;
 
 function typecheckCode(
-  node: PMAST.Code,
+  node: PMAST.LiveCode,
   moduleInterfaceEnv: Map<string, Map<string, Interface>>,
   interfaceEnv: Typecheck.Env,
   interfaceMap: InterfaceMap,
 ): Typecheck.Env {
-  const code = Parse.parseCodeNode(node);
+  const code = Parse.parseLiveCodeNode(node);
   code.forEach(code => {
     interfaceEnv = Typecheck.synthProgram(
       moduleInterfaceEnv,
@@ -44,11 +44,11 @@ function typecheckCode(
 }
 
 function typecheckInlineCode(
-  node: PMAST.InlineCode,
+  node: PMAST.InlineLiveCode,
   interfaceEnv: Typecheck.Env,
   interfaceMap: InterfaceMap,
 ) {
-  const code = Parse.parseInlineCodeNode(node);
+  const code = Parse.parseInlineLiveCodeNode(node);
   code.forEach(code => {
     Typecheck.check(code, interfaceEnv, Type.reactNodeType, interfaceMap);
   });
@@ -77,9 +77,9 @@ export default function compileFilePm(
   // TODO(jaked)
   // we want just the bindings and imports here, but this also includes ExpressionStatements
   const codeNodes = nodes.map(nodes =>
-    Immutable.List<PMAST.Code>().withMutations(codeNodes => {
+    Immutable.List<PMAST.LiveCode>().withMutations(codeNodes => {
       function pushCodeNodes(node: PMAST.Node) {
-        if (PMAST.isCode(node)) {
+        if (PMAST.isLiveCode(node)) {
           codeNodes.push(node);
         } else if (PMAST.isElement(node)) {
           node.children.forEach(pushCodeNodes);
@@ -90,9 +90,9 @@ export default function compileFilePm(
   );
 
   const inlineCodeNodes = nodes.map(nodes =>
-    Immutable.List<PMAST.InlineCode>().withMutations(inlineCodeNodes => {
+    Immutable.List<PMAST.InlineLiveCode>().withMutations(inlineCodeNodes => {
       function pushInlineCodeNodes(node: PMAST.Node) {
-        if (PMAST.isInlineCode(node)) {
+        if (PMAST.isInlineLiveCode(node)) {
           inlineCodeNodes.push(node);
         } else if (PMAST.isElement(node)) {
           node.children.forEach(pushInlineCodeNodes);
@@ -105,7 +105,7 @@ export default function compileFilePm(
   const imports = codeNodes.map(codeNodes =>
     Immutable.List<string>().withMutations(imports => {
       codeNodes.forEach(node => {
-        const code = Parse.parseCodeNode(node);
+        const code = Parse.parseLiveCodeNode(node);
         code.forEach(code =>
           code.body.forEach(node => {
             switch (node.type) {
@@ -369,7 +369,7 @@ ${html}
   const exports = codeNodes.map(codeNodes =>
     Immutable.List<string>().withMutations(exports => {
       codeNodes.forEach(node => {
-        const code = Parse.parseCodeNode(node);
+        const code = Parse.parseLiveCodeNode(node);
         code.forEach(code => {
           for (const decl of code.body) {
             switch (decl.type) {

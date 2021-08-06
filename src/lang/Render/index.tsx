@@ -58,8 +58,8 @@ export function renderNode(
     renderedNode.set(node, rendered);
     return rendered;
   } else {
-    if (PMAST.isCode(node)) {
-      const code = Parse.parseCodeNode(node);
+    if (PMAST.isLiveCode(node)) {
+      const code = Parse.parseLiveCodeNode(node);
       if (code.type !== 'ok') return null;
       const rendered: React.ReactNode[] = [];
       for (const node of (code.ok as ESTree.Program).body) {
@@ -78,8 +78,8 @@ export function renderNode(
       }
       return <>{...rendered}</>;
 
-    } else if (PMAST.isInlineCode(node)) {
-      const code = Parse.parseInlineCodeNode(node);
+    } else if (PMAST.isInlineLiveCode(node)) {
+      const code = Parse.parseInlineLiveCodeNode(node);
       if (code.type !== 'ok') return null;
       const expr = code.ok as ESTree.Expression;
       const dynamic = intfDynamic(interfaceMap.get(expr) ?? bug(`expected dynamic`));

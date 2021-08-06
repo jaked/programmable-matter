@@ -75,7 +75,7 @@ it('compiles exports', () => {
       meta: {},
       children: [
         {
-          type: 'code',
+          type: 'liveCode',
           children: [
             { text: 'export const foo = 7' }
           ]
@@ -97,7 +97,7 @@ it('reports errors', () => {
       meta: {},
       children: [
         {
-          type: 'code',
+          type: 'liveCode',
           children: [
             { text: 'x' }
           ]
@@ -113,7 +113,7 @@ it('recovers from fixed errors in inline code', () => {
     meta: {},
     children: [
       {
-        type: 'inlineCode',
+        type: 'inlineLiveCode',
         children: [
           { text: 'x' }
         ]
@@ -131,7 +131,7 @@ it('recovers from fixed errors in inline code', () => {
     meta: {},
     children: [
       {
-        type: 'inlineCode',
+        type: 'inlineLiveCode',
         children: [
           { text: '7' }
         ]
@@ -234,12 +234,12 @@ it('compiles code', () => {
     content: Signal.cellOk({
       meta: {},
       children: [
-        { type: 'code', children: [
+        { type: 'liveCode', children: [
           { text: 'const foo = 7' }
         ]},
         { type: 'p', children: [
           { text: 'foo is '},
-          { type: 'inlineCode', children: [
+          { type: 'inlineLiveCode', children: [
             { text: 'foo' }
           ]},
         ]}
@@ -264,12 +264,12 @@ it('compiles with import', () => {
       content: Signal.cellOk({
         meta: {},
         children: [
-          { type: 'code', children: [
+          { type: 'liveCode', children: [
             { text: `import { bar } from '/baz'` }
           ]},
           { type: 'p', children: [
             { text: 'bar is '},
-            { type: 'inlineCode', children: [
+            { type: 'inlineLiveCode', children: [
               { text: 'bar' }
             ]},
           ]}
@@ -310,9 +310,9 @@ it('compiles referencing data / table', () => {
         children: [
           { type: 'p', children: [
             { text: 'foo ' },
-           { type: 'inlineCode', children: [{ text: 'data.bar' }]},
+           { type: 'inlineLiveCode', children: [{ text: 'data.bar' }]},
             { text: ' ' },
-           { type: 'inlineCode', children: [{ text: 'table.baz' }]},
+           { type: 'inlineLiveCode', children: [{ text: 'table.baz' }]},
           ]},
         ]
       })
@@ -399,14 +399,14 @@ it('identifier uses itself in initializer with dynamic value', () => {
       content: Signal.cellOk({
         meta: {},
         children: [
-          { type: 'code', children: [
+          { type: 'liveCode', children: [
             // use of foo is an error,
             // skip over it but don't blow up
             { text: `import { bar } from '/bar'; const foo = bar + foo` }
           ]},
           { type: 'p', children: [
             { text: 'foo is '},
-            { type: 'inlineCode', children: [
+            { type: 'inlineLiveCode', children: [
               { text: 'foo' }
             ]},
           ]}

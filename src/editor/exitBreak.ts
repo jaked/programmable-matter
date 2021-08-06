@@ -1,11 +1,10 @@
-import { Editor, Path, Transforms } from 'slate';
+import { Editor, Transforms } from 'slate';
 import * as PMAST from '../model/PMAST';
 
 export const exitBreak = (editor: Editor) => {
   const exitableBlock = Editor.above(editor, {
     match: node => {
-      const pmNode = node as PMAST.Node;
-      return PMAST.isCode(pmNode) || PMAST.isBlockquote(pmNode) || PMAST.isList(pmNode);
+      return PMAST.isCode(node) || PMAST.isLiveCode(node) || PMAST.isBlockquote(node) || PMAST.isList(node);
     }
   });
 

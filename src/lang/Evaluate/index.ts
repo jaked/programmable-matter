@@ -590,7 +590,7 @@ function importDecl(
 
 function evalVariableDecl(
   nodes: Signal.Writable<PMAST.Node[]>,
-  node: PMAST.Code,
+  node: PMAST.LiveCode,
   decl: ESTree.VariableDeclaration,
   interfaceMap: InterfaceMap,
   valueEnv: Env,
@@ -625,7 +625,7 @@ function evalVariableDecl(
                     const code =
                       (node.children[0] && PMAST.isText(node.children[0]) && node.children[0].text) ||
                       bug(`expected text child`);
-                    const newNode: PMAST.Node = { type: 'code', children: [{ text:
+                    const newNode: PMAST.Node = { type: 'liveCode', children: [{ text:
                       code.substr(0, init.start) + JSON5.stringify(v, undefined, 2) + code.substr(init.end)
                     }]};
                     nodes[i] = newNode;
@@ -663,12 +663,12 @@ function evalVariableDecl(
 
 export function evaluateCodeNode(
   nodes: Signal.Writable<PMAST.Node[]>,
-  node: PMAST.Code,
+  node: PMAST.LiveCode,
   interfaceMap: InterfaceMap,
   moduleValueEnv: Map<string, Map<string, unknown>>,
   valueEnv: Env,
 ): Env {
-  const code = Parse.parseCodeNode(node);
+  const code = Parse.parseLiveCodeNode(node);
   code.forEach(code => {
     for (const decl of code.body) {
       switch (decl.type) {
