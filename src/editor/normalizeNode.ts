@@ -19,23 +19,7 @@ export const normalizeNode = (editor: Editor) => {
 
     // remove empty inlines
     if ((PMAST.isLink(node) || PMAST.isInlineLiveCode(node)) && Editor.isEmpty(editor, node)) {
-      if (editor.selection) {
-        // if a selection endpoint is in the link,
-        // unwrapping the link and normalizing can move the endpoint to the previous node
-        // to avoid this move the endpoint after the link
-        // TODO(jaked) better way to do this?
-        const inPoint = { path: path.concat(0), offset: 0 };
-        const afterPoint = Editor.after(editor, inPoint) ?? bug('expected after');
-        // TODO(jaked) should maybe use Transforms.select here
-        editor.selection = Immer.produce(editor.selection, selection => {
-          for (const [point, endpoint] of Range.points(selection)) {
-            if (Point.equals(point, inPoint))
-              selection[endpoint] = afterPoint;
-          }
-        });
-      }
-      Transforms.unwrapNodes(editor, { at: path });
-      return;
+      return Transforms.removeNodes(editor, { at: path });
     }
 
     if ((PMAST.isList(node) || PMAST.isBlockquote(node)) &&

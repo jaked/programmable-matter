@@ -171,12 +171,10 @@ describe('urls', () => {
     );
   });
 
-/* TODO(jaked) blows up in normalization, not sure why
-
-  it(`doesn't double-wrap link`, () => {
+  it(`splits outer link on insert`, () => {
     expectEditor(
       <editor>
-        <p><a href='https://bar.foo'><cursor /></a></p>
+        <p><a href='https://bar.foo'>bar<cursor />foo</a></p>
       </editor>,
 
       editor => {
@@ -187,12 +185,35 @@ describe('urls', () => {
       // TODO(jaked)
       <editor>
         <p>
+          <a href='https://bar.foo'>bar</a>
           <a href='https://foo.bar'>https://foo.bar<cursor/></a>
+          <a href='https://bar.foo'>foo</a>
         </p>
       </editor>
     );
   });
-  */
+
+  it(`splits outer link on wrap`, () => {
+    expectEditor(
+      <editor>
+        <p><a href='https://bar.foo'>bar<anchor/>baz<focus/>foo</a></p>
+      </editor>,
+
+      editor => {
+        editor.isInline = isInline(editor);
+        insertText(editor)('https://foo.bar');
+      },
+
+      // TODO(jaked)
+      <editor>
+        <p>
+          <a href='https://bar.foo'>bar</a>
+          <a href='https://foo.bar'>baz<cursor/></a>
+          <a href='https://bar.foo'>foo</a>
+        </p>
+      </editor>
+    );
+  });
 
   it('inserts link on trailing space', () => {
     expectEditor(

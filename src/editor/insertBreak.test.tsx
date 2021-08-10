@@ -14,8 +14,8 @@ describe('in link', () => {
       editor => insertBreak(editor)(),
 
       <editor>
-        <p><a href="https://foo.bar/">link</a></p>
-        <p><cursor/></p>
+        <p><a href="https://foo.bar/">link</a><cursor/></p>
+        <p/>
       </editor>
     );
   });

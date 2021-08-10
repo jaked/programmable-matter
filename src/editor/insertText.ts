@@ -38,18 +38,26 @@ const inLink = (editor: Editor) => {
 }
 
 const wrapLink = (editor: Editor, url: string) => {
-  if (inLink(editor)) {
-    Transforms.unwrapNodes(editor, { match: PMAST.isLink });
-  }
-
   const { selection } = editor;
-  if (selection && Range.isCollapsed(selection)) {
+  if (!selection || Range.isCollapsed(selection)) {
+    const match =
+      inLink(editor) ? PMAST.isLink : PMAST.isText;
     Transforms.insertNodes(editor, {
       type: 'a',
       href: url,
       children: [ { text: url } ],
-    });
+    }, { match });
   } else {
+    if (inLink(editor)) {
+      const [start, end] = Range.edges(selection);
+      const rangeRef = Editor.rangeRef(editor, selection, { affinity: 'inward' })
+      // TODO(jaked)
+      // docs for unwrapNodes suggest it does this split but it doesn't work
+      Transforms.splitNodes(editor, { at: end, match: PMAST.isLink })
+      Transforms.splitNodes(editor, { at: start, match: PMAST.isLink })
+      Transforms.select(editor, rangeRef.unref()!);
+      Transforms.unwrapNodes(editor, { match: PMAST.isLink, split: true });
+    }
     Transforms.wrapNodes(
       editor,
       { type: 'a', href: url, children: [] },
