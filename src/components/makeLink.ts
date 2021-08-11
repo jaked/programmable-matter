@@ -1,4 +1,4 @@
-import { remote } from 'electron';
+import { shell } from 'electron';
 import * as Url from 'url';
 import * as React from 'react';
 import styled from 'styled-components';
@@ -23,7 +23,7 @@ export default function makeLink(
     if (url.protocol && url.slashes && url.hostname) {
       const onClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        remote.shell.openExternal(props.href);
+        shell.openExternal(props.href);
       }
       return React.createElement(A, { ...props, href: props.href, onClick }, props.children);
 
