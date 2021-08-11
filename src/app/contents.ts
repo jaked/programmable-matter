@@ -25,9 +25,9 @@ function typeOfPath(path: string): model.Types {
 
 function renameCode(node: any) {
   if ('type' in node) {
-    if (node.type === 'code') node.type === 'liveCode';
-    if (node.type === 'inlineCode') node.type === 'inlineLiveCode';
-    if (node.type === 'pre') node.type === 'code';
+    if (node.type === 'code') node.type = 'liveCode';
+    if (node.type === 'inlineCode') node.type = 'inlineLiveCode';
+    if (node.type === 'pre') node.type = 'code';
   }
   if ('children' in node) {
     for (const child of node.children)
@@ -54,7 +54,7 @@ export const contents = Signal.mapMap(
           buffer => {
             const obj = JSON5.parse(buffer.toString('utf8'));
             if (Array.isArray(obj)) {
-              for (const node in obj)
+              for (const node of obj)
                 renameCode(node);
               PMAST.validateNodes(obj);
               return {
@@ -62,7 +62,7 @@ export const contents = Signal.mapMap(
                 meta: {},
               };
             } else if ('nodes' in obj) {
-              for (const node in obj.nodes)
+              for (const node of obj.nodes)
                 renameCode(node);
               PMAST.validateNodes(obj.nodes);
               return {
