@@ -228,31 +228,6 @@ describe('Transforms.insertNodes', () => {
   })
 });
 
-describe('Transforms.unwrapNodes', () => {
-  it('unwrapping empty inline node moves cursor to previous node :(', () => {
-    // this happens because the default normalization code sees 3 empty nodes
-    // and deletes the first two
-    // the cursor is in the second so gets moved to the previous parent
-    expectEditor(
-      <editor>
-        <p><stext/><a href="https://foo.bar/">link</a><stext/></p>
-        <p><stext/><a href="https://foo.bar/"><cursor/></a><stext/></p>
-      </editor>,
-
-      editor => {
-        Transforms.unwrapNodes(editor, {
-          match: node => PMAST.isLink(node as PMAST.Node)
-        })
-      },
-
-      <editor>
-        <p><stext/><a href="https://foo.bar/">link</a><cursor/></p>
-        <p><stext/></p>
-      </editor>
-    );
-  });
-});
-
 describe('Editor.nodes', () => {
   it('finds matching nodes in depth-first order', () => {
     const editor = <editor>

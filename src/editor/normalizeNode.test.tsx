@@ -113,8 +113,8 @@ it('drops empty links', () => {
     },
 
     <editor>
-      <p><stext/><a href="https://foo.bar/">link</a><cursor/></p>
-      <p><stext/></p>
+      <p><stext/><a href="https://foo.bar/">link</a><stext/></p>
+      <p><stext><cursor/></stext></p>
     </editor>
   )
 });

@@ -32,11 +32,6 @@ Work in progress! Lots of unfinished parts, tons of bugs!
 ## Installing
 
 ```
-# Slate with some local bugfixes
-git clone https://github.com/jaked/slate.git
-(cd slate; npx yarn install; npx yarn build)
-(cd slate/packages/slate-react; npx yalc publish)
-
 git clone https://github.com/jaked/programmable-matter.git
 cd programmable-matter
 npm install

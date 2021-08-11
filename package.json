@@ -10,7 +10,7 @@
     "compile": "tsc",
     "compile-watch": "tsc --watch",
     "test": "jest",
-    "test-watch": "jest --watch",
+    "test-watch": "jest --no-cache --watch",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
@@ -64,9 +64,9 @@
     "react-virtualized-auto-sizer": "^1.0.5",
     "react-window": "^1.8.5",
     "rebass": "^3.2.2",
-    "slate": "^0.63.0",
-    "slate-history": "^0.62.0",
-    "slate-react": "file:.yalc/slate-react",
+    "slate": "^0.65.3",
+    "slate-history": "^0.65.3",
+    "slate-react": "^0.65.3",
     "styled-components": "^5.3.0"
   },
   "config": {
