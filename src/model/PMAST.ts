@@ -104,7 +104,9 @@ export function isBlockquote(node: Slate.Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
-export type Code = ElementType<'code'>;
+export type Code = ElementType<'code'> & {
+  language?: 'javascript' | 'typescript'
+};
 
 export function isCode(node: Slate.Node): node is Code {
   return isElement(node) && node.type === 'code';

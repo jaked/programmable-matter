@@ -1,10 +1,13 @@
 import React from 'react';
-import { createEditor, Editor, Node, Path, Point, Range as SlateRange } from 'slate';
+import { createEditor, Editor, Node, Path, Point } from 'slate';
 import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-typescript';
 
+import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as model from '../../model';
@@ -64,6 +67,13 @@ const InlineLiveCode = styled.code`
   padding: 5px;
 `;
 
+const Code = styled.pre`
+  background-color: #f7f7f7;
+  margin-left: 10px;
+  margin-right: 10px;
+  padding: 10px;
+`;
+
 function makeRenderElement(
   moduleName: string,
   setSelected: (note: string) => void,
@@ -71,14 +81,22 @@ function makeRenderElement(
   const Link = makeLink(moduleName, setSelected);
 
   return ({ element, attributes, children }: RenderElementProps) => {
-    if (PMAST.isLink(element)) {
+    if (PMAST.isCode(element)) {
+      return <Code {...attributes}>
+        <code>{children}</code>
+      </Code>;
+
+    } else if (PMAST.isLink(element)) {
       return React.createElement(Link, { ...attributes, href: element.href }, children);
+
     } else if (PMAST.isLiveCode(element)) {
       return <LiveCode {...attributes}>
         <code>{children}</code>
       </LiveCode>
+
     } else if (PMAST.isInlineLiveCode(element)) {
       return <InlineLiveCode {...attributes}>{children}</InlineLiveCode>
+
     } else {
       return React.createElement(element.type, attributes, children);
     }
@@ -141,30 +159,89 @@ type Range = {
   link?: string;
 }
 
+const getLength = token => {
+  if (typeof token === 'string') {
+    return token.length
+  } else if (typeof token.content === 'string') {
+    return token.content.length
+  } else {
+    return token.content.reduce((l, t) => l + getLength(t), 0)
+  }
+}
+
+const highlightTagOfTokenType = (type: string): Highlight.tag => {
+  switch (type) {
+    case 'keyword': return 'keyword';
+    case 'number': return 'number';
+    case 'string': return 'string';
+    case 'boolean': return 'atom';
+    case 'function-variable': return 'definition';
+    case 'builtin': return 'variable';
+
+    case 'operator': return 'default';
+    case 'punctuation': return 'default';
+
+    default:
+      return 'default';
+  }
+}
+
 export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
   ([node, path]: [Node, Path]) => {
-    // TODO(jaked) cache decorations
-    const ranges: Range[] = [];
-    const code: Try<ESTree.Node> | null =
-      PMAST.isLiveCode(node) ? Parse.parseLiveCodeNode(node) :
-      PMAST.isInlineLiveCode(node) ? Parse.parseInlineLiveCodeNode(node) :
-      null;
-    if (code) {
-      code.forEach(code => {
-        const spans: Highlight.Span[] = [];
-        Highlight.computeJsSpans(code, interfaceMap, spans);
-        for (const span of spans) {
+    // TODO(jaked) cache decorations?
+
+    if (PMAST.isLiveCode(node) || PMAST.isInlineLiveCode(node)) {
+      const ranges: Range[] = [];
+      const code: Try<ESTree.Node> | null =
+        PMAST.isLiveCode(node) ? Parse.parseLiveCodeNode(node) :
+        PMAST.isInlineLiveCode(node) ? Parse.parseInlineLiveCodeNode(node) :
+        null;
+      if (code) {
+        code.forEach(code => {
+          const spans: Highlight.Span[] = [];
+          Highlight.computeJsSpans(code, interfaceMap, spans);
+          for (const span of spans) {
+            ranges.push({
+              anchor: { path, offset: span.start },
+              focus: { path, offset: span.end },
+              highlight: span.tag,
+              status: span.status,
+              link: span.link
+            });
+          }
+        })
+      }
+      return ranges;
+
+    } else if (PMAST.isCode(node) && node.language) {
+      if (!(node.children.length === 1)) bug('expected 1 child');
+      const child = node.children[0];
+      if (!(PMAST.isText(child))) bug('expected text');
+      const code = child.text;
+
+      const ranges: Range[] = [];
+      let start = 0
+
+      const tokens = Prism.tokenize(code, Prism.languages[node.language])
+      for (const token of tokens) {
+        const length = getLength(token)
+        const end = start + length
+
+        if (typeof token !== 'string') {
           ranges.push({
-            anchor: { path, offset: span.start },
-            focus: { path, offset: span.end },
-            highlight: span.tag,
-            status: span.status,
-            link: span.link
-          });
+            highlight: highlightTagOfTokenType(token.type),
+            anchor: { path, offset: start },
+            focus: { path, offset: end },
+          })
         }
-      })
+
+        start = end
+      }
+
+      return ranges;
+    } else {
+      return [];
     }
-    return ranges;
   }
 
 const MARK_HOTKEYS: { [k: string]: PMAST.mark } = {

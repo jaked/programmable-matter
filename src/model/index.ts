@@ -1,5 +1,4 @@
 import React from 'react';
-import { Range } from 'slate';
 
 import Try from '../util/Try';
 import Signal from '../util/Signal';

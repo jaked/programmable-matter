@@ -21,6 +21,7 @@ const SHORTCUTS = {
 
   // TODO(jaked) this would be more usable if it fired on enter not space
   '{{{': 'liveCode',
+  '```': 'code',
 }
 
 const isUrl = (text: string) => {
