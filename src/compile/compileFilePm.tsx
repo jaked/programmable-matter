@@ -13,7 +13,7 @@ import * as ESTree from '../estree';
 import * as Parse from '../parse';
 import * as Evaluate from '../evaluate';
 import * as Render from '../render';
-import * as Generate from '../lang/Generate';
+import * as Generate from '../generate';
 import Type from '../type';
 import Typecheck from '../typecheck';
 

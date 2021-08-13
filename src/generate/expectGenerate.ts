@@ -2,14 +2,14 @@ import * as Immutable from 'immutable';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
-import { Interface } from '../../model';
-import * as ESTree from '../../estree';
-import Type from '../../type';
-import * as Parse from '../../parse';
-import Typecheck from '../../typecheck';
+import { Interface } from '../model';
+import * as ESTree from '../estree';
+import Type from '../type';
+import * as Parse from '../parse';
+import Typecheck from '../typecheck';
 import * as Generate from './index';
-import Signal from '../../util/Signal';
-import { bug } from '../../util/bug';
+import Signal from '../util/Signal';
+import { bug } from '../util/bug';
 
 // TODO(jaked)
 // seems like TS should be able to figure it out from the instanceof
