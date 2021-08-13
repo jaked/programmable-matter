@@ -14,11 +14,11 @@ import * as Compiled from '../app/compiled';
 import { Session } from './react-simple-code-editor';
 
 import { Catch } from './Catch';
-import SearchBox from './search/SearchBox';
-import Notes from './search/Notes';
+import SearchBox from './SearchBox';
+import Notes from './Notes';
 import Header from './Header'
 import Editor from './Editor';
-import RichTextEditor from './editor/RichTextEditor';
+import RichTextEditor from './RichTextEditor';
 
 // TODO(jaked) straighten out dependencies
 import { mouse } from '../render/initEnv';

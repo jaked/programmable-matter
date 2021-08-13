@@ -2,13 +2,13 @@ import * as React from 'react';
 import { Box, Flex } from 'rebass';
 import styled from 'styled-components';
 
-import Signal from '../../util/Signal';
-import * as Name from '../../util/Name';
+import Signal from '../util/Signal';
+import * as Name from '../util/Name';
 
-import * as App from '../../app';
-import * as SelectedNote from '../../app/selectedNote';
-import * as Sidebar from '../../app/sidebar';
-import * as Focus from '../../app/focus';
+import * as App from '../app';
+import * as SelectedNote from '../app/selectedNote';
+import * as Sidebar from '../app/sidebar';
+import * as Focus from '../app/focus';
 
 const FocusDir = styled(Box)`
   white-space: nowrap;

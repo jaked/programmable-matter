@@ -3,7 +3,7 @@ import * as Slate from 'slate';
 import * as SlateReact from 'slate-react';
 import { parseHotkey } from 'is-hotkey';
 
-import * as PMEditor from '../../editor/PMEditor';
+import * as PMEditor from '../editor/PMEditor';
 import * as RichTextEditor from './RichTextEditor';
 
 function makeKeyboardEvent(hotkey: string) {

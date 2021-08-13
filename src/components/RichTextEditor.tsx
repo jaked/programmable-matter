@@ -1,26 +1,26 @@
 import React from 'react';
-import { createEditor, Editor, Node, Path, Point } from 'slate';
+import { createEditor, Editor, Node, Path } from 'slate';
 import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, Slate } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
 
-import { bug } from '../../util/bug';
-import Try from '../../util/Try';
-import Signal from '../../util/Signal';
-import * as model from '../../model';
-import * as PMAST from '../../pmast';
-import * as Parse from '../../parse';
-import * as ESTree from '../../estree';
-import * as PMEditor from '../../editor/PMEditor';
-import { Range, Span } from '../../highlight/types';
-import { computeJsSpans } from '../../highlight/computeJsSpans';
-import okComponents from '../../highlight/components';
-import errComponents from '../../highlight/errComponents';
-import { computeRanges } from '../../highlight/prism';
-import makeLink from '../../components/makeLink';
+import { bug } from '../util/bug';
+import Try from '../util/Try';
+import Signal from '../util/Signal';
+import * as model from '../model';
+import * as PMAST from '../pmast';
+import * as Parse from '../parse';
+import * as ESTree from '../estree';
+import * as PMEditor from '../editor/PMEditor';
+import { Range, Span } from '../highlight/types';
+import { computeJsSpans } from '../highlight/computeJsSpans';
+import okComponents from '../highlight/components';
+import errComponents from '../highlight/errComponents';
+import { computeRanges } from '../highlight/prism';
+import makeLink from '../components/makeLink';
 
-import * as Focus from '../../app/focus';
+import * as Focus from '../app/focus';
 
 const LiveCode = styled.pre`
   background-color: #eeeeee;

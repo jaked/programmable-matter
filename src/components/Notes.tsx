@@ -4,13 +4,13 @@ import styled from 'styled-components';
 import { FixedSizeList } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import * as Name from '../../util/Name';
-import Signal from '../../util/Signal';
-import * as model from '../../model';
+import * as Name from '../util/Name';
+import Signal from '../util/Signal';
+import * as model from '../model';
 
-import * as SelectedNote from '../../app/selectedNote';
-import * as Sidebar from '../../app/sidebar';
-import * as Focus from '../../app/focus';
+import * as SelectedNote from '../app/selectedNote';
+import * as Sidebar from '../app/sidebar';
+import * as Focus from '../app/focus';
 
 // TODO(jaked) make this a global style? or should there be (lighter) outlines?
 const Box = styled(BoxBase)({
