@@ -8,7 +8,7 @@ import { Inspector } from 'react-inspector';
 import * as Plot from '@observablehq/plot';
 import { PlotFigure } from 'plot-react';
 
-import HighlightedCode from '../lang/HighlightedCode';
+import HighlightedCode from './HighlightedCode';
 
 import Signal from '../util/Signal';
 
