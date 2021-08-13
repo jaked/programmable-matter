@@ -5,7 +5,7 @@ import * as PMAST from '../../pmast';
 import * as ESTree from '../../estree';
 import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
-import Type from '../Type';
+import Type from '../../type';
 import Typecheck from '../Typecheck';
 import * as Render from '../Render';
 import * as Generate from './index';

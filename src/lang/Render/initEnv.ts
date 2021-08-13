@@ -1,5 +1,5 @@
 import * as Parse from '../Parse';
-import Type from '../Type';
+import Type from '../../type';
 
 import * as Immutable from 'immutable';
 

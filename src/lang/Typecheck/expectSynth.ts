@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import { Interface } from '../../model';
 import * as ESTree from '../../estree';
 import * as Parse from '../Parse';
-import Type from '../Type';
+import Type from '../../type';
 import Typecheck from './index';
 
 const intfType = (intf: Interface) =>

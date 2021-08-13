@@ -2,7 +2,7 @@ import React from 'react';
 
 import Try from '../util/Try';
 import Signal from '../util/Signal';
-import Type from '../lang/Type';
+import Type from '../type';
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
 

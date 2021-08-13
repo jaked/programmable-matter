@@ -9,7 +9,7 @@ import { diffMap } from '../../util/diffMap';
 import { bug } from '../../util/bug';
 import * as ESTree from '../../estree';
 import * as Parse from '../Parse';
-import Type from '../Type';
+import Type from '../../type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
 import { Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';

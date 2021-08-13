@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import Type from '../Type';
+import Type from '../../type';
 import * as Render from '../Render';
 import { Content, CompiledFile } from '../../model';
 

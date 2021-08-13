@@ -1,4 +1,4 @@
-import { bug } from '../../util/bug';
+import { bug } from '../util/bug';
 import * as Types from './types';
 import * as Type from './constructors';
 import * as Predef from './predef';

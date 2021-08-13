@@ -1,5 +1,5 @@
 // TODO(jaked) move Interface to Type
-import { Interface } from '../../model';
+import { Interface } from '../model';
 
 export type NeverType = { readonly kind: 'never' };
 export type UnknownType = { readonly kind: 'unknown' };

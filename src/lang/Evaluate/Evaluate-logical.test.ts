@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import Try from '../../util/Try';
-import Type from '../Type';
+import Type from '../../type';
 import Typecheck from '../Typecheck';
 import expectEval from './expectEval';
 

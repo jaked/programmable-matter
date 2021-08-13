@@ -1,4 +1,4 @@
-import Type from '../Type';
+import Type from '../../type';
 import Typecheck from './index';
 import expectSynth from './expectSynth';
 

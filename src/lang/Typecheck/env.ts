@@ -1,7 +1,7 @@
 import * as Immutable from 'immutable';
 import Try from '../../util/Try';
 import { Interface } from '../../model';
-import Type from '../Type';
+import Type from '../../type';
 import { parseType } from '../Parse';
 
 export type Env = Immutable.Map<string, Interface>;

@@ -1,5 +1,5 @@
 import Try from '../../util/Try';
-import Type from '../Type';
+import Type from '../../type';
 import * as ESTree from '../../estree';
 import { InterfaceMap } from '../../model';
 

@@ -1,5 +1,5 @@
 import * as Types from './types';
-import { Interface } from '../../model';
+import { Interface } from '../model';
 
 export const never: Types.NeverType = { kind: 'never' };
 

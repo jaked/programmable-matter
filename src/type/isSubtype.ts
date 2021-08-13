@@ -1,4 +1,4 @@
-import { bug } from '../../util/bug';
+import { bug } from '../util/bug';
 import { Type } from './types';
 import { undefined } from './constructors';
 import expand from './expand';

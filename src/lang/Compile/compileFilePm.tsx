@@ -14,7 +14,7 @@ import * as Parse from '../Parse';
 import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
 import * as Generate from '../Generate';
-import Type from '../Type';
+import Type from '../../type';
 import Typecheck from '../Typecheck';
 
 import makeLink from '../../components/makeLink';

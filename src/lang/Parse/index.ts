@@ -4,7 +4,7 @@ import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import * as PMAST from '../../pmast';
 import * as ESTree from '../../estree';
-import Type from '../Type';
+import Type from '../../type';
 
 export function parseProgram(input: string) {
   const ast = Babel.parse(input, {

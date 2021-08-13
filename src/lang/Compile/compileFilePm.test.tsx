@@ -5,7 +5,7 @@ import { Interface } from '../../model';
 import Signal from '../../util/Signal';
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
-import Type from '../Type';
+import Type from '../../type';
 import compileFilePm from './compileFilePm';
 
 const intfType = (intf: Interface) =>
