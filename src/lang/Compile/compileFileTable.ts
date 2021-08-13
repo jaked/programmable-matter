@@ -7,7 +7,7 @@ import Signal from '../../util/Signal';
 import * as Name from '../../util/Name';
 import { diffMap } from '../../util/diffMap';
 import { bug } from '../../util/bug';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from '../Typecheck';

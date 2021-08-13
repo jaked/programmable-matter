@@ -1,7 +1,7 @@
 import * as Immutable from 'immutable';
 import { Interface } from '../../model';
 import * as Parse from '../Parse';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import Typecheck from '../Typecheck';
 import * as Evaluate from './index';
 

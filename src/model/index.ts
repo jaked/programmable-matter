@@ -4,7 +4,7 @@ import Try from '../util/Try';
 import Signal from '../util/Signal';
 import Type from '../lang/Type';
 import * as PMAST from '../pmast';
-import * as ESTree from '../lang/ESTree';
+import * as ESTree from '../estree';
 
 // TODO(jaked) a lot of this doesn't belong here
 

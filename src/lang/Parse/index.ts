@@ -3,7 +3,7 @@ import * as Babel from '@babel/parser';
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import * as PMAST from '../../pmast';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import Type from '../Type';
 
 export function parseProgram(input: string) {

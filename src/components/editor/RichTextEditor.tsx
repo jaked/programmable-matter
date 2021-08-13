@@ -11,7 +11,7 @@ import Signal from '../../util/Signal';
 import * as model from '../../model';
 import * as PMAST from '../../pmast';
 import * as Parse from '../../lang/Parse';
-import * as ESTree from '../../lang/ESTree';
+import * as ESTree from '../../estree';
 import * as PMEditor from '../../editor/PMEditor';
 import { Range, Span } from '../../highlight/types';
 import { computeJsSpans } from '../../highlight/computeJsSpans';

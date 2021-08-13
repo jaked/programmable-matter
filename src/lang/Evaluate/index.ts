@@ -2,7 +2,7 @@ import * as Immer from 'immer';
 import * as Immutable from 'immutable';
 import * as React from 'react';
 import JSON5 from 'json5';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import * as PMAST from '../../pmast';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';

@@ -2,7 +2,7 @@ import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as PMAST from '../../pmast';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../Parse';
 import Type from '../Type';

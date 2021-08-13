@@ -1,6 +1,6 @@
 import Try from '../../util/Try';
 import Type from '../Type';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import { InterfaceMap } from '../../model';
 
 export function withLocation(ast: ESTree.Node, err: string | Error, interfaceMap?: InterfaceMap) {

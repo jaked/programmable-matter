@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import { Interface } from '../../model';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import * as Parse from '../Parse';
 import Type from '../Type';
 import Typecheck from './index';

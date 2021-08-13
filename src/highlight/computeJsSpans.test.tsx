@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import { Interface } from '../model';
 import * as Parse from '../lang/Parse';
-import * as ESTree from '../lang/ESTree';
+import * as ESTree from '../estree';
 import Typecheck from '../lang/Typecheck';
 import { Span } from './types';
 import { computeJsSpans } from './computeJsSpans';

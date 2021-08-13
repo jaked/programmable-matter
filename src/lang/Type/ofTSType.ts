@@ -1,4 +1,4 @@
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import { bug } from '../../util/bug';
 import * as Types from './types';
 import * as Type from './constructors';

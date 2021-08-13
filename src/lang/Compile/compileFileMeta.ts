@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import * as Parse from '../Parse';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import Type from '../Type';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';

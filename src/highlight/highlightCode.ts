@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import * as ESTree from '../lang/ESTree';
+import * as ESTree from '../estree';
 import { Span } from './types';
 import { computeJsSpans } from './computeJsSpans';
 import * as model from '../model';

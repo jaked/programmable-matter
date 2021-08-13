@@ -3,7 +3,7 @@ import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
 import { Interface } from '../../model';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import Type from '../Type';
 import * as Parse from '../Parse';
 import Typecheck from '../Typecheck';

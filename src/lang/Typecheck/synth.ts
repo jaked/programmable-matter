@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import Try from '../../util/Try';
 import { bug } from '../../util/bug';
 import Type from '../Type';
-import * as ESTree from '../ESTree';
+import * as ESTree from '../../estree';
 import { Interface, InterfaceMap } from '../../model';
 import { Env } from './env';
 import * as Error from './error';

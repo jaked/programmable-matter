@@ -1,4 +1,4 @@
-import * as ESTree from '../lang/ESTree';
+import * as ESTree from '../estree';
 import * as model from '../model';
 import { tag, Span } from './types';
 
