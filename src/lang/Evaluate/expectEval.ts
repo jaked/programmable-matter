@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import { Interface } from '../../model';
 import * as ESTree from '../../estree';
 import Type from '../../type';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import Typecheck from '../../typecheck';
 import * as Evaluate from './index';
 import { bug } from '../../util/bug';

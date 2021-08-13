@@ -7,7 +7,7 @@ import * as PMAST from '../../pmast';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import { Interface, InterfaceMap } from '../../model';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 
 export type Env = Immutable.Map<string, any>;
 

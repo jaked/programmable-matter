@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
 import { bug } from '../../util/bug';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import * as ESTree from '../../estree';
 import Type from '../../type';
 import Typecheck from '../../typecheck';

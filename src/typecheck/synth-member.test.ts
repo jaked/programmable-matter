@@ -1,6 +1,6 @@
 import Try from '../util/Try';
 import Type from '../type';
-import * as Parse from '../lang/Parse';
+import * as Parse from '../Parse';
 import Typecheck from './index';
 import expectSynth from './expectSynth';
 

@@ -10,7 +10,7 @@ import Signal from '../../util/Signal';
 import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
 import * as PMAST from '../../pmast';
 import * as ESTree from '../../estree';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import * as Evaluate from '../Evaluate';
 import * as Render from '../Render';
 import * as Generate from '../Generate';

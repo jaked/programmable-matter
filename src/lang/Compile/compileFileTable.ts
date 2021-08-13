@@ -8,7 +8,7 @@ import * as Name from '../../util/Name';
 import { diffMap } from '../../util/diffMap';
 import { bug } from '../../util/bug';
 import * as ESTree from '../../estree';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import Type from '../../type';
 import Typecheck from '../../typecheck';
 import * as Evaluate from '../Evaluate';

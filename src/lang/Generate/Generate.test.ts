@@ -4,7 +4,7 @@ import Signal from '../../util/Signal';
 import * as PMAST from '../../pmast';
 import * as ESTree from '../../estree';
 import { Interface, InterfaceMap } from '../../model';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import Type from '../../type';
 import Typecheck from '../../typecheck';
 import * as Render from '../Render';

@@ -2,7 +2,7 @@ import { bug } from '../../util/bug';
 import { Interface } from '../../model';
 import * as PMAST from '../../pmast';
 import * as ESTree from '../../estree';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import Type from '../../type';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';

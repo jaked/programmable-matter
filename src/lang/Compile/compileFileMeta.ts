@@ -1,7 +1,7 @@
 import * as Immutable from 'immutable';
 import Signal from '../../util/Signal';
 import Try from '../../util/Try';
-import * as Parse from '../Parse';
+import * as Parse from '../../Parse';
 import * as ESTree from '../../estree';
 import Type from '../../type';
 import Typecheck from '../../typecheck';

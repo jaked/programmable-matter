@@ -1,6 +1,6 @@
 import { bug } from '../util/bug';
 import { Interface } from '../model';
-import * as Parse from '../lang/Parse';
+import * as Parse from '../Parse';
 import * as ESTree from '../estree';
 import Type from '../type';
 import Typecheck from './index';
