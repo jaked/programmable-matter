@@ -1,5 +1,6 @@
 import React from 'react';
 import Frame, { FrameContextConsumer } from 'react-frame-component';
+import { StyleSheetManager } from 'styled-components';
 
 import Signal from '../util/Signal';
 
@@ -230,11 +231,13 @@ const DisplayPane = React.memo((props: DisplayPaneProps) =>
   >
     <FrameContextConsumer>{
       ({ document, window }) =>
-        <DisplayPaneWithHooks
-          compiledNoteSignal={props.compiledNoteSignal}
-          document={document}
-          window={window}
-        />
+        <StyleSheetManager target={document.head}>
+          <DisplayPaneWithHooks
+            compiledNoteSignal={props.compiledNoteSignal}
+            document={document}
+            window={window}
+          />
+        </StyleSheetManager>
     }</FrameContextConsumer>
   </Frame>
 );
