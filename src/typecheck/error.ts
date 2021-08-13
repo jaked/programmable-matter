@@ -1,7 +1,7 @@
-import Try from '../../util/Try';
-import Type from '../../type';
-import * as ESTree from '../../estree';
-import { InterfaceMap } from '../../model';
+import Try from '../util/Try';
+import Type from '../type';
+import * as ESTree from '../estree';
+import { InterfaceMap } from '../model';
 
 export function withLocation(ast: ESTree.Node, err: string | Error, interfaceMap?: InterfaceMap) {
   if (typeof err === 'string') err = new Error(err);

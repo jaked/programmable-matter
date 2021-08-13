@@ -1,9 +1,9 @@
 import * as Immutable from 'immutable';
-import Try from '../../util/Try';
-import { bug } from '../../util/bug';
-import Type from '../../type';
-import * as ESTree from '../../estree';
-import { Interface, InterfaceMap } from '../../model';
+import Try from '../util/Try';
+import { bug } from '../util/bug';
+import Type from '../type';
+import * as ESTree from '../estree';
+import { Interface, InterfaceMap } from '../model';
 import { Env } from './env';
 import * as Error from './error';
 import { check } from './check';

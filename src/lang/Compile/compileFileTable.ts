@@ -10,7 +10,7 @@ import { bug } from '../../util/bug';
 import * as ESTree from '../../estree';
 import * as Parse from '../Parse';
 import Type from '../../type';
-import Typecheck from '../Typecheck';
+import Typecheck from '../../typecheck';
 import * as Evaluate from '../Evaluate';
 import { Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../../model';
 import * as model from '../../model';

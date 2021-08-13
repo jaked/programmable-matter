@@ -5,7 +5,7 @@ import * as Type from './constructors';
 import { union } from './union';
 import { intersection } from './intersection';
 import * as model from '../model';
-import * as Error from '../lang/Typecheck/error';
+import * as Error from '../typecheck/error';
 
 function stringOfQualifiedIdentifier(
   ident: ESTree.QualifiedIdentifier

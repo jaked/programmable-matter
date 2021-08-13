@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Interface } from '../model';
 import * as Parse from '../lang/Parse';
 import * as ESTree from '../estree';
-import Typecheck from '../lang/Typecheck';
+import Typecheck from '../typecheck';
 import { Span } from './types';
 import { computeJsSpans } from './computeJsSpans';
 import { bug } from '../util/bug';

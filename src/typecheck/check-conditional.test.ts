@@ -1,9 +1,9 @@
-import { Interface } from '../../model';
-import * as ESTree from '../../estree';
-import * as Parse from '../Parse';
-import Type from '../../type';
+import { Interface } from '../model';
+import * as ESTree from '../estree';
+import * as Parse from '../lang/Parse';
+import Type from '../type';
 import Typecheck from './index';
-import { bug } from '../../util/bug';
+import { bug } from '../util/bug';
 
 import expectCheck from './expectCheck';
 

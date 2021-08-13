@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import Type from '../../type';
-import Typecheck from '../Typecheck';
+import Typecheck from '../../typecheck';
 import expectEval from './expectEval';
 
 const error = new Error('error');

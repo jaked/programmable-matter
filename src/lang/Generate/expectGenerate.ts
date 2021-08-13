@@ -6,7 +6,7 @@ import { Interface } from '../../model';
 import * as ESTree from '../../estree';
 import Type from '../../type';
 import * as Parse from '../Parse';
-import Typecheck from '../Typecheck';
+import Typecheck from '../../typecheck';
 import * as Generate from './index';
 import Signal from '../../util/Signal';
 import { bug } from '../../util/bug';
