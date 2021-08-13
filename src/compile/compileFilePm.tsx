@@ -11,7 +11,7 @@ import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, Wri
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
 import * as Parse from '../parse';
-import * as Evaluate from '../lang/Evaluate';
+import * as Evaluate from '../evaluate';
 import * as Render from '../lang/Render';
 import * as Generate from '../lang/Generate';
 import Type from '../type';

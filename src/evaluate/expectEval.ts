@@ -1,11 +1,11 @@
 import * as Immutable from 'immutable';
-import { Interface } from '../../model';
-import * as ESTree from '../../estree';
-import Type from '../../type';
-import * as Parse from '../../parse';
-import Typecheck from '../../typecheck';
+import { Interface } from '../model';
+import * as ESTree from '../estree';
+import Type from '../type';
+import * as Parse from '../parse';
+import Typecheck from '../typecheck';
 import * as Evaluate from './index';
-import { bug } from '../../util/bug';
+import { bug } from '../util/bug';
 
 // TODO(jaked)
 // seems like TS should be able to figure it out from the instanceof

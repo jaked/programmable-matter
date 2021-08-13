@@ -9,7 +9,7 @@ import * as Parse from '../parse';
 import * as ESTree from '../estree';
 import Type from '../type';
 import Typecheck from '../typecheck';
-import * as Evaluate from '../lang/Evaluate';
+import * as Evaluate from '../evaluate';
 import { Interface, Content, CompiledFile } from '../model';
 import { Record } from '../components/Record';
 

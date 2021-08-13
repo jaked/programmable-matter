@@ -11,7 +11,7 @@ import * as ESTree from '../estree';
 import * as Parse from '../parse';
 import Type from '../type';
 import Typecheck from '../typecheck';
-import * as Evaluate from '../lang/Evaluate';
+import * as Evaluate from '../evaluate';
 import { Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../model';
 import * as model from '../model';
 import { Table } from '../components/Table';

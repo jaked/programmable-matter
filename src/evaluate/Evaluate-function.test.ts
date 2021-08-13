@@ -1,8 +1,8 @@
 import * as Immutable from 'immutable';
-import { Interface } from '../../model';
-import * as Parse from '../../parse';
-import * as ESTree from '../../estree';
-import Typecheck from '../../typecheck';
+import { Interface } from '../model';
+import * as Parse from '../parse';
+import * as ESTree from '../estree';
+import Typecheck from '../typecheck';
 import * as Evaluate from './index';
 
 it('evals', () => {

@@ -9,7 +9,7 @@ import { Interface, InterfaceMap } from '../../model';
 import { computeChildren } from '../../highlight/prism';
 import * as Parse from '../../parse';
 import Typecheck from '../../typecheck';
-import * as Evaluate from '../Evaluate';
+import * as Evaluate from '../../evaluate';
 import initEnv from './initEnv';
 
 const intfDynamic = (intf: Interface) =>
