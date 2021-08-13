@@ -22,6 +22,11 @@ const SHORTCUTS = {
   // TODO(jaked) this would be more usable if it fired on enter not space
   '{{{': 'liveCode',
   '```': 'code',
+
+  '```js': { type: 'code', language: 'javascript', children: [] },
+  '```javascript': { type: 'code', language: 'javascript', children: [] },
+  '```ts': { type: 'code', language: 'typescript', children: [] },
+  '```typescript': { type: 'code', language: 'typescript', children: [] },
 }
 
 const isUrl = (text: string) => {
@@ -129,7 +134,7 @@ export const insertText = (editor: Editor) => {
     if (!above) return insertText(text);
 
     const [node, path] = above;
-    if (PMAST.isLiveCode(node) || PMAST.isInlineLiveCode(node))
+    if (PMAST.isCode(node) || PMAST.isLiveCode(node) || PMAST.isInlineLiveCode(node))
       return insertText(text);
 
     if (isUrl(text)) return wrapLink(editor, text);
