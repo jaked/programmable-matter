@@ -3,21 +3,21 @@ import * as Immutable from 'immutable';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
 
-import { bug } from '../../util/bug';
-import * as model from '../../model';
-import * as Name from '../../util/Name';
-import Signal from '../../util/Signal';
-import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
-import * as PMAST from '../../pmast';
-import * as ESTree from '../../estree';
-import * as Parse from '../../Parse';
-import * as Evaluate from '../Evaluate';
-import * as Render from '../Render';
-import * as Generate from '../Generate';
-import Type from '../../type';
-import Typecheck from '../../typecheck';
+import { bug } from '../util/bug';
+import * as model from '../model';
+import * as Name from '../util/Name';
+import Signal from '../util/Signal';
+import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../model';
+import * as PMAST from '../pmast';
+import * as ESTree from '../estree';
+import * as Parse from '../parse';
+import * as Evaluate from '../lang/Evaluate';
+import * as Render from '../lang/Render';
+import * as Generate from '../lang/Generate';
+import Type from '../type';
+import Typecheck from '../typecheck';
 
-import makeLink from '../../components/makeLink';
+import makeLink from '../components/makeLink';
 
 const intfType = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);

@@ -1,7 +1,7 @@
 import * as Path from 'path';
-import Signal from '../../util/Signal';
-import * as Name from '../../util/Name';
-import * as model from '../../model';
+import Signal from '../util/Signal';
+import * as Name from '../util/Name';
+import * as model from '../model';
 
 function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
   return metaFile.exportValue.map(exportValue => {

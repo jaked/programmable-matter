@@ -1,7 +1,7 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
 import { Interface } from '../model';
-import * as Parse from '../Parse';
+import * as Parse from '../parse';
 import * as ESTree from '../estree';
 import Typecheck from '../typecheck';
 import { Span } from './types';

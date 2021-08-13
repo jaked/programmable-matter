@@ -1,9 +1,9 @@
 import * as React from 'react';
-import Try from '../../util/Try';
-import Signal from '../../util/Signal';
-import Type from '../../type';
-import * as Render from '../Render';
-import { Content, CompiledFile, Interface } from '../../model';
+import Signal from '../util/Signal';
+import Try from '../util/Try';
+import Type from '../type';
+import * as Render from '../lang/Render';
+import { Content, CompiledFile } from '../model';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
 
@@ -28,7 +28,7 @@ const styleType = Type.undefinedOr(Type.object({
   padding: Type.undefinedOrString,
 }));
 
-export default function compileFilePng(
+export default function compileFileJpeg(
   file: Content
 ): CompiledFile {
   const compiled = file.content.map(content => {
@@ -58,8 +58,8 @@ export default function compileFilePng(
       style: styleType,
     });
 
-    // TODO(jaked) parse PNG file and return metadata
-    const exportInterface = new Map<string, Interface>([
+    // TODO(jaked) parse JPEG file and return metadata
+    const exportInterface = new Map([
       [ 'buffer', Try.ok({ type: Type.abstract('Buffer'), dynamic: false }) ],
       [ 'objectUrl', Try.ok({ type: Type.string, dynamic: false }) ],
       [ 'img', Try.ok({ type: imgType, dynamic: false }) ],
@@ -70,7 +70,7 @@ export default function compileFilePng(
       [ 'objectUrl', objectUrl ],
       [ 'img', component ],
       [ 'default', component ],
-    ])
+    ]);
 
     const rendered =
       component({
@@ -81,7 +81,7 @@ export default function compileFilePng(
       });
 
     return {
-      exportInterface,
+      exportType: exportInterface,
       exportValue,
       rendered,
       problems: false,
@@ -91,7 +91,7 @@ export default function compileFilePng(
 
   return {
     ast: Signal.ok(null),
-    exportInterface: compiled.map(({ exportInterface }) => exportInterface),
+    exportInterface: compiled.map(({ exportType }) => exportType),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),

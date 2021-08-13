@@ -1,5 +1,5 @@
 import Signal from '../util/Signal';
-import * as Compile from '../lang/Compile';
+import * as Compile from '../compile';
 
 import * as Files from './files';
 import * as Contents from './contents';

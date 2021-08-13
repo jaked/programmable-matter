@@ -1,13 +1,13 @@
 import * as Immutable from 'immutable';
-import Signal from '../../util/Signal';
-import Try from '../../util/Try';
-import * as Parse from '../../Parse';
-import * as ESTree from '../../estree';
-import Type from '../../type';
-import Typecheck from '../../typecheck';
-import * as Evaluate from '../Evaluate';
-import { Interface, Content, CompiledFile } from '../../model';
-import * as Meta from '../../model/Meta';
+import Signal from '../util/Signal';
+import Try from '../util/Try';
+import * as Parse from '../parse';
+import * as ESTree from '../estree';
+import Type from '../type';
+import Typecheck from '../typecheck';
+import * as Evaluate from '../lang/Evaluate';
+import { Interface, Content, CompiledFile } from '../model';
+import * as Meta from '../model/Meta';
 
 const exportInterface = Signal.ok(new Map([[ 'default', Try.ok({ type: Type.metaType, dynamic: false }) ]]));
 const rendered = Signal.ok(null);

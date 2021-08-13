@@ -1,4 +1,4 @@
-import Signal from '../../util/Signal';
+import Signal from '../util/Signal';
 
 import compileFileMeta from './compileFileMeta';
 

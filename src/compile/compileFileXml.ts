@@ -1,8 +1,8 @@
 import { Feed } from 'feed';
 
-import { bug } from '../../util/bug';
-import Signal from '../../util/Signal';
-import { WritableContent, CompiledFile, CompiledNotes } from '../../model';
+import { bug } from '../util/bug';
+import Signal from '../util/Signal';
+import { WritableContent, CompiledFile, CompiledNotes } from '../model';
 
 const postRe = /^\/blog\/(\d\d\d\d-\d\d-\d\d)/;
 

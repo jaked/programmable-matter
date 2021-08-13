@@ -1,6 +1,6 @@
-import { bug } from '../../util/bug';
-import Signal from '../../util/Signal';
-import { CompiledFile, CompiledNotes, WritableContent } from '../../model';
+import { bug } from '../util/bug';
+import Signal from '../util/Signal';
+import { CompiledFile, CompiledNotes, WritableContent } from '../model';
 
 import compileFileMeta from './compileFileMeta';
 import compileFilePm from './compileFilePm';

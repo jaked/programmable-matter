@@ -1,12 +1,12 @@
 import React from 'react';
 
-import { bug } from '../../util/bug';
-import Signal from '../../util/Signal';
-import * as Name from '../../util/Name';
-import * as model from '../../model';
+import { bug } from '../util/bug';
+import Signal from '../util/Signal';
+import * as Name from '../util/Name';
+import * as model from '../model';
 
 import compileFile from './compileFile';
-import groupFilesByName from '../../util/groupFilesByName';
+import groupFilesByName from '../util/groupFilesByName';
 import metaForPath from './metaForPath';
 
 function mergeModule<T>(

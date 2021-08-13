@@ -1,5 +1,5 @@
-import Signal from '../../util/Signal';
-import Type from '../../type';
+import Signal from '../util/Signal';
+import Type from '../type';
 
 import compileFileJson from './compileFileJson';
 

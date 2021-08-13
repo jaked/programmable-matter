@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 'use strict'; // otherwise tsc inserts it above the @jest-environment comment and jest doesn't use it
-import Signal from '../../util/Signal';
+import Signal from '../util/Signal';
 import compileFileJpeg from './compileFileJpeg';
 
 const jpeg = Buffer.from(`oh yeah`);

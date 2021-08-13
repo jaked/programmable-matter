@@ -1,11 +1,11 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
-import { Interface } from '../../model';
-import Signal from '../../util/Signal';
-import { bug } from '../../util/bug';
-import Try from '../../util/Try';
-import Type from '../../type';
+import { Interface } from '../model';
+import Signal from '../util/Signal';
+import { bug } from '../util/bug';
+import Try from '../util/Try';
+import Type from '../type';
 import compileFilePm from './compileFilePm';
 
 const intfType = (intf: Interface) =>

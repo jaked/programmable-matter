@@ -2,16 +2,16 @@ import * as Immutable from 'immutable';
 import JSON5 from 'json5';
 import * as React from 'react';
 import styled from 'styled-components';
-import Signal from '../../util/Signal';
-import Try from '../../util/Try';
-import { bug } from '../../util/bug';
-import * as Parse from '../../Parse';
-import * as ESTree from '../../estree';
-import Type from '../../type';
-import Typecheck from '../../typecheck';
-import * as Evaluate from '../Evaluate';
-import { Interface, Content, CompiledFile } from '../../model';
-import { Record } from '../../components/Record';
+import Signal from '../util/Signal';
+import Try from '../util/Try';
+import { bug } from '../util/bug';
+import * as Parse from '../parse';
+import * as ESTree from '../estree';
+import Type from '../type';
+import Typecheck from '../typecheck';
+import * as Evaluate from '../lang/Evaluate';
+import { Interface, Content, CompiledFile } from '../model';
+import { Record } from '../components/Record';
 
 import metaForPath from './metaForPath';
 

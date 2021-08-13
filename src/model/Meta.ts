@@ -1,5 +1,5 @@
 import { Meta } from '.';
-import * as Parse from '../Parse';
+import * as Parse from '../parse';
 
 export function validate(obj: any): Meta {
   let dataType = {}

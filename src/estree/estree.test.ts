@@ -1,5 +1,5 @@
 import * as ESTree from '.';
-import * as Parse from '../Parse';
+import * as Parse from '../parse';
 
 describe('visit', () => {
   it('BlockStatement', () => {

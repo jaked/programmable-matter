@@ -5,7 +5,7 @@ import babelGenerator from '@babel/generator';
 import { Interface } from '../../model';
 import * as ESTree from '../../estree';
 import Type from '../../type';
-import * as Parse from '../../Parse';
+import * as Parse from '../../parse';
 import Typecheck from '../../typecheck';
 import * as Generate from './index';
 import Signal from '../../util/Signal';

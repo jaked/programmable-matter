@@ -1,5 +1,5 @@
 import { bug } from '../util/bug';
-import * as Parse from '../Parse';
+import * as Parse from '../parse';
 import Type from './index';
 
 function expectOfTSType(typeExpr: string, type: Type) {

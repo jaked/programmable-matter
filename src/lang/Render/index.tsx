@@ -7,7 +7,7 @@ import * as PMAST from '../../pmast';
 import * as ESTree from '../../estree';
 import { Interface, InterfaceMap } from '../../model';
 import { computeChildren } from '../../highlight/prism';
-import * as Parse from '../../Parse';
+import * as Parse from '../../parse';
 import Typecheck from '../../typecheck';
 import * as Evaluate from '../Evaluate';
 import initEnv from './initEnv';
