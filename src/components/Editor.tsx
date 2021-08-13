@@ -4,11 +4,11 @@ import Signal from '../util/Signal';
 // import { FixedSizeList } from 'react-window';
 import RSCEditor, { Session } from './react-simple-code-editor';
 
-import styled from 'styled-components';
-
 import * as model from '../model';
 
-import highlight from './highlight'
+import highlightCode from '../highlight/highlightCode';
+import okComponents from '../highlight/components';
+import errComponents from '../highlight/errComponents';
 
 interface Props {
   type: model.Types;
@@ -18,42 +18,6 @@ interface Props {
 
   onChange: (content: string, session: Session) => void;
   setSelected: (name: string) => void;
-}
-
-const okComponents =
-{
-  default:    styled.span({ color: '#000000' }),
-  atom:       styled.span({ color: '#221199' }),
-  number:     styled.span({ color: '#116644' }),
-  string:     styled.span({ color: '#aa1111' }),
-  keyword:    styled.span({ color: '#770088' }),
-  definition: styled.span({ color: '#0000ff' }),
-  variable:   styled.span({ color: '#268bd2' }),
-  property:   styled.span({ color: '#b58900' }),
-  // TODO(jaked)
-  // hover doesn't work because enclosing pre is not on top
-  link:       styled.span`
-    :hover {
-      cursor: pointer;
-    }
-    color: #aa1111;
-    text-decoration: underline;
-  `,
-}
-
-const errStyle = { backgroundColor: '#ffc0c0' };
-
-const errComponents =
-{
-  default:    styled(okComponents.default)(errStyle),
-  atom:       styled(okComponents.atom)(errStyle),
-  number:     styled(okComponents.number)(errStyle),
-  string:     styled(okComponents.string)(errStyle),
-  keyword:    styled(okComponents.keyword)(errStyle),
-  definition: styled(okComponents.definition)(errStyle),
-  variable:   styled(okComponents.variable)(errStyle),
-  property:   styled(okComponents.property)(errStyle),
-  link:       styled(okComponents.link)(errStyle),
 }
 
 type Editor = {
@@ -96,7 +60,7 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
 
   const highlighted = props.compiledFile.flatMap(compiledFile =>
     Signal.join(compiledFile.ast, compiledFile.interfaceMap ?? Signal.ok(undefined)).map(([ast, interfaceMap]) =>
-      highlight(
+      highlightCode(
         props.type,
         props.content,
         ast,

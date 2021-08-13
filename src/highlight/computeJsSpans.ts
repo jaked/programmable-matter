@@ -1,17 +1,6 @@
 import * as ESTree from '../lang/ESTree';
 import * as model from '../model';
-
-export type tag =
-  'default' | 'atom' | 'number' | 'string' | 'keyword' |
-  'definition' | 'variable' | 'property' | 'link';
-
-export type Span = {
-  start: number,
-  end: number,
-  tag: tag,
-  status?: string,
-  link?: string,
-};
+import { tag, Span } from './types';
 
 export function computeJsSpans(
   ast: ESTree.Node,

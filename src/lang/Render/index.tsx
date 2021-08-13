@@ -1,6 +1,4 @@
 import * as React from 'react';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-typescript';
 
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
@@ -8,7 +6,7 @@ import Signal from '../../util/Signal';
 import * as PMAST from '../../model/PMAST';
 import * as ESTree from '../ESTree';
 import { Interface, InterfaceMap } from '../../model';
-import * as Highlight from '../highlight';
+import { computeChildren } from '../../highlight/prism';
 import * as Parse from '../Parse';
 import Typecheck from '../Typecheck';
 import * as Evaluate from '../Evaluate';
@@ -37,33 +35,6 @@ function findKey(node: PMAST.Node): string {
 // code nodes or nodes containing code nodes are not memoized
 // since their rendering may depend on typechecking etc.
 const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
-
-const getContent = token => {
-  if (typeof token === 'string') {
-    return token
-  } else if (typeof token.content === 'string') {
-    return token.content
-  } else {
-    return token.content.reduce((l, t) => l + getContent(t), '')
-  }
-}
-
-const highlightTagOfTokenType = (type: string): Highlight.tag => {
-  switch (type) {
-    case 'keyword': return 'keyword';
-    case 'number': return 'number';
-    case 'string': return 'string';
-    case 'boolean': return 'atom';
-    case 'function-variable': return 'definition';
-    case 'builtin': return 'variable';
-
-    case 'operator': return 'default';
-    case 'punctuation': return 'default';
-
-    default:
-      return 'default';
-  }
-}
 
 export function renderNode(
   node: PMAST.Node,
@@ -95,33 +66,7 @@ export function renderNode(
       const child = node.children[0];
       if (!(PMAST.isText(child))) bug('expected text');
       const code = child.text;
-
-      // TODO(jaked)
-      // consolidate with highlighting in RichTextEditor
-      const children: React.ReactNode[] = [];
-      const tokens = Prism.tokenize(code, Prism.languages[node.language])
-      for (const token of tokens) {
-        const content = getContent(token);
-
-        if (typeof token === 'string') {
-          children.push(token);
-        } else {
-          const highlight = highlightTagOfTokenType(token.type);
-          const color = (() => {
-            switch (highlight) {
-              case 'atom': return '#221199';
-              case 'number': return '#116644';
-              case 'string': return '#aa1111';
-              case 'keyword': return '#770088';
-              case 'definition': return '#0000ff';
-              case 'variable': return '#268bd2';
-              case 'property': return '#b58900';
-              default: return '#000000';
-            }
-          })();
-          children.push(<span style={{ color }}>{content}</span>);
-        }
-      }
+      const children = computeChildren(code, node.language);
 
       return (
         <pre style={{

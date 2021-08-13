@@ -4,8 +4,6 @@ import { withReact, Editable, ReactEditor, RenderElementProps, RenderLeafProps, 
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import styled from 'styled-components';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-typescript';
 
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
@@ -15,45 +13,14 @@ import * as PMAST from '../../model/PMAST';
 import * as Parse from '../../lang/Parse';
 import * as ESTree from '../../lang/ESTree';
 import * as PMEditor from '../../editor/PMEditor';
-import * as Highlight from '../../lang/highlight';
+import { Range, Span } from '../../highlight/types';
+import { computeJsSpans } from '../../highlight/computeJsSpans';
+import okComponents from '../../highlight/components';
+import errComponents from '../../highlight/errComponents';
+import { computeRanges } from '../../highlight/prism';
 import makeLink from '../../components/makeLink';
 
 import * as Focus from '../../app/focus';
-
-const okComponents =
-{
-  default:    styled.span({ color: '#000000' }),
-  atom:       styled.span({ color: '#221199' }),
-  number:     styled.span({ color: '#116644' }),
-  string:     styled.span({ color: '#aa1111' }),
-  keyword:    styled.span({ color: '#770088' }),
-  definition: styled.span({ color: '#0000ff' }),
-  variable:   styled.span({ color: '#268bd2' }),
-  property:   styled.span({ color: '#b58900' }),
-
-  link:       styled.span`
-    :hover {
-      cursor: pointer;
-    }
-    color: #aa1111;
-    text-decoration: underline;
-  `,
-}
-
-const errStyle = { backgroundColor: '#ffc0c0' };
-
-const errComponents =
-{
-  default:    styled(okComponents.default)(errStyle),
-  atom:       styled(okComponents.atom)(errStyle),
-  number:     styled(okComponents.number)(errStyle),
-  string:     styled(okComponents.string)(errStyle),
-  keyword:    styled(okComponents.keyword)(errStyle),
-  definition: styled(okComponents.definition)(errStyle),
-  variable:   styled(okComponents.variable)(errStyle),
-  property:   styled(okComponents.property)(errStyle),
-  link:       styled(okComponents.link)(errStyle),
-}
 
 const LiveCode = styled.pre`
   background-color: #eeeeee;
@@ -151,41 +118,6 @@ export const makeRenderLeaf = (
   }
 }
 
-type Range = {
-  anchor: Point;
-  focus: Point;
-  highlight: Highlight.tag;
-  status?: string;
-  link?: string;
-}
-
-const getLength = token => {
-  if (typeof token === 'string') {
-    return token.length
-  } else if (typeof token.content === 'string') {
-    return token.content.length
-  } else {
-    return token.content.reduce((l, t) => l + getLength(t), 0)
-  }
-}
-
-const highlightTagOfTokenType = (type: string): Highlight.tag => {
-  switch (type) {
-    case 'keyword': return 'keyword';
-    case 'number': return 'number';
-    case 'string': return 'string';
-    case 'boolean': return 'atom';
-    case 'function-variable': return 'definition';
-    case 'builtin': return 'variable';
-
-    case 'operator': return 'default';
-    case 'punctuation': return 'default';
-
-    default:
-      return 'default';
-  }
-}
-
 export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations?
@@ -198,8 +130,8 @@ export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
         null;
       if (code) {
         code.forEach(code => {
-          const spans: Highlight.Span[] = [];
-          Highlight.computeJsSpans(code, interfaceMap, spans);
+          const spans: Span[] = [];
+          computeJsSpans(code, interfaceMap, spans);
           for (const span of spans) {
             ranges.push({
               anchor: { path, offset: span.start },
@@ -218,27 +150,8 @@ export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
       const child = node.children[0];
       if (!(PMAST.isText(child))) bug('expected text');
       const code = child.text;
+      return computeRanges(path, code, node.language);
 
-      const ranges: Range[] = [];
-      let start = 0
-
-      const tokens = Prism.tokenize(code, Prism.languages[node.language])
-      for (const token of tokens) {
-        const length = getLength(token)
-        const end = start + length
-
-        if (typeof token !== 'string') {
-          ranges.push({
-            highlight: highlightTagOfTokenType(token.type),
-            anchor: { path, offset: start },
-            focus: { path, offset: end },
-          })
-        }
-
-        start = end
-      }
-
-      return ranges;
     } else {
       return [];
     }

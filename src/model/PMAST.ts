@@ -1,5 +1,5 @@
 import JSON5 from 'json5';
-import * as Highlight from '../lang/highlight';
+import { tag } from '../highlight/types';
 import * as Slate from 'slate';
 
 export type mark =
@@ -21,7 +21,7 @@ export type Text = {
   code?: true,
 
   // decorations
-  highlight?: Highlight.tag,
+  highlight?: tag,
   status?: string,
   link?: string,
 }

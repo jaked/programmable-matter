@@ -4,7 +4,8 @@ import { Interface } from '../model';
 import * as Parse from '../lang/Parse';
 import * as ESTree from '../lang/ESTree';
 import Typecheck from '../lang/Typecheck';
-import { computeJsSpans, Span } from './highlight';
+import { Span } from './types';
+import { computeJsSpans } from './computeJsSpans';
 import { bug } from '../util/bug';
 
 // dummy components; we compare React trees but don't render them

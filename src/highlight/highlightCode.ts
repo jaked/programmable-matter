@@ -1,7 +1,8 @@
 import * as React from 'react';
 
 import * as ESTree from '../lang/ESTree';
-import * as Highlight from '../lang/highlight';
+import { Span } from './types';
+import { computeJsSpans } from './computeJsSpans';
 import * as model from '../model';
 
 export type component = React.FunctionComponent<{}>;
@@ -26,7 +27,7 @@ export default function computeHighlight(
   okComps: components,
   errComps: components,
 ) {
-  const spans: Array<Highlight.Span> = [];
+  const spans: Array<Span> = [];
 
   // TODO(jaked)
   // parsing should always succeed with some AST
@@ -37,7 +38,7 @@ export default function computeHighlight(
     case 'json':
     case 'table':
     case 'meta': {
-      Highlight.computeJsSpans(ast as ESTree.Node, interfaceMap, spans);
+      computeJsSpans(ast as ESTree.Node, interfaceMap, spans);
     }
     break;
   }
