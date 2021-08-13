@@ -1,5 +1,5 @@
-import * as Parse from '../../parse';
-import Type from '../../type';
+import * as Parse from '../parse';
+import Type from '../type';
 
 import * as Immutable from 'immutable';
 
@@ -8,9 +8,9 @@ import { Inspector } from 'react-inspector';
 import * as Plot from '@observablehq/plot';
 import { PlotFigure } from 'plot-react';
 
-import HighlightedCode from '../HighlightedCode';
+import HighlightedCode from '../lang/HighlightedCode';
 
-import Signal from '../../util/Signal';
+import Signal from '../util/Signal';
 
 // TODO(jaked) clean these up somewhere
 const now = Signal.cellOk(Date.now());

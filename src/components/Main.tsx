@@ -21,8 +21,8 @@ import Editor from './Editor';
 import RichTextEditor from './editor/RichTextEditor';
 
 // TODO(jaked) straighten out dependencies
-import { mouse } from '../lang/Render/initEnv';
-import { window as windowSignal } from '../lang/Render/initEnv';
+import { mouse } from '../render/initEnv';
+import { window as windowSignal } from '../render/initEnv';
 
 type CodeEditorProps = {
   type: model.Types,

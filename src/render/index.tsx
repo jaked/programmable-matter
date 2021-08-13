@@ -1,15 +1,15 @@
 import * as React from 'react';
 
-import { bug } from '../../util/bug';
-import Try from '../../util/Try';
-import Signal from '../../util/Signal';
-import * as PMAST from '../../pmast';
-import * as ESTree from '../../estree';
-import { Interface, InterfaceMap } from '../../model';
-import { computeChildren } from '../../highlight/prism';
-import * as Parse from '../../parse';
-import Typecheck from '../../typecheck';
-import * as Evaluate from '../../evaluate';
+import { bug } from '../util/bug';
+import Try from '../util/Try';
+import Signal from '../util/Signal';
+import * as PMAST from '../pmast';
+import * as ESTree from '../estree';
+import { Interface, InterfaceMap } from '../model';
+import { computeChildren } from '../highlight/prism';
+import * as Parse from '../parse';
+import Typecheck from '../typecheck';
+import * as Evaluate from '../evaluate';
 import initEnv from './initEnv';
 
 const intfDynamic = (intf: Interface) =>

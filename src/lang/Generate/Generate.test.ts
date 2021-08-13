@@ -7,7 +7,7 @@ import { Interface, InterfaceMap } from '../../model';
 import * as Parse from '../../parse';
 import Type from '../../type';
 import Typecheck from '../../typecheck';
-import * as Render from '../Render';
+import * as Render from '../../render';
 import * as Generate from './index';
 import expectGenerate from './expectGenerate';
 

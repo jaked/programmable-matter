@@ -2,7 +2,7 @@ import * as React from 'react';
 import Try from '../util/Try';
 import Signal from '../util/Signal';
 import Type from '../type';
-import * as Render from '../lang/Render';
+import * as Render from '../render';
 import { Content, CompiledFile, Interface } from '../model';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv

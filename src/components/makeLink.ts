@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import * as Name from '../util/Name';
 
 // TODO(jaked) move context out of Render
-import * as Render from '../lang/Render';
+import * as Render from '../render';
 
 const A = styled.a`
 :hover {
