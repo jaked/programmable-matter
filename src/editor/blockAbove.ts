@@ -1,5 +1,5 @@
 import * as Slate from 'slate';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 
 export const blockAbove = (
   editor: Slate.Editor,

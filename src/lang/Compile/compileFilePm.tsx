@@ -8,7 +8,7 @@ import * as model from '../../model';
 import * as Name from '../../util/Name';
 import Signal from '../../util/Signal';
 import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../../model';
-import * as PMAST from '../../model/PMAST';
+import * as PMAST from '../../pmast';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import * as Evaluate from '../Evaluate';

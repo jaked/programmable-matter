@@ -1,7 +1,7 @@
 import { Editor, Element, Path } from 'slate';
 import { bug } from '../util/bug';
 import { blockAbove } from './blockAbove';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 
 export const inListItem = (editor: Editor, options: { at?: Path } = {}): undefined | {
   itemNode: Element,

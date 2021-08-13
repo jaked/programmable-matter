@@ -1,6 +1,6 @@
 import { bug } from '../../util/bug';
 import { Interface } from '../../model';
-import * as PMAST from '../../model/PMAST';
+import * as PMAST from '../../pmast';
 import * as ESTree from '../ESTree';
 import * as Parse from '../Parse';
 import Type from '../Type';

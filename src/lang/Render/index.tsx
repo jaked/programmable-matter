@@ -3,7 +3,7 @@ import * as React from 'react';
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
-import * as PMAST from '../../model/PMAST';
+import * as PMAST from '../../pmast';
 import * as ESTree from '../ESTree';
 import { Interface, InterfaceMap } from '../../model';
 import { computeChildren } from '../../highlight/prism';

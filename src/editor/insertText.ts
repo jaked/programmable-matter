@@ -1,7 +1,7 @@
 import * as Url from 'url';
 import { Editor, Range, Text, Transforms } from 'slate';
 import { bug } from '../util/bug';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 import { matchStringBefore } from './matchStringBefore';
 import { setType } from './setType';
 

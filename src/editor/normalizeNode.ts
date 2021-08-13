@@ -1,6 +1,6 @@
 import * as Immer from 'immer';
 import { Editor, Element, Node, Path, Point, Range, Transforms } from 'slate';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 import { bug } from '../util/bug';
 
 function hasPrevious(path: Path) {

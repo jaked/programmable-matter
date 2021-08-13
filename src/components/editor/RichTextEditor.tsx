@@ -9,7 +9,7 @@ import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 import Signal from '../../util/Signal';
 import * as model from '../../model';
-import * as PMAST from '../../model/PMAST';
+import * as PMAST from '../../pmast';
 import * as Parse from '../../lang/Parse';
 import * as ESTree from '../../lang/ESTree';
 import * as PMEditor from '../../editor/PMEditor';

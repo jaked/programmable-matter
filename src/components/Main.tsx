@@ -4,7 +4,7 @@ import Frame, { FrameContextConsumer } from 'react-frame-component';
 import Signal from '../util/Signal';
 
 import * as model from '../model';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 
 import * as App from '../app';
 import * as Focus from '../app/focus';

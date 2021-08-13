@@ -3,7 +3,7 @@ import * as Immutable from 'immutable';
 import * as React from 'react';
 import JSON5 from 'json5';
 import * as ESTree from '../ESTree';
-import * as PMAST from '../../model/PMAST';
+import * as PMAST from '../../pmast';
 import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import { Interface, InterfaceMap } from '../../model';

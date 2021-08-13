@@ -1,7 +1,7 @@
 import * as Path from 'path';
 import JSON5 from 'json5';
 
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 import * as Meta from '../model/Meta';
 import * as model from '../model';
 

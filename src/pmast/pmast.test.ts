@@ -1,4 +1,4 @@
-import * as PMAST from './PMAST';
+import * as PMAST from '.';
 
 describe('validateNodes', () => {
   it('allows inlines in header', () => {

@@ -1,5 +1,5 @@
 import { Editor, Path } from 'slate';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 import { blockAbove } from './blockAbove';
 
 export const inBlockquote = (editor: Editor, options: { at?: Path } = {}): undefined | [PMAST.Blockquote, Path] => {

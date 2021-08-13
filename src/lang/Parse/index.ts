@@ -2,7 +2,7 @@ import * as Babel from '@babel/parser';
 
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
-import * as PMAST from '../../model/PMAST';
+import * as PMAST from '../../pmast';
 import * as ESTree from '../ESTree';
 import Type from '../Type';
 

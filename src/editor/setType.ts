@@ -1,5 +1,5 @@
 import { Editor, Transforms } from 'slate';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 
 import { inListItem } from './inListItem';
 

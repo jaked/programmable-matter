@@ -2,7 +2,7 @@ import { Editor, Element, Node, Range, Text, Transforms } from 'slate';
 import _ from 'lodash';
 
 import { bug } from '../util/bug';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 
 import { blockAbove } from './blockAbove';
 import { inListItem } from './inListItem';

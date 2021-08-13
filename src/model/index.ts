@@ -3,7 +3,7 @@ import React from 'react';
 import Try from '../util/Try';
 import Signal from '../util/Signal';
 import Type from '../lang/Type';
-import * as PMAST from '../model/PMAST';
+import * as PMAST from '../pmast';
 import * as ESTree from '../lang/ESTree';
 
 // TODO(jaked) a lot of this doesn't belong here
