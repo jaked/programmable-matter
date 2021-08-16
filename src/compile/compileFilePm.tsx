@@ -2,6 +2,7 @@ import Path from 'path';
 import * as Immutable from 'immutable';
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
+import { ServerStyleSheet, StyleSheetManager } from 'styled-components'
 
 import { bug } from '../util/bug';
 import * as model from '../model';
@@ -318,7 +319,7 @@ export default function compileFilePm(
   // React assumes that a changed component is likely to be very different,
   // so remounts the whole tree, losing the state of stateful DOM components.
   // TODO(jaked) memoize on individual props?
-  const functionComponent = React.memo<{ component, props }>(({ component, props }) =>
+  const FunctionComponent = React.memo<{ component, props }>(({ component, props }) =>
     component(props)
   )
 
@@ -328,31 +329,47 @@ export default function compileFilePm(
     layoutFunction,
   ).map(([rendered, meta, layoutFunction]) => {
     if (layoutFunction) {
-      return React.createElement(
-        functionComponent,
-        { component: layoutFunction, props: { children: rendered, meta }}
+      return (
+        <FunctionComponent
+          component={layoutFunction}
+          props={{ children: rendered, meta }}
+        />
       );
     } else
       return rendered
   });
 
   const html = renderedWithLayout.map(rendered => {
-    const renderedWithContext =
-      React.createElement(Render.context.Provider, { value: 'server' }, rendered)
-    const html = ReactDOMServer.renderToStaticMarkup(renderedWithContext);
+    const sheet = new ServerStyleSheet();
+    let html = '';
+    let styleTags = '';
+    try {
+      html = ReactDOMServer.renderToStaticMarkup(
+        <StyleSheetManager sheet={sheet.instance}>
+          <Render.context.Provider value={'server'}>{rendered}</Render.context.Provider>
+        </StyleSheetManager>
+      );
+      styleTags = sheet.getStyleTags();
+    } finally {
+      sheet.seal();
+    }
     const script = `<script type='module' src='${moduleName}.js'></script>`
     const headIndex = html.indexOf('</head>');
     if (headIndex === -1) {
       return `<html>
 <head>
 ${script}
+${styleTags}
 </head>
 <body>
 ${html}
 </body>
 </html>`
     } else {
-      return `${html.slice(0, headIndex)}${script}${html.slice(headIndex)}`;
+      return `${html.slice(0, headIndex)}
+${script}
+${styleTags}
+${html.slice(headIndex)}`;
     }
   });
 
