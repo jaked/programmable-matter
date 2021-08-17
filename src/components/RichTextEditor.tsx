@@ -15,9 +15,9 @@ import * as ESTree from '../estree';
 import * as PMEditor from '../editor/PMEditor';
 import { Range, Span } from '../highlight/types';
 import { computeJsSpans } from '../highlight/computeJsSpans';
-import okComponents from '../highlight/components';
-import errComponents from '../highlight/errComponents';
 import { computeRanges } from '../highlight/prism';
+import colorOfTokenType from '../highlight/colorOfTokenType';
+import makeStyledSpan from '../highlight/makeStyledSpan';
 import makeLink from '../components/makeLink';
 
 import * as Focus from '../app/focus';
@@ -75,46 +75,56 @@ export const makeRenderLeaf = (
 ) => {
 
   return ({ leaf, attributes, children } : RenderLeafProps) => {
-    const text = leaf as PMAST.Text;
-    if (text.highlight) {
-      let onClick: (() => void) | undefined = undefined;
-      if (text.link) {
-        const link = text.link;
-        onClick = () => { setSelected(link) };
-      }
+    if (leaf.bold)
+      children = <strong>{children}</strong>;
+    if (leaf.italic)
+      children = <em>{children}</em>;
+    if (leaf.underline)
+      children = <u>{children}</u>;
+    if (leaf.strikethrough)
+      children = <del>{children}</del>;
+    if (leaf.subscript)
+      children = <sub>{children}</sub>;
+    if (leaf.superscript)
+      children = <sup>{children}</sup>;
+    if (leaf.code)
+      children = <code>{children}</code>;
 
-      if (text.status) {
-        return React.createElement(
-          errComponents[text.highlight] as any,
-          { ...attributes, 'data-status': text.status, onClick },
-          children
-        );
-      } else {
-        return React.createElement(
-          okComponents[text.highlight] as any,
-          { ...attributes, onClick },
-          children
-        );
-      }
+    let style = '';
 
-    } else {
-      if (text.bold)
-        children = <strong>{children}</strong>;
-      if (text.italic)
-        children = <em>{children}</em>;
-      if (text.underline)
-        children = <u>{children}</u>;
-      if (text.strikethrough)
-        children = <del>{children}</del>;
-      if (text.subscript)
-        children = <sub>{children}</sub>;
-      if (text.superscript)
-        children = <sup>{children}</sup>;
-      if (text.code)
-        children = <code>{children}</code>;
-
-      return <span {...attributes}>{children}</span>;
+    let onClick;
+    if (leaf.link) {
+      style += `
+:hover {
+  cursor: pointer;
+}
+text-decoration: underline;
+`;
+      const link = leaf.link;
+      onClick = () => { setSelected(link) };
     }
+
+    if (leaf.color) {
+      style += `
+color: ${leaf.color};
+`;
+    }
+
+    if (leaf.status) {
+      style += `
+backgroundColor: #ffc0c0;
+`
+    }
+
+    return React.createElement(
+      style === '' ? 'span' : makeStyledSpan(style),
+      {
+        ...attributes,
+        ...(leaf.status ? { 'data-status': leaf.status } : {}),
+        ...(onClick ? { onClick } : {})
+      },
+      children
+    );
   }
 }
 
@@ -136,7 +146,7 @@ export const makeDecorate = (interfaceMap?: model.InterfaceMap) =>
             ranges.push({
               anchor: { path, offset: span.start },
               focus: { path, offset: span.end },
-              highlight: span.tag,
+              color: colorOfTokenType(span.tokenType),
               status: span.status,
               link: span.link
             });

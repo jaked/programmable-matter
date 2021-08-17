@@ -7,8 +7,6 @@ import RSCEditor, { Session } from './react-simple-code-editor';
 import * as model from '../model';
 
 import highlightCode from '../highlight/highlightCode';
-import okComponents from '../highlight/components';
-import errComponents from '../highlight/errComponents';
 
 interface Props {
   type: model.Types;
@@ -65,8 +63,6 @@ const Editor = React.memo(React.forwardRef<Editor, Props>((props, ref) => {
         props.content,
         ast,
         interfaceMap,
-        okComponents,
-        errComponents
       )
     )
   );

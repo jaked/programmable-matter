@@ -1,6 +1,6 @@
 import * as ESTree from '../estree';
 import * as model from '../model';
-import { tag, Span } from './types';
+import { Span, tokenType } from './types';
 
 export function computeJsSpans(
   ast: ESTree.Node,
@@ -9,7 +9,7 @@ export function computeJsSpans(
 ) {
   function span(
     ast: ESTree.Node,
-    tag: tag,
+    tokenType: tokenType,
     status?: string,
     link?: string,
     start?: number,
@@ -21,20 +21,19 @@ export function computeJsSpans(
     }
     start = start || ast.start;
     end = end || ast.end;
-    spans.push({ start, end, tag, status, link });
+    spans.push({ start, end, tokenType, status, link });
   }
 
   function fn(ast: ESTree.Node) {
     switch (ast.type) {
       case 'Literal': {
-        let tag;
+        let tokenType;
         switch (typeof ast.value) {
-          case 'string': tag = 'string'; break;
-          case 'number': tag = 'number'; break;
-          case 'boolean': tag = 'atom'; break;
-          case 'object': tag = 'atom'; break;
+          case 'string': tokenType = 'string'; break;
+          case 'number': tokenType = 'number'; break;
+          case 'boolean': tokenType = 'boolean'; break;
         }
-        return span(ast, tag);
+        return span(ast, tokenType);
       }
 
       case 'JSXIdentifier':

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import styled from 'styled-components';
 
 import { bug } from '../util/bug';
 import Try from '../util/Try';
@@ -36,6 +37,13 @@ function findKey(node: PMAST.Node): string {
 // since their rendering may depend on typechecking etc.
 const renderedNode = new WeakMap<PMAST.Node, React.ReactNode>();
 
+const Code = styled.pre`
+  background-color: #f7f7f7;
+  margin-left: 10px;
+  margin-right: 10px;
+  padding: 10px;
+`;
+
 export function renderNode(
   node: PMAST.Node,
   interfaceMap: InterfaceMap,
@@ -61,33 +69,25 @@ export function renderNode(
     return rendered;
 
   } else if (PMAST.isCode(node)) {
+    let children: React.ReactNode[];
     if (node.language) {
       if (!(node.children.length === 1)) bug('expected 1 child');
       const child = node.children[0];
       if (!(PMAST.isText(child))) bug('expected text');
       const code = child.text;
-      const children = computeChildren(code, node.language);
-
-      return (
-        <pre style={{
-          backgroundColor: '#f7f7f7',
-          marginLeft: '10px',
-          marginRight: '10px',
-          padding: '10px',
-        }}>
-          <code>
-            {children}
-          </code>
-        </pre>
-      );
-
+      children = computeChildren(code, node.language);
     } else {
-      const children = node.children.map(child => renderNode(child, interfaceMap, valueEnv, nextRootId, Link));
-      const rendered = React.createElement('pre', { key }, ...children);
-      if (node.children.every(node => renderedNode.has(node)))
-        renderedNode.set(node, rendered);
-      return rendered;
+      children =
+        node.children.map(child => renderNode(child, interfaceMap, valueEnv, nextRootId, Link));
     }
+
+    return (
+      <Code key={key}>
+        <code>
+          {children}
+        </code>
+      </Code>
+    );
 
   } else if (PMAST.isLiveCode(node)) {
     const code = Parse.parseLiveCodeNode(node);

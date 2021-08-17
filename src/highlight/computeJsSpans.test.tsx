@@ -19,7 +19,7 @@ function component(name: string) {
 
 export const H = {
   default: component('default'),
-  atom: component('atom'),
+  boolean: component('boolean'),
   number: component('number'),
   string: component('string'),
   keyword: component('keyword'),
@@ -41,7 +41,7 @@ function renderSpans(text: string, spans: Span[]) {
     }
     nodes.push(
       React.createElement(
-        H[span.tag],
+        H[span.tokenType],
         { 'status': span.status, 'link': span.link},
         text.slice(span.start, span.end)
       )

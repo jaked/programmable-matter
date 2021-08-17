@@ -21,10 +21,16 @@ const SHORTCUTS = {
 
   // TODO(jaked) this would be more usable if it fired on enter not space
   '{{{': 'liveCode',
-  '```': 'code',
 
+
+  '```': 'code',
+  '```docker': { type: 'code', language: 'docker', children: [] },
   '```js': { type: 'code', language: 'javascript', children: [] },
   '```javascript': { type: 'code', language: 'javascript', children: [] },
+  '```markup': { type: 'code', language: 'markup', children: [] },
+  '```bash': { type: 'code', language: 'bash', children: [] },
+  '```sh': { type: 'code', language: 'bash', children: [] },
+  '```shell': { type: 'code', language: 'bash', children: [] },
   '```ts': { type: 'code', language: 'typescript', children: [] },
   '```typescript': { type: 'code', language: 'typescript', children: [] },
 }

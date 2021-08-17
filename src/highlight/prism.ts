@@ -1,10 +1,16 @@
 import React from 'react';
 import Prism from 'prismjs';
+// TODO(jaked) load on demand
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-docker';
+import 'prismjs/components/prism-markup';
 import 'prismjs/components/prism-typescript';
 import { Path } from 'slate';
 
-import { Range, tag } from './types';
-import components from './components';
+import { language } from '../pmast';
+import { Range } from './types';
+import colorOfTokenType from './colorOfTokenType';
+import makeStyledSpan from './makeStyledSpan';
 
 const getLength = token => {
   if (typeof token === 'string') {
@@ -26,24 +32,7 @@ const getContent = token => {
   }
 }
 
-const highlightTagOfTokenType = (type: string): tag => {
-  switch (type) {
-    case 'keyword': return 'keyword';
-    case 'number': return 'number';
-    case 'string': return 'string';
-    case 'boolean': return 'atom';
-    case 'function-variable': return 'definition';
-    case 'builtin': return 'variable';
-
-    case 'operator': return 'default';
-    case 'punctuation': return 'default';
-
-    default:
-      return 'default';
-  }
-}
-
-export function computeRanges(path: Path, code: string, language: 'javascript' | 'typescript') {
+export function computeRanges(path: Path, code: string, language: language) {
   const ranges: Range[] = [];
   let start = 0
 
@@ -54,7 +43,7 @@ export function computeRanges(path: Path, code: string, language: 'javascript' |
 
     if (typeof token !== 'string') {
       ranges.push({
-        highlight: highlightTagOfTokenType(token.type),
+        color: colorOfTokenType(token.type),
         anchor: { path, offset: start },
         focus: { path, offset: end },
       })
@@ -66,7 +55,7 @@ export function computeRanges(path: Path, code: string, language: 'javascript' |
   return ranges;
 }
 
-export function computeChildren(code: string, language: 'javascript' | 'typescript') {
+export function computeChildren(code: string, language: language) {
   const children: React.ReactNode[] = [];
   const tokens = Prism.tokenize(code, Prism.languages[language])
   for (const token of tokens) {
@@ -75,9 +64,8 @@ export function computeChildren(code: string, language: 'javascript' | 'typescri
     if (typeof token === 'string') {
       children.push(token);
     } else {
-      const highlight = highlightTagOfTokenType(token.type);
-      const component = components[highlight];
-      children.push(React.createElement(component, undefined, content));
+      const color = colorOfTokenType(token.type);
+      children.push(React.createElement(makeStyledSpan(`color: ${color};`), undefined, content));
     }
   }
   return children;

@@ -1,5 +1,4 @@
 import JSON5 from 'json5';
-import { tag } from '../highlight/types';
 import * as Slate from 'slate';
 
 export type mark =
@@ -21,7 +20,7 @@ export type Text = {
   code?: true,
 
   // decorations
-  highlight?: tag,
+  color?: string,
   status?: string,
   link?: string,
 }
@@ -104,8 +103,10 @@ export function isBlockquote(node: Slate.Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
+export type language = 'bash' | 'docker' | 'javascript' | 'markup' | 'typescript';
+
 export type Code = ElementType<'code'> & {
-  language?: 'javascript' | 'typescript'
+  language?: language
 };
 
 export function isCode(node: Slate.Node): node is Code {

@@ -3,29 +3,15 @@ import * as React from 'react';
 import * as ESTree from '../estree';
 import { Span } from './types';
 import { computeJsSpans } from './computeJsSpans';
+import colorOfTokenType from './colorOfTokenType';
+import makeStyledSpan from './makeStyledSpan';
 import * as model from '../model';
-
-export type component = React.FunctionComponent<{}>;
-
-export type components = {
-  default: component,
-  atom: component,
-  number: component,
-  string: component,
-  keyword: component,
-  definition: component,
-  variable: component,
-  property: component,
-  link: component,
-}
 
 export default function computeHighlight(
   view: model.Types,
   content: string,
   ast: unknown,
   interfaceMap: model.InterfaceMap | undefined,
-  okComps: components,
-  errComps: components,
 ) {
   const spans: Array<Span> = [];
 
@@ -76,9 +62,20 @@ export default function computeHighlight(
       }
     }
     const chunk = content.slice(span.start, span.end);
-    const component = span.status ? errComps[span.tag] : okComps[span.tag];
+    let style = '';
+    if (span.tokenType) {
+      style += `
+color: ${colorOfTokenType(span.tokenType)};
+`;
+    }
+    if (span.status) {
+      style += `
+backgroundColor: #ffc0c0;
+`
+    }
+
     lineNodes.push(
-      React.createElement(component as any, { 'data-status': span.status, 'data-link': span.link }, chunk)
+      React.createElement(makeStyledSpan(style) as any, { 'data-status': span.status, 'data-link': span.link }, chunk)
     );
     lastOffset = span.end;
   }
