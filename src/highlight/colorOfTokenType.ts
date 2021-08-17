@@ -121,7 +121,9 @@ const theme = {
 };
 
 const colorOfTokenType = (type: string) => {
-  for (const style of theme.styles) {
+  // reversed to match prism-react-renderer behavior more closely
+  const styles = [...theme.styles].reverse();
+  for (const style of styles) {
     if (style.types.includes(type))
       return style.style.color ?? theme.plain.color;
   }
