@@ -8,8 +8,6 @@ import { Inspector } from 'react-inspector';
 import * as Plot from '@observablehq/plot';
 import { PlotFigure } from 'plot-react';
 
-import HighlightedCode from './HighlightedCode';
-
 import Signal from '../util/Signal';
 
 // TODO(jaked) clean these up somewhere
@@ -387,21 +385,6 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
   'Inspector': {
     type: componentType({ data: Type.unknown }),
     value: Inspector,
-    dynamic: false
-  },
-
-  'HighlightedCode': {
-    type: componentType({
-      // TODO(jaked) need a way to translate TypeScript types
-      // theme: PrismTheme
-
-      // TODO(jaked) enumerate supported languages
-      language: Type.undefinedOr(Type.enumerate('typescript', 'markup')),
-
-      style: styleType,
-      inline: Type.undefinedOr(Type.boolean),
-    }),
-    value: HighlightedCode,
     dynamic: false
   },
 
