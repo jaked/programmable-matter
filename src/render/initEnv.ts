@@ -226,6 +226,17 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     dynamic: false
   },
 
+  'iframe': {
+    type: componentType({
+      src: Type.string,
+      width: Type.undefinedOrNumber,
+      height: Type.undefinedOrNumber,
+      style: styleType,
+    }),
+    value: 'iframe',
+    dynamic: false
+  },
+
   'img': {
     type: componentType({
       src: Type.string,
