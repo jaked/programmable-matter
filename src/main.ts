@@ -1,6 +1,7 @@
 import * as Path from 'path';
 import { app, dialog, BrowserWindow, globalShortcut, Menu, MenuItemConstructorOptions } from 'electron';
 import * as Atomically from 'atomically';
+import installExtension, { REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
 
 type Config = {
   dataDir: string;
@@ -329,6 +330,12 @@ function initEventHandlers() {
   app.on('ready', async () => {
     // Electron crashes if we call this before the ready event
     initGlobalShortcut();
+
+    await installExtension(
+      REACT_DEVELOPER_TOOLS,
+      // see https://github.com/electron/electron/issues/23662
+      { loadExtensionOptions: { allowFileAccess: true } }
+    );
 
     await createWindow();
   });
