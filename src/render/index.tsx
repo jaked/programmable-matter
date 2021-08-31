@@ -81,13 +81,14 @@ export function renderNode(
         node.children.map(child => renderNode(child, interfaceMap, valueEnv, nextRootId, Link));
     }
 
-    return (
+    const rendered =
       <Code key={key}>
         <code>
           {children}
         </code>
-      </Code>
-    );
+      </Code>;
+    renderedNode.set(node, rendered);
+    return rendered;
 
   } else if (PMAST.isLiveCode(node)) {
     const code = Parse.parseLiveCodeNode(node);
