@@ -28,6 +28,7 @@ const SHORTCUTS = {
   '```js': { type: 'code', language: 'javascript', children: [] },
   '```javascript': { type: 'code', language: 'javascript', children: [] },
   '```markup': { type: 'code', language: 'markup', children: [] },
+  '```ocaml': { type: 'code', language: 'ocaml', children: [] },
   '```bash': { type: 'code', language: 'bash', children: [] },
   '```sh': { type: 'code', language: 'bash', children: [] },
   '```shell': { type: 'code', language: 'bash', children: [] },

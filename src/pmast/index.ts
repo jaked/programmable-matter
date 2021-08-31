@@ -103,7 +103,7 @@ export function isBlockquote(node: Slate.Node): node is Blockquote {
   return isElement(node) && node.type === 'blockquote';
 }
 
-export type language = 'bash' | 'docker' | 'javascript' | 'markup' | 'typescript';
+export type language = 'bash' | 'docker' | 'javascript' | 'markup' | 'ocaml' | 'typescript';
 
 export type Code = ElementType<'code'> & {
   language?: language
