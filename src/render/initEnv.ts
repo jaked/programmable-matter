@@ -312,6 +312,17 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     dynamic: false
   },
 
+  'link': {
+    type: componentType({
+      href: Type.string,
+      rel: Type.singleton('alternate'),
+      type: Type.singleton('application/rss+xml'),
+      title: Type.string,
+    }),
+    value: 'link',
+    dynamic: false
+  },
+
   'p': {
     type: componentType({
       className: Type.undefinedOrString,
