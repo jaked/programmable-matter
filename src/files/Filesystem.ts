@@ -86,6 +86,10 @@ type Filesystem = {
   close: () => Promise<void>,
 }
 
+function excluded(file: string) {
+  return file.startsWith('.') || file.endsWith('.tmp');
+}
+
 function makeHandleNsfwEvents(
   Now: Now,
   Fs: Fs,
@@ -93,16 +97,15 @@ function makeHandleNsfwEvents(
   fsFiles: Map<string, FsFile>,
 )  {
   return async (nsfwEvents: Array<NsfwEvent>) => {
-    // filter out app-initiated actions on temporary files
     nsfwEvents = nsfwEvents.filter(ev => {
       switch (ev.action) {
         case 0: // created
         case 2: // modified
-          return !ev.file.endsWith('.tmp');
+          return !excluded(ev.file);
         case 3: // renamed
-          return !ev.oldFile.endsWith('.tmp');
+          return !excluded(ev.oldFile);
         case 1: // deleted
-          return !ev.file.endsWith('.tmp');
+          return !excluded(ev.file);
       }
     });
 
@@ -280,6 +283,7 @@ function make(
   const walkDir = async (directory: string, events: Array<NsfwEvent>) => {
     const dirents = await Fs.readdir(directory, { encoding: 'utf8'});
     return Promise.all(dirents.map(async (file: string) => {
+      if (excluded(file)) return;
       const dirFile = Path.resolve(directory, file);
       const stats = await Fs.stat(dirFile);
       if (debug) console.log(`${directory} / ${file}`);
