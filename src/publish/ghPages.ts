@@ -76,7 +76,7 @@ export default async function ghPages(
     await ghPagesPublish(tempdir, {
       src: '**',
       dotfiles: true,
-      branch: 'master',
+      branch: 'published',
       repo: 'https://github.com/jaked/jaked.github.io.git',
       message: 'published from Programmable Matter',
       name: 'Jake Donham',
