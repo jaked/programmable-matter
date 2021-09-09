@@ -112,7 +112,7 @@ color: ${leaf.color};
 
     if (leaf.status) {
       style += `
-backgroundColor: #ffc0c0;
+background-color: #ffc0c0;
 `
     }
 
@@ -274,16 +274,7 @@ const RichTextEditor = (props: RichTextEditorProps) => {
 
   const renderLeaf = React.useMemo(
     () => makeRenderLeaf(props.setSelected),
-    [
-      props.setSelected,
-
-      // work around Slate bug where decorations are not considered in memoizing Text
-      // https://github.com/ianstormtaylor/slate/issues/3447
-      // TODO(jaked) this hurts performance a lot since we rerender all leaves on every edit
-      // avoiding typechecking when code hasn't changed helps
-      // but we still rerender all leaves on every code edit
-      decorate,
-    ]
+    [ props.setSelected ]
   );
 
   const renderElement = React.useMemo(
