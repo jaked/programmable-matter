@@ -18,24 +18,6 @@ const debug = false;
 
 const emptyBuffer = Buffer.from('');
 
-// TODO(jaked)
-// the typing included with NSFW doesn't export this
-// and also lacks the directory field on rename
-// https://github.com/Axosoft/nsfw/pull/115
-type NsfwEvent =
-  {
-    action: 0 | 1 | 2; // created, deleted, modified
-    directory: string;
-    file: string;
-  } |
-  {
-    action: 3; // renamed
-    // directory: string;
-    oldFile: string;
-    newDirectory: string;
-    newFile: string;
-  }
-
 function canonizePath(filesPath: string, directory: string, file: string) {
   return Path.resolve('/', Path.relative(filesPath, Path.resolve(directory, file)));
 }
@@ -66,7 +48,7 @@ type Fs = {
 
 type Nsfw = (
   filesPath: string,
-  callback: (nsfwEvents: Array<NsfwEvent>) => Promise<void>,
+  callback: (nsfwEvents: Array<nsfw.FileChangeEvent>) => Promise<void>,
   config: {
     debounceMS: number
   }
@@ -87,7 +69,10 @@ type Filesystem = {
 }
 
 function excluded(file: string) {
-  return file.startsWith('.') || file.endsWith('.tmp');
+  return (
+    file.endsWith('.tmp') ||
+    file.split(Path.sep).some(comp => comp.startsWith('.'))
+  );
 }
 
 function makeHandleNsfwEvents(
@@ -96,14 +81,14 @@ function makeHandleNsfwEvents(
   rootPath: string,
   fsFiles: Map<string, FsFile>,
 )  {
-  return async (nsfwEvents: Array<NsfwEvent>) => {
+  return async (nsfwEvents: Array<nsfw.FileChangeEvent>) => {
     nsfwEvents = nsfwEvents.filter(ev => {
       switch (ev.action) {
         case 0: // created
         case 2: // modified
-          return !excluded(ev.file);
+          return !excluded(Path.join(ev.directory, ev.file));
         case 3: // renamed
-          return !excluded(ev.oldFile);
+          return !excluded(Path.join(ev.directory, ev.oldFile));
         case 1: // deleted
           return !excluded(ev.file);
       }
@@ -210,7 +195,7 @@ function make(
   );
 
   watcher.then(async (watcher) => {
-    const events: Array<NsfwEvent> = [];
+    const events: Array<nsfw.FileChangeEvent> = [];
     // TODO(jaked) needs protecting against concurrent updates
     await walkDir(rootPath, events);
     await handleNsfwEvents(events);
@@ -280,7 +265,7 @@ function make(
     return files.get().has(path);
   }
 
-  const walkDir = async (directory: string, events: Array<NsfwEvent>) => {
+  const walkDir = async (directory: string, events: Array<nsfw.FileChangeEvent>) => {
     const dirents = await Fs.readdir(directory, { encoding: 'utf8'});
     return Promise.all(dirents.map(async (file: string) => {
       if (excluded(file)) return;
