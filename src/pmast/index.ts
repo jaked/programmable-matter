@@ -246,3 +246,15 @@ export function validateNodes(nodes: Node[]) {
 }
 
 export const empty: Node[] = [ { type: 'p', children: [ { text: '' } ] }];
+
+export function text(node: Node | Node[]) {
+  if (Array.isArray(node)) {
+    return node.map(text).join();
+  } else {
+    if (isElement(node)) {
+      return text(node.children);
+    } else {
+      return node.text;
+    }
+  }
+}

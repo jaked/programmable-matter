@@ -129,12 +129,20 @@ export function renderNode(
 
   } else {
     const children = node.children.map(child => renderNode(child, interfaceMap, valueEnv, nextRootId, Link));
+
     let rendered;
-    if (node.type === 'a') {
+    if (PMAST.isLink(node)) {
       rendered = React.createElement(Link, { key, href: node.href }, ...children);
+
+    } else if (PMAST.isHeader(node)) {
+      // TODO(jaked) uniqify IDs across doc
+      const id = PMAST.text(node).toLowerCase().replace(/[^A-Za-z0-9_]/g, '-');
+      rendered = React.createElement(node.type, { key, id }, children);
+
     } else {
       rendered = React.createElement(node.type, { key }, ...children);
     }
+
     if (node.children.every(node => renderedNode.has(node)))
       renderedNode.set(node, rendered);
     return rendered;

@@ -29,7 +29,8 @@ export default function makeLink(
 
     } else {
       // TODO(jaked) use Name.rewriteResolve here
-      const name = Name.resolve(Name.dirname(moduleName), props.href);
+      const path = url.path || props.href;
+      const name = Name.resolve(Name.dirname(moduleName), path);
 
       return React.createElement(Render.context.Consumer, {
         children: context => {
@@ -38,12 +39,15 @@ export default function makeLink(
               const onClick = (e: React.MouseEvent) => {
                 e.preventDefault();
                 setSelected(name);
+                // TODO(jaked) scroll to hash location
               }
               return React.createElement(A, { href: '#', onClick }, props.children);
             }
 
             case 'server':
-              const href = name.split('/').map(encodeURIComponent).join('/');
+              const href =
+                name.split('/').map(encodeURIComponent).join('/') +
+                (url.hash || '');
               return React.createElement('a', { href }, props.children);
             }
           }

@@ -222,7 +222,7 @@ it('renders elements', () => {
     compiled.rendered.get(),
     <>
       <p><span>foo</span></p>
-      <h1><span>bar</span></h1>
+      <h1 id="bar"><span>bar</span></h1>
       <ul><li><span><strong>baz</strong></span></li></ul>
     </>
   );
