@@ -8,6 +8,7 @@ import { bug } from '../util/bug';
 import * as model from '../model';
 import * as Name from '../util/Name';
 import Signal from '../util/Signal';
+import Try from '../util/Try';
 import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../model';
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
@@ -408,14 +409,20 @@ ${html.slice(headIndex)}`;
 
   const exportInterface = Signal.join(exports, typecheckedCode).map(([exportNames, { interfaceEnv }]) => {
     const exportInterface: Map<string, Interface> = new Map();
+    exportInterface.set('default', Try.ok({
+      type: Type.functionType([], Type.reactNodeType),
+      dynamic: false
+    }));
     exportNames.forEach(name => {
       exportInterface.set(name, interfaceEnv.get(name) ?? bug(`expected interface`));
     });
     return exportInterface;
   });
 
-  const exportValue = Signal.join(exports, compile).map(([exportNames, { valueEnv }]) => {
+  const exportValue = Signal.join(exports, compile, rendered).map(([exportNames, { valueEnv }, rendered]) => {
     const exportValue: Map<string, unknown> = new Map();
+    exportValue.set('default', () => rendered);
+
     exportNames.forEach(name => {
       exportValue.set(name, valueEnv.get(name) ?? bug(`expected value`));
     });

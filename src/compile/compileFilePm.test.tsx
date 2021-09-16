@@ -66,6 +66,33 @@ it('compiles', () => {
   );
 });
 
+it('compiles rendered document as default export', () => {
+  const compiled = compileFilePm({
+    type: 'pm',
+    path: '/foo.pm',
+    mtimeMs: Signal.ok(0),
+    content: Signal.cellOk({
+      meta: {},
+      children: [
+        {
+          type: 'p',
+          children: [
+            { text: 'foo' }
+          ]
+        }
+      ]
+    }),
+  });
+  expect(compiled.problems.get()).toBeFalsy();
+  expect(
+    intfType(compiled.exportInterface.get().get('default') ?? bug(`expected default`))
+  ).toEqual(
+    Type.functionType([], Type.reactNodeType)
+  );
+  const Default = compiled.exportValue.get().get('default') as (() => React.ReactElement);
+  expectRenderEqual(<Default />, <p><span>foo</span></p>);
+});
+
 it('compiles exports', () => {
   const compiled = compileFilePm({
     type: 'pm',
