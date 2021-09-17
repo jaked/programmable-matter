@@ -22,14 +22,12 @@ const Status = (props: StatusProps) => {
   const mouse = Signal.useSignal(props.mouse);
   const selection = Signal.useSignal(props.selection);
   const [ status, setStatus ] = React.useState<undefined | string>(undefined);
+  const [ elem, setElem ] = React.useState<null | Element>(null);
   const ref = React.useRef<HTMLDivElement | null>(null);
 
   React.useLayoutEffect(() => {
-    // we need to run this in an effect after the doc is rendered
-    // since it relies on the rendered DOM
-
     let status: undefined | string = undefined;
-    let elem: Element | null = null;
+    let elem: null | Element = null;
 
     elem = document.elementFromPoint(mouse.clientX, mouse.clientY);
     status = getStatus(elem);
@@ -45,7 +43,13 @@ const Status = (props: StatusProps) => {
       elem = selection.focusNode.parentElement;
       status = getStatus(elem);
     }
+    if (!status) elem = null;
 
+    setElem(elem);
+    setStatus(status);
+  }, [ mouse, selection ]);
+
+  React.useLayoutEffect(() => {
     if (elem && status) {
       if (ref.current) {
         const statusDiv = ref.current;
@@ -55,8 +59,7 @@ const Status = (props: StatusProps) => {
       }
     }
 
-    setStatus(status);
-  }, [mouse, selection]);
+  }, [elem, status]);
 
   return status ? ReactDOM.createPortal(
     <div ref={ref} style={{
