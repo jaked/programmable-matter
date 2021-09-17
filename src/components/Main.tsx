@@ -327,7 +327,7 @@ const Main = () => {
       </div>
       }
       <div style={{ gridArea: 'debug' }}>
-        <Status mouse={App.mouseSignal} />
+        <Status mouse={App.mouseSignal} selection={App.selectionSignal} />
       </div>
     </div>
   );

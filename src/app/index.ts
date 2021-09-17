@@ -29,7 +29,11 @@ import mkNewNote from './newNote';
 
 const debug = false;
 
-export const mouseSignal = Signal.cellOk({ clientX: 0, clientY: 0 });
+export const mouseSignal: Signal.Writable<{ clientX: number, clientY: number }> =
+  Signal.cellOk({ clientX: 0, clientY: 0 });
+
+export const selectionSignal: Signal.Writable<Selection | null> =
+  Signal.cellOk(null);
 
 export const sideBarVisibleCell = Signal.cellOk<boolean>(true);
 const toggleSidebarVisible = () => {
@@ -192,6 +196,21 @@ ipc.on('set-data-dir', (_, path: string) => { Files.setPath(path) });
 document.onmousemove = (e: MouseEvent) => {
   mouseSignal.setOk({ clientX: e.clientX, clientY: e.clientY });
 }
+
+document.onselectionchange = (e: Event) => {
+    const selection = window.getSelection();
+    // TODO(jaked)
+    // need to clone the selection or else the signal doesn't fire
+    // because it's the same mutable object
+    // but it doesn't seem to enumerate any properties
+    // so we explicitly pull out the ones we need
+    // ???
+    selectionSignal.setOk(selection ? {
+      ...selection,
+      isCollapsed: selection.isCollapsed,
+      focusNode: selection.focusNode
+    } : null);
+  }
 
 ReactDOM.render(
   React.createElement(Main),
