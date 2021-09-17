@@ -20,6 +20,7 @@ import Notes from './Notes';
 import Header from './Header'
 import Editor from './Editor';
 import RichTextEditor from './RichTextEditor';
+import Status from './Status';
 
 // TODO(jaked) straighten out dependencies
 import { mouse } from '../render/initEnv';
@@ -80,41 +81,12 @@ const RichEditor = React.memo((props : RichEditorProps) => {
   );
 });
 
-type StatusProps = {
-  mouse: Signal<{ clientX: number, clientY: number }>;
-}
-
-const Status = (props: StatusProps) => {
-  const mouse = Signal.useSignal(props.mouse);
-  const [ status, setStatus ] = React.useState<undefined | string>(undefined);
-  React.useLayoutEffect(() => {
-    // we need to run this in an effect after the doc is rendered
-    // since it relies on the rendered DOM
-    const elem = document.elementFromPoint(mouse.clientX, mouse.clientY);
-
-    let status: undefined | string = undefined;
-    if (elem) {
-      // Slate wraps an extra span around the text
-      // so the element with the status field is its parent
-      const parent = elem.parentElement;
-      if (parent) {
-        status = (parent as HTMLElement).dataset.status;
-      }
-    }
-    setStatus(status);
-  }, [mouse]);
-  return (<>
-    {status && <div style={{ padding: '8px', backgroundColor: '#ffc0c0' }}>{status}</div>}
-  </>);
-}
-
 type EditorPaneProps = {
   moduleName: Signal<string | null>;
   selectedFile: Signal<model.WritableContent | null>;
   compiledFile: Signal<model.CompiledFile | null>;
   session: Signal<Session>;
   setSession: Signal<(session: Session) => void>;
-  mouse: Signal<{ clientX: number, clientY: number }>;
   setSelected: (selected: string | null) => void;
 }
 
@@ -133,37 +105,29 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   }
 
   return (
-    <div style={{
-      height: '100%',
-      display: 'grid',
-      gridTemplateRows: '1fr auto',
-      overflow: 'hidden',
-    }}>
-      <div
-        style={{ padding: '8px', overflow: 'auto'}}
-        onClick={onClick}
-      >
-      {
-        selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
-        selectedFile.type === 'pm' ?
-          <RichEditor
-            // TODO(jaked) Signal function to project from a Writable
-            content={selectedFile.content as Signal.Writable<model.PMContent>}
-            moduleName={moduleName}
-            compiledFile={compiledFile}
-            setSelected={props.setSelected}
-          /> :
-          <CodeEditor
-            type={selectedFile.type}
-            content={selectedFile.content as Signal.Writable<string>}
-            compiledFile={compiledFile}
-            session={props.session}
-            setSession={props.setSession}
-            setSelected={props.setSelected}
-          />
-      }
-      </div>
-        <Status mouse={props.mouse} />
+    <div
+      style={{ padding: '8px', overflow: 'auto'}}
+      onClick={onClick}
+    >
+    {
+      selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
+      selectedFile.type === 'pm' ?
+        <RichEditor
+          // TODO(jaked) Signal function to project from a Writable
+          content={selectedFile.content as Signal.Writable<model.PMContent>}
+          moduleName={moduleName}
+          compiledFile={compiledFile}
+          setSelected={props.setSelected}
+        /> :
+        <CodeEditor
+          type={selectedFile.type}
+          content={selectedFile.content as Signal.Writable<string>}
+          compiledFile={compiledFile}
+          session={props.session}
+          setSession={props.setSession}
+          setSelected={props.setSelected}
+        />
+    }
     </div>
   );
 }));
@@ -339,7 +303,6 @@ const Main = () => {
               moduleName={SelectedNote.selectedNote}
               compiledFile={App.compiledFileSignal}
               session={App.sessionSignal}
-              mouse={App.mouseSignal}
               setSession={App.setSessionSignal}
               setSelected={SelectedNote.setSelected}
             />
@@ -363,6 +326,9 @@ const Main = () => {
         <Debug />
       </div>
       }
+      <div style={{ gridArea: 'debug' }}>
+        <Status mouse={App.mouseSignal} />
+      </div>
     </div>
   );
 };
