@@ -1,19 +1,21 @@
 import React from 'react';
-import { createEditor } from 'slate';
-import { withReact, Editable, ReactEditor, Slate } from 'slate-react';
-import { withHistory } from 'slate-history';
+import { Range } from 'slate';
+import { Editable, ReactEditor, Slate } from 'slate-react';
 
 import Signal from '../../util/Signal';
 import * as model from '../../model';
 import * as PMAST from '../../pmast';
-import * as PMEditor from '../../editor/PMEditor';
 
 import makeRenderElement from './makeRenderElement';
 import makeRenderLeaf from './makeRenderLeaf';
 import makeDecorate from './makeDecorate';
 import makeOnKeyDown from './makeOnKeyDown';
+import makeEditor from './makeEditor';
+import makeSetCompletionTarget from './makeSetCompletionTarget';
+import Completions from './Completions';
 
 import * as Focus from '../../app/focus';
+import * as Files from '../../app/files';
 
 export type RichTextEditorProps = {
   value: { children: PMAST.Node[] };
@@ -25,26 +27,32 @@ export type RichTextEditorProps = {
 }
 
 const RichTextEditor = (props: RichTextEditorProps) => {
-  const editor = React.useMemo(() => {
-    const editor = withHistory(withReact(PMEditor.withPMEditor(createEditor())));
+  const [target, setTarget] = React.useState<Range | undefined>();
+  const [match, setMatch] = React.useState("");
+  const [index, setIndex] = React.useState(0);
 
-    // the default react-slate insertData splits inserted text into lines
-    // and wraps the enclosing element around each line.
-    // we don't always want that behavior, so override it
-    // and pass multiline text directly to insertText.
-    const { insertData } = editor;
-    editor.insertData = (data: DataTransfer) => {
-      if (data.getData('application/x-slate-fragment')) {
-        insertData(data);
-      } else {
-        const text = data.getData('text/plain');
-        if (text) {
-          editor.insertText(text);
+  const filesByName = Signal.useSignal(Files.filesByNameSignal);
+  const completions = React.useMemo(() => {
+    const completions: string[] = [];
+    if (match) {
+      const matchLowerCase = match.toLowerCase();
+      for (const name of filesByName.keys()) {
+        if (name.toLowerCase().includes(matchLowerCase)) {
+          completions.unshift(name);
         }
       }
-    };
-    return editor;
-  }, [props.moduleName]);
+    }
+    return completions;
+  }, [match, filesByName]);
+
+  const editor = React.useMemo(
+    () => makeEditor({
+      setTarget,
+      setMatch,
+      setIndex
+    }),
+    [props.moduleName, setTarget, setMatch, setIndex]
+  );
 
   const focused = Signal.useSignal(Focus.editorFocused);
   React.useEffect(() => {
@@ -53,8 +61,17 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     }
   }, [focused]);
 
-  const onKeyDown = React.useMemo(() => makeOnKeyDown(editor), [editor]);
-  // TODO(jaked) can we use interfaceMap conditionally? breaks the rules of hooks but does it matter?
+  const onKeyDown = React.useMemo(() =>
+    makeOnKeyDown(editor, {
+      target,
+      setTarget,
+      index,
+      setIndex,
+      completions
+    }),
+    [editor, target, setTarget, index, setIndex, completions]
+  );
+
   const interfaceMap = Signal.useSignal(props.compiledFile.interfaceMap ?? Signal.ok(undefined));
   const decorate = React.useMemo(
     () => makeDecorate(interfaceMap),
@@ -71,19 +88,28 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [props.moduleName, props.setSelected]
   );
 
+  const setCompletionTarget = React.useMemo(
+    () => makeSetCompletionTarget(editor, {
+      setTarget,
+      setMatch,
+      setIndex
+    }),
+    [editor, setTarget, setMatch, setIndex]
+  )
+
   const onChange = React.useCallback(
     children => {
-      props.setValue({
-        children: children as PMAST.Node[],
-      });
+      props.setValue({ children });
+      if (target)
+        setCompletionTarget();
     },
-    [editor, props.setValue]
+    [props.setValue, target, setCompletionTarget]
   )
 
   // key={props.moduleName} forces a remount when editor changes
   // to work around a slate-react bug
   // see https://github.com/ianstormtaylor/slate/issues/3886
-  return (
+  return <>
     <Slate
       key={props.moduleName}
       editor={editor}
@@ -98,7 +124,14 @@ const RichTextEditor = (props: RichTextEditorProps) => {
         spellCheck={false}
       />
     </Slate>
-  );
+    { target && completions.length > 0 && <Completions
+      editor={editor}
+      target={target}
+      match={match}
+      index={index}
+      completions={completions}
+    />}
+  </>;
 };
 
 export default RichTextEditor;
