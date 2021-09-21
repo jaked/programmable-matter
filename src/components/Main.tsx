@@ -105,29 +105,37 @@ const EditorPane = React.memo(React.forwardRef<Editor, EditorPaneProps>((props, 
   }
 
   return (
-    <div
-      style={{ padding: '8px', overflow: 'auto'}}
-      onClick={onClick}
-    >
-    {
-      selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
-      selectedFile.type === 'pm' ?
-        <RichEditor
-          // TODO(jaked) Signal function to project from a Writable
-          content={selectedFile.content as Signal.Writable<model.PMContent>}
-          moduleName={moduleName}
-          compiledFile={compiledFile}
-          setSelected={props.setSelected}
-        /> :
-        <CodeEditor
-          type={selectedFile.type}
-          content={selectedFile.content as Signal.Writable<string>}
-          compiledFile={compiledFile}
-          session={props.session}
-          setSession={props.setSession}
-          setSelected={props.setSelected}
-        />
-    }
+    // TODO(jaked)
+    // necessary to get scrolling but I don't understand why
+    <div style={{
+      display: 'grid',
+      height: '100%',
+      overflow: 'hidden',
+    }}>
+      <div
+        style={{ padding: '8px', overflow: 'auto'}}
+        onClick={onClick}
+      >
+      {
+        selectedFile === null || moduleName === null || compiledFile == null ? 'no note' :
+        selectedFile.type === 'pm' ?
+          <RichEditor
+            // TODO(jaked) Signal function to project from a Writable
+            content={selectedFile.content as Signal.Writable<model.PMContent>}
+            moduleName={moduleName}
+            compiledFile={compiledFile}
+            setSelected={props.setSelected}
+          /> :
+          <CodeEditor
+            type={selectedFile.type}
+            content={selectedFile.content as Signal.Writable<string>}
+            compiledFile={compiledFile}
+            session={props.session}
+            setSession={props.setSession}
+            setSelected={props.setSelected}
+          />
+      }
+      </div>
     </div>
   );
 }));
