@@ -1,7 +1,8 @@
 import React from 'react';
-import { Range } from 'slate';
+import { Range, Transforms } from 'slate';
 import { Editable, ReactEditor, Slate } from 'slate-react';
 
+import { bug } from '../../util/bug';
 import Signal from '../../util/Signal';
 import * as model from '../../model';
 import * as PMAST from '../../pmast';
@@ -34,7 +35,7 @@ const RichTextEditor = (props: RichTextEditorProps) => {
   const filesByName = Signal.useSignal(Files.filesByNameSignal);
   const completions = React.useMemo(() => {
     const completions: string[] = [];
-    if (match) {
+    if (target) {
       const matchLowerCase = match.toLowerCase();
       for (const name of filesByName.keys()) {
         if (name.toLowerCase().includes(matchLowerCase)) {
@@ -43,7 +44,7 @@ const RichTextEditor = (props: RichTextEditorProps) => {
       }
     }
     return completions;
-  }, [match, filesByName]);
+  }, [target, match, filesByName]);
 
   const editor = React.useMemo(
     () => makeEditor({
@@ -61,13 +62,26 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     }
   }, [focused]);
 
+  const selectCompletion = React.useCallback((index: number) => {
+    if (!target) bug(`expected target`);
+    const name = completions[index];
+    Transforms.select(editor, target);
+    Transforms.insertNodes(editor, {
+      type: 'a',
+      href: name,
+      children: [ { text: name } ]
+    });
+    setTarget(undefined);
+  }, [editor, target, setTarget, completions]);
+
   const onKeyDown = React.useMemo(() =>
     makeOnKeyDown(editor, {
       target,
       setTarget,
       index,
       setIndex,
-      completions
+      completions,
+      selectCompletion
     }),
     [editor, target, setTarget, index, setIndex, completions]
   );
@@ -106,6 +120,15 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [props.setValue, target, setCompletionTarget]
   )
 
+  const onClick = React.useCallback(
+    (index: number) => (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+      e.preventDefault();
+      selectCompletion(index);
+      ReactEditor.focus(editor);
+    },
+    [selectCompletion, editor]
+  )
+
   // key={props.moduleName} forces a remount when editor changes
   // to work around a slate-react bug
   // see https://github.com/ianstormtaylor/slate/issues/3886
@@ -125,11 +148,15 @@ const RichTextEditor = (props: RichTextEditorProps) => {
       />
     </Slate>
     { target && completions.length > 0 && <Completions
-      editor={editor}
-      target={target}
-      match={match}
+      target={() =>
+        // TODO(jaked)
+        // need to delay this until after Editable has rendered
+        // or else the DOM / Slate mapping is not yet updated
+        ReactEditor.toDOMRange(editor, target)
+      }
       index={index}
       completions={completions}
+      onClick={onClick}
     />}
   </>;
 };

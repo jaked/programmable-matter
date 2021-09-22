@@ -1,5 +1,5 @@
 import isHotkey from 'is-hotkey';
-import { Editor, Range, Transforms } from 'slate';
+import { Editor, Range } from 'slate';
 import * as PMAST from '../../pmast';
 import * as PMEditor from '../../editor/PMEditor';
 
@@ -33,13 +33,14 @@ type Props = {
   index: number;
   setIndex: (index: number) => void;
   completions: string[];
+  selectCompletion: (index: number) => void;
 }
 
 export default (editor: Editor, props: Props) => {
   // TODO(jaked)
   // make this part of the Completions component somehow
   if (props.target) {
-    const { target, setTarget, index, setIndex, completions } = props;
+    const { setTarget, index, setIndex, completions, selectCompletion } = props;
     return (re: React.KeyboardEvent) => {
       const e = re as unknown as KeyboardEvent;
       switch (e.key) {
@@ -56,14 +57,7 @@ export default (editor: Editor, props: Props) => {
         case 'Tab':
         case 'Enter':
           e.preventDefault();
-          const name = completions[index];
-          Transforms.select(editor, target);
-          Transforms.insertNodes(editor, {
-            type: 'a',
-            href: name,
-            children: [ { text: name } ]
-          });
-          setTarget(undefined);
+          selectCompletion(index);
           break;
         case 'Escape':
           e.preventDefault();

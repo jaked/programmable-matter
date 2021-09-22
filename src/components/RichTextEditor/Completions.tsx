@@ -1,15 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { Editor, Range } from 'slate';
-import { ReactEditor } from 'slate-react';
-import Signal from '../../util/Signal';
 
 type CompletionsProps = {
-  editor: Editor;
-  target: Range;
-  match: string;
+  target: () => Range;
   index: number;
   completions: string[];
+  onClick: (index: number) => (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
 }
 
 const Completions = (props: CompletionsProps) => {
@@ -18,27 +14,39 @@ const Completions = (props: CompletionsProps) => {
   React.useLayoutEffect(() => {
     if (props.target && ref.current) {
       const completionsDiv = ref.current;
-      const domRange = ReactEditor.toDOMRange(props.editor, props.target)
-      const rect = domRange.getBoundingClientRect();
+      const rect = props.target().getBoundingClientRect();
       completionsDiv.style.left = `${rect.left + window.pageXOffset}px`;
       completionsDiv.style.top = `${rect.bottom + window.pageYOffset}px`;
+
+      const selectedElem = ref.current.children.item(props.index);
+      if (selectedElem)
+        selectedElem.scrollIntoView({ block: 'nearest' });
     }
   });
 
   return ReactDOM.createPortal(
     <div ref={ref} style={{
-      padding: '8px',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#efefef',
       border: 'solid 1px #cccccc',
       top: '-9999px',
       left: '-9999px',
       position: 'absolute',
+      width: '33vw',
+      maxHeight: '50vh',
+      overflow: 'auto',
       zIndex: 1,
     }}>{
       props.completions.map((completion, i) =>
-        <div style={{
-          background: props.index === i ? '#cccccc' : 'transparent'
-        }}>{completion}</div>
+        <div
+          style={{
+            padding: '4px 8px',
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+            cursor: 'pointer',
+            background: props.index === i ? '#cccccc' : 'transparent',
+          }}
+          onClick={props.onClick(props.index)}
+        >{completion}</div>
       )
     }</div>,
     document.body
