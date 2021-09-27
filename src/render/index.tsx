@@ -136,7 +136,7 @@ export function renderNode(
 
     } else if (PMAST.isHeader(node)) {
       // TODO(jaked) uniqify IDs across doc
-      const id = PMAST.text(node).toLowerCase().replace(/[^A-Za-z0-9_]/g, '-');
+      const id = PMAST.text(node).toLowerCase().replace(/ /g, '-').replace(/[^A-Za-z0-9_-]/g, '');
       rendered = React.createElement(node.type, { key, id }, children);
 
     } else {
