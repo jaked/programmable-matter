@@ -323,6 +323,15 @@ const initEnv: Immutable.Map<string, Binding> = Immutable.Map({
     dynamic: false
   },
 
+  'meta': {
+    type: componentType({
+      name: Type.string,
+      content: Type.string,
+    }),
+    value: 'meta',
+    dynamic: false
+  },
+
   'p': {
     type: componentType({
       className: Type.undefinedOrString,
