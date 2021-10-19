@@ -1,5 +1,4 @@
 /** @jsx jsx */
-import { Editor } from 'slate';
 import { jsx } from '../util/slate-hyperscript-jsx';
 import { expectEditor } from './expectEditor';
 import { insertBreak } from './insertBreak';
@@ -14,8 +13,8 @@ describe('in link', () => {
       editor => insertBreak(editor)(),
 
       <editor>
-        <p><a href="https://foo.bar/">link</a><cursor/></p>
-        <p/>
+        <p><a href="https://foo.bar/">link</a></p>
+        <p><cursor/></p>
       </editor>
     );
   });
