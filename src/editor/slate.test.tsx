@@ -204,7 +204,7 @@ describe('Transforms.insertNodes', () => {
     );
   });
 
-  it(`insert multiple nodes leaves cursor after the first node :(`, () => {
+  it(`insert multiple nodes leaves cursor after last node`, () => {
     expectEditor(
       <editor>
         <p>foo<cursor/>bar</p>
@@ -219,8 +219,8 @@ describe('Transforms.insertNodes', () => {
 
       <editor>
         <p>
-          foobaz<cursor/>
-          <stext bold={true}>quux</stext>
+          foobaz
+          <stext bold={true}>quux</stext><cursor/>
           bar
         </p>
       </editor>
