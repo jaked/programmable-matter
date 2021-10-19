@@ -183,6 +183,7 @@ function make(
 ): Filesystem {
   const fsFiles = new Map<string, FsFile>();
   let timeout: null | NodeJS.Timeout;
+  let inTimerCallback = false;
 
   const handleNsfwEvents = makeHandleNsfwEvents(Now, Fs, rootPath, fsFiles);
 
@@ -281,6 +282,8 @@ function make(
   }
 
   const timerCallback = async (force = false) => {
+    if (inTimerCallback) return;
+    inTimerCallback = true;
     if (debug) console.log(`timerCallback`);
     const now = Now.now();
     const ops: Promise<unknown>[] = [];
@@ -368,7 +371,7 @@ function make(
         }
       }
     });
-    return Promise.all(ops);
+    return Promise.all(ops).finally(() => inTimerCallback = false);
   };
 
   const fsPaths = () => [...fsFiles.keys()]
