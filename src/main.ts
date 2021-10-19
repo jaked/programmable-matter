@@ -76,10 +76,6 @@ async function createWindow () {
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
 
-  // TODO(jaked) maybe there is a more direct way to do this?
-  mainWindow.on('focus', () => mainWindow?.webContents.send('focus'));
-  mainWindow.on('blur', () => mainWindow?.webContents.send('blur'));
-
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
     // Dereference the window object, usually you would store windows

@@ -188,9 +188,6 @@ ipc.on('delete-note', deleteNote);
 
 ipc.on('publish-site', publishSite);
 
-ipc.on('focus', () => Files.filesystem.start());
-ipc.on('blur', () => Files.filesystem.stop());
-
 ipc.on('set-data-dir', (_, path: string) => { Files.setPath(path) });
 
 document.onmousemove = (e: MouseEvent) => {

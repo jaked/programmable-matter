@@ -63,8 +63,6 @@ type Filesystem = {
   rename: (oldPath: string, newPath: string) => void,
   exists: (path: string) => boolean,
   fsPaths: () => string[],
-  start: () => Promise<void>,
-  stop: () => Promise<void>,
   close: () => Promise<void>,
 }
 
@@ -375,14 +373,6 @@ function make(
 
   const fsPaths = () => [...fsFiles.keys()]
 
-  const start = async () => {
-    // timeout = Timers.setInterval(timerCallback, 1000);
-  }
-
-  const stop = async () => {
-    // if (timeout) Timers.clearInterval(timeout);
-  }
-
   const close = async () => {
     if (timeout) Timers.clearInterval(timeout);
     // TODO(jaked) ensure no updates after final write
@@ -396,8 +386,6 @@ function make(
     rename,
     exists,
     fsPaths,
-    start,
-    stop,
     close
   };
 }
