@@ -55,6 +55,9 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [props.moduleName, setTarget, setMatch, setIndex]
   );
 
+  // TODO(jaked) fix up cursor position if it's no longer valid
+  editor.children = props.value.children;
+
   const focused = Signal.useSignal(Focus.editorFocused);
   React.useEffect(() => {
     if (focused) {
