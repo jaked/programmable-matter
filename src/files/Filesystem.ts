@@ -3,6 +3,7 @@ import timers from 'timers';
 import * as Path from 'path';
 import * as Immer from 'immer';
 import nsfw from 'nsfw';
+import { Mutex } from 'async-mutex';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
 import * as model from '../model';
@@ -11,7 +12,6 @@ type FsFile = {
   mtimeMs: number;
   buffer: Buffer;
   deleted: boolean;
-  writing: boolean; // true if we are in the middle of writing the file
 }
 
 const debug = false;
@@ -58,11 +58,9 @@ type Nsfw = (
 }>
 
 type Filesystem = {
-  update: (path: string, buffer: Buffer) => void,
-  remove: (path: string) => void,
-  rename: (oldPath: string, newPath: string) => void,
-  exists: (path: string) => boolean,
-  fsPaths: () => string[],
+  update: (path: string, buffer: Buffer) => Promise<void>,
+  remove: (path: string) => Promise<void>,
+  rename: (oldPath: string, newPath: string) => Promise<void>,
   close: () => Promise<void>,
 }
 
@@ -78,8 +76,9 @@ function makeHandleNsfwEvents(
   Fs: Fs,
   rootPath: string,
   fsFiles: Map<string, FsFile>,
+  mutex: Mutex
 )  {
-  return async (nsfwEvents: Array<nsfw.FileChangeEvent>) => {
+  return async (nsfwEvents: Array<nsfw.FileChangeEvent>) => { mutex.runExclusive(async () => {
     nsfwEvents = nsfwEvents.filter(ev => {
       switch (ev.action) {
         case 0: // created
@@ -121,7 +120,6 @@ function makeHandleNsfwEvents(
           const { buffer, mtimeMs } = buffersByPath.get(path) ?? bug(`expected buffer`);
           const fsFile = fsFiles.get(path);
           if (fsFile) {
-            if (fsFile.writing) continue;
             if (fsFile.mtimeMs === mtimeMs) continue;
             fsFile.mtimeMs = mtimeMs;
             if (fsFile.buffer.equals(buffer)) continue;
@@ -131,7 +129,6 @@ function makeHandleNsfwEvents(
               mtimeMs,
               buffer,
               deleted: false,
-              writing: false
             });
           }
           continue;
@@ -146,13 +143,11 @@ function makeHandleNsfwEvents(
             mtimeMs: Now.now(),
             buffer: emptyBuffer,
             deleted: true,
-            writing: false
           });
           fsFiles.set(newPath, {
             mtimeMs: Now.now(),
             buffer: fsFile.buffer,
             deleted: false,
-            writing: false
           });
           continue;
         }
@@ -164,13 +159,12 @@ function makeHandleNsfwEvents(
             mtimeMs: Now.now(),
             buffer: emptyBuffer,
             deleted: true,
-            writing: false
           });
           continue;
         }
       }
     }
-  }
+  }); }
 }
 
 function make(
@@ -182,10 +176,10 @@ function make(
   Nsfw: Nsfw = nsfw,
 ): Filesystem {
   const fsFiles = new Map<string, FsFile>();
+  const mutex = new Mutex();
   let timeout: null | NodeJS.Timeout;
-  let inTimerCallback = false;
 
-  const handleNsfwEvents = makeHandleNsfwEvents(Now, Fs, rootPath, fsFiles);
+  const handleNsfwEvents = makeHandleNsfwEvents(Now, Fs, rootPath, fsFiles, mutex);
 
   const watcher = Nsfw(
     rootPath,
@@ -195,14 +189,13 @@ function make(
 
   watcher.then(async (watcher) => {
     const events: Array<nsfw.FileChangeEvent> = [];
-    // TODO(jaked) needs protecting against concurrent updates
     await walkDir(rootPath, events);
     await handleNsfwEvents(events);
     await watcher.start();
     timeout = Timers.setInterval(timerCallback, 1000);
   })
 
-  const update = (path: string, buffer: Buffer) => {
+  const update = (path: string, buffer: Buffer) => mutex.runExclusive(() => {
     files.produce(files => {
       const oldFile = files.get(path);
       const mtimeMs = Now.now();
@@ -228,9 +221,9 @@ function make(
         });
       }
     });
-  }
+  });
 
-  const remove = (path: string) => {
+  const remove = (path: string) => mutex.runExclusive(() => {
     files.produce(files => {
       files.set(path, {
         mtimeMs: Now.now(),
@@ -238,9 +231,9 @@ function make(
         deleted: true
       });
     });
-  }
+  });
 
-  const rename = (oldPath: string, newPath: string) => {
+  const rename = (oldPath: string, newPath: string) => mutex.runExclusive(() => {
     files.produce(files => {
       if (oldPath === newPath) return;
       const mtimeMs = Now.now();
@@ -258,11 +251,7 @@ function make(
         deleted: false,
       });
     });
-  }
-
-  const exists = (path: string) => {
-    return files.get().has(path);
-  }
+  });
 
   const walkDir = async (directory: string, events: Array<nsfw.FileChangeEvent>) => {
     const dirents = await Fs.readdir(directory, { encoding: 'utf8'});
@@ -281,9 +270,7 @@ function make(
     }));
   }
 
-  const timerCallback = async (force = false) => {
-    if (inTimerCallback) return;
-    inTimerCallback = true;
+  const timerCallback = (force = false) => { mutex.runExclusive(() => {
     if (debug) console.log(`timerCallback`);
     const now = Now.now();
     const ops: Promise<unknown>[] = [];
@@ -302,7 +289,6 @@ function make(
           mtimeMs: 0,
           buffer: emptyBuffer,
           deleted: true,
-          writing: false
         };
         if (!fsFiles.has(path)) fsFiles.set(path, fsFile);
 
@@ -315,15 +301,12 @@ function make(
           if (debug) console.log(`file newer (${file.mtimeMs} > ${fsFile.mtimeMs}) for ${path}`);
           if (file.deleted) {
             if (debug) console.log(`file deleted for ${path}`);
-            if (fsFile.writing) continue;
             if (debug) console.log(`deleting ${filePath}`);
             fsFile.deleted = true;
             fsFile.buffer = emptyBuffer;
-            fsFile.writing = true;
             ops.push(
               Fs.unlink(filePath)
               .catch(e => { console.log(e) })
-              .finally(() => fsFile.writing = false)
             );
 
           } else if (file.mtimeMs > fsFile.mtimeMs && fsFile.buffer.equals(file.buffer)) {
@@ -336,10 +319,8 @@ function make(
             fsFile.mtimeMs < now - 5000
           ) {
             if (debug) console.log(`should write for ${path}`);
-            if (fsFile.writing) continue;
             if (debug) console.log(`writing ${filePath}`);
             fsFile.deleted = false;
-            fsFile.writing = true;
             const tmpFilePath = filePath + '.tmp';
             const buffer = Immer.original(file)?.buffer ?? bug(`expected buffer`);
             ops.push((async () => {
@@ -356,7 +337,6 @@ function make(
               } catch(e) { console.log(e) }
               finally {
                 fsFile.buffer = buffer;
-                fsFile.writing = false
               }
             })());
           }
@@ -371,10 +351,8 @@ function make(
         }
       }
     });
-    return Promise.all(ops).finally(() => inTimerCallback = false);
-  };
-
-  const fsPaths = () => [...fsFiles.keys()]
+    return Promise.all(ops);
+  }); }
 
   const close = async () => {
     if (timeout) Timers.clearInterval(timeout);
@@ -387,8 +365,6 @@ function make(
     update,
     remove,
     rename,
-    exists,
-    fsPaths,
     close
   };
 }
