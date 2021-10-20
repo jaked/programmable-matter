@@ -55,8 +55,16 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [props.moduleName, setTarget, setMatch, setIndex]
   );
 
-  // TODO(jaked) fix up cursor position if it's no longer valid
-  editor.children = props.value.children;
+  React.useEffect(() => {
+    // if value.children has changed, reset them on editor
+    // when this is due to a Slate-originated change it's a no-op
+    // (but needed when it's a filesystem-originated change)
+    // reset children only once on change
+    // because RichTextEditor can rerender for other reasons
+    // so value.children may be stale
+    // TODO(jaked) fix up cursor position if it's no longer valid
+    editor.children = props.value.children;
+  }, [props.value.children]);
 
   const focused = Signal.useSignal(Focus.editorFocused);
   React.useEffect(() => {
@@ -151,12 +159,12 @@ const RichTextEditor = (props: RichTextEditorProps) => {
       />
     </Slate>
     { target && completions.length > 0 && <Completions
-      target={() =>
+      target={() => {
         // TODO(jaked)
         // need to delay this until after Editable has rendered
         // or else the DOM / Slate mapping is not yet updated
-        ReactEditor.toDOMRange(editor, target)
-      }
+        return ReactEditor.toDOMRange(editor, target)
+      }}
       index={index}
       completions={completions}
       onClick={onClick}
