@@ -35,7 +35,7 @@
     "@types/react-window": "^1.8.1",
     "@types/styled-components": "^5.1.11",
     "@types/styled-system": "^4.2.2",
-    "electron": "^13.5.2",
+    "electron": "^13.2.1",
     "electron-rebuild": "^3.2.3",
     "jest": "^27.0.6",
     "react-test-renderer": "^17.0.2",
