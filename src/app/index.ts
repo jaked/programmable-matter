@@ -1,6 +1,4 @@
-import * as fs from "fs";
 import * as Path from 'path';
-import * as process from 'process';
 import { ipcRenderer as ipc } from 'electron';
 
 import { bug } from '../util/bug';

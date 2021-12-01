@@ -2,7 +2,7 @@ import * as Name from '../util/Name';
 import Signal from '../util/Signal';
 
 export default (args: {
-  fsUpdate: (fn: string, buffer: Buffer) => void,
+  fsUpdate: (fn: string, buffer: Buffer) => Promise<void>,
   notes: Signal<Map<string, unknown>>,
   focusDir: Signal<string | null>,
   callback: (name: string) => void,
@@ -24,8 +24,8 @@ export default (args: {
           }
         }
       }
-      args.fsUpdate(`${name}.pm`, Buffer.from(`[{type:'p',children:[{text:''}]}]`, 'utf8'));
-      args.callback(name);
+      args.fsUpdate(`${name}.pm`, Buffer.from(`[{type:'p',children:[{text:''}]}]`, 'utf8'))
+        .then(() => args.callback(name));
       return name;
     }
   )
