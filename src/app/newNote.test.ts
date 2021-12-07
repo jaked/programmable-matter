@@ -2,13 +2,13 @@ import Signal from '../util/Signal';
 import mkNewNote from './newNote';
 
 const mk = (args: {
-  fsUpdate?: (fn: string, buffer: Buffer) => void,
+  fsUpdate?: (fn: string, buffer: Buffer) => Promise<void>,
   notes?: Map<string, unknown>,
   focusDir?: string | null,
   callback?: (name: string) => void,
 } = {}) => {
   const newNote = mkNewNote({
-    fsUpdate: args.fsUpdate ?? (() => {}),
+    fsUpdate: args.fsUpdate ?? (() => Promise.resolve()),
     notes: Signal.ok(args.notes ?? new Map()),
     focusDir: Signal.ok(args.focusDir ?? null),
     callback: args.callback ?? (() => {}),
@@ -16,12 +16,17 @@ const mk = (args: {
   return (name: string) => newNote.get()(name);
 }
 
-it('updates fs, calls callback', () => {
+it('updates fs, calls callback', done => {
   let fsUpdateCall = undefined as undefined | { fn: string, buffer: Buffer };
-  const fsUpdate = (fn: string, buffer: Buffer) => { fsUpdateCall = { fn, buffer } };
+  const fsUpdate = (fn: string, buffer: Buffer) => {
+    fsUpdateCall = { fn, buffer };
+    return Promise.resolve();
+  };
 
-  let callbackCall: string | undefined = undefined;
-  const callback = (name: string) => { callbackCall = name };
+  const callback = (name: string) => {
+    expect(name).toBe('/foo');
+    done();
+  }
 
   const newNote = mk({
     fsUpdate,
@@ -30,7 +35,6 @@ it('updates fs, calls callback', () => {
 
   expect(newNote('foo')).toBe('/foo');
   expect(fsUpdateCall && fsUpdateCall.fn).toBe('/foo.pm');
-  expect(callbackCall).toBe('/foo');
 });
 
 it('trims whitespace', () => {
