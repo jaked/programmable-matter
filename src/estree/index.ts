@@ -12,7 +12,7 @@ interface NodeImpl {
 
 export interface Program extends NodeImpl {
   type: 'Program';
-  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration | VariableDeclaration >;
+  body: Array<ExpressionStatement | ImportDeclaration | ExportNamedDeclaration | ExportDefaultDeclaration | VariableDeclaration | BlockStatement>;
   sourceType: 'module';
 }
 
@@ -403,208 +403,214 @@ export type Node =
 // (caller must visit children itself if needed)
 export function visit(
   ast: Node | Array<Node> | null | undefined,
-  fn: (n: Node) => (void | false)
+  fn: (n: Node) => (void | false),
+  unknownFn?: (n: Node) => void,
 ) {
-  if (ast === null || ast === undefined) return;
-  if (Array.isArray(ast)) {
-    return ast.forEach(node => visit(node, fn));
-  }
-  if (fn(ast) === false) return;
-  switch (ast.type) {
-    case 'Program':
-      return visit(ast.body, fn);
+  function v(ast: Node | Array<Node> | null | undefined) {
+    if (ast === null || ast === undefined) return;
+    if (Array.isArray(ast)) {
+      return ast.forEach(v);
+    }
+    if (fn(ast) === false) return;
+    switch (ast.type) {
+      case 'Program':
+        return v(ast.body);
 
-    case 'ExpressionStatement':
-      return visit(ast.expression, fn);
+      case 'ExpressionStatement':
+        return v(ast.expression);
 
-    case 'JSXEmptyExpression':
-      return;
+      case 'JSXEmptyExpression':
+        return;
 
-    case 'JSXFragment':
-      return visit(ast.children, fn);
+      case 'JSXFragment':
+        return v(ast.children);
 
-    case 'JSXText':
-      return;
+      case 'JSXText':
+        return;
 
-    case 'JSXElement':
-      visit(ast.openingElement, fn);
-      visit(ast.children, fn);
-      return visit(ast.closingElement, fn);
+      case 'JSXElement':
+        v(ast.openingElement);
+        v(ast.children);
+        return v(ast.closingElement);
 
-    case 'JSXOpeningElement':
-      visit(ast.name, fn);
-      return visit(ast.attributes, fn);
+      case 'JSXOpeningElement':
+        v(ast.name);
+        return v(ast.attributes);
 
-    case 'JSXClosingElement':
-      return visit(ast.name, fn);
+      case 'JSXClosingElement':
+        return v(ast.name);
 
-    case 'JSXAttribute':
-      visit(ast.name, fn);
-      if (ast.value) visit(ast.value, fn);
-      return;
+      case 'JSXAttribute':
+        v(ast.name);
+        v(ast.value);
+        return;
 
-    case 'JSXIdentifier':
-      return;
+      case 'JSXIdentifier':
+        return;
 
-    case 'JSXExpressionContainer':
-      return visit(ast.expression, fn);
+      case 'JSXExpressionContainer':
+        return v(ast.expression);
 
-    case 'Literal':
-      return;
+      case 'Literal':
+        return;
 
-    case 'Identifier':
-      if (ast.typeAnnotation) return visit(ast.typeAnnotation, fn);
-      else return;
+      case 'Identifier':
+        return v(ast.typeAnnotation);
 
-    case 'UnaryExpression':
-      return visit(ast.argument, fn);
+      case 'UnaryExpression':
+        return v(ast.argument);
 
-    case 'BinaryExpression':
-      visit(ast.left, fn);
-      return visit(ast.right, fn);
+      case 'BinaryExpression':
+        v(ast.left);
+        return v(ast.right);
 
-    case 'LogicalExpression':
-      visit(ast.left, fn);
-      return visit(ast.right, fn);
+      case 'LogicalExpression':
+        v(ast.left);
+        return v(ast.right);
 
-    case 'SequenceExpression':
-      return visit(ast.expressions, fn);
+      case 'SequenceExpression':
+        return v(ast.expressions);
 
-    case 'MemberExpression':
-      visit(ast.object, fn);
-      return visit(ast.property, fn);
+      case 'MemberExpression':
+        v(ast.object);
+        return v(ast.property);
 
-    case 'CallExpression':
-      visit(ast.callee, fn);
-      return visit(ast.arguments, fn);
+      case 'CallExpression':
+        v(ast.callee);
+        return v(ast.arguments);
 
-    case 'Property':
-      visit(ast.key, fn);
-      return visit(ast.value, fn);
+      case 'Property':
+        v(ast.key);
+        return v(ast.value);
 
-    case 'ObjectExpression':
-      return visit(ast.properties, fn);
+      case 'ObjectExpression':
+        return v(ast.properties);
 
-    case 'ArrayExpression':
-      return visit(ast.elements, fn);
+      case 'ArrayExpression':
+        return v(ast.elements);
 
-    case 'ArrowFunctionExpression':
-      visit(ast.params, fn);
-      return visit(ast.body, fn);
+      case 'ArrowFunctionExpression':
+        v(ast.params);
+        return v(ast.body);
 
-    case 'BlockStatement':
-      return visit(ast.body, fn);
+      case 'BlockStatement':
+        return v(ast.body);
 
-    case 'ConditionalExpression':
-      visit(ast.test, fn);
-      visit(ast.consequent, fn);
-      return visit(ast.alternate, fn);
+      case 'ConditionalExpression':
+        v(ast.test);
+        v(ast.consequent);
+        return v(ast.alternate);
 
-    case 'TemplateElement':
-      return;
+      case 'TemplateElement':
+        return;
 
-    case 'TemplateLiteral':
-      return visit(ast.quasis, fn);
+      case 'TemplateLiteral':
+        return v(ast.quasis);
 
-    case 'AssignmentExpression':
-      visit(ast.left, fn);
-      return visit(ast.right, fn);
+      case 'AssignmentExpression':
+        v(ast.left);
+        return v(ast.right);
 
-    case 'TSAsExpression':
-      visit(ast.expression, fn);
-      return visit(ast.typeAnnotation, fn);
+      case 'TSAsExpression':
+        v(ast.expression);
+        return v(ast.typeAnnotation);
 
-    case 'ObjectPattern':
-      visit(ast.properties, fn);
-      if (ast.typeAnnotation) return visit(ast.typeAnnotation, fn);
-      else return;
+      case 'ObjectPattern':
+        v(ast.properties);
+        return v(ast.typeAnnotation);
 
-    case 'ImportSpecifier':
-      visit(ast.imported, fn);
-      return visit(ast.local, fn);
+      case 'ImportSpecifier':
+        v(ast.imported);
+        return v(ast.local);
 
-    case 'ImportNamespaceSpecifier':
-      return visit(ast.local, fn);
+      case 'ImportNamespaceSpecifier':
+        return v(ast.local);
 
-    case 'ImportDefaultSpecifier':
-      return visit(ast.local, fn);
+      case 'ImportDefaultSpecifier':
+        return v(ast.local);
 
-    case 'ImportDeclaration':
-      visit(ast.specifiers, fn);
-      return visit(ast.source, fn);
+      case 'ImportDeclaration':
+        v(ast.specifiers);
+        return v(ast.source);
 
-    case 'VariableDeclarator':
-      visit(ast.id, fn);
-      return visit(ast.init, fn);
+      case 'VariableDeclarator':
+        v(ast.id);
+        return v(ast.init);
 
-    case 'VariableDeclaration':
-      return visit(ast.declarations, fn);
+      case 'VariableDeclaration':
+        return v(ast.declarations);
 
-    case 'ExportNamedDeclaration':
-      return visit(ast.declaration, fn);
+      case 'ExportNamedDeclaration':
+        return v(ast.declaration);
 
-    case 'ExportDefaultDeclaration':
-      return visit(ast.declaration, fn);
+      case 'ExportDefaultDeclaration':
+        return v(ast.declaration);
 
-    case 'TSTypeAnnotation':
-      return visit(ast.typeAnnotation, fn);
+      case 'TSTypeAnnotation':
+        return v(ast.typeAnnotation);
 
-    case 'TSBooleanKeyword':
-    case 'TSNumberKeyword':
-    case 'TSStringKeyword':
-    case 'TSNullKeyword':
-    case 'TSUndefinedKeyword':
-      return;
+      case 'TSBooleanKeyword':
+      case 'TSNumberKeyword':
+      case 'TSStringKeyword':
+      case 'TSNullKeyword':
+      case 'TSUndefinedKeyword':
+        return;
 
-    case 'TSArrayType':
-      return visit(ast.elementType, fn);
+      case 'TSArrayType':
+        return v(ast.elementType);
 
-    case 'TSTupleType':
-      return visit(ast.elementTypes, fn);
+      case 'TSTupleType':
+        return v(ast.elementTypes);
 
-    case 'TSTypeLiteral':
-      return visit(ast.members, fn);
+      case 'TSTypeLiteral':
+        return v(ast.members);
 
-    case 'TSLiteralType':
-      return visit(ast.literal, fn);
+      case 'TSLiteralType':
+        return v(ast.literal);
 
-    case 'TSUnionType':
-      return visit(ast.types, fn);
+      case 'TSUnionType':
+        return v(ast.types);
 
-    case 'TSIntersectionType':
-      return visit(ast.types, fn);
+      case 'TSIntersectionType':
+        return v(ast.types);
 
-    case 'TSFunctionType':
-      visit(ast.parameters, fn);
-      return visit(ast.typeAnnotation, fn);
+      case 'TSFunctionType':
+        v(ast.parameters);
+        return v(ast.typeAnnotation);
 
-    case 'TSTypeReference':
-      visit(ast.typeName, fn);
-      return visit(ast.typeParameters, fn);
+      case 'TSTypeReference':
+        v(ast.typeName);
+        return v(ast.typeParameters);
 
-    case 'TSQualifiedName':
-      visit(ast.left, fn);
-      return visit(ast.right, fn);
+      case 'TSQualifiedName':
+        v(ast.left);
+        return v(ast.right);
 
       case 'TSTypeParameterInstantiation':
-      return visit(ast.params, fn);
+        return v(ast.params);
 
-    case 'TSNeverKeyword':
-    case 'TSUnknownKeyword':
-      return;
+      case 'TSNeverKeyword':
+      case 'TSUnknownKeyword':
+        return;
 
-    case 'TSParenthesizedType':
-      return visit(ast.typeAnnotation, fn);
+      case 'TSParenthesizedType':
+        return v(ast.typeAnnotation);
 
-    case 'TSPropertySignature':
-      visit(ast.key, fn);
-      return visit(ast.typeAnnotation, fn);
+      case 'TSPropertySignature':
+        v(ast.key);
+        return v(ast.typeAnnotation);
 
-    default:
-      const err = new Error('unexpected AST ' + (ast as Node).type);
-      console.log(err);
-      throw err;
+      default:
+        if (unknownFn) {
+          unknownFn(ast);
+        } else {
+          const err = new Error(`unexpected AST '${(ast as Node).type}'`);
+          console.log(err);
+          throw err;
+        }
+    }
   }
+  v(ast);
 }
 
 const STARTS_WITH_CAPITAL_LETTER = /^[A-Z]/

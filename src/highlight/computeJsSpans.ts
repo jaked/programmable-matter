@@ -24,6 +24,10 @@ export function computeJsSpans(
     spans.push({ start, end, tokenType, status, link });
   }
 
+  function unknownFn(ast: ESTree.Node) {
+    span(ast, 'default', `unexpected AST '${ast.type}'`);
+  }
+
   function fn(ast: ESTree.Node) {
     switch (ast.type) {
       case 'Literal': {
@@ -52,18 +56,18 @@ export function computeJsSpans(
           span(ast.key, 'definition', status);
         }
         if (!ast.shorthand) {
-          ESTree.visit(ast.value, fn);
+          ESTree.visit(ast.value, fn, unknownFn);
         }
         return false;
 
       case 'JSXAttribute':
         span(ast.name, 'property');
-        ESTree.visit(ast.value, fn);
+        ESTree.visit(ast.value, fn, unknownFn);
         return false;
 
       case 'ObjectExpression':
         span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
-        ESTree.visit(ast.properties, fn);
+        ESTree.visit(ast.properties, fn, unknownFn);
         span(ast, 'default', undefined, undefined, ast.end -1, ast.end);
         return false;
 
@@ -72,18 +76,18 @@ export function computeJsSpans(
         ast.properties.forEach(prop => {
           span(prop.key, 'definition');
           if (!prop.shorthand) {
-            ESTree.visit(prop.value, fn);
+            ESTree.visit(prop.value, fn, unknownFn);
           }
         });
         const end = ast.typeAnnotation ? ast.typeAnnotation.start : ast.end;
         span(ast, 'default', undefined, undefined, end -1, end);
-        ESTree.visit(ast.typeAnnotation, fn);
+        ESTree.visit(ast.typeAnnotation, fn, unknownFn);
         return false;
       }
 
       case 'ArrayExpression':
         span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
-        ESTree.visit(ast.elements, fn);
+        ESTree.visit(ast.elements, fn, unknownFn);
         span(ast, 'default', undefined, undefined, ast.end -1, ast.end);
         return false;
 
@@ -93,21 +97,21 @@ export function computeJsSpans(
             if (param.typeAnnotation) {
               const end = param.typeAnnotation.start;
               span(param, 'definition', undefined, undefined, param.start, end);
-              ESTree.visit(param.typeAnnotation, fn);
+              ESTree.visit(param.typeAnnotation, fn, unknownFn);
             } else {
               span(param, 'definition');
             }
           } else {
-            ESTree.visit(param, fn);
+            ESTree.visit(param, fn, unknownFn);
           }
         });
-        ESTree.visit(ast.body, fn);
+        ESTree.visit(ast.body, fn, unknownFn);
         return false;
 
       case 'ImportDeclaration':
         // TODO(jaked) handle `from`
         span(ast, 'keyword', undefined, undefined, ast.start, ast.start + 6); // import
-        ESTree.visit(ast.specifiers, fn);
+        ESTree.visit(ast.specifiers, fn, unknownFn);
         // TODO(jaked) maybe a link doesn't make sense for a nonexistent note
         span(ast.source, 'link', undefined, ast.source.value);
         return false;
@@ -154,25 +158,25 @@ export function computeJsSpans(
       case 'VariableDeclarator':
         {
           span(ast.id, 'definition', undefined, undefined, ast.id.start, ast.id.start + ast.id.name.length);
-          ESTree.visit(ast.id.typeAnnotation, fn);
+          ESTree.visit(ast.id.typeAnnotation, fn, unknownFn);
         }
-        ESTree.visit(ast.init, fn);
+        ESTree.visit(ast.init, fn, unknownFn);
         return false;
 
       case 'TSTypeLiteral':
         span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
-        ESTree.visit(ast.members, fn);
+        ESTree.visit(ast.members, fn, unknownFn);
         span(ast, 'default', undefined, undefined, ast.end - 1, ast.end);
         return false;
 
       case 'TSPropertySignature':
         span(ast.key, 'definition');
-        ESTree.visit(ast.typeAnnotation, fn);
+        ESTree.visit(ast.typeAnnotation, fn, unknownFn);
         return false;
 
       case 'TSTypeReference':
         span(ast.typeName, 'variable');
-        ESTree.visit(ast.typeParameters, fn);
+        ESTree.visit(ast.typeParameters, fn, unknownFn);
         return false;
 
       case 'TSBooleanKeyword':
@@ -180,8 +184,21 @@ export function computeJsSpans(
       case 'TSStringKeyword':
       case 'TSNullKeyword':
       case 'TSUndefinedKeyword':
-        span(ast, 'variable');
+        return span(ast, 'variable');
+
+      case 'BlockStatement':
+        // TODO(jaked) how to render nested errors?
+        span(ast, 'default', undefined, undefined, ast.start, ast.start + 1);
+        ESTree.visit(ast.body, fn, unknownFn);
+        span(ast, 'default', undefined, undefined, ast.end - 1, ast.end);
+        return false;
+
+      default:
+        // can't handle unknown nodes with catch-all
+        // because some known nodes rely on normal visitor behavior
+        // TODO(jaked) needs a rethink
     }
   }
-  ESTree.visit(ast, fn);
+
+  ESTree.visit(ast, fn, unknownFn);
 }

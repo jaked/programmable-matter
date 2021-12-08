@@ -1086,6 +1086,9 @@ export function synthProgram(
       case 'ExpressionStatement':
         check(node.expression, env, Type.reactNodeType, interfaceMap);
         break;
+
+      default:
+        Error.withLocation(node, `unexpected AST '${node.type}'`, interfaceMap);
     }
   });
   return env;
