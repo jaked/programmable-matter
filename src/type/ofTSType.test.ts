@@ -1,11 +1,13 @@
 import { bug } from '../util/bug';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
 import Type from './index';
 
 function expectOfTSType(typeExpr: string, type: Type) {
   const ast = Parse.parseExpression(`_ as ${typeExpr}`);
   if (ast.type !== 'TSAsExpression') bug(`unexpected ${ast.type}`);
-  expect(Type.ofTSType(ast.typeAnnotation)).toEqual(type);
+  const interfaceMap: InterfaceMap = new Map();
+  expect(Type.ofTSType(ast.typeAnnotation, interfaceMap)).toEqual(type);
 }
 
 it('object', () => {

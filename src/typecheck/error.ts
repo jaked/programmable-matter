@@ -3,10 +3,10 @@ import Type from '../type';
 import * as ESTree from '../estree';
 import { InterfaceMap } from '../model';
 
-export function withLocation(ast: ESTree.Node, err: string | Error, interfaceMap?: InterfaceMap) {
+export function withLocation(ast: ESTree.Node, err: string | Error, interfaceMap: InterfaceMap) {
   if (typeof err === 'string') err = new Error(err);
   const intf = Try.err(err);
-  if (interfaceMap) interfaceMap.set(ast, intf);
+  interfaceMap.set(ast, intf);
   return intf;
 }
 

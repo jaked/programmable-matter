@@ -91,11 +91,12 @@ export default function compileFileJpeg(
 
   return {
     ast: Signal.ok(null),
-    exportInterface: compiled.map(({ exportType }) => exportType),
+    interfaceMap: Signal.ok(new Map()),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
+    rendered: compiled.map(({ rendered }) => rendered),
+    exportInterface: compiled.map(({ exportType }) => exportType),
     exportValue: compiled.map(({ exportValue }) => exportValue),
-    rendered: compiled.map(({ rendered }) => rendered)
   };
 }

@@ -3,7 +3,7 @@ import Try from '../util/Try';
 import Signal from '../util/Signal';
 import Type from '../type';
 import * as Render from '../render';
-import { Content, CompiledFile, Interface } from '../model';
+import { Content, CompiledFile } from '../model';
 
 // TODO(jaked) merge componentType / styleType with ones in Render/initTypeEnv
 
@@ -59,7 +59,7 @@ export default function compileFilePng(
     });
 
     // TODO(jaked) parse PNG file and return metadata
-    const exportInterface = new Map<string, Interface>([
+    const exportInterface = new Map([
       [ 'buffer', Try.ok({ type: Type.abstract('Buffer'), dynamic: false }) ],
       [ 'objectUrl', Try.ok({ type: Type.string, dynamic: false }) ],
       [ 'img', Try.ok({ type: imgType, dynamic: false }) ],
@@ -91,11 +91,12 @@ export default function compileFilePng(
 
   return {
     ast: Signal.ok(null),
-    exportInterface: compiled.map(({ exportInterface }) => exportInterface),
+    interfaceMap: Signal.ok(new Map()),
     problems: compiled.liftToTry().map(compiled =>
       compiled.type === 'ok' ? compiled.ok.problems : true
     ),
+    rendered: compiled.map(({ rendered }) => rendered),
+    exportInterface: compiled.map(({ exportInterface }) => exportInterface),
     exportValue: compiled.map(({ exportValue }) => exportValue),
-    rendered: compiled.map(({ rendered }) => rendered)
   };
 }

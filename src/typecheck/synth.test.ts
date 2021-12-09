@@ -1,5 +1,5 @@
 import { bug } from '../util/bug';
-import { Interface } from '../model';
+import { Interface, InterfaceMap } from '../model';
 import * as Parse from '../parse';
 import * as ESTree from '../estree';
 import Type from '../type';
@@ -35,7 +35,7 @@ describe('synth', () => {
 
     it('error types becomes Try errors', () => {
       const expr = Parse.parseExpression('error');
-      const interfaceMap = new Map<ESTree.Node, Interface>();
+      const interfaceMap: InterfaceMap = new Map();
       const intf = Typecheck.synth(expr, env, interfaceMap);
       expect(intf.type).toBe('err');
     });
@@ -283,7 +283,7 @@ describe('synthProgram', () => {
       const x = 7
     `);
     const env = Typecheck.env();
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,
@@ -301,7 +301,7 @@ describe('synthProgram', () => {
       const x: number = 7
     `);
     const env = Typecheck.env();
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     const env2 = Typecheck.synthProgram(
       moduleEnv,
       program,

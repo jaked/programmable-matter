@@ -2,11 +2,10 @@ import * as Immutable from 'immutable';
 import Signal from '../util/Signal';
 import Try from '../util/Try';
 import * as Parse from '../parse';
-import * as ESTree from '../estree';
 import Type from '../type';
 import Typecheck from '../typecheck';
 import * as Evaluate from '../evaluate';
-import { Interface, Content, CompiledFile } from '../model';
+import { InterfaceMap, Content, CompiledFile } from '../model';
 import * as Meta from '../model/Meta';
 
 const exportInterface = Signal.ok(new Map([[ 'default', Try.ok({ type: Type.metaType, dynamic: false }) ]]));
@@ -17,7 +16,7 @@ export default function compileFileMeta(
 ): CompiledFile {
   const compiled = file.content.map(content => {
     const ast = Parse.parseExpression(content as string);
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     const intf = Typecheck.check(ast, Typecheck.env(), Type.metaType, interfaceMap);
     const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
     const value = intf.type === 'err' ?

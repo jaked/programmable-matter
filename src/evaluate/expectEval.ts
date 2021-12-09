@@ -1,5 +1,5 @@
 import * as Immutable from 'immutable';
-import { Interface } from '../model';
+import { Interface, InterfaceMap } from '../model';
 import * as ESTree from '../estree';
 import Type from '../type';
 import * as Parse from '../parse';
@@ -33,7 +33,7 @@ export default function expectEval({ expr, tenv, venv, value } : {
       venv :
       (Immutable.Map(venv))) :
     (Immutable.Map());
-  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const interfaceMap: InterfaceMap = new Map();
   Typecheck.synth(expr, tenv, interfaceMap);
 
   // TODO(jaked) not sure why this is necessary

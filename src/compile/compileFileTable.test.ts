@@ -27,8 +27,6 @@ it('succeeds with type error', () => {
   );
   expect(compiled.problems.get()).toBeTruthy();
   const interfaceMap = compiled.interfaceMap;
-  expect(interfaceMap).toBeDefined();
-  if (!interfaceMap) throw 'bug';
   expect(() => interfaceMap.get()).not.toThrow();
 });
 

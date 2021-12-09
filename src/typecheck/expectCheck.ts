@@ -1,5 +1,5 @@
 import * as Immutable from 'immutable';
-import { Interface } from '../model';
+import { Interface, InterfaceMap } from '../model';
 import * as ESTree from '../estree';
 import * as Parse from '../parse';
 import Type from '../type';
@@ -29,7 +29,7 @@ export default function expectCheck({ expr, env, type, actualType, error }: {
     Typecheck.env();
   type = (typeof type === 'string') ? Parse.parseType(type) : type;
   error = (error !== undefined) ? error : false;
-  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const interfaceMap: InterfaceMap = new Map();
   const intf = Typecheck.check(expr, env, type, interfaceMap);
   const errorValue = [...interfaceMap.values()].some(intf => intf.type === 'err');
   if (error !== undefined) expect(errorValue).toBe(error);

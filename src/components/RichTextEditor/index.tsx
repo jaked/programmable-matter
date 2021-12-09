@@ -97,7 +97,7 @@ const RichTextEditor = (props: RichTextEditorProps) => {
     [editor, target, setTarget, index, setIndex, completions]
   );
 
-  const interfaceMap = Signal.useSignal(props.compiledFile.interfaceMap ?? Signal.ok(undefined));
+  const interfaceMap = Signal.useSignal(props.compiledFile.interfaceMap);
   const decorate = React.useMemo(
     () => makeDecorate(interfaceMap),
     [interfaceMap],

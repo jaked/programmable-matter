@@ -11,11 +11,12 @@ function extractMeta(metaFile: model.CompiledFile): Signal<model.Meta> {
 }
 
 const emptyMeta: model.CompiledFile = {
+  ast: Signal.ok(null),
+  interfaceMap: Signal.ok(new Map()),
+  problems: Signal.ok(false),
+  rendered: Signal.ok(null),
   exportInterface: Signal.ok(new Map()),
   exportValue: Signal.ok(new Map([[ 'default', {} ]])),
-  rendered: Signal.ok(null),
-  problems: Signal.ok(false),
-  ast: Signal.ok(null),
 }
 
 export default function metaForPath(

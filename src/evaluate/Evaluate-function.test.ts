@@ -1,5 +1,5 @@
 import * as Immutable from 'immutable';
-import { Interface } from '../model';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
 import * as ESTree from '../estree';
 import Typecheck from '../typecheck';
@@ -10,9 +10,8 @@ it('evals', () => {
   const code = `() => { 1; 2; 3 }`;
   const expr = Parse.parseExpression(code);
   const tenv = Typecheck.env();
-  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const interfaceMap: InterfaceMap = new Map();
   Typecheck.synth(expr, tenv, interfaceMap);
-  const dynamicMap = new Map<ESTree.Node, boolean>();
   const venv: Evaluate.Env = Immutable.Map();
   expect((Evaluate.evaluateExpression(expr, interfaceMap, venv) as any)()).toEqual(3);
 });

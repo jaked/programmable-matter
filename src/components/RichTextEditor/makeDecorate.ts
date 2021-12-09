@@ -10,7 +10,7 @@ import * as Parse from '../../parse';
 import { bug } from '../../util/bug';
 import Try from '../../util/Try';
 
-export default (interfaceMap?: model.InterfaceMap) =>
+export default (interfaceMap: model.InterfaceMap) =>
   ([node, path]: [Node, Path]) => {
     // TODO(jaked) cache decorations?
 

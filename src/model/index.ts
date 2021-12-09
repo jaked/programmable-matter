@@ -74,7 +74,7 @@ export type TableValue<K, V> = {
 
 export interface CompiledFile {
   ast: Signal<unknown>;
-  interfaceMap?: Signal<InterfaceMap>;
+  interfaceMap: Signal<InterfaceMap>;
   problems: Signal<boolean>;
   rendered: Signal<React.ReactNode>;
 

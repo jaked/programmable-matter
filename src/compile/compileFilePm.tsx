@@ -198,7 +198,7 @@ export default function compileFilePm(
       interfaceEnv = interfaceEnv.set('table', tableIntf);
     }
 
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     codeNodes.forEach(node => {
       interfaceEnv = typecheckCode(
         node,

@@ -187,7 +187,7 @@ export default function compileFileTable(
   );
 
   const compiled = Signal.join(ast, noteEnv).map(([ast, noteEnv]) => {
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     const intf = Typecheck.check(ast, Typecheck.env(), tableType, interfaceMap);
     const problems = [...interfaceMap.values()].some(intf => intf.type === 'err');
 
@@ -208,7 +208,7 @@ export default function compileFileTable(
 
     const fields = computeFields(tableConfig);
 
-    const exportInterface = new Map<string, Interface>([
+    const exportInterface = new Map([
       ['default', Try.ok({ type: Type.map(Type.string, tableDataType), dynamic: false, /* mutable: 'Code' */ })]
     ]);
     const exportValue = table.map(table =>

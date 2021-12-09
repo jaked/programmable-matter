@@ -6,11 +6,10 @@ import Signal from '../util/Signal';
 import Try from '../util/Try';
 import { bug } from '../util/bug';
 import * as Parse from '../parse';
-import * as ESTree from '../estree';
 import Type from '../type';
 import Typecheck from '../typecheck';
 import * as Evaluate from '../evaluate';
-import { Interface, Content, CompiledFile } from '../model';
+import { InterfaceMap, Content, CompiledFile } from '../model';
 import { Record } from '../components/Record';
 
 import metaForPath from './metaForPath';
@@ -87,7 +86,7 @@ export default function compileFileJson(
   const meta = metaForPath(file.path, compiledFiles);
 
   const compiled = Signal.join(ast, meta).map(([ast, meta]) => {
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     const intf =
       meta.dataType ?
         Typecheck.check(ast, Typecheck.env(), meta.dataType, interfaceMap) :
@@ -113,8 +112,8 @@ export default function compileFileJson(
     } else {
       const type = meta.dataType ? meta.dataType : intf.ok.type;
 
-      const exportInterface = new Map<string, Interface>([
-        [ 'default', Try.ok({ type, dynamic: false, mutable: 'Code' }) ],
+      const exportInterface = new Map([
+        [ 'default', Try.ok({ type, dynamic: false, mutable: 'Code' as const }) ],
       ]);
       const value = Evaluate.evaluateExpression(ast, interfaceMap, Immutable.Map());
       // TODO(jaked) this is an abuse of mapInvertible, maybe add a way to make Signals from arbitrary functions?

@@ -29,7 +29,7 @@ const okLabels = [
 
 export default function ofTSType(
   tsType: ESTree.TypeAnnotation,
-  interfaceMap?: model.InterfaceMap,
+  interfaceMap: model.InterfaceMap,
 ): Types.Type {
   switch (tsType.type) {
     case 'TSParenthesizedType':

@@ -1,6 +1,5 @@
-import { Interface } from '../model';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
-import * as ESTree from '../estree';
 import Type from '../type';
 import Typecheck from './index';
 import expectCheck from './expectCheck';
@@ -245,7 +244,7 @@ describe('errors', () => {
   it('error types becomes Try errors', () => {
     const expr = Parse.parseExpression('error');
     const env = Typecheck.env({ error: Type.error(new Error('error')) });
-    const interfaceMap = new Map<ESTree.Node, Interface>();
+    const interfaceMap: InterfaceMap = new Map();
     const intf = Typecheck.check(expr, env, Type.number, interfaceMap);
     expect(intf.type).toBe('err');
   });

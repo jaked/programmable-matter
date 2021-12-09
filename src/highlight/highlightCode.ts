@@ -11,7 +11,7 @@ export default function computeHighlight(
   view: model.Types,
   content: string,
   ast: unknown,
-  interfaceMap: model.InterfaceMap | undefined,
+  interfaceMap: model.InterfaceMap,
 ) {
   const spans: Array<Span> = [];
 

@@ -2,7 +2,7 @@ import * as Immutable from 'immutable';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
-import { Interface } from '../model';
+import { Interface, InterfaceMap } from '../model';
 import * as ESTree from '../estree';
 import Type from '../type';
 import * as Parse from '../parse';
@@ -35,7 +35,7 @@ export default function expectGenerate({ expr, tenv, venv, value, logCode } : {
       venv :
       (new Map(Object.entries(venv)))) :
     (new Map());
-  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const interfaceMap: InterfaceMap = new Map();
   Typecheck.synth(expr, tenv, interfaceMap);
 /*
   for (const entry of interfaceMap) {

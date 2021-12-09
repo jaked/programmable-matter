@@ -37,15 +37,16 @@ it('compiles with meta', () => {
     },
     Signal.ok(new Map([[
       'foo.meta', {
+        ast: Signal.ok(null),
+        interfaceMap: Signal.ok(new Map()),
+        rendered: Signal.ok(null),
+        problems: Signal.ok(false),
         exportInterface: Signal.ok(new Map()),
         exportValue: Signal.ok(new Map([[
           'default', {
             dataType: Type.object({ foo: Type.number })
           }
         ]])),
-        rendered: Signal.ok(null),
-        problems: Signal.ok(false),
-        ast: Signal.ok(null),
       }
     ]])),
   );
@@ -62,11 +63,12 @@ it('succeeds with meta error', () => {
     },
     Signal.ok(new Map([[
       'foo.meta', {
+        ast: Signal.ok(null),
+        interfaceMap: Signal.ok(new Map()),
+        problems: Signal.ok(false),
+        rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map()),
         exportValue: Signal.ok(new Map([[ 'default', new Error('bad meta') ]])),
-        rendered: Signal.ok(null),
-        problems: Signal.ok(false),
-        ast: Signal.ok(null),
       }
     ]])),
   );
@@ -84,15 +86,16 @@ it('succeeds with type error', () => {
     },
     Signal.ok(new Map([[
       'foo.meta', {
+        ast: Signal.ok(null),
+        interfaceMap: Signal.ok(new Map()),
+        problems: Signal.ok(false),
+        rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map()),
         exportValue: Signal.ok(new Map([[
           'default', {
             dataType: Type.object({ foo: Type.string })
           }
         ]])),
-        rendered: Signal.ok(null),
-        problems: Signal.ok(false),
-        ast: Signal.ok(null),
       }
     ]])),
   );

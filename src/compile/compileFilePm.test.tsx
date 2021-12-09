@@ -346,22 +346,24 @@ it('compiles referencing data / table', () => {
     },
     Signal.ok(new Map([
       ['/foo.json', {
+        ast: Signal.err(new Error(`unimplemented`)),
+        interfaceMap: Signal.err(new Error(`unimplemented`)),
+        problems: Signal.ok(false),
+        rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map([[
           'mutable', Try.ok({ type: Type.object({ bar: Type.string }), dynamic: false })
         ]])),
         exportValue: Signal.ok(new Map([[ 'mutable', { bar: 'bar' } ]])),
-        rendered: Signal.ok(null),
-        problems: Signal.ok(false),
-        ast: Signal.err(new Error(`unimplemented`))
       }],
       ['/foo.table', {
+        ast: Signal.err(new Error(`unimplemented`)),
+        interfaceMap: Signal.err(new Error(`unimplemented`)),
+        problems: Signal.ok(false),
+        rendered: Signal.ok(null),
         exportInterface: Signal.ok(new Map([[
           'default', Try.ok({ type: Type.object({ baz: Type.number }), dynamic: false })
         ]])),
         exportValue: Signal.ok(new Map([[ 'default', { baz: 7 } ]])),
-        rendered: Signal.ok(null),
-        problems: Signal.ok(false),
-        ast: Signal.err(new Error(`unimplemented`))
       }]
     ])),
   );

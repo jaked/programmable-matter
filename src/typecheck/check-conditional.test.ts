@@ -1,5 +1,4 @@
-import { Interface } from '../model';
-import * as ESTree from '../estree';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
 import Type from '../type';
 import Typecheck from './index';
@@ -40,7 +39,7 @@ it('narrows type for equality tests', () => {
 
 it('synths untaken branch when test is falsy', () => {
   const expr = Parse.parseExpression(`false ? 1 : 2`);
-  const interfaceMap = new Map<ESTree.Node, Interface>();
+  const interfaceMap: InterfaceMap = new Map();
   const env = Typecheck.env();
   const type = Type.number;
   Typecheck.check(expr, env, type, interfaceMap);

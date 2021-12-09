@@ -4,7 +4,7 @@ import { Span, tokenType } from './types';
 
 export function computeJsSpans(
   ast: ESTree.Node,
-  interfaceMap: model.InterfaceMap | undefined,
+  interfaceMap: model.InterfaceMap,
   spans: Array<Span>
 ) {
   function span(
@@ -15,7 +15,7 @@ export function computeJsSpans(
     start?: number,
     end?: number,
   ) {
-    const intf = interfaceMap && interfaceMap.get(ast);
+    const intf = interfaceMap.get(ast);
     if (intf && intf.type === 'err') {
       status = intf.err.message;
     }
@@ -48,7 +48,7 @@ export function computeJsSpans(
       {
         let status: string | undefined = undefined;
           if (ast.shorthand) {
-            let intf = interfaceMap && interfaceMap.get(ast.value);
+            let intf = interfaceMap.get(ast.value);
             if (intf && intf.type === 'err') {
               status = intf.err.message;
             }
@@ -120,7 +120,7 @@ export function computeJsSpans(
         // TODO(jaked) handle `as`
         {
           let status: string | undefined = undefined;
-          let intf = interfaceMap && interfaceMap.get(ast.imported);
+          let intf = interfaceMap.get(ast.imported);
           if (intf && intf.type === 'err') {
             status = intf.err.message;
           }

@@ -2,6 +2,7 @@ import * as Babel from '@babel/parser';
 
 import { bug } from '../util/bug';
 import Try from '../util/Try';
+import { InterfaceMap } from '../model';
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
 import Type from '../type';
@@ -33,7 +34,8 @@ export function parseExpression(input: string) {
 export function parseType(input: string): Type {
   const ast = parseExpression(`_ as ${input}`);
   if (ast.type !== 'TSAsExpression') bug(`unexpected ${ast.type}`);
-  return Type.ofTSType(ast.typeAnnotation);
+  const interfaceMap: InterfaceMap = new Map();
+  return Type.ofTSType(ast.typeAnnotation, interfaceMap);
 }
 
 // Slate guarantees fresh objects for changed nodes

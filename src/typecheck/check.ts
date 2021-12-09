@@ -100,7 +100,7 @@ function checkTuple(
         } else if (Type.isSubtype(Type.undefined, expectedType)) {
           return undefinedIntf;
         } else
-          return Error.withLocation(ast, 'expected ${type.elems.size} elements');
+          return Error.withLocation(ast, 'expected ${type.elems.size} elements', interfaceMap);
       });
       const error = intfs.find(intf => intf.type === 'err');
       if (error) return error;

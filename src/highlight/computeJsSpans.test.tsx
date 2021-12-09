@@ -1,6 +1,6 @@
 import * as Immutable from 'immutable';
 import * as React from 'react';
-import { Interface } from '../model';
+import { Interface, InterfaceMap } from '../model';
 import * as Parse from '../parse';
 import * as ESTree from '../estree';
 import Typecheck from '../typecheck';
@@ -59,9 +59,9 @@ function expectHighlightExpr(
 ) {
   // TODO(jaked) this is a lot of setup
   const ast = Parse.parseExpression(expr);
-  const interfaceEnv = Immutable.Map<string, Interface>();
-  const interfaceMap = new Map<ESTree.Node, Interface>();
-  Typecheck.synth(ast, interfaceEnv, interfaceMap);
+  const env = Typecheck.env();
+  const interfaceMap: InterfaceMap = new Map();
+  Typecheck.synth(ast, env, interfaceMap);
 
   const spans: Span[] = [];
   computeJsSpans(ast, interfaceMap, spans);
