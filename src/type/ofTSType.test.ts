@@ -10,11 +10,20 @@ function expectOfTSType(typeExpr: string, type: Type) {
   expect(Type.ofTSType(ast.typeAnnotation, interfaceMap)).toEqual(type);
 }
 
-it('object', () => {
-  expectOfTSType(
-    '{ foo: number, bar: boolean }',
-    Type.object({ foo: Type.number, bar: Type.boolean })
-  );
+describe('object', () => {
+  it('ok', () => {
+    expectOfTSType(
+      '{ foo: number, bar: boolean }',
+      Type.object({ foo: Type.number, bar: Type.boolean })
+    );
+  });
+
+  it('ok with missing type', () => {
+    expectOfTSType(
+      '{ foo: number, bar }',
+      Type.object({ foo: Type.number, bar: Type.error(new Error('expected type')) })
+    );
+  });
 });
 
 it('function', () => {

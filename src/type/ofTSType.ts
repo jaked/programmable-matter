@@ -49,8 +49,14 @@ export default function ofTSType(
           (obj, mem) => {
             if (mem.type !== 'TSPropertySignature') bug(`unimplemented ${mem.type}`);
             if (mem.key.type !== 'Identifier') bug(`unimplemented ${mem.key.type}`);
-            if (!mem.typeAnnotation) bug(`expected type for ${mem.key.name}`);
-            const type = ofTSType(mem.typeAnnotation.typeAnnotation, interfaceMap);
+            let type: Types.Type;
+            if (mem.typeAnnotation) {
+              type = ofTSType(mem.typeAnnotation.typeAnnotation, interfaceMap);
+            } else {
+              type = Type.error(
+                Error.withLocation(mem.key, `expected type`, interfaceMap).err
+              );
+            }
             return Object.assign(obj, { [mem.key.name]: type });
           },
           { }

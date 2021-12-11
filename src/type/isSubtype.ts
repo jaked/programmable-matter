@@ -7,6 +7,7 @@ export function isSubtype(at: Type, bt: Type): boolean {
   const a = expand(at);
   const b = expand(bt);
   if (a === b) return true;
+  else if (b.kind === 'Error') return true;
   else if (a.kind === 'never') return true;
   else if (b.kind === 'unknown') return true;
   else if (a.kind === 'Union') return a.types.every(t => isSubtype(t, b));

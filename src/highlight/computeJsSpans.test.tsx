@@ -1,8 +1,6 @@
-import * as Immutable from 'immutable';
 import * as React from 'react';
-import { Interface, InterfaceMap } from '../model';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
-import * as ESTree from '../estree';
 import Typecheck from '../typecheck';
 import { Span } from './types';
 import { computeJsSpans } from './computeJsSpans';
@@ -108,7 +106,7 @@ describe('types', () => {
     expectHighlightExpr(
       `x as foo`,
       [
-        <H.variable status="unknown abstract type 'foo'">x</H.variable>,
+        <H.variable status="unbound identifier 'x'">x</H.variable>,
         ' as ',
         <H.variable status="unknown abstract type 'foo'">foo</H.variable>
       ]

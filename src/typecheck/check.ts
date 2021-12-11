@@ -15,7 +15,7 @@ const intfType = (intf: Interface) =>
 const intfDynamic = (intf: Interface) =>
   intf.type === 'ok' ? intf.ok.dynamic : false;
 
-const undefinedIntf = Try.ok({ type: Type.undefined, dynamic: false });
+const undefinedIntf: Interface = Try.ok({ type: Type.undefined, dynamic: false });
 
 function checkSubtype(
   ast: ESTree.Expression,
@@ -406,16 +406,6 @@ function checkAbstract(
   return check(ast, env, Type.expand(type), interfaceMap);
 }
 
-function checkError(
-  ast: ESTree.Expression,
-  env: Env,
-  type: Type.ErrorType,
-  interfaceMap: InterfaceMap,
-): Interface {
-  synth(ast, env, interfaceMap);
-  return Try.err(type.err);
-}
-
 function checkHelper(
   ast: ESTree.Expression,
   env: Env,
@@ -433,8 +423,6 @@ function checkHelper(
     case 'Intersection':  return checkIntersection(ast, env, type, interfaceMap);
     case 'Singleton':     return checkSingleton(ast, env, type, interfaceMap);
     case 'Abstract':      return checkAbstract(ast, env, type, interfaceMap);
-
-    case 'Error':         return checkError(ast, env, type, interfaceMap);
 
     default:              return checkSubtype(ast, env, type, interfaceMap);
   }

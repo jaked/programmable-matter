@@ -125,41 +125,6 @@ describe('arrays', () => {
   });
 });
 
-describe('objects', () => {
-  const type = '{ foo: number, bar: undefined | number }';
-
-  it('undefined properties may be omitted', () => {
-    expectCheck({
-      expr: '({ foo: 7 })',
-      type,
-    });
-  });
-
-  it('throws on missing properties', () => {
-    expectCheck({
-      expr: '({ })',
-      type,
-      error: true,
-    });
-  });
-
-  it('throws on excess properties in literals', () => {
-    expectCheck({
-      expr: '({ foo: 7, baz: 9 })',
-      type,
-      error: true,
-    });
-  });
-
-  it('permits excess properties in non-literal', () => {
-    expectCheck({
-      expr: 'foo',
-      env: { foo: '{ foo: number, baz: number }' },
-      type,
-    });
-  });
-});
-
 describe('singletons', () => {
   it('succeeds', () => {
     expectCheck({
