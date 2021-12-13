@@ -1,10 +1,10 @@
 import React from 'react';
 
-import Try from '../util/Try';
 import Signal from '../util/Signal';
 import Type from '../type';
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
+import Interface from './interface';
 
 // TODO(jaked) a lot of this doesn't belong here
 
@@ -27,11 +27,6 @@ export type Meta = {
   dirMeta?: Meta,
 }
 
-export type Interface = Try<{
-  readonly type: Type,
-  readonly dynamic: boolean,
-  readonly mutable?: 'Code' | 'Session'
-}>;
 export type InterfaceMap = Map<ESTree.Node, Interface>;
 
 export type NoteFiles = {

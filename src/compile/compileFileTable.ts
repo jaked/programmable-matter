@@ -12,12 +12,10 @@ import * as Parse from '../parse';
 import Type from '../type';
 import Typecheck from '../typecheck';
 import * as Evaluate from '../evaluate';
-import { Interface, InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap, Content, CompiledFile, CompiledNote, CompiledNotes } from '../model';
 import * as model from '../model';
 import { Table } from '../components/Table';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
 // see Typescript-level types in data.ts
 // TODO(jaked)
@@ -103,7 +101,7 @@ function computeTable(
       // check data files directly against table config
       // instead of checking after the fact
       // that their types agree with the table config type
-      if (!intf || !Type.isSubtype(intfType(intf), tableDataType))
+      if (!intf || !Type.isSubtype(Interface.type(intf), tableDataType))
         throw new Error('record data type must match table config type')
       if (!(intf.type === 'ok' && intf.ok.mutable))
         throw new Error(`expected mutable`)

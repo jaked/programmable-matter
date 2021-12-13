@@ -1,12 +1,10 @@
 import * as Immutable from 'immutable';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import * as ESTree from '../estree';
 import * as Parse from '../parse';
 import Type from '../type';
 import Typecheck from './index';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
 // TODO(jaked)
 // seems like TS should be able to figure it out from the instanceof
@@ -33,5 +31,5 @@ export default function expectCheck({ expr, env, type, actualType, error }: {
   const intf = Typecheck.check(expr, env, type, interfaceMap);
   const errorValue = [...interfaceMap.values()].some(intf => intf.type === 'err');
   if (error !== undefined) expect(errorValue).toBe(error);
-  if (actualType) expect(intfType(intf)).toEqual(actualType);
+  if (actualType) expect(Interface.type(intf)).toEqual(actualType);
 }

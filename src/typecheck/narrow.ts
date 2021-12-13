@@ -3,15 +3,10 @@ import Try from '../util/Try';
 import { bug } from '../util/bug';
 import Type from '../type';
 import * as ESTree from '../estree';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import { Env } from './env';
 import { synth } from './synth';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
 
 // best-effort intersection of `a` and `b`
 // 'b' may contain Not-types
@@ -75,8 +70,8 @@ function narrowExpression(
     case 'Identifier': {
       const intf = env.get(ast.name);
       if (intf) {
-        const type = narrowType(intfType(intf), otherType);
-        return env.set(ast.name, Try.ok({ type, dynamic: intfDynamic(intf) }));
+        const type = narrowType(Interface.type(intf), otherType);
+        return env.set(ast.name, Try.ok({ type, dynamic: Interface.dynamic(intf) }));
       }
       else return env;
     }
@@ -183,11 +178,11 @@ export function narrowEnvironment(
       const left = synth(ast.left, env, interfaceMap);
       const right = synth(ast.right, env, interfaceMap);
       if (ast.operator === '===' && assume || ast.operator === '!==' && !assume) {
-        env = narrowExpression(env, ast.left, intfType(right));
-        return narrowExpression(env, ast.right, intfType(left));
+        env = narrowExpression(env, ast.left, Interface.type(right));
+        return narrowExpression(env, ast.right, Interface.type(left));
       } else if (ast.operator === '!==' && assume || ast.operator === '===' && !assume) {
-        env = narrowExpression(env, ast.left, Type.not(intfType(right)));
-        return narrowExpression(env, ast.right, Type.not(intfType(left)));
+        env = narrowExpression(env, ast.left, Type.not(Interface.type(right)));
+        return narrowExpression(env, ast.right, Type.not(Interface.type(left)));
       } else {
         return env;
       }

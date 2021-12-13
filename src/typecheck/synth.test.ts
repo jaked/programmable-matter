@@ -1,13 +1,10 @@
 import { bug } from '../util/bug';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
-import * as ESTree from '../estree';
 import Type from '../type';
 import Typecheck from './index';
 import expectSynth from './expectSynth';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
 describe('synth', () => {
   const error = new Error('error');
@@ -292,7 +289,7 @@ describe('synthProgram', () => {
     );
     const x = env2.get('x') ?? bug(`expected x`);
 
-    expect(intfType(x)).toEqual(Type.singleton(7));
+    expect(Interface.type(x)).toEqual(Type.singleton(7));
   });
 
   it('binding gets ascribed type', () => {
@@ -310,6 +307,6 @@ describe('synthProgram', () => {
     );
     const x = env2.get('x') ?? bug(`expected x`);
 
-    expect(intfType(x)).toEqual(Type.number);
+    expect(Interface.type(x)).toEqual(Type.number);
   });
 });

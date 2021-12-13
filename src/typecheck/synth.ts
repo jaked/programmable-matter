@@ -3,17 +3,12 @@ import Try from '../util/Try';
 import { bug } from '../util/bug';
 import Type from '../type';
 import * as ESTree from '../estree';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import { Env } from './env';
 import * as Error from './error';
 import { check } from './check';
 import { narrowType, narrowEnvironment } from './narrow';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
 
 const stringIntf = Try.ok({ type: Type.string, dynamic: false });
 const trueIntf = Try.ok({ type: Type.singleton(true), dynamic: false });
@@ -44,8 +39,8 @@ function synthArray(
   interfaceMap: InterfaceMap,
 ): Interface {
   const intfs = ast.elements.map(e => synth(e, env, interfaceMap));
-  const type = Type.array(Type.union(...intfs.map(intfType)));
-  const dynamic = intfs.some(intfDynamic);
+  const type = Type.array(Type.union(...intfs.map(Interface.type)));
+  const dynamic = intfs.some(Interface.dynamic);
   return Try.ok({ type, dynamic });
 }
 
@@ -77,7 +72,7 @@ function synthObject(
     (obj, nameIntf) => {
       if (!nameIntf) return obj;
       const { name, intf } = nameIntf;
-      return { ...obj, [name]: intfType(intf) };
+      return { ...obj, [name]: Interface.type(intf) };
     },
     {}
   );
@@ -85,7 +80,7 @@ function synthObject(
   const dynamic = fieldIntfs.some(nameIntf => {
     if (!nameIntf) return false;
     const { intf } = nameIntf;
-    return intfDynamic(intf);
+    return Interface.dynamic(intf);
   });
   return Try.ok({ type, dynamic });
 }
@@ -130,8 +125,8 @@ function synthUnary(
             }
         }
         return Error.withLocation(ast, 'incompatible operand to ${ast.operator}', interfaceMap).get();
-      })(intfType(intf));
-      const dynamic = intfDynamic(intf);
+      })(Interface.type(intf));
+      const dynamic = Interface.dynamic(intf);
       return { type, dynamic };
     });
   });
@@ -193,8 +188,8 @@ function synthLogical(
           default:
             bug(`unexpected operator ${ast.operator}`);
         }
-      })(intfType(left), intfType(right));
-      const dynamic = intfDynamic(left) || intfDynamic(right);
+      })(Interface.type(left), Interface.type(right));
+      const dynamic = Interface.dynamic(left) || Interface.dynamic(right);
       return Try.ok({ type, dynamic });
     });
   });
@@ -263,8 +258,8 @@ function synthBinary(
               return Type.boolean;
           }
           return Error.withLocation(ast, `incompatible operands to ${ast.operator} (${Type.toString(left)}, ${Type.toString(right)})`, interfaceMap).get();
-        })(intfType(left), intfType(right));
-        const dynamic = intfDynamic(left) || intfDynamic(right);
+        })(Interface.type(left), Interface.type(right));
+        const dynamic = Interface.dynamic(left) || Interface.dynamic(right);
         return { type, dynamic };
       });
     });
@@ -277,8 +272,8 @@ function synthSequence(
   interfaceMap: InterfaceMap,
 ): Interface {
   const intfs = ast.expressions.map(e => synth(e, env, interfaceMap));
-  const type = intfType(intfs[intfs.length - 1]);
-  const dynamic = intfs.some(intfDynamic);
+  const type = Interface.type(intfs[intfs.length - 1]);
+  const dynamic = intfs.some(Interface.dynamic);
   return Try.ok({ type, dynamic });
 }
 
@@ -326,8 +321,8 @@ function synthMember(
               default:
                 return Error.expectedType(ast, 'Array or Tuple', object, interfaceMap).get();
             }
-          })(intfType(object), intfType(prop));
-          const dynamic = intfDynamic(object) || intfDynamic(prop);
+          })(Interface.type(object), Interface.type(prop));
+          const dynamic = Interface.dynamic(object) || Interface.dynamic(prop);
           return { type, dynamic };
         });
       });
@@ -428,8 +423,8 @@ function synthMember(
             }
           }
           return Error.unknownField(ast.property, name, interfaceMap).get();
-        })(intfType(object));
-        const dynamic = intfDynamic(object);
+        })(Interface.type(object));
+        const dynamic = Interface.dynamic(object);
         return { type, dynamic };
       });
     }
@@ -477,7 +472,7 @@ function synthCall(
     const errIntf = intfs.find(intf => intf.type === 'err');
     if (errIntf) return errIntf;
     const type = callee.ok.type.ret;
-    const dynamic = callee.ok.dynamic || intfs.some(intfDynamic);
+    const dynamic = callee.ok.dynamic || intfs.some(Interface.dynamic);
     // TODO(jaked) carry dynamic bit on function type and use it here
     return Try.ok({ type, dynamic });
   });
@@ -576,8 +571,8 @@ function synthArrowFunction(
   const body = synth(ast.body, env, interfaceMap);
   // TODO(jaked) doesn't handle parameters of union type
   // TODO(jaked) track dynamic flag of body in function type
-  const type = Type.functionType(params, intfType(body));
-  return Try.ok({ type, dynamic: intfDynamic(body) });
+  const type = Type.functionType(params, Interface.type(body));
+  return Try.ok({ type, dynamic: Interface.dynamic(body) });
 }
 
 function synthBlockStatement(
@@ -596,8 +591,8 @@ function synthBlockStatement(
   if (intfs.length === 0)
     return undefinedIntf;
   else {
-    const type = intfType(intfs[intfs.length - 1]);
-    const dynamic = intfs.some(intfDynamic);
+    const type = Interface.type(intfs[intfs.length - 1]);
+    const dynamic = intfs.some(Interface.dynamic);
     return Try.ok({ type, dynamic });
   }
 }
@@ -613,21 +608,21 @@ function synthConditional(
   const alternate = synth(ast.alternate, envAlternate, interfaceMap);
 
   return synthAndThen(ast.test, env, interfaceMap, (test, interfaceMap) => {
-    if (Type.isTruthy(intfType(test))) {
+    if (Type.isTruthy(Interface.type(test))) {
       if (consequent.type === 'err') return consequent;
       const type = consequent.ok.type;
-      const dynamic = intfDynamic(test) || consequent.ok.dynamic;
+      const dynamic = Interface.dynamic(test) || consequent.ok.dynamic;
       return Try.ok({ type, dynamic });
-    } else if (Type.isFalsy(intfType(test))) {
+    } else if (Type.isFalsy(Interface.type(test))) {
       if (alternate.type === 'err') return alternate;
       const type = alternate.ok.type;
-      const dynamic = intfDynamic(test) || alternate.ok.dynamic;
+      const dynamic = Interface.dynamic(test) || alternate.ok.dynamic;
       return Try.ok({ type, dynamic });
     } else {
       if (consequent.type === 'err') return consequent;
       if (alternate.type === 'err') return alternate;
       const type = Type.union(consequent.ok.type, alternate.ok.type);
-      const dynamic = intfDynamic(test) || consequent.ok.dynamic || alternate.ok.dynamic;
+      const dynamic = Interface.dynamic(test) || consequent.ok.dynamic || alternate.ok.dynamic;
       return Try.ok({ type, dynamic });
     }
   });
@@ -685,7 +680,7 @@ function synthJSXElement(
         props: Type.object({}),
         ret: Type.error(Error.expectedType(ast.openingElement.name, 'component type', element, interfaceMap).err)
       };
-    })(intfType(element));
+    })(Interface.type(element));
 
     const attrs = ast.openingElement.attributes.map(attr => {
       const expectedType = props.fields.find(({ name }) => name === attr.name.name)?.type;
@@ -738,7 +733,7 @@ function synthJSXElement(
     const attrError = attrs.find(intf => intf.type === 'err');
     if (attrError) return attrError;
     // TODO(jaked) check dynamic bit on function types
-    const dynamic = intfDynamic(element) || attrs.some(intfDynamic) || children.some(intfDynamic);
+    const dynamic = Interface.dynamic(element) || attrs.some(Interface.dynamic) || children.some(Interface.dynamic);
     return Try.ok({ type: ret, dynamic });
   });
 }
@@ -752,7 +747,7 @@ function synthJSXFragment(
     // TODO(jaked) see comment about recursive types on Type.reactNodeType
     check(child, env, Type.union(Type.reactNodeType, Type.array(Type.reactNodeType)), interfaceMap)
   );
-  const dynamic = children.some(intfDynamic);
+  const dynamic = children.some(Interface.dynamic);
   return Try.ok({ type: Type.reactNodeType, dynamic });
 }
 
@@ -879,15 +874,15 @@ function andThen(
   switch (type.kind) {
     case 'Union': {
       const intfs = type.types.map(type =>
-        fn(Try.ok({ type, dynamic: intfDynamic(intf) }), interfaceMap)
+        fn(Try.ok({ type, dynamic: Interface.dynamic(intf) }), interfaceMap)
       );
       const error = intfs.find(intf => intf.type === 'err');
       if (error) return error;
-      const unionType = Type.union(...intfs.map(intfType));
+      const unionType = Type.union(...intfs.map(Interface.type));
       let dynamic: undefined | boolean = undefined;
       intfs.forEach(intf => {
-        if (dynamic === undefined) dynamic = intfDynamic(intf);
-        else if (intfDynamic(intf) !== dynamic) bug(`expected uniform dynamic`);
+        if (dynamic === undefined) dynamic = Interface.dynamic(intf);
+        else if (Interface.dynamic(intf) !== dynamic) bug(`expected uniform dynamic`);
       });
       if (dynamic === undefined) bug(`expected dynamic`);
       return Try.ok({ type: unionType, dynamic });
@@ -911,7 +906,7 @@ function andThen(
       // (e.g. {foo:boolean}&{bar:number}) rather than handling arms separately
       const noInterfaceMap: InterfaceMap = new Map();
       const intfs = type.types.map(type =>
-        fn(Try.ok({ type, dynamic: intfDynamic(intf) }), noInterfaceMap)
+        fn(Try.ok({ type, dynamic: Interface.dynamic(intf) }), noInterfaceMap)
       );
       const okIndex = intfs.findIndex(intf => intf.type !== 'err')
       if (okIndex === -1) {
@@ -919,7 +914,7 @@ function andThen(
         return fn(intf, interfaceMap);
       } else {
         const okType = type.types[okIndex] ?? bug(`expected type`);
-        fn(Try.ok({ type: okType, dynamic: intfDynamic(intf) }), interfaceMap);
+        fn(Try.ok({ type: okType, dynamic: Interface.dynamic(intf) }), interfaceMap);
         let dynamic: boolean | undefined = undefined;
         const types: Type[] = [];
         intfs.forEach(intf => {
@@ -937,7 +932,7 @@ function andThen(
     }
 
     default:
-      return fn(Try.ok({ type, dynamic: intfDynamic(intf) }), interfaceMap);
+      return fn(Try.ok({ type, dynamic: Interface.dynamic(intf) }), interfaceMap);
   }
 }
 

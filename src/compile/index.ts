@@ -4,6 +4,7 @@ import { bug } from '../util/bug';
 import Signal from '../util/Signal';
 import * as Name from '../util/Name';
 import * as model from '../model';
+import Interface from '../model/interface';
 
 import compileFile from './compileFile';
 import groupFilesByName from '../util/groupFilesByName';
@@ -78,7 +79,7 @@ export function compileFiles(
         xmlCompiled ?? Signal.ok(undefined),
       ).map(([pm, table, json, jpeg, png, meta, xml]) => {
         let rendered: Signal<React.ReactNode> = Signal.ok(null);
-        let exportInterface: Signal<Map<string, model.Interface>> = Signal.ok(new Map());
+        let exportInterface: Signal<Map<string, Interface>> = Signal.ok(new Map());
         let exportValue: Signal<Map<string, unknown>> = Signal.ok(new Map());
         let html: Signal<string> | undefined;
         let js: Signal<string> | undefined;

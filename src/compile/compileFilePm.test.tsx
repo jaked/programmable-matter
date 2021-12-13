@@ -1,15 +1,12 @@
 import React from 'react';
 import TestRenderer from 'react-test-renderer';
 
-import { Interface } from '../model';
+import Interface from '../model/interface';
 import Signal from '../util/Signal';
 import { bug } from '../util/bug';
 import Try from '../util/Try';
 import Type from '../type';
 import compileFilePm from './compileFilePm';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
 // TODO(jaked)
 // we should test styles / handlers; find a better way to deal with this
@@ -85,7 +82,7 @@ it('compiles rendered document as default export', () => {
   });
   expect(compiled.problems.get()).toBeFalsy();
   expect(
-    intfType(compiled.exportInterface.get().get('default') ?? bug(`expected default`))
+    Interface.type(compiled.exportInterface.get().get('default') ?? bug(`expected default`))
   ).toEqual(
     Type.functionType([], Type.reactNodeType)
   );
@@ -111,7 +108,7 @@ it('compiles exports', () => {
     }),
   });
   expect(compiled.problems.get()).toBeFalsy();
-  expect(intfType(compiled.exportInterface.get().get('foo') ?? bug(`expected foo`))).toEqual(Type.singleton(7));
+  expect(Interface.type(compiled.exportInterface.get().get('foo') ?? bug(`expected foo`))).toEqual(Type.singleton(7));
   expect(compiled.exportValue.get().get('foo')).toEqual(7);
 });
 

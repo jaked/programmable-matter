@@ -6,13 +6,11 @@ import * as ESTree from '../estree';
 import * as PMAST from '../pmast';
 import { bug } from '../util/bug';
 import Signal from '../util/Signal';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import * as Parse from '../parse';
 
 export type Env = Immutable.Map<string, any>;
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
 
 function patValueEnvIdentifier(ast: ESTree.Identifier, value: any, env: Env): Env {
   return env.set(ast.name, value);
@@ -60,7 +58,7 @@ function joinDynamicExpressions(
   const values = exprs.map(expr => evaluateExpression(expr, interfaceMap, env));
   const dynamics = exprs.map(expr => {
     const intf = interfaceMap.get(expr) ?? bug(`expected interface`);
-    return intfDynamic(intf);
+    return Interface.dynamic(intf);
   });
   const signals = values.filter((value, i) => dynamics[i]) as Signal<unknown>[];
   switch (signals.length) {
@@ -200,8 +198,8 @@ export function evaluateExpression(
     case 'LogicalExpression': {
       // when either left or right is dynamic the whole expression is dynamic
       // but only evaluate right if needed
-      const leftDynamic = intfDynamic(interfaceMap.get(ast.left) ?? bug(`expected interface`));
-      const rightDynamic = intfDynamic(interfaceMap.get(ast.right) ?? bug(`expected interface`));
+      const leftDynamic = Interface.dynamic(interfaceMap.get(ast.left) ?? bug(`expected interface`));
+      const rightDynamic = Interface.dynamic(interfaceMap.get(ast.right) ?? bug(`expected interface`));
       const fn = (left: unknown) => {
         switch (ast.operator) {
           case '||':
@@ -430,10 +428,10 @@ export function evaluateExpression(
       // in order to cause React reconciliation etc.
       // inside the function, we get() the function value
       // to cause Signal reconciliation and produce a non-Signal value
-      const dynamic = intfDynamic(interfaceMap.get(ast) ?? bug(`expected interface`));
+      const dynamic = Interface.dynamic(interfaceMap.get(ast) ?? bug(`expected interface`));
       if (dynamic) {
         const idents = ESTree.freeIdentifiers(ast).filter(ident =>
-          intfDynamic(interfaceMap.get(ident) ?? bug(`expected dynamic`))
+          Interface.dynamic(interfaceMap.get(ident) ?? bug(`expected dynamic`))
         );
         const signals = idents.map(ident =>
           evaluateExpression(ident, interfaceMap, env) as Signal<unknown>
@@ -447,9 +445,9 @@ export function evaluateExpression(
     }
 
     case 'ConditionalExpression': {
-      const testDynamic = intfDynamic(interfaceMap.get(ast.test) ?? bug(`expected dynamic`));
-      const consequentDynamic = intfDynamic(interfaceMap.get(ast.consequent) ?? bug(`expected dynamic`));
-      const alternateDynamic = intfDynamic(interfaceMap.get(ast.alternate) ?? bug(`expected dynamic`));
+      const testDynamic = Interface.dynamic(interfaceMap.get(ast.test) ?? bug(`expected dynamic`));
+      const consequentDynamic = Interface.dynamic(interfaceMap.get(ast.consequent) ?? bug(`expected dynamic`));
+      const alternateDynamic = Interface.dynamic(interfaceMap.get(ast.alternate) ?? bug(`expected dynamic`));
 
       const fn = (test : unknown) => {
         if (test) {

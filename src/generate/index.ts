@@ -1,17 +1,11 @@
 import { bug } from '../util/bug';
-import { Interface } from '../model';
+import Interface from '../model/interface';
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
 import * as Parse from '../parse';
 import Type from '../type';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
 
 function bind(
   lhs: JS.Expression,
@@ -75,7 +69,7 @@ function joinDynamicExpressions(
   fn: (exprs: JS.Expression[]) => JS.Expression
 ): JS.Expression {
   const jsExprs = exprs.map(expr => expression(expr, interfaceMap, env));
-  const dynamics = exprs.map(expr => intfDynamic(interfaceMap(expr)));
+  const dynamics = exprs.map(expr => Interface.dynamic(interfaceMap(expr)));
   const signals = jsExprs.filter((value, i) => dynamics[i]);
   const vIdent = JS.identifier('__v');
   switch (signals.length) {
@@ -298,8 +292,8 @@ function logical(
   // but only evaluate right if needed
   const leftExpr = expression(ast.left, interfaceMap, env);
   const rightExpr = expression(ast.right, interfaceMap, env);
-  const leftDynamic = intfDynamic(interfaceMap(ast.left));
-  const rightDynamic = intfDynamic(interfaceMap(ast.right));
+  const leftDynamic = Interface.dynamic(interfaceMap(ast.left));
+  const rightDynamic = Interface.dynamic(interfaceMap(ast.right));
   const body = (leftExpr: JS.Expression) =>
     JS.conditionalExpression(
       (
@@ -495,10 +489,10 @@ function arrowFunction(
   // TODO(jaked)
   // do we actually need to join on dynamic deps?
   // or just let them be reconciled when the function runs
-  const dynamic = intfDynamic(interfaceMap(ast));
+  const dynamic = Interface.dynamic(interfaceMap(ast));
   if (dynamic) {
     const idents = ESTree.freeIdentifiers(ast).filter(ident =>
-      intfDynamic(interfaceMap(ident))
+      Interface.dynamic(interfaceMap(ident))
     );
     const signals = idents.map(ident =>
       expression(ident, interfaceMap, env)
@@ -538,9 +532,9 @@ function conditional(
   const consequentExpr = expression(ast.consequent, interfaceMap, env);
   const alternateExpr = expression(ast.alternate, interfaceMap, env);
   const testIntf = interfaceMap(ast.test);
-  const testType = intfType(testIntf);
-  const consequentDynamic = intfDynamic(interfaceMap(ast.consequent));
-  const alternateDynamic = intfDynamic(interfaceMap(ast.alternate));
+  const testType = Interface.type(testIntf);
+  const consequentDynamic = Interface.dynamic(interfaceMap(ast.consequent));
+  const alternateDynamic = Interface.dynamic(interfaceMap(ast.alternate));
 
   const body =
     Type.isTruthy(testType) ?
@@ -555,7 +549,7 @@ function conditional(
       );
 
   const binder =
-    intfDynamic(testIntf) ? (
+    Interface.dynamic(testIntf) ? (
       Type.isTruthy(testType) ? (consequentDynamic ? 'flatMap' : 'map') :
       Type.isFalsy(testType) ? (alternateDynamic ? 'flatMap' : 'map') :
       (consequentDynamic || alternateDynamic) ? 'flatMap' : 'map'
@@ -810,7 +804,7 @@ function genNode(
       for (const node of ast.ok.body) {
         switch (node.type) {
           case 'ExpressionStatement': {
-            const dynamic = intfDynamic(interfaceMap(node.expression));
+            const dynamic = Interface.dynamic(interfaceMap(node.expression));
             if (dynamic) {
               hydrate(node.expression);
             }
@@ -850,7 +844,7 @@ function genNode(
     const ast = Parse.parseInlineLiveCodeNode(node);
     if (ast.type === 'ok') {
       const expr = ast.ok as ESTree.Expression;
-      const dynamic = intfDynamic(interfaceMap(expr));
+      const dynamic = Interface.dynamic(interfaceMap(expr));
       if (dynamic) {
         hydrate(expr);
       }

@@ -6,15 +6,13 @@ import Try from '../util/Try';
 import Signal from '../util/Signal';
 import * as PMAST from '../pmast';
 import * as ESTree from '../estree';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import { computeChildren } from '../highlight/prism';
 import * as Parse from '../parse';
 import Typecheck from '../typecheck';
 import * as Evaluate from '../evaluate';
 import initEnv from './initEnv';
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
 
 export const initInterfaceEnv: Typecheck.Env = initEnv.map(({ type, dynamic }) => (Try.ok({ type, dynamic })));
 export const initValueEnv: Evaluate.Env = initEnv.map(({ value }) => value);
@@ -97,7 +95,7 @@ export function renderNode(
     const rendered: React.ReactNode[] = [];
     for (const node of (code.ok as ESTree.Program).body) {
       if (node.type === 'ExpressionStatement') {
-        const dynamic = intfDynamic(interfaceMap.get(node.expression) ?? bug(`expected dynamic`));
+        const dynamic = Interface.dynamic(interfaceMap.get(node.expression) ?? bug(`expected dynamic`));
         const value = Evaluate.evaluateExpression(node.expression, interfaceMap, valueEnv);
         if (dynamic) {
           rendered.push(<div id={`__root${nextRootId[0]}`}>{
@@ -115,7 +113,7 @@ export function renderNode(
     const code = Parse.parseInlineLiveCodeNode(node);
     if (code.type !== 'ok') return null;
     const expr = code.ok as ESTree.Expression;
-    const dynamic = intfDynamic(interfaceMap.get(expr) ?? bug(`expected dynamic`));
+    const dynamic = Interface.dynamic(interfaceMap.get(expr) ?? bug(`expected dynamic`));
     const value = Evaluate.evaluateExpression(expr, interfaceMap, valueEnv);
     if (dynamic) {
       const elem = <span id={`__root${nextRootId[0]}`}>

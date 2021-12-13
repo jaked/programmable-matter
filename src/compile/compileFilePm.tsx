@@ -9,9 +9,9 @@ import * as model from '../model';
 import * as Name from '../util/Name';
 import Signal from '../util/Signal';
 import Try from '../util/Try';
-import { Interface, InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap, CompiledFile, CompiledNote, CompiledNotes, WritableContent } from '../model';
 import * as PMAST from '../pmast';
-import * as ESTree from '../estree';
 import * as Parse from '../parse';
 import * as Evaluate from '../evaluate';
 import * as Render from '../render';
@@ -20,12 +20,6 @@ import Type from '../type';
 import Typecheck from '../typecheck';
 
 import makeLink from '../components/makeLink';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
 
 function typecheckCode(
   node: PMAST.LiveCode,
@@ -296,9 +290,9 @@ export default function compileFilePm(
         const defaultIntf = exportInterface.get('default');
         if (defaultIntf) {
           if (debug) console.log(`defaultType`);
-          if (Type.isSubtype(intfType(defaultIntf), Type.layoutFunctionType)) {
+          if (Type.isSubtype(Interface.type(defaultIntf), Type.layoutFunctionType)) {
             if (debug) console.log(`isSubtype`);
-            const dynamic = intfDynamic(defaultIntf);
+            const dynamic = Interface.dynamic(defaultIntf);
             // TODO(jaked)
             // a dynamic layout forces the whole page to be dynamic, would that be ok?
             // also a static layout should be able to contain dynamic elements

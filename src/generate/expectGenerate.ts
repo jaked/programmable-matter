@@ -2,7 +2,8 @@ import * as Immutable from 'immutable';
 import * as JS from '@babel/types';
 import babelGenerator from '@babel/generator';
 
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import * as ESTree from '../estree';
 import Type from '../type';
 import * as Parse from '../parse';

@@ -3,19 +3,12 @@ import Try from '../util/Try';
 import { bug } from '../util/bug';
 import Type from '../type';
 import * as ESTree from '../estree';
-import { Interface, InterfaceMap } from '../model';
+import Interface from '../model/interface';
+import { InterfaceMap } from '../model';
 import { Env } from './env';
 import * as Error from './error';
 import { synth, synthAndThen } from './synth';
 import { narrowEnvironment } from './narrow';
-
-const intfType = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.type : Type.error(intf.err);
-
-const intfDynamic = (intf: Interface) =>
-  intf.type === 'ok' ? intf.ok.dynamic : false;
-
-const undefinedIntf: Interface = Try.ok({ type: Type.undefined, dynamic: false });
 
 function checkSubtype(
   ast: ESTree.Expression,
@@ -32,17 +25,17 @@ function checkSubtype(
       const envAlternate = narrowEnvironment(env, ast.test, false, interfaceMap);
 
       return synthAndThen(ast.test, env, interfaceMap, test => {
-        if (Type.isTruthy(intfType(test))) {
+        if (Type.isTruthy(Interface.type(test))) {
           const consequent = check(ast.consequent, envConsequent, type, interfaceMap);
           synth(ast.alternate, envAlternate, interfaceMap);
           if (consequent.type === 'err') return consequent;
-          const dynamic = intfDynamic(test) || consequent.ok.dynamic;
+          const dynamic = Interface.dynamic(test) || consequent.ok.dynamic;
           return Try.ok({ type: consequent.ok.type, dynamic });
-        } else if (Type.isFalsy(intfType(test))) {
+        } else if (Type.isFalsy(Interface.type(test))) {
           synth(ast.consequent, envConsequent, interfaceMap);
           const alternate = check(ast.alternate, envAlternate, type, interfaceMap);
           if (alternate.type === 'err') return alternate;
-          const dynamic = intfDynamic(test) || alternate.ok.dynamic;
+          const dynamic = Interface.dynamic(test) || alternate.ok.dynamic;
           return Try.ok({ type: alternate.ok.type, dynamic });
         } else {
           const consequent = check(ast.consequent, envConsequent, type, interfaceMap);
@@ -50,7 +43,7 @@ function checkSubtype(
           if (consequent.type === 'err') return consequent;
           if (alternate.type === 'err') return alternate;
           const unionType = Type.union(consequent.ok.type, alternate.ok.type);
-          const dynamic = intfDynamic(test) || consequent.ok.dynamic || alternate.ok.dynamic;
+          const dynamic = Interface.dynamic(test) || consequent.ok.dynamic || alternate.ok.dynamic;
           return Try.ok({ type: unionType, dynamic });
         }
       });
@@ -63,8 +56,8 @@ function checkSubtype(
         else
           return check(e, env, type, interfaceMap);
       });
-      const type = intfType(intfs[intfs.length - 1]);
-      const dynamic = intfs.some(intfDynamic);
+      const type = Interface.type(intfs[intfs.length - 1]);
+      const dynamic = intfs.some(Interface.dynamic);
       return Try.ok({ type, dynamic });
     }
 
@@ -94,17 +87,17 @@ function checkTuple(
         if (i < ast.elements.length) {
           const intf = check(ast.elements[i], env, expectedType, interfaceMap);
           if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
-            return undefinedIntf;
+            return Interface.undefined;
           else
             return intf;
         } else if (Type.isSubtype(Type.undefined, expectedType)) {
-          return undefinedIntf;
+          return Interface.undefined;
         } else
           return Error.withLocation(ast, 'expected ${type.elems.size} elements', interfaceMap);
       });
       const error = intfs.find(intf => intf.type === 'err');
       if (error) return error;
-      const dynamic = intfs.some(intfDynamic);
+      const dynamic = intfs.some(Interface.dynamic);
       return Try.ok({ type, dynamic });
     }
 
@@ -126,13 +119,13 @@ function checkArray(
       const intfs = ast.children.map(child => {
         const intf = check(child, env, expectedType, interfaceMap);
         if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
-          return undefinedIntf;
+          return Interface.undefined;
         else
           return intf;
       });
       const error = intfs.find(intf => intf.type === 'err');
       if (error) return error;
-      const dynamic = intfs.some(intfDynamic);
+      const dynamic = intfs.some(Interface.dynamic);
       return Try.ok({ type, dynamic });
     }
 
@@ -141,13 +134,13 @@ function checkArray(
       const intfs = ast.elements.map(child => {
         const intf = check(child, env, expectedType, interfaceMap);
         if (intf.type === 'err' && Type.isSubtype(Type.undefined, expectedType))
-          return undefinedIntf;
+          return Interface.undefined;
         else
           return intf;
       });
       const error = intfs.find(intf => intf.type === 'err');
       if (error) return error;
-      const dynamic = intfs.some(intfDynamic);
+      const dynamic = intfs.some(Interface.dynamic);
       return Try.ok({ type, dynamic });
     }
 
@@ -253,7 +246,7 @@ function checkFunction(
       if (body.type === 'BlockStatement') {
         if (body.body.length === 0) {
           if (Type.isSubtype(Type.undefined, type))
-            return undefinedIntf;
+            return Interface.undefined;
           else
             return Error.expectedType(ast, type, Type.undefined, interfaceMap);
 
@@ -269,7 +262,7 @@ function checkFunction(
                 bug(`unimplemented ${stmt.type}`);
             }
           });
-          const dynamic = intfs.some(intfDynamic);
+          const dynamic = intfs.some(Interface.dynamic);
           const lastIntf = intfs[intfs.length - 1];
           if (lastIntf.type === 'err' && type.ret !== Type.undefined) return lastIntf;
           return Try.ok({ type, dynamic });
@@ -278,7 +271,7 @@ function checkFunction(
       } else {
         const intf = check(body, env, type.ret, interfaceMap);
         if (intf.type === 'err' && type.ret !== Type.undefined) return intf;
-        else return Try.ok({ type, dynamic: intfDynamic(intf) });
+        else return Try.ok({ type, dynamic: Interface.dynamic(intf) });
       }
 
     default:
@@ -322,8 +315,8 @@ function checkIntersection(
   if (error) return error;
   let dynamic: boolean | undefined = undefined;
   intfs.forEach(intf => {
-    if (dynamic === undefined) dynamic = intfDynamic(intf);
-    else if (intfDynamic(intf) !== dynamic) bug(`expected uniform dynamic`);
+    if (dynamic === undefined) dynamic = Interface.dynamic(intf);
+    else if (Interface.dynamic(intf) !== dynamic) bug(`expected uniform dynamic`);
   });
   if (dynamic === undefined) bug(`expectd dynamic`);
   return Try.ok({ type, dynamic });
@@ -357,7 +350,7 @@ function checkObject(
         synth(prop.value, env, interfaceMap);
         // TODO(jaked) this highlights the error but we also need to skip evaluation
         Error.withLocation(prop.key, `duplicate property name '${name}'`, interfaceMap);
-        return undefinedIntf;
+        return Interface.undefined;
       } else {
         seen.add(name);
         const fieldType = type.fields.find(({ name: name2 }) => name2 === name)?.type;
@@ -366,7 +359,7 @@ function checkObject(
           // TODO(jaked) this highlights the error but we also need to skip evaluation
           Error.extraField(prop.key, name, interfaceMap);
           synth(prop.value, env, interfaceMap);
-          return undefinedIntf;
+          return Interface.undefined;
         }
       }
     });
@@ -390,7 +383,7 @@ function checkObject(
 
     const error = intfs.find(intf => intf.type === 'err');
     if (error) return error;
-    const dynamic = intfs.some(intfDynamic);
+    const dynamic = intfs.some(Interface.dynamic);
     return Try.ok({ type, dynamic })
   }
 
