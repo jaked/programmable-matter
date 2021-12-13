@@ -25,13 +25,14 @@ export default (interfaceMap: model.InterfaceMap) =>
           const spans: Span[] = [];
           computeJsSpans(code, interfaceMap, spans);
           for (const span of spans) {
-            ranges.push({
+            const range: Range = {
               anchor: { path, offset: span.start },
               focus: { path, offset: span.end },
               color: colorOfTokenType(span.tokenType),
-              status: span.status,
-              link: span.link
-            });
+            }
+            if ('status' in span) range.status = span.status;
+            if ('link' in span) range.link = span.link;
+            ranges.push(range);
           }
         })
       }

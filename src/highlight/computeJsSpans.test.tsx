@@ -27,30 +27,57 @@ export const H = {
   link: component('link'),
 }
 
-// render the text and spans into a list of nodes
+// render the text and spans into a tree of nodes
 // to make writing test cases easier
+// assume spans are well-nested, outer spans before inner spans
 function renderSpans(text: string, spans: Span[]) {
-  let nodes: React.ReactNode[] = [];
-  let lastOffset = 0;
+  spans = [
+    ...spans,
+    // sentinel so open spans are closed at end
+    { start: text.length, end: text.length, tokenType: 'default' as const }
+  ]
+
+  let stack: { span: Span, children: React.ReactNode[] }[] = [];
+  stack.push({
+    // dummy root, not closed by sentinel
+    span: { start: 0, end: text.length + 1, tokenType: 'default' },
+    children: []
+  });
+  let top = stack[stack.length - 1];
+
+  let textOffset = 0;
 
   for (const span of spans) {
-    if (lastOffset < span.start) {
-      nodes.push(text.slice(lastOffset, span.start))
+    // close open spans that don't enclose the current span
+    while (top.span.end <= span.start) {
+      if (textOffset < top.span.end) {
+        top.children.push(text.slice(textOffset, top.span.end));
+        textOffset = top.span.end;
+      }
+      stack.pop();
+      const newTop = stack[stack.length - 1];
+      newTop.children.push(
+        React.createElement(
+          H[top.span.tokenType],
+          { status: top.span.status, link: top.span.link },
+          ...top.children
+        )
+      );
+      top = newTop;
     }
-    nodes.push(
-      React.createElement(
-        H[span.tokenType],
-        { 'status': span.status, 'link': span.link},
-        text.slice(span.start, span.end)
-      )
-    );
-    lastOffset = span.end
+
+    if (textOffset < span.start) {
+      top.children.push(text.slice(textOffset, span.start));
+      textOffset = span.start;
+    }
+
+    stack.push({ span, children: [] });
+    top = stack[stack.length - 1];
   }
-  if (lastOffset < text.length) {
-    nodes.push(text.slice(lastOffset));
-  }
-  return nodes;
+
+  return React.createElement(React.Fragment, undefined, ...stack[0].children);
 }
+
 function expectHighlightExpr(
   expr: string,
   expected: React.ReactNode,
@@ -71,32 +98,32 @@ describe('objects', () => {
   it('highlights duplicate property name', () => {
     expectHighlightExpr(
       `{ foo: 7, foo: 9 }`,
-      [
-        <H.default>{'{'}</H.default>,
-        ' ',
-        <H.definition>foo</H.definition>,
-        ': ',
-        <H.number>7</H.number>,
-        ', ',
-        <H.definition status="duplicate property name 'foo'">foo</H.definition>,
-        ': ',
-        <H.number>9</H.number>,
-        ' ',
-        <H.default>{'}'}</H.default>
-      ]
+      <>
+        {'{ ' }
+        <H.definition>foo</H.definition>
+        {': '}
+        <H.number>7</H.number>
+        {', '}
+        <H.default status="duplicate property name 'foo'">
+          <H.definition>foo</H.definition>
+        </H.default>
+        {': '}
+        <H.number>9</H.number>
+        {' }'}
+      </>
     );
   });
 
   it('highlights shorthand property on error', () => {
     expectHighlightExpr(
       `{ foo }`,
-      [
-        <H.default>{'{'}</H.default>,
-        ' ',
-        <H.definition status="unbound identifier 'foo'">foo</H.definition>,
-        ' ',
-        <H.default>{'}'}</H.default>,
-      ]
+      <>
+        {'{ '}
+        <H.default status="unbound identifier 'foo'">
+          <H.definition>foo</H.definition>
+        </H.default>
+        {' }'}
+      </>
     );
   });
 });
@@ -105,11 +132,17 @@ describe('types', () => {
   it('highlights unknown types', () => {
     expectHighlightExpr(
       `x as foo`,
-      [
-        <H.variable status="unbound identifier 'x'">x</H.variable>,
-        ' as ',
-        <H.variable status="unknown abstract type 'foo'">foo</H.variable>
-      ]
+      <>
+        <H.default status="unbound identifier 'x'">
+          <H.default status="unbound identifier 'x'">
+            <H.variable>x</H.variable>
+          </H.default>
+          {' as '}
+          <H.default status="unknown abstract type 'foo'">
+            <H.variable>foo</H.variable>
+          </H.default>
+        </H.default>
+      </>
     );
   });
 });
