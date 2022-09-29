@@ -46,7 +46,7 @@
     "@babel/generator": "^7.13.9",
     "@babel/parser": "^7.6.4",
     "@babel/types": "^7.13.0",
-    "@observablehq/plot": "^0.1.0",
+    "@observablehq/plot": "^0.6.0",
     "async-mutex": "^0.3.2",
     "atomically": "^1.7.0",
     "electron-devtools-installer": "^3.2.0",
